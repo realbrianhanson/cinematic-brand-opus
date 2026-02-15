@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Flame, Zap, Award, Sparkles, Quote } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
+import DrawLine from "./DrawLine";
 
 const timelineData = [
   {
@@ -153,6 +154,13 @@ const Story = () => {
           background:
             "radial-gradient(ellipse 50% 50% at 85% 10%, rgba(212,175,85,0.04), transparent)",
         }}
+      />
+
+      {/* Decorative S-curve */}
+      <DrawLine
+        visible={headerVisible}
+        d="M200,0 Q250,200 200,400"
+        className="absolute top-0 right-[10%] w-[200px] h-full pointer-events-none opacity-30"
       />
 
       <div

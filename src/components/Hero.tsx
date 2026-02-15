@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import ParticleCanvas from "./ParticleCanvas";
 import MagneticButton from "./MagneticButton";
 import TextScramble from "./TextScramble";
+import DrawLine from "./DrawLine";
 
 const headlineLines = [
   { text: "AI Doesn't", gold: false, italic: false, scramble: false, scrambleDelay: 0 },
@@ -92,6 +93,18 @@ const Hero = () => {
           transform: "rotate(18deg)",
         }} />
       </div>
+
+      {/* Corner accent lines */}
+      <DrawLine
+        visible={visible}
+        d="M380,0 L400,0 L400,20"
+        className="absolute top-0 right-0 w-[200px] h-[200px] lg:w-[400px] lg:h-[400px] pointer-events-none z-10"
+      />
+      <DrawLine
+        visible={visible}
+        d="M0,380 L0,400 L20,400"
+        className="absolute bottom-0 left-0 w-[200px] h-[200px] lg:w-[400px] lg:h-[400px] pointer-events-none z-10"
+      />
 
       {/* Content */}
       <div
