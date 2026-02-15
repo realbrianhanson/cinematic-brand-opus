@@ -12,8 +12,16 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      display: ["'Instrument Serif'", "serif"],
+      body: ["'Outfit'", "sans-serif"],
+    },
     extend: {
       colors: {
+        gold: {
+          DEFAULT: "#D4AF55",
+          light: "#E8C96A",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

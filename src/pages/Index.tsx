@@ -1,12 +1,42 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+const sections = [
+  { id: "nav", label: "Nav" },
+  { id: "hero", label: "Hero" },
+  { id: "proof", label: "Proof Bar" },
+  { id: "story", label: "Story" },
+  { id: "expertise", label: "Expertise" },
+  { id: "stats", label: "Stats" },
+  { id: "event", label: "Event CTA" },
+  { id: "speaking", label: "Speaking" },
+  { id: "cta", label: "Final CTA" },
+  { id: "footer", label: "Footer" },
+];
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen">
+      {sections.map(({ id, label }) => (
+        <section
+          key={id}
+          id={id}
+          className="flex items-center justify-center border-b border-card-border py-32 first:py-20"
+          style={{ borderColor: "var(--card-border)" }}
+        >
+          <div className="text-center">
+            <span
+              className="font-body text-xs uppercase tracking-[0.3em]"
+              style={{ color: "var(--gold)" }}
+            >
+              Section
+            </span>
+            <h2
+              className="mt-2 font-display text-5xl text-foreground"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {label}
+            </h2>
+          </div>
+        </section>
+      ))}
     </div>
   );
 };
