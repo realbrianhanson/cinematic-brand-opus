@@ -12,15 +12,16 @@ const headlineLines = [
   { text: "Inefficiency.", gold: true, italic: true, scramble: true, scrambleDelay: 1250 },
 ];
 
-const Hero = () => {
+interface HeroProps {
+  loaded?: boolean;
+}
+
+const Hero = ({ loaded = true }: HeroProps) => {
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const visible = loaded;
 
-  useEffect(() => {
-    setVisible(true);
-  }, []);
 
   useEffect(() => {
     const onScroll = () => {
