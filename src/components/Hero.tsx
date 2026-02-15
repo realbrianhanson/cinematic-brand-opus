@@ -136,7 +136,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
         {/* Headline */}
         <div style={{ maxWidth: 1000 }}>
           {headlineLines.map((line, i) => (
-            <div key={i} className={line.spring ? "" : "overflow-hidden"}>
+            <div key={i} style={{ overflow: line.spring ? "visible" : "hidden", paddingTop: "0.1em" }}>
               <div
                 style={{
                   opacity: visible ? 1 : 0,
