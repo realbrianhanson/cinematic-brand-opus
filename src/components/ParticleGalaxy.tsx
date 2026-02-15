@@ -29,7 +29,7 @@ const vertexShader = `
     gl_Position = projectedPosition;
 
     // Size attenuation
-    gl_PointSize = aSize * uPixelRatio * pulse * (1.0 / -viewPosition.z) * 45.0;
+    gl_PointSize = aSize * uPixelRatio * pulse * (1.0 / -viewPosition.z) * 18.0;
     gl_PointSize = max(gl_PointSize, 1.0);
 
     vColor = color;
@@ -64,7 +64,7 @@ const ParticleGalaxy = () => {
     // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(0, 1.2, 3.5);
+    camera.position.set(0, 1.8, 5.5);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -103,7 +103,7 @@ const ParticleGalaxy = () => {
       colors[i3 + 1] = c.g;
       colors[i3 + 2] = c.b;
 
-      sizes[i] = 0.5 + Math.random() * 3.0;
+      sizes[i] = 0.3 + Math.random() * 1.5;
       randoms[i] = Math.random();
     }
 
@@ -157,7 +157,7 @@ const ParticleGalaxy = () => {
 
       // Subtle camera sway based on mouse
       camera.position.x += (mouseX * 0.3 - camera.position.x) * 0.02;
-      camera.position.y += (1.2 - mouseY * 0.2 - camera.position.y) * 0.02;
+      camera.position.y += (1.8 - mouseY * 0.2 - camera.position.y) * 0.02;
       camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
@@ -181,8 +181,8 @@ const ParticleGalaxy = () => {
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0"
-      style={{ opacity: 0.7, pointerEvents: "auto" }}
+      className="absolute inset-0 z-0"
+      style={{ opacity: 0.45, pointerEvents: "auto" }}
     />
   );
 };
