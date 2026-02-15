@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import ParticleCanvas from "./ParticleCanvas";
 import MagneticButton from "./MagneticButton";
-import TextScramble from "./TextScramble";
+import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
 
 const headlineLines = [
-  { text: "AI Doesn't", gold: false, italic: false, scramble: false, scrambleDelay: 0 },
-  { text: "Replace People.", gold: false, italic: false, scramble: false, scrambleDelay: 0 },
-  { text: "It Replaces", gold: true, italic: true, scramble: true, scrambleDelay: 1100 },
-  { text: "Inefficiency.", gold: true, italic: true, scramble: true, scrambleDelay: 1250 },
+  { text: "AI Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
+  { text: "Replace People.", gold: false, italic: false, spring: false, springDelay: 0 },
+  { text: "It Replaces", gold: true, italic: true, spring: true, springDelay: 0.9 },
+  { text: "Inefficiency.", gold: true, italic: true, spring: true, springDelay: 1.1 },
 ];
 
 interface HeroProps {
@@ -158,8 +158,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
                     }),
                   }}
                 >
-                  {line.scramble ? (
-                    <TextScramble text={line.text} trigger={visible} delay={line.scrambleDelay} />
+                  {line.spring ? (
+                    <SpringText text={line.text} visible={visible} delay={line.springDelay} />
                   ) : (
                     line.text
                   )}
