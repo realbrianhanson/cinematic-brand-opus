@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Sparkles, Mic } from "lucide-react";
-import ParticleGalaxy from "./ParticleGalaxy";
+
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
@@ -45,8 +45,21 @@ const Hero = ({ loaded = true }: HeroProps) => {
       ref={sectionRef}
       className="relative min-h-screen flex items-center overflow-hidden"
     >
-      {/* BG Layer 1: Particles */}
-      <ParticleGalaxy />
+      {/* BG Layer 1: Video */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute w-full h-full object-cover"
+          style={{ opacity: 0.35 }}
+          src="/videos/hero-bg.mp4"
+        />
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(180deg, rgba(7,7,14,0.6) 0%, rgba(7,7,14,0.85) 100%)",
+        }} />
+      </div>
 
       {/* BG Layer 2: Rotating gradient mesh */}
       <div
