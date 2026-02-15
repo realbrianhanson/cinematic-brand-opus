@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
+import AmbientOrbs from "@/components/AmbientOrbs";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
@@ -34,6 +35,7 @@ const Index = () => {
           transition: "opacity 0.5s ease 0.2s",
         }}
       >
+        <AmbientOrbs />
         <CustomCursor />
         <ScrollProgress />
         <Nav loaded={loaded} />
