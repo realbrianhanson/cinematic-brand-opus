@@ -1,10 +1,9 @@
 import CustomCursor from "@/components/CustomCursor";
 import ScrollProgress from "@/components/ScrollProgress";
 import Nav from "@/components/Nav";
+import Hero from "@/components/Hero";
 
 const sections = [
-  { id: "hero", label: "Hero" },
-  { id: "hero", label: "Hero" },
   { id: "proof", label: "Proof Bar" },
   { id: "story", label: "Story" },
   { id: "expertise", label: "Expertise" },
@@ -21,6 +20,7 @@ const Index = () => {
       <CustomCursor />
       <ScrollProgress />
       <Nav />
+      <Hero />
       {sections.map(({ id, label }) => (
         <section
           key={id}
