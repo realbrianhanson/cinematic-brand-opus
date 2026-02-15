@@ -1,3 +1,6 @@
+import CustomCursor from "@/components/CustomCursor";
+import ScrollProgress from "@/components/ScrollProgress";
+
 const sections = [
   { id: "nav", label: "Nav" },
   { id: "hero", label: "Hero" },
@@ -14,6 +17,8 @@ const sections = [
 const Index = () => {
   return (
     <div className="min-h-screen">
+      <CustomCursor />
+      <ScrollProgress />
       {sections.map(({ id, label }) => (
         <section
           key={id}
