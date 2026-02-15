@@ -5,10 +5,10 @@ import Hero from "@/components/Hero";
 import ProofBar from "@/components/ProofBar";
 import Story from "@/components/Story";
 import Expertise from "@/components/Expertise";
+import Stats from "@/components/Stats";
 
 const sections = [
-  { id: "stats", label: "Stats" },
-  { id: "stats", label: "Stats" },
+  { id: "event", label: "Event CTA" },
   { id: "event", label: "Event CTA" },
   { id: "speaking", label: "Speaking" },
   { id: "cta", label: "Final CTA" },
@@ -25,6 +25,7 @@ const Index = () => {
       <ProofBar />
       <Story />
       <Expertise />
+      <Stats />
       {sections.map(({ id, label }) => (
         <section
           key={id}
