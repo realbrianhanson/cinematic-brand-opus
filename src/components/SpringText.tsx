@@ -4,9 +4,10 @@ interface SpringTextProps {
   delay?: number;
   className?: string;
   style?: React.CSSProperties;
+  charStyle?: React.CSSProperties;
 }
 
-const SpringText = ({ text, visible, delay = 0, className, style }: SpringTextProps) => {
+const SpringText = ({ text, visible, delay = 0, className, style, charStyle }: SpringTextProps) => {
   return (
     <span className={className} style={{ ...style, display: "inline-block" }}>
       {text.split("").map((char, i) => (
@@ -20,6 +21,7 @@ const SpringText = ({ text, visible, delay = 0, className, style }: SpringTextPr
               : "translateY(80px) rotateX(-40deg)",
             transition: `all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay + i * 0.025}s`,
             transformOrigin: "bottom center",
+            ...charStyle,
           }}
         >
           {char === " " ? "\u00A0" : char}

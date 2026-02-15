@@ -110,7 +110,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
       {/* Content */}
       <div
         ref={contentRef}
-        className="relative z-10 w-full mx-auto px-6 lg:px-14 pt-28 pb-20"
+        className="relative z-20 w-full mx-auto px-6 lg:px-14 pt-28 pb-20"
         style={{ maxWidth: 1440 }}
       >
         {/* Overline */}
@@ -136,7 +136,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
         {/* Headline */}
         <div style={{ maxWidth: 1000 }}>
           {headlineLines.map((line, i) => (
-            <div key={i} className="overflow-hidden">
+            <div key={i} className={line.spring ? "" : "overflow-hidden"}>
               <div
                 style={{
                   opacity: visible ? 1 : 0,
@@ -149,17 +149,20 @@ const Hero = ({ loaded = true }: HeroProps) => {
                   style={{
                     fontSize: "clamp(3rem, 8vw, 7.5rem)",
                     lineHeight: 0.95,
-                    ...(line.gold ? {
-                      background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    } : {
-                      color: "#fff",
-                    }),
+                    ...(!line.gold ? { color: "#fff" } : {}),
                   }}
                 >
                   {line.spring ? (
-                    <SpringText text={line.text} visible={visible} delay={line.springDelay} />
+                    <SpringText
+                      text={line.text}
+                      visible={visible}
+                      delay={line.springDelay}
+                      charStyle={line.gold ? {
+                        background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      } : undefined}
+                    />
                   ) : (
                     line.text
                   )}
