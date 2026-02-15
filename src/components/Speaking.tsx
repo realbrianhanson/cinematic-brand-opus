@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Star } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
+import brianHeadshot from "@/assets/brian-headshot.jpeg";
 
 const topics = [
   {
@@ -126,10 +127,14 @@ const Speaking = () => {
               <div
                 className="relative w-full overflow-hidden"
                 style={{
-                  aspectRatio: "4/3",
-                  background: "linear-gradient(160deg, #141428, #0f0f22)",
+                  aspectRatio: "3/4",
                 }}
               >
+                <img
+                  src={brianHeadshot}
+                  alt="Brian Hanson"
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute top-0 right-0">
                   <div style={{ position: "absolute", top: 0, right: 0, width: 16, height: 2, background: "#D4AF55" }} />
                   <div style={{ position: "absolute", top: 0, right: 0, width: 2, height: 16, background: "#D4AF55" }} />
@@ -138,13 +143,6 @@ const Speaking = () => {
                   <div style={{ position: "absolute", bottom: 0, left: 0, width: 16, height: 2, background: "rgba(212,175,85,0.3)" }} />
                   <div style={{ position: "absolute", bottom: 0, left: 0, width: 2, height: 16, background: "rgba(212,175,85,0.3)" }} />
                 </div>
-
-                <span
-                  className="absolute bottom-3 left-3 font-body"
-                  style={{ fontSize: 10, color: "rgba(212,175,85,0.5)" }}
-                >
-                  Your stage photo here
-                </span>
               </div>
 
               {/* Testimonial card */}
