@@ -13,6 +13,7 @@ import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
+import SectionReveal from "@/components/SectionReveal";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
@@ -39,14 +40,14 @@ const Index = () => {
         <Hero loaded={loaded} />
         <ProofBar />
         <Divider />
-        <Story />
+        <SectionReveal><Story /></SectionReveal>
         <Divider />
         <Expertise />
         <Stats />
         <Divider />
-        <EventCTA />
+        <SectionReveal><EventCTA /></SectionReveal>
         <Divider />
-        <Speaking />
+        <SectionReveal><Speaking /></SectionReveal>
         <Divider />
         <FinalCTA />
         <Footer />
