@@ -67,12 +67,15 @@ const TimelineEntry = ({
   return (
     <div
       ref={ref}
-      className="relative pl-10 md:pl-20 pb-16 last:pb-0"
+      className="relative pl-10 md:pl-20 pb-16 last:pb-0 cursor-default"
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(50px)",
         transition: `all 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
+        background: entry.accent ? "rgba(212,175,85,0.025)" : "transparent",
       }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = visible ? "translateX(2px)" : "translateY(50px)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = visible ? "translateX(0)" : "translateY(50px)"; }}
     >
       <div
         className="absolute left-0 md:left-8 top-1 flex items-center justify-center group transition-shadow duration-300 hover:shadow-[0_0_20px_rgba(212,175,85,0.2)]"
@@ -115,7 +118,7 @@ const TimelineEntry = ({
         <div
           className="lg:col-span-9"
           style={{
-            borderLeft: entry.accent ? "1px solid rgba(212,175,85,0.25)" : "none",
+            borderLeft: entry.accent ? "1px solid rgba(212,175,85,0.35)" : "none",
             paddingLeft: entry.accent ? 20 : 0,
           }}
         >
