@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
+import eventCrowd from "@/assets/event-crowd.jpg";
 
 const days = [
   {
@@ -171,6 +172,19 @@ const EventCTA = () => {
           <p className="font-body mt-6 mx-auto" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "rgba(255,255,255,0.45)", maxWidth: 560, ...revealStyle(headerVisible, 0.2) }}>
             Simple, push-button AI solutions with high impact. No tech background needed...
           </p>
+        </div>
+
+        {/* Event photo */}
+        <div className="relative w-full overflow-hidden mb-16 rounded" style={{ maxHeight: 420 }}>
+          <img
+            src={eventCrowd}
+            alt="Brian Hanson's AI for Business live event with hundreds of attendees"
+            className="w-full h-full object-cover object-center"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: "linear-gradient(to top, #07070E, transparent 40%)",
+          }} />
         </div>
 
         {/* Day cards */}
