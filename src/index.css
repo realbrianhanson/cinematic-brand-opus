@@ -175,3 +175,13 @@
 @keyframes heroShine {
   to { transform: translateX(100%); }
 }
+
+/* Proof bar marquee */
+@keyframes proofMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-25%); }
+}
+.proof-marquee {
+  animation: proofMarquee 30s linear infinite;
+  width: max-content;
+}
