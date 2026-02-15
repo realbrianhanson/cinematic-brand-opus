@@ -39,10 +39,10 @@ const TopicCard = ({ topic, index }: { topic: (typeof topics)[0]; index: number 
       ref={ref}
       className="p-6"
       style={{
-        borderLeft: `2px solid ${hovered ? "#D4AF55" : "rgba(212,175,85,0.2)"}`,
-        background: hovered ? "rgba(212,175,85,0.03)" : "rgba(255,255,255,0.015)",
+        borderLeft: `2px solid ${hovered ? "#D4AF55" : "rgba(212,175,85,0.15)"}`,
+        background: hovered ? "rgba(212,175,85,0.02)" : "rgba(255,255,255,0.015)",
         transform: visible
-          ? hovered ? "translateX(6px)" : "translateX(0)"
+          ? hovered ? "translateX(8px)" : "translateX(0)"
           : "translateY(50px)",
         opacity: visible ? 1 : 0,
         transition: `all 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,

@@ -15,7 +15,7 @@ const useCounter = (end: number, duration: number, start: boolean) => {
     const t0 = performance.now();
     const tick = (now: number) => {
       const p = Math.min((now - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
+      const eased = 1 - Math.pow(1 - p, 4);
       setVal(Math.round(eased * end));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
