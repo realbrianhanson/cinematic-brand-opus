@@ -185,3 +185,16 @@
   animation: proofMarquee 30s linear infinite;
   width: max-content;
 }
+
+@keyframes orbFloat0 {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0) translateX(0); }
+  50% { transform: translate(-50%, -50%) translateY(-40px) translateX(20px); }
+}
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0) translateX(0); }
+  50% { transform: translate(-50%, -50%) translateY(30px) translateX(-30px); }
+}
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0) translateX(0); }
+  50% { transform: translate(-50%, -50%) translateY(-25px) translateX(15px); }
+}
