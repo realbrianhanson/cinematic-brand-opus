@@ -10,6 +10,7 @@ import EventCTA from "@/components/EventCTA";
 import Speaking from "@/components/Speaking";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
+import Divider from "@/components/Divider";
 
 const Index = () => {
   return (
@@ -19,11 +20,16 @@ const Index = () => {
       <Nav />
       <Hero />
       <ProofBar />
+      <Divider />
       <Story />
+      <Divider />
       <Expertise />
       <Stats />
+      <Divider />
       <EventCTA />
+      <Divider />
       <Speaking />
+      <Divider />
       <FinalCTA />
       <Footer />
     </div>
