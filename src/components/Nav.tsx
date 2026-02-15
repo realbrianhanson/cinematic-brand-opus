@@ -11,9 +11,23 @@ const navLinks = [
 const Nav = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 80);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 80);
+
+      // Track active section
+      const sections = navLinks.map((l) => l.href.slice(1));
+      let current = "";
+      for (const id of sections) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= 120) {
+          current = id;
+        }
+      }
+      setActiveSection(current);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -81,7 +95,9 @@ const Nav = () => {
                   style={{
                     fontSize: 10,
                     letterSpacing: "0.18em",
-                    color: "rgba(255,255,255,0.45)",
+                    color: activeSection === link.href.slice(1)
+                      ? "#D4AF55"
+                      : "rgba(255,255,255,0.45)",
                   }}
                 >
                   {link.label}
@@ -104,7 +120,7 @@ const Nav = () => {
               target="_blank"
               rel="noopener noreferrer"
               data-hover
-              className="inline-flex items-center gap-1.5 font-body font-bold uppercase transition-opacity duration-200 hover:opacity-90"
+              className="inline-flex items-center gap-1.5 font-body font-bold uppercase transition-opacity duration-300 hover:opacity-90"
               style={{
                 fontSize: 11,
                 letterSpacing: "0.1em",

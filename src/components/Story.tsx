@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Flame, Zap, Award, Sparkles, Quote } from "lucide-react";
+import { useReveal, revealStyle } from "@/hooks/useReveal";
 
 const timelineData = [
   {
@@ -69,10 +70,9 @@ const TimelineEntry = ({
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(50px)",
-        transition: `all 0.7s cubic-bezier(0.22,1,0.36,1) ${index * 0.08}s`,
+        transition: `all 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
       }}
     >
-      {/* Icon node on line */}
       <div
         className="absolute left-0 md:left-8 top-1 flex items-center justify-center group transition-shadow duration-300 hover:shadow-[0_0_20px_rgba(212,175,85,0.2)]"
         style={{
@@ -85,9 +85,7 @@ const TimelineEntry = ({
         <Icon size={14} color="#D4AF55" />
       </div>
 
-      {/* Content grid */}
       <div className="grid lg:grid-cols-12 gap-4 lg:gap-8">
-        {/* Left: tag + time */}
         <div className="lg:col-span-3 flex flex-col gap-2">
           <span
             className="inline-block self-start font-body font-bold uppercase"
@@ -113,7 +111,6 @@ const TimelineEntry = ({
           </span>
         </div>
 
-        {/* Right: text */}
         <div
           className="lg:col-span-9"
           style={{
@@ -141,13 +138,15 @@ const TimelineEntry = ({
 };
 
 const Story = () => {
+  const { ref: headerRef, visible: headerVisible } = useReveal();
+  const { ref: quoteRef, visible: quoteVisible } = useReveal();
+
   return (
     <section
       id="story"
       className="relative py-36 lg:py-44"
       style={{ background: "#07070E" }}
     >
-      {/* Radial gradient overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -161,10 +160,9 @@ const Story = () => {
         style={{ maxWidth: 1440 }}
       >
         {/* Header */}
-        <div className="grid lg:grid-cols-12 gap-8 mb-24">
+        <div ref={headerRef} className="grid lg:grid-cols-12 gap-8 mb-24">
           <div className="lg:col-span-7">
-            {/* Overline */}
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
               <div
                 style={{
                   width: 60,
@@ -183,13 +181,13 @@ const Story = () => {
                 The Story
               </span>
             </div>
-            {/* Headline */}
             <h2
               className="font-display"
               style={{
                 fontSize: "clamp(2.5rem, 5vw, 4.2rem)",
                 lineHeight: 1.05,
                 color: "#fff",
+                ...revealStyle(headerVisible, 0.1),
               }}
             >
               From Nothing to{" "}
@@ -206,7 +204,7 @@ const Story = () => {
             </h2>
           </div>
 
-          <div className="lg:col-span-5 flex items-end">
+          <div className="lg:col-span-5 flex items-end" style={revealStyle(headerVisible, 0.2)}>
             <p
               className="font-body"
               style={{
@@ -223,7 +221,6 @@ const Story = () => {
 
         {/* Timeline */}
         <div className="relative pl-6 md:pl-16">
-          {/* Vertical line */}
           <div
             className="absolute top-0 left-3.5 md:left-[2.35rem] w-px"
             style={{
@@ -239,22 +236,24 @@ const Story = () => {
         </div>
 
         {/* Pull quote */}
-        <div className="mt-24 flex flex-col items-center text-center max-w-2xl mx-auto">
+        <div ref={quoteRef} className="mt-24 flex flex-col items-center text-center max-w-2xl mx-auto">
           <div
             style={{
               width: 48,
               height: 1,
               background: "linear-gradient(90deg, transparent, #D4AF55, transparent)",
               marginBottom: 24,
+              ...revealStyle(quoteVisible, 0),
             }}
           />
-          <Quote size={28} color="rgba(212,175,85,0.4)" className="mb-5" />
+          <Quote size={28} color="rgba(212,175,85,0.4)" className="mb-5" style={revealStyle(quoteVisible, 0.1)} />
           <blockquote
             className="font-display italic"
             style={{
               fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
               lineHeight: 1.5,
               color: "rgba(255,255,255,0.75)",
+              ...revealStyle(quoteVisible, 0.2),
             }}
           >
             "I didn't come from money, connections, or a degree. I came from

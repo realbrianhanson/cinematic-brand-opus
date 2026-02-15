@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Brain, Target, Code2, Users } from "lucide-react";
+import { useReveal, revealStyle } from "@/hooks/useReveal";
 
 const cards = [
   {
@@ -51,7 +52,7 @@ const TiltCard = ({
           obs.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.12 }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -78,18 +79,17 @@ const TiltCard = ({
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden transition-all duration-500"
+      className="relative overflow-hidden"
       style={{
         padding: 0,
         border: `1px solid ${hovered ? "rgba(212,175,85,0.25)" : "rgba(255,255,255,0.06)"}`,
         opacity: visible ? 1 : 0,
         transform: visible
           ? `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`
-          : "translateY(40px)",
+          : "translateY(50px)",
         transition: hovered
-          ? "border-color 0.5s"
-          : "border-color 0.5s, opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1)",
-        transitionDelay: visible && !hovered ? `${index * 0.1}s` : "0s",
+          ? "border-color 0.5s, transform 0.1s"
+          : `border-color 0.5s, opacity 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s, transform 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
         willChange: "transform",
       }}
       onMouseMove={onMove}
@@ -97,7 +97,6 @@ const TiltCard = ({
       onMouseLeave={onLeave}
       data-hover
     >
-      {/* Glow overlay */}
       {hovered && (
         <div
           className="absolute inset-0 pointer-events-none"
@@ -108,7 +107,6 @@ const TiltCard = ({
       )}
 
       <div className="relative p-8 lg:p-10">
-        {/* Ghost number */}
         <span
           className="absolute top-4 right-6 font-display italic select-none"
           style={{ fontSize: 70, color: "rgba(212,175,85,0.04)", lineHeight: 1 }}
@@ -146,13 +144,14 @@ const TiltCard = ({
 };
 
 const Expertise = () => {
+  const { ref: headerRef, visible: headerVisible } = useReveal();
+
   return (
     <section
       id="expertise"
       className="relative py-36 lg:py-44"
       style={{ background: "#0A0B12" }}
     >
-      {/* Grid texture overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -164,9 +163,9 @@ const Expertise = () => {
 
       <div className="relative mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8">
+        <div ref={headerRef} className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8">
           <div>
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
               <div
                 style={{
                   width: 60,
@@ -187,6 +186,7 @@ const Expertise = () => {
                 fontSize: "clamp(2.5rem, 5vw, 4.2rem)",
                 lineHeight: 1.05,
                 color: "#fff",
+                ...revealStyle(headerVisible, 0.1),
               }}
             >
               Where AI Meets{" "}
@@ -210,6 +210,7 @@ const Expertise = () => {
               lineHeight: 1.7,
               color: "rgba(255,255,255,0.4)",
               maxWidth: 380,
+              ...revealStyle(headerVisible, 0.2),
             }}
           >
             Four disciplines. One unfair advantage. The intersection most

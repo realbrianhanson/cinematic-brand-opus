@@ -8,6 +8,10 @@ const CustomCursor = () => {
   const hovering = useRef(false);
 
   useEffect(() => {
+    // Skip on touch devices
+    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (isTouch) return;
+
     const mq = window.matchMedia("(min-width: 1024px)");
     if (!mq.matches) return;
 
