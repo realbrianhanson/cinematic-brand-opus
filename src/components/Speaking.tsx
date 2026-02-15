@@ -147,7 +147,7 @@ const Speaking = () => {
 
               {/* Testimonial card */}
               <div
-                className="relative lg:absolute lg:-bottom-10 lg:-left-10 mt-6 lg:mt-0 p-6"
+                className="relative lg:absolute lg:-bottom-10 lg:-right-10 mt-6 lg:mt-0 p-6"
                 style={{
                   maxWidth: 300,
                   background: "rgba(10,10,18,0.95)",
