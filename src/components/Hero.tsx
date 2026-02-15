@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Sparkles, Mic } from "lucide-react";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleGalaxy from "./ParticleGalaxy";
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
@@ -46,7 +46,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
       className="relative min-h-screen flex items-center overflow-hidden"
     >
       {/* BG Layer 1: Particles */}
-      <ParticleCanvas />
+      <ParticleGalaxy />
 
       {/* BG Layer 2: Rotating gradient mesh */}
       <div
