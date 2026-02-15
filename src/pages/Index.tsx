@@ -15,7 +15,6 @@ import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
-import GiantText from "@/components/GiantText";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
@@ -43,17 +42,13 @@ const Index = () => {
         <Hero loaded={loaded} />
         <ProofBar />
         <Divider />
-        <GiantText text="Story" align="left" />
         <SectionReveal><Story /></SectionReveal>
         <Divider />
-        <GiantText text="Expertise" align="right" />
         <Expertise />
         <Stats />
         <Divider />
-        <GiantText text="AI Event" align="left" />
         <SectionReveal><EventCTA /></SectionReveal>
         <Divider />
-        <GiantText text="Speaking" align="right" />
         <SectionReveal><Speaking /></SectionReveal>
         <Divider />
         <FinalCTA />
