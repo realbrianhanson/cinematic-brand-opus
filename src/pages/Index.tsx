@@ -15,6 +15,7 @@ import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
+import FilmGrain from "@/components/FilmGrain";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
@@ -36,6 +37,7 @@ const Index = () => {
         }}
       >
         <AmbientOrbs />
+        <FilmGrain />
         <CustomCursor />
         <ScrollProgress />
         <Nav loaded={loaded} />
