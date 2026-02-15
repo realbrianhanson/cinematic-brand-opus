@@ -8,12 +8,8 @@ import Expertise from "@/components/Expertise";
 import Stats from "@/components/Stats";
 import EventCTA from "@/components/EventCTA";
 import Speaking from "@/components/Speaking";
-
-const sections = [
-  { id: "cta", label: "Final CTA" },
-  { id: "cta", label: "Final CTA" },
-  { id: "footer", label: "Footer" },
-];
+import FinalCTA from "@/components/FinalCTA";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
@@ -28,29 +24,8 @@ const Index = () => {
       <Stats />
       <EventCTA />
       <Speaking />
-      {sections.map(({ id, label }) => (
-        <section
-          key={id}
-          id={id}
-          className="flex items-center justify-center border-b border-card-border py-32 first:py-20"
-          style={{ borderColor: "var(--card-border)" }}
-        >
-          <div className="text-center">
-            <span
-              className="font-body text-xs uppercase tracking-[0.3em]"
-              style={{ color: "var(--gold)" }}
-            >
-              Section
-            </span>
-            <h2
-              className="mt-2 font-display text-5xl text-foreground"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {label}
-            </h2>
-          </div>
-        </section>
-      ))}
+      <FinalCTA />
+      <Footer />
     </div>
   );
 };
