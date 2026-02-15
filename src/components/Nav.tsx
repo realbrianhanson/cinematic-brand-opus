@@ -8,7 +8,11 @@ const navLinks = [
   { label: "Results", href: "#results" },
 ];
 
-const Nav = () => {
+interface NavProps {
+  loaded?: boolean;
+}
+
+const Nav = ({ loaded = true }: NavProps) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
@@ -48,6 +52,9 @@ const Nav = () => {
           backdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           WebkitBackdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           borderBottom: `1px solid ${scrolled ? "rgba(212,175,85,0.06)" : "transparent"}`,
+          opacity: loaded ? 1 : 0,
+          transform: loaded ? "translateY(0)" : "translateY(-20px)",
+          transition: "all 0.5s cubic-bezier(0.22,1,0.36,1)",
         }}
       >
         <div
