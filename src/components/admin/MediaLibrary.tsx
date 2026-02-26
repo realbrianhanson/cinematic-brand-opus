@@ -41,11 +41,11 @@ const MediaLibrary = () => {
       if (error) throw error;
       setFiles((data as MediaItem[]) || []);
     } catch (err: any) {
-      toast({ title: "Failed to load files", description: err.message, variant: "destructive" });
+      console.error("Failed to load files:", err.message);
     } finally {
       setLoading(false);
     }
-  }, [folder, toast]);
+  }, [folder]);
 
   useEffect(() => {
     fetchFiles();
