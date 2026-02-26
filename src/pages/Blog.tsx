@@ -6,7 +6,7 @@ import Nav from "@/components/Nav";
 import CustomCursor from "@/components/CustomCursor";
 
 const Blog = () => {
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading, isError } = useQuery({
     queryKey: ["public-posts"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -17,6 +17,8 @@ const Blog = () => {
       if (error) throw error;
       return data ?? [];
     },
+    retry: 2,
+    staleTime: 30_000,
   });
 
   return (
@@ -83,7 +85,16 @@ const Blog = () => {
           </p>
         )}
 
-        {!isLoading && posts?.length === 0 && (
+        {isError && !isLoading && (
+          <p
+            className="font-body"
+            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+          >
+            Failed to load posts. Please refresh the page.
+          </p>
+        )}
+
+        {!isLoading && !isError && posts?.length === 0 && (
           <p
             className="font-body"
             style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
