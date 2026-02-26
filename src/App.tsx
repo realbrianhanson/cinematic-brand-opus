@@ -13,6 +13,7 @@ import PostsManager from "./components/admin/PostsManager";
 import PostEditor from "./components/admin/PostEditor";
 import CategoriesManager from "./components/admin/CategoriesManager";
 import MediaLibrary from "./components/admin/MediaLibrary";
+import ChangePassword from "./components/admin/ChangePassword";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="posts/:id/edit" element={<PostEditor />} />
               <Route path="categories" element={<CategoriesManager />} />
               <Route path="library" element={<MediaLibrary />} />
+              <Route path="settings" element={<ChangePassword />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

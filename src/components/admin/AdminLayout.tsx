@@ -13,6 +13,8 @@ import {
   Sun,
   Moon,
   ImageIcon,
+  ExternalLink,
+  KeyRound,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +23,7 @@ const navItems = [
   { to: "/admin/posts/new", label: "New Post", icon: FilePlus },
   { to: "/admin/categories", label: "Categories", icon: FolderOpen },
   { to: "/admin/library", label: "Library", icon: ImageIcon },
+  { to: "/admin/settings", label: "Settings", icon: KeyRound },
 ];
 
 const AdminLayout = () => {
@@ -142,6 +145,36 @@ const AdminLayout = () => {
               {!collapsed && <span className="flex-1">{item.label}</span>}
             </NavLink>
           ))}
+          {/* View Site link */}
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-body flex items-center rounded"
+            style={{
+              fontSize: 13,
+              fontWeight: 400,
+              gap: collapsed ? 0 : 12,
+              justifyContent: collapsed ? "center" : "flex-start",
+              color: "hsl(var(--admin-text-soft))",
+              padding: collapsed ? "10px" : "10px 12px",
+              textDecoration: "none",
+              borderRadius: 4,
+              marginTop: 8,
+              borderTop: "1px solid hsl(var(--admin-border))",
+              paddingTop: 16,
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "hsl(var(--admin-accent))")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "hsl(var(--admin-text-soft))")
+            }
+          >
+            <ExternalLink size={16} strokeWidth={1.5} />
+            {!collapsed && <span>View Site</span>}
+          </a>
         </nav>
 
         {/* Footer */}
