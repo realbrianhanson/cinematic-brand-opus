@@ -72,7 +72,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (e) {
+      console.error("Sign out error:", e);
+    }
     setUser(null);
     setIsAdmin(false);
   };
