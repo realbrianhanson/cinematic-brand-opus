@@ -20,19 +20,43 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPass });
-      if (error) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        toast({ title: "Your session expired. Please sign in again.", variant: "destructive" });
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password: newPass }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const backendMessage =
+          payload?.msg || payload?.error_description || payload?.error || "Unable to update password";
+
         toast({
-          title: error.message === "New password should be different from the old password."
-            ? "Please choose a different password from your current one"
-            : error.message,
+          title:
+            backendMessage === "New password should be different from the old password."
+              ? "Please choose a different password from your current one"
+              : backendMessage,
           variant: "destructive",
         });
-      } else {
-        toast({ title: "Password updated successfully" });
-        setNewPass("");
-        setConfirmPass("");
+        return;
       }
+
+      toast({ title: "Password updated successfully" });
+      setNewPass("");
+      setConfirmPass("");
     } catch (err) {
       console.error("Password update error:", err);
       toast({ title: "An unexpected error occurred", variant: "destructive" });
