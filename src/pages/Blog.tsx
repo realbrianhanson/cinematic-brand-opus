@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
+import Nav from "@/components/Nav";
 
 const Blog = () => {
   const { data: posts, isLoading } = useQuery({
@@ -22,6 +23,7 @@ const Blog = () => {
       className="min-h-screen"
       style={{ background: "#07070E", color: "#fff" }}
     >
+      <Nav />
       {/* Header */}
       <header
         className="pt-32 pb-16 px-6 lg:px-14 mx-auto"
