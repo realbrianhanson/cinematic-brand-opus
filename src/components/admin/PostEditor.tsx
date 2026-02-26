@@ -55,7 +55,7 @@ const PostEditor = () => {
   const [hasGenerated, setHasGenerated] = useState(false);
   const scoreRef = useRef<HTMLDivElement>(null);
 
-  const { data: post } = useQuery({
+  const { data: post, isLoading: postLoading } = useQuery({
     queryKey: ["admin-post", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("posts").select("*").eq("id", id!).maybeSingle();
@@ -354,6 +354,15 @@ const PostEditor = () => {
       editor.commands.setContent(post.content);
     }
   }, [post]);
+
+  // Don't render editor until post data is loaded (prevents blank editor on edit)
+  if (!isNew && postLoading) {
+    return (
+      <div className="flex items-center justify-center" style={{ padding: 64 }}>
+        <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+      </div>
+    );
+  }
 
   return (
     <div>
