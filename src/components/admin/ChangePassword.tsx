@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -6,12 +6,6 @@ const ChangePassword = () => {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [loading, setLoading] = useState(false);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,33 +19,25 @@ const ChangePassword = () => {
     }
     setLoading(true);
 
-    // Safety timeout - reset loading after 10s no matter what
-    const safetyTimer = setTimeout(() => {
-      if (mountedRef.current) {
-        setLoading(false);
-        toast({ title: "Request timed out. Please try again.", variant: "destructive" });
-      }
-    }, 10000);
-
     try {
       const { error } = await supabase.auth.updateUser({ password: newPass });
-      clearTimeout(safetyTimer);
-      if (!mountedRef.current) return;
       if (error) {
-        toast({ title: error.message, variant: "destructive" });
+        toast({
+          title: error.message === "New password should be different from the old password."
+            ? "Please choose a different password from your current one"
+            : error.message,
+          variant: "destructive",
+        });
       } else {
         toast({ title: "Password updated successfully" });
         setNewPass("");
         setConfirmPass("");
       }
     } catch (err) {
-      clearTimeout(safetyTimer);
-      if (!mountedRef.current) return;
       console.error("Password update error:", err);
       toast({ title: "An unexpected error occurred", variant: "destructive" });
     } finally {
-      clearTimeout(safetyTimer);
-      if (mountedRef.current) setLoading(false);
+      setLoading(false);
     }
   };
 
