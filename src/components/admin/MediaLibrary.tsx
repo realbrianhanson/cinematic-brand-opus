@@ -31,18 +31,28 @@ const MediaLibrary = () => {
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+
     try {
       const { data, error } = await supabase
         .from("media")
         .select("*")
-        .eq("type", folder)
-        .order("created_at", { ascending: false });
+        .in("type", ["photo", "video"])
+        .order("created_at", { ascending: false })
+        .abortSignal(controller.signal);
 
       if (error) throw error;
-      setFiles((data as MediaItem[]) || []);
+
+      const safeItems = ((data as MediaItem[] | null) ?? []).filter(
+        (item) => item.type === folder,
+      );
+      setFiles(safeItems);
     } catch (err: any) {
-      console.error("Failed to load files:", err.message);
+      console.error("Failed to load files:", err?.message ?? err);
+      setFiles([]);
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [folder]);
