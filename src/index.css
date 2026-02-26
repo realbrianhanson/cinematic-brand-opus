@@ -100,9 +100,9 @@
     color: #fff;
   }
 
-  /* Hide cursor on desktop – only on the public site, not admin */
+  /* Hide cursor on desktop for public site only */
   @media (min-width: 1024px) {
-    :root:not(:has(.admin-shell)) *, :root:not(:has(.admin-shell)) *::before, :root:not(:has(.admin-shell)) *::after {
+    .public-site *, .public-site *::before, .public-site *::after {
       cursor: none !important;
     }
   }
