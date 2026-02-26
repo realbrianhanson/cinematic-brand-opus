@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const navLinks = [
   { label: "Story", href: "#story" },
@@ -110,6 +111,18 @@ const Nav = ({ loaded = true }: NavProps) => {
                   {link.label}
                 </a>
               ))}
+              <Link
+                to="/blog"
+                data-hover
+                className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  color: "rgba(255,255,255,0.45)",
+                }}
+              >
+                Blog
+              </Link>
             </div>
 
             {/* Divider */}
@@ -185,6 +198,19 @@ const Nav = ({ loaded = true }: NavProps) => {
                 <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
               </a>
             ))}
+            <Link
+              to="/blog"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-between py-5 font-display italic text-foreground"
+              style={{
+                fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                animation: `mobileNavIn 0.4s ease-out ${navLinks.length * 0.07}s both`,
+              }}
+            >
+              Blog
+              <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+            </Link>
           </div>
 
           {/* Mobile CTA */}

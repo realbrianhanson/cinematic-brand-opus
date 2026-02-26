@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const navLinks = [
   { label: "Story", href: "#story" },
   { label: "Expertise", href: "#expertise" },
@@ -46,6 +48,16 @@ const Footer = () => (
                 {l.label}
               </a>
             ))}
+            <Link
+              to="/blog"
+              data-hover
+              className="font-body transition-colors duration-200"
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+            >
+              Blog
+            </Link>
           </div>
         </div>
 
