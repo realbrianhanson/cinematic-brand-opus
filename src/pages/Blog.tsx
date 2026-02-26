@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import Nav from "@/components/Nav";
+import CustomCursor from "@/components/CustomCursor";
 
 const Blog = () => {
   const { data: posts, isLoading } = useQuery({
@@ -20,9 +21,10 @@ const Blog = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="public-site min-h-screen"
       style={{ background: "#07070E", color: "#fff" }}
     >
+      <CustomCursor />
       <Nav />
       {/* Header */}
       <header
