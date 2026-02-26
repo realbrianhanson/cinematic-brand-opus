@@ -71,11 +71,11 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
       if (error) throw error;
       setVideos((data as MediaItem[]) || []);
     } catch (err: any) {
-      toast({ title: "Failed to load videos", description: err.message, variant: "destructive" });
+      console.error("Failed to load videos:", err.message);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (open && tab === "library") fetchVideos();

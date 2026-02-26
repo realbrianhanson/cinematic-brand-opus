@@ -38,11 +38,11 @@ const ImagePickerModal = ({ open, onClose, onSelect }: ImagePickerModalProps) =>
       if (error) throw error;
       setImages((data as MediaItem[]) || []);
     } catch (err: any) {
-      toast({ title: "Failed to load library", description: err.message, variant: "destructive" });
+      console.error("Failed to load library:", err.message);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (open) fetchImages();
