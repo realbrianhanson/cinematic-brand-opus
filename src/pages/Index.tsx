@@ -30,7 +30,7 @@ const Index = () => {
     <>
       {!loaded && <Loader onComplete={handleLoaderComplete} />}
       <div
-        className="min-h-screen"
+        className="public-site min-h-screen"
         style={{
           opacity: siteVisible ? 1 : 0,
           transition: "opacity 0.5s ease 0.2s",
