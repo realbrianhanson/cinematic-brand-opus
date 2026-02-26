@@ -18,14 +18,20 @@ const ChangePassword = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPass });
-    setLoading(false);
-    if (error) {
-      toast({ title: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Password updated successfully" });
-      setNewPass("");
-      setConfirmPass("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPass });
+      if (error) {
+        toast({ title: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Password updated successfully" });
+        setNewPass("");
+        setConfirmPass("");
+      }
+    } catch (err) {
+      console.error("Password update error:", err);
+      toast({ title: "An unexpected error occurred", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
