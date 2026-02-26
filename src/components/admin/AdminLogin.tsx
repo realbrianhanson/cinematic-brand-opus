@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -7,6 +8,7 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const { signIn, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -101,15 +103,35 @@ const AdminLogin = () => {
             className="admin-input font-body"
             style={{ padding: "14px 18px", fontSize: 14 }}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="admin-input font-body"
-            style={{ padding: "14px 18px", fontSize: 14 }}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showPass ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="admin-input font-body"
+              style={{ padding: "14px 40px 14px 18px", fontSize: 14, width: "100%", boxSizing: "border-box" }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              style={{
+                position: "absolute",
+                right: 14,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "hsl(var(--admin-text-soft))",
+                padding: 0,
+                display: "flex",
+              }}
+            >
+              {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
 
           {error && (
             <p
