@@ -19,6 +19,13 @@ const ChangePassword = () => {
     }
     setLoading(true);
     try {
+      // Refresh session first to avoid stale session errors
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        toast({ title: "Session expired. Please log in again.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password: newPass });
       if (error) {
         toast({ title: error.message, variant: "destructive" });
