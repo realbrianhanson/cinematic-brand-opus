@@ -8,20 +8,26 @@ const PostsManager = () => {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
 
-  // Realtime subscription for posts
+  // Realtime subscription for posts (debounced to prevent infinite refetch loops)
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel("admin-posts-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
         () => {
-          qc.invalidateQueries({ queryKey: ["admin-posts"] });
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            qc.invalidateQueries({ queryKey: ["admin-posts"] });
+          }, 2000);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [qc]);
