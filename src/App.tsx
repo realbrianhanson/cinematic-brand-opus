@@ -4,18 +4,20 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import NotFound from "./pages/NotFound";
-import AdminLogin from "./components/admin/AdminLogin";
-import AdminLayout from "./components/admin/AdminLayout";
-import Dashboard from "./components/admin/Dashboard";
-import PostsManager from "./components/admin/PostsManager";
-import PostEditor from "./components/admin/PostEditor";
-import CategoriesManager from "./components/admin/CategoriesManager";
-import MediaLibrary from "./components/admin/MediaLibrary";
-import ChangePassword from "./components/admin/ChangePassword";
+
+const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
+const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
+const Dashboard = lazy(() => import("./components/admin/Dashboard"));
+const PostsManager = lazy(() => import("./components/admin/PostsManager"));
+const PostEditor = lazy(() => import("./components/admin/PostEditor"));
+const CategoriesManager = lazy(() => import("./components/admin/CategoriesManager"));
+const MediaLibrary = lazy(() => import("./components/admin/MediaLibrary"));
+const ChangePassword = lazy(() => import("./components/admin/ChangePassword"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -31,22 +33,22 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <AdminLayout />
+                  <Suspense fallback={null}><AdminLayout /></Suspense>
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Dashboard />} />
-              <Route path="posts" element={<PostsManager />} />
-              <Route path="posts/new" element={<PostEditor />} />
-              <Route path="posts/:id/edit" element={<PostEditor />} />
-              <Route path="categories" element={<CategoriesManager />} />
-              <Route path="library" element={<MediaLibrary />} />
-              <Route path="settings" element={<ChangePassword />} />
+              <Route index element={<Suspense fallback={null}><Dashboard /></Suspense>} />
+              <Route path="posts" element={<Suspense fallback={null}><PostsManager /></Suspense>} />
+              <Route path="posts/new" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
+              <Route path="posts/:id/edit" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
+              <Route path="categories" element={<Suspense fallback={null}><CategoriesManager /></Suspense>} />
+              <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
+              <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
