@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Eye, EyeOff, Check, X } from "lucide-react";
 
 const ChangePassword = () => {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const passwordsMatch = newPass.length > 0 && confirmPass.length > 0 && newPass === confirmPass;
+  const passwordsMismatch = confirmPass.length > 0 && newPass !== confirmPass;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,45 +84,104 @@ const ChangePassword = () => {
           <label className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
             New Password
           </label>
-          <input
-            type="password"
-            value={newPass}
-            onChange={(e) => setNewPass(e.target.value)}
-            required
-            minLength={8}
-            className="font-body"
-            style={{
-              padding: "10px 12px",
-              fontSize: 14,
-              borderRadius: 6,
-              border: "1px solid hsl(var(--admin-border))",
-              backgroundColor: "hsl(var(--admin-surface))",
-              color: "hsl(var(--admin-text))",
-              outline: "none",
-            }}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showNew ? "text" : "password"}
+              value={newPass}
+              onChange={(e) => setNewPass(e.target.value)}
+              required
+              minLength={8}
+              className="font-body"
+              style={{
+                width: "100%",
+                padding: "10px 40px 10px 12px",
+                fontSize: 14,
+                borderRadius: 6,
+                border: "1px solid hsl(var(--admin-border))",
+                backgroundColor: "hsl(var(--admin-surface))",
+                color: "hsl(var(--admin-text))",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew(!showNew)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "hsl(var(--admin-text-soft))",
+                padding: 0,
+                display: "flex",
+              }}
+            >
+              {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
             Confirm Password
           </label>
-          <input
-            type="password"
-            value={confirmPass}
-            onChange={(e) => setConfirmPass(e.target.value)}
-            required
-            minLength={8}
-            className="font-body"
-            style={{
-              padding: "10px 12px",
-              fontSize: 14,
-              borderRadius: 6,
-              border: "1px solid hsl(var(--admin-border))",
-              backgroundColor: "hsl(var(--admin-surface))",
-              color: "hsl(var(--admin-text))",
-              outline: "none",
-            }}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={confirmPass}
+              onChange={(e) => setConfirmPass(e.target.value)}
+              required
+              minLength={8}
+              className="font-body"
+              style={{
+                width: "100%",
+                padding: "10px 40px 10px 12px",
+                fontSize: 14,
+                borderRadius: 6,
+                border: `1px solid ${passwordsMismatch ? "hsl(0 70% 50%)" : passwordsMatch ? "hsl(140 60% 40%)" : "hsl(var(--admin-border))"}`,
+                backgroundColor: "hsl(var(--admin-surface))",
+                color: "hsl(var(--admin-text))",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(!showConfirm)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "hsl(var(--admin-text-soft))",
+                padding: 0,
+                display: "flex",
+              }}
+            >
+              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {confirmPass.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginTop: 2 }}>
+              {passwordsMatch ? (
+                <>
+                  <Check size={14} style={{ color: "hsl(140 60% 40%)" }} />
+                  <span className="font-body" style={{ color: "hsl(140 60% 40%)" }}>Passwords match</span>
+                </>
+              ) : (
+                <>
+                  <X size={14} style={{ color: "hsl(0 70% 50%)" }} />
+                  <span className="font-body" style={{ color: "hsl(0 70% 50%)" }}>Passwords do not match</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <button
           type="submit"
