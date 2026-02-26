@@ -198,3 +198,198 @@
   0%, 100% { transform: translate(-50%, -50%) translateY(0) translateX(0); }
   50% { transform: translate(-50%, -50%) translateY(-25px) translateX(15px); }
 }
+
+/* ── Admin Panel Theme ── */
+.admin-shell {
+  --admin-bg: 230 25% 6%;
+  --admin-surface: 230 22% 9%;
+  --admin-surface-2: 230 18% 12%;
+  --admin-border: 230 15% 18%;
+  --admin-border-hover: 230 12% 28%;
+  --admin-text: 0 0% 95%;
+  --admin-text-soft: 0 0% 65%;
+  --admin-text-ghost: 0 0% 40%;
+  --admin-accent: 43 60% 55%;
+  --admin-accent-soft: 43 60% 55% / 0.1;
+  --admin-sage: 145 40% 50%;
+  --admin-sage-soft: 145 40% 50% / 0.1;
+  --admin-danger: 0 72% 55%;
+  --admin-danger-soft: 0 72% 55% / 0.1;
+  background-color: hsl(var(--admin-bg));
+  color: hsl(var(--admin-text));
+}
+
+.admin-shell.admin-light {
+  --admin-bg: 220 20% 96%;
+  --admin-surface: 0 0% 100%;
+  --admin-surface-2: 220 15% 94%;
+  --admin-border: 220 12% 88%;
+  --admin-border-hover: 220 10% 75%;
+  --admin-text: 230 20% 15%;
+  --admin-text-soft: 230 10% 40%;
+  --admin-text-ghost: 230 8% 60%;
+  --admin-accent: 43 60% 45%;
+  --admin-accent-soft: 43 60% 45% / 0.08;
+  --admin-sage: 145 40% 40%;
+  --admin-sage-soft: 145 40% 40% / 0.08;
+  --admin-danger: 0 72% 50%;
+  --admin-danger-soft: 0 72% 50% / 0.08;
+}
+
+.admin-card {
+  background-color: hsl(var(--admin-surface));
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 8px;
+}
+
+.admin-input {
+  background-color: hsl(var(--admin-surface-2));
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: hsl(var(--admin-text));
+  outline: none;
+  transition: border-color 0.2s;
+}
+.admin-input:focus {
+  border-color: hsl(var(--admin-accent));
+}
+.admin-input::placeholder {
+  color: hsl(var(--admin-text-ghost));
+}
+
+.admin-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--admin-text-ghost));
+  margin-bottom: 8px;
+  display: block;
+}
+
+.admin-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: hsl(var(--admin-accent));
+  color: hsl(var(--admin-bg));
+  transition: opacity 0.2s;
+  text-decoration: none;
+}
+.admin-btn-primary:hover {
+  opacity: 0.9;
+}
+.admin-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: hsl(var(--admin-text-soft));
+  transition: border-color 0.2s, color 0.2s;
+  text-decoration: none;
+}
+.admin-btn-ghost:hover {
+  border-color: hsl(var(--admin-border-hover));
+  color: hsl(var(--admin-text));
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.admin-badge-published {
+  background: hsl(var(--admin-sage-soft));
+  color: hsl(var(--admin-sage));
+}
+.admin-badge-draft {
+  background: hsl(var(--admin-accent-soft));
+  color: hsl(var(--admin-accent));
+}
+
+/* TipTap editor styles */
+.tiptap-image-wrapper,
+.tiptap-media-wrapper {
+  position: relative;
+}
+.tiptap-image-wrapper:hover .tiptap-image-delete,
+.tiptap-media-wrapper:hover .tiptap-media-delete {
+  opacity: 1 !important;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--admin-text-ghost));
+  pointer-events: none;
+  height: 0;
+}
+.ProseMirror {
+  min-height: 300px;
+}
+.ProseMirror img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+.ProseMirror a {
+  color: hsl(var(--admin-accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--admin-accent));
+  padding-left: 16px;
+  margin-left: 0;
+  color: hsl(var(--admin-text-soft));
+}
+.ProseMirror code {
+  background: hsl(var(--admin-surface-2));
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.ProseMirror pre {
+  background: hsl(var(--admin-surface-2));
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 24px;
+}
+
+/* Admin select styling */
+.admin-shell select {
+  color-scheme: dark;
+}
+.admin-shell.admin-light select {
+  color-scheme: light;
+}
+.admin-shell .admin-input[type="datetime-local"] {
+  color-scheme: dark;
+}
+.admin-shell.admin-light .admin-input[type="datetime-local"] {
+  color-scheme: light;
+}
