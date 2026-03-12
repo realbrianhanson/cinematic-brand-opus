@@ -198,6 +198,27 @@ const PillarPage = () => {
           </section>
         )}
 
+        {/* Related Blog Articles */}
+        {relatedBlogPosts && relatedBlogPosts.length > 0 && (
+          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Related Articles</h2>
+            <div className="flex flex-col gap-3">
+              {relatedBlogPosts.map((post) => (
+                <a
+                  key={post.id}
+                  href={`/blog/${post.slug}`}
+                  className="font-body flex items-center gap-2 transition-colors"
+                  style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                >
+                  {post.title} <ArrowRight size={12} />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
         <PublicCTA variant="end" pageId={pillar.id} pageType="pillar" nicheName={(pillar as any).niches?.name} />
       </article>
     </div>
