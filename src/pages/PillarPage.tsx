@@ -87,12 +87,6 @@ const PillarPage = () => {
     setMeta("og:title", seo.title || pillar.title);
     setMeta("og:description", seo.description || "");
     if (seo.og_image) setMeta("og:image", seo.og_image);
-    const authorName = siteSettings?.author_name || "Author";
-    const jsonLd = { "@context": "https://schema.org", "@type": "Article", headline: pillar.title, author: { "@type": "Person", name: authorName }, datePublished: pillar.published_at, dateModified: pillar.updated_at, description: seo.description || "" };
-    let script = document.querySelector("#pillar-jsonld") as HTMLScriptElement;
-    if (!script) { script = document.createElement("script"); script.id = "pillar-jsonld"; script.type = "application/ld+json"; document.head.appendChild(script); }
-    script.textContent = JSON.stringify(jsonLd);
-    return () => { script?.remove(); };
   }, [pillar, siteSettings]);
 
   if (isLoading) {
