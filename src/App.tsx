@@ -59,6 +59,9 @@ const App = () => (
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
               <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
               <Route path="niches" element={<Suspense fallback={null}><NichesManager /></Suspense>} />
+              <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
+              <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
+              <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

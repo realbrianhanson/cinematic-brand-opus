@@ -31,6 +31,7 @@ const navItems = [
   { to: "/admin/settings", label: "Settings", icon: KeyRound },
   { to: "/admin/site-settings", label: "Site Config", icon: Globe },
   { to: "/admin/niches", label: "Niches", icon: Tags },
+  { to: "/admin/content-types", label: "Content Types", icon: Layers },
 ];
 
 const AdminLayout = () => {
