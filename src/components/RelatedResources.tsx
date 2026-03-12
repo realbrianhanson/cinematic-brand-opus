@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, BookOpen } from "lucide-react";
@@ -22,7 +21,7 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
         .eq("niche_id", nicheId)
         .neq("content_schema_id", contentSchemaId)
         .eq("status", "published")
-        .limit(8);
+        .limit(5);
       return data ?? [];
     },
     enabled: !!nicheId && !!contentSchemaId,
@@ -52,8 +51,8 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
     <div className="mt-16">
       {/* Pillar link — prominent, link juice flows UP */}
       {pillar && (
-        <Link
-          to={`/guides/${pillar.slug}`}
+        <a
+          href={`/guides/${pillar.slug}`}
           className="group flex items-center gap-4 mb-10 p-5"
           style={{
             border: "1px solid rgba(212,175,85,0.15)",
@@ -64,17 +63,17 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)"; e.currentTarget.style.background = "rgba(212,175,85,0.07)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.15)"; e.currentTarget.style.background = "rgba(212,175,85,0.04)"; }}
         >
-          <BookOpen size={20} style={{ color: "#D4AF55", flexShrink: 0 }} />
+          <BookOpen size={20} style={{ color: "hsl(var(--accent))", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <span className="font-body uppercase block" style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
               Complete Guide
             </span>
-            <span className="font-body font-medium group-hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>
+            <span className="font-body font-medium group-hover:text-accent transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>
               {pillar.title}
             </span>
           </div>
-          <ArrowRight size={16} className="shrink-0 group-hover:text-[#D4AF55] transition-colors" style={{ color: "rgba(255,255,255,0.2)" }} />
-        </Link>
+          <ArrowRight size={16} className="shrink-0 group-hover:text-accent transition-colors" style={{ color: "rgba(255,255,255,0.2)" }} />
+        </a>
       )}
 
       {/* Sibling resources — same niche only (silo-contained) */}
@@ -88,9 +87,9 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
               const ctSlug = pg.content_schemas?.slug || "";
               const nSlug = pg.niches?.slug || "";
               return (
-                <Link
+                <a
                   key={pg.id}
-                  to={`/resources/${ctSlug}/${nSlug}`}
+                  href={`/resources/${ctSlug}/${nSlug}`}
                   className="group block p-5"
                   style={{
                     border: "1px solid rgba(255,255,255,0.06)",
@@ -100,16 +99,16 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.2)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
                 >
-                  <span className="font-body uppercase block mb-2" style={{ fontSize: 9, letterSpacing: "0.12em", color: "#D4AF55" }}>
+                  <span className="font-body uppercase block mb-2" style={{ fontSize: 9, letterSpacing: "0.12em", color: "hsl(var(--accent))" }}>
                     {pg.content_schemas?.name || "Resource"}
                   </span>
-                  <h3 className="font-body font-medium mb-2 transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
+                  <h3 className="font-body font-medium mb-2 transition-colors group-hover:text-accent" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
                     {pg.title}
                   </h3>
-                  <span className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>
+                  <span className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-accent" style={{ fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>
                     View <ArrowRight size={10} />
                   </span>
-                </Link>
+                </a>
               );
             })}
           </div>
