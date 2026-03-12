@@ -76,18 +76,7 @@ const PillarPage = () => {
 
   useEffect(() => {
     if (!pillar) return;
-    const seo = (pillar.seo_meta ?? {}) as any;
-    document.title = seo.title || pillar.title;
-    const setMeta = (name: string, content: string) => {
-      if (!content) return;
-      let el = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[property="${name}"]`);
-      if (!el) { el = document.createElement("meta"); (name.startsWith("og:") ? el.setAttribute("property", name) : el.setAttribute("name", name)); document.head.appendChild(el); }
-      el.setAttribute("content", content);
-    };
-    setMeta("description", seo.description || "");
-    setMeta("og:title", seo.title || pillar.title);
-    setMeta("og:description", seo.description || "");
-    if (seo.og_image) setMeta("og:image", seo.og_image);
+    // PageHead handles meta tags via react-helmet-async now
   }, [pillar, siteSettings]);
 
   if (isLoading) {
