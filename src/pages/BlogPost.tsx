@@ -22,6 +22,17 @@ const BlogPost = () => {
     enabled: !!slug,
   });
 
+  const { data: siteSettings } = useQuery({
+    queryKey: ["public-site-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
+      return data;
+    },
+    staleTime: 60000,
+  });
+
+  const blogFaqs = post?.faq_items && Array.isArray(post.faq_items) ? (post.faq_items as any[]) : undefined;
+
   if (isLoading) {
     return (
       <div
