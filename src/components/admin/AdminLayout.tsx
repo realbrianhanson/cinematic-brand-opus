@@ -21,6 +21,7 @@ import {
   ImageIcon,
   ExternalLink,
   KeyRound,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
