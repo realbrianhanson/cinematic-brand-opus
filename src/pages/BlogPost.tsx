@@ -69,6 +69,15 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={post.title}
+        description={post.excerpt || post.tldr || ""}
+        url={`${siteSettings?.site_url || ""}/blog/${slug}`}
+        image={post.featured_image || undefined}
+        publishedAt={post.created_at}
+        updatedAt={post.updated_at}
+        authorName={siteSettings?.author_name}
+      />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
         <StructuredData
           pageType="blog"
