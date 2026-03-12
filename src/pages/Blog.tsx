@@ -74,7 +74,7 @@ const Blog = () => {
       </header>
 
       {/* Posts grid */}
-      <main
+      <main id="main-content"
         className="px-6 lg:px-14 pb-24 mx-auto"
         style={{ maxWidth: 1440 }}
       >
