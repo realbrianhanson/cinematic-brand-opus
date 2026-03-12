@@ -22,6 +22,8 @@ const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPag
 const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
 const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsManager"));
 const NichesManager = lazy(() => import("./components/admin/NichesManager"));
+const ContentTypesManager = lazy(() => import("./components/admin/ContentTypesManager"));
+const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,9 @@ const App = () => (
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
               <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
               <Route path="niches" element={<Suspense fallback={null}><NichesManager /></Suspense>} />
+              <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
+              <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
+              <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
