@@ -13,7 +13,7 @@ interface StructuredDataProps {
     author_name?: string;
     author_title?: string;
     author_bio?: string;
-    author_social_links?: Record<string, string>;
+    author_social_links?: any;
     author_credentials?: string[];
     publisher_name?: string;
     publisher_url?: string;
