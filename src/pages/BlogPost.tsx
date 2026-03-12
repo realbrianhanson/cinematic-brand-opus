@@ -145,7 +145,7 @@ const BlogPost = () => {
         {/* TL;DR */}
         {post.tldr && (
           <div
-            className="mb-10 p-6"
+            className="answer-block mb-10 p-6"
             style={{
               borderLeft: "3px solid #D4AF55",
               background: "rgba(212,175,85,0.04)",
