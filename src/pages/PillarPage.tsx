@@ -120,6 +120,20 @@ const PillarPage = () => {
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
+        <StructuredData
+          pageType="pillar"
+          title={pillar.title}
+          description={((pillar.seo_meta as any)?.description) || ""}
+          url={`${siteSettings?.site_url || ""}/guides/${slug}`}
+          publishedAt={pillar.published_at || pillar.created_at || ""}
+          updatedAt={pillar.updated_at || ""}
+          breadcrumbs={[
+            { name: "Home", url: siteSettings?.site_url || "/" },
+            { name: "Guides", url: `${siteSettings?.site_url || ""}/resources` },
+            { name: pillar.title, url: `${siteSettings?.site_url || ""}/guides/${slug}` },
+          ]}
+          siteSettings={siteSettings}
+        />
         <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Guides", href: "/resources" },
