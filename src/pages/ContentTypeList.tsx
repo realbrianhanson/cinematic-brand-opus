@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 const ContentTypeList = () => {
   const { contentType } = useParams<{ contentType: string }>();
