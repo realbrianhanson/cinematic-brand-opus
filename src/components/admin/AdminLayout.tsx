@@ -8,6 +8,7 @@ import {
   Files,
   Globe,
   Tags,
+  Layers,
   LogOut,
   Menu,
   X,
