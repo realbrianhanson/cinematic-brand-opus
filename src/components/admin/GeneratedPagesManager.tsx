@@ -141,9 +141,26 @@ const GeneratedPagesManager = () => {
       if (status === "published") updateData.published_at = new Date().toISOString();
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
       if (error) throw error;
+
+      // On publish: trigger OG image generation and Google submission
+      if (status === "published") {
+        for (const id of ids) {
+          const pg = (pages ?? []).find((p) => p.id === id);
+          if (!pg) continue;
+          const niche = (pg as any).niches;
+          const schema = (pg as any).content_schemas;
+          // Fire and forget — don't block on these
+          supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
+          if (niche?.slug && schema?.slug) {
+            const pageUrl = `/resources/${schema.slug}/${niche.slug}`;
+            supabase.functions.invoke("submit-to-google", { body: { page_id: id, page_url: pageUrl } }).catch(() => {});
+          }
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+      qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
       setSelected(new Set());
       setBulkAction(null);
       toast({ title: "Updated" });
