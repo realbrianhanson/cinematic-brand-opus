@@ -7,6 +7,7 @@ import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
+import SiloNavigation from "@/components/SiloNavigation";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
