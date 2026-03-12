@@ -47,6 +47,9 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/guides/:slug" element={<PillarPage />} />
+            <Route path="/resources" element={<ResourcesIndex />} />
+            <Route path="/resources/:contentType" element={<ContentTypeList />} />
+            <Route path="/resources/:contentType/:nicheSlug" element={<GeneratedPage />} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
