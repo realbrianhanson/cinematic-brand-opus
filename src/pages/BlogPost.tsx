@@ -34,6 +34,60 @@ const BlogPost = () => {
     staleTime: 60000,
   });
 
+  // Fetch SEO keywords for matching
+  const { data: seoMeta } = useQuery({
+    queryKey: ["post-seo-meta", post?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("seo_metadata").select("keywords").eq("post_id", post!.id).maybeSingle();
+      return data;
+    },
+    enabled: !!post?.id,
+    staleTime: 60000,
+  });
+
+  // Fetch all niches for matching
+  const { data: allNiches } = useQuery({
+    queryKey: ["all-niches-for-crosslink"],
+    queryFn: async () => {
+      const { data } = await supabase.from("niches").select("id, name, slug, context").eq("is_active", true);
+      return data ?? [];
+    },
+    staleTime: 120000,
+  });
+
+  // Find matching niches
+  const matchedNiches = post && allNiches
+    ? findRelatedNiches(
+        (seoMeta?.keywords as string[]) || [],
+        (post as any).categories?.name || "",
+        allNiches,
+        1,
+        3
+      )
+    : [];
+
+  // Fetch pillar + generated pages for matched niches
+  const matchedNicheIds = matchedNiches.map((m) => m.nicheId);
+  const { data: crossLinkData } = useQuery({
+    queryKey: ["blog-crosslinks", matchedNicheIds],
+    queryFn: async () => {
+      const { data: pillars } = await supabase
+        .from("pillar_pages")
+        .select("id, title, slug, niche_id")
+        .in("niche_id", matchedNicheIds)
+        .eq("status", "published");
+      const { data: pages } = await supabase
+        .from("generated_pages")
+        .select("id, title, slug, niche_id, content_schema_id, content_schemas(slug), niches(slug)")
+        .in("niche_id", matchedNicheIds)
+        .eq("status", "published")
+        .limit(6);
+      return { pillars: pillars ?? [], pages: pages ?? [] };
+    },
+    enabled: matchedNicheIds.length > 0,
+    staleTime: 60000,
+  });
+
   const blogFaqs = post?.faq_items && Array.isArray(post.faq_items) ? (post.faq_items as any[]) : undefined;
 
   if (isLoading) {
