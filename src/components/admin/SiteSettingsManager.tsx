@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, X, Globe, FileText, AlertTriangle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const defaultSettings = {
   site_name: "My Website",
@@ -19,6 +20,8 @@ const defaultSettings = {
   cta_subtext: "Join thousands learning to grow their business.",
   cta_button_text: "Get Free Access",
   cta_social_proof: "",
+  report_email: "",
+  report_enabled: false,
 };
 
 type Settings = typeof defaultSettings & { id?: string };
@@ -78,6 +81,8 @@ const SiteSettingsManager = () => {
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
+        report_email: (form as any).report_email || "",
+        report_enabled: (form as any).report_enabled || false,
         updated_at: new Date().toISOString(),
       };
 
@@ -371,6 +376,36 @@ const SiteSettingsManager = () => {
                   placeholder="Rated 4.9/5 by attendees"
                 />
               </Field>
+            </div>
+          </div>
+
+          {/* Section 4: Weekly Reports */}
+          <div className="admin-card" style={{ padding: 24 }}>
+            <h2
+              className="font-body"
+              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+            >
+              Weekly Reports
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Field label="Report Email">
+                <input
+                  className="admin-input font-body"
+                  value={(form as any).report_email ?? ""}
+                  onChange={(e) => updateField("report_email" as any, e.target.value)}
+                  placeholder="admin@yoursite.com"
+                  type="email"
+                />
+              </Field>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={(form as any).report_enabled ?? false}
+                  onCheckedChange={(v) => updateField("report_enabled" as any, v)}
+                />
+                <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                  Enable weekly email reports
+                </span>
+              </div>
             </div>
           </div>
         </div>
