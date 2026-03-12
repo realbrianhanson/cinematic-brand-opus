@@ -109,6 +109,15 @@ const PillarPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={((pillar.seo_meta as any)?.title) || pillar.title}
+        description={((pillar.seo_meta as any)?.description) || ""}
+        url={`${siteSettings?.site_url || ""}/guides/${slug}`}
+        image={(pillar.seo_meta as any)?.og_image}
+        publishedAt={pillar.published_at || pillar.created_at || ""}
+        updatedAt={pillar.updated_at || ""}
+        authorName={siteSettings?.author_name}
+      />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
         <StructuredData
           pageType="pillar"
