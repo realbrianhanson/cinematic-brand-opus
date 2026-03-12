@@ -40,7 +40,7 @@ const GeneratedPage = () => {
     queryFn: async () => {
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
       if (!schema) return null;
-      const { data: niche } = await supabase.from("niches").select("id, name, slug").eq("slug", nicheSlug!).maybeSingle();
+      const { data: niche } = await supabase.from("niches").select("id, name, slug, context").eq("slug", nicheSlug!).maybeSingle();
       if (!niche) return null;
       const { data: pg } = await supabase
         .from("generated_pages").select("*")
