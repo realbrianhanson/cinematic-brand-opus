@@ -18,6 +18,8 @@ const PostEditor = lazy(() => import("./components/admin/PostEditor"));
 const CategoriesManager = lazy(() => import("./components/admin/CategoriesManager"));
 const MediaLibrary = lazy(() => import("./components/admin/MediaLibrary"));
 const ChangePassword = lazy(() => import("./components/admin/ChangePassword"));
+const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPagesManager"));
+const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
