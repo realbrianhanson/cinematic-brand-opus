@@ -111,7 +111,22 @@ const GeneratedPage = () => {
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
-        <Breadcrumbs items={[
+        <StructuredData
+          pageType="generated"
+          title={page.title}
+          description={((page.seo_meta as any)?.description) || content?.intro || ""}
+          url={`${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`}
+          publishedAt={page.published_at || page.created_at || ""}
+          updatedAt={page.updated_at || ""}
+          breadcrumbs={[
+            { name: "Home", url: settings?.site_url || "/" },
+            { name: "Resources", url: `${settings?.site_url || ""}/resources` },
+            { name: page.schema.name, url: `${settings?.site_url || ""}/resources/${contentType}` },
+            { name: page.niche.name, url: `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}` },
+          ]}
+          faqs={faqs}
+          siteSettings={settings}
+        />
           { label: "Home", href: "/" },
           { label: "Resources", href: "/resources" },
           { label: page.schema.name, href: `/resources/${contentType}` },
