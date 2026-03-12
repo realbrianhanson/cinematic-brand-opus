@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, FileText, Eye, Pencil, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
