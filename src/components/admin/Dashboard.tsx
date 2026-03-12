@@ -11,6 +11,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: postStats } = useQuery({
     queryKey: ["admin-post-stats"],
