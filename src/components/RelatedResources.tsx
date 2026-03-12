@@ -141,6 +141,29 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
         </div>
       )}
 
+      {/* Blog posts related to this niche */}
+      {hasBlogPosts && (
+        <div className="mt-10" style={{ paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <h3 className="font-body uppercase mb-4" style={{ fontSize: 10, letterSpacing: "0.15em", color: "hsl(var(--accent))", fontWeight: 700 }}>
+            From the Blog
+          </h3>
+          <div className="flex flex-col gap-3">
+            {relatedBlogPosts!.map((post) => (
+              <a
+                key={post.id}
+                href={`/blog/${post.slug}`}
+                className="font-body flex items-center gap-2 transition-colors"
+                style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+              >
+                {post.title} <ArrowRight size={12} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* NO cross-silo links — link juice stays within the silo */}
     </div>
   );
