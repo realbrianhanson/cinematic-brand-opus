@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
+import StructuredData from "@/components/StructuredData";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -20,6 +21,17 @@ const BlogPost = () => {
     },
     enabled: !!slug,
   });
+
+  const { data: siteSettings } = useQuery({
+    queryKey: ["public-site-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
+      return data;
+    },
+    staleTime: 60000,
+  });
+
+  const blogFaqs = post?.faq_items && Array.isArray(post.faq_items) ? (post.faq_items as any[]) : undefined;
 
   if (isLoading) {
     return (
@@ -57,7 +69,21 @@ const BlogPost = () => {
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
-        {/* Back link */}
+        <StructuredData
+          pageType="blog"
+          title={post.title}
+          description={post.excerpt || post.tldr || ""}
+          url={`${siteSettings?.site_url || ""}/blog/${slug}`}
+          publishedAt={post.created_at}
+          updatedAt={post.updated_at}
+          breadcrumbs={[
+            { name: "Home", url: siteSettings?.site_url || "/" },
+            { name: "Blog", url: `${siteSettings?.site_url || ""}/blog` },
+            { name: post.title, url: `${siteSettings?.site_url || ""}/blog/${slug}` },
+          ]}
+          faqs={blogFaqs}
+          siteSettings={siteSettings}
+        />
         <Link
           to="/blog"
           className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
@@ -119,7 +145,7 @@ const BlogPost = () => {
         {/* TL;DR */}
         {post.tldr && (
           <div
-            className="mb-10 p-6"
+            className="answer-block mb-10 p-6"
             style={{
               borderLeft: "3px solid #D4AF55",
               background: "rgba(212,175,85,0.04)",
@@ -228,7 +254,7 @@ const BlogPost = () => {
                       {faq.question}
                     </h4>
                     <p
-                      className="font-body"
+                      className="faq-answer font-body"
                       style={{
                         fontSize: 14,
                         color: "rgba(255,255,255,0.45)",

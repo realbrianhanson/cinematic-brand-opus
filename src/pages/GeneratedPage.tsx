@@ -8,6 +8,7 @@ import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PillarBanner from "@/components/PillarBanner";
 import RelatedResources from "@/components/RelatedResources";
+import StructuredData from "@/components/StructuredData";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
@@ -82,13 +83,7 @@ const GeneratedPage = () => {
     let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
     canon.href = url;
-    const markup = page.schema_markup;
-    if (markup) {
-      let script = document.getElementById("json-ld-generated");
-      if (!script) { script = document.createElement("script"); script.id = "json-ld-generated"; script.setAttribute("type", "application/ld+json"); document.head.appendChild(script); }
-      script.textContent = JSON.stringify(Array.isArray(markup) ? markup : [markup]);
-    }
-    return () => { document.getElementById("json-ld-generated")?.remove(); };
+    return () => {};
   }, [page, settings, contentType, nicheSlug]);
 
   const content = page?.content_json as any;
@@ -117,6 +112,22 @@ const GeneratedPage = () => {
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
+        <StructuredData
+          pageType="generated"
+          title={page.title}
+          description={((page.seo_meta as any)?.description) || content?.intro || ""}
+          url={`${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`}
+          publishedAt={page.published_at || page.created_at || ""}
+          updatedAt={page.updated_at || ""}
+          breadcrumbs={[
+            { name: "Home", url: settings?.site_url || "/" },
+            { name: "Resources", url: `${settings?.site_url || ""}/resources` },
+            { name: page.schema.name, url: `${settings?.site_url || ""}/resources/${contentType}` },
+            { name: page.niche.name, url: `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}` },
+          ]}
+          faqs={faqs}
+          siteSettings={settings}
+        />
         <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Resources", href: "/resources" },
@@ -154,7 +165,7 @@ const GeneratedPage = () => {
         </div>
 
         {content?.intro && (
-          <div className="mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
+          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
             <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>{content.intro}</p>
           </div>
         )}
@@ -214,7 +225,7 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
             <span style={{ fontSize: 18, marginLeft: 12 }}>{open === i ? "−" : "+"}</span>
           </button>
           {open === i && (
-            <p className="font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
+            <p className="faq-answer font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
           )}
         </div>
       ))}

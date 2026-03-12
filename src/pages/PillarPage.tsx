@@ -5,6 +5,7 @@ import { Clock, Calendar } from "lucide-react";
 import { useEffect } from "react";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import StructuredData from "@/components/StructuredData";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -86,12 +87,6 @@ const PillarPage = () => {
     setMeta("og:title", seo.title || pillar.title);
     setMeta("og:description", seo.description || "");
     if (seo.og_image) setMeta("og:image", seo.og_image);
-    const authorName = siteSettings?.author_name || "Author";
-    const jsonLd = { "@context": "https://schema.org", "@type": "Article", headline: pillar.title, author: { "@type": "Person", name: authorName }, datePublished: pillar.published_at, dateModified: pillar.updated_at, description: seo.description || "" };
-    let script = document.querySelector("#pillar-jsonld") as HTMLScriptElement;
-    if (!script) { script = document.createElement("script"); script.id = "pillar-jsonld"; script.type = "application/ld+json"; document.head.appendChild(script); }
-    script.textContent = JSON.stringify(jsonLd);
-    return () => { script?.remove(); };
   }, [pillar, siteSettings]);
 
   if (isLoading) {
@@ -125,6 +120,20 @@ const PillarPage = () => {
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
+        <StructuredData
+          pageType="pillar"
+          title={pillar.title}
+          description={((pillar.seo_meta as any)?.description) || ""}
+          url={`${siteSettings?.site_url || ""}/guides/${slug}`}
+          publishedAt={pillar.published_at || pillar.created_at || ""}
+          updatedAt={pillar.updated_at || ""}
+          breadcrumbs={[
+            { name: "Home", url: siteSettings?.site_url || "/" },
+            { name: "Guides", url: `${siteSettings?.site_url || ""}/resources` },
+            { name: pillar.title, url: `${siteSettings?.site_url || ""}/guides/${slug}` },
+          ]}
+          siteSettings={siteSettings}
+        />
         <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Guides", href: "/resources" },
