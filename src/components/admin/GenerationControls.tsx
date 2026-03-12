@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 interface BatchGroup {
