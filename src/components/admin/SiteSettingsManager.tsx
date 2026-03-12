@@ -81,6 +81,8 @@ const SiteSettingsManager = () => {
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
+        report_email: (form as any).report_email || "",
+        report_enabled: (form as any).report_enabled || false,
         updated_at: new Date().toISOString(),
       };
 
