@@ -18,6 +18,8 @@ const PostEditor = lazy(() => import("./components/admin/PostEditor"));
 const CategoriesManager = lazy(() => import("./components/admin/CategoriesManager"));
 const MediaLibrary = lazy(() => import("./components/admin/MediaLibrary"));
 const ChangePassword = lazy(() => import("./components/admin/ChangePassword"));
+const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPagesManager"));
+const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -47,6 +49,8 @@ const App = () => (
               <Route path="posts/new" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
               <Route path="posts/:id/edit" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
               <Route path="categories" element={<Suspense fallback={null}><CategoriesManager /></Suspense>} />
+              <Route path="pages" element={<Suspense fallback={null}><GeneratedPagesManager /></Suspense>} />
+              <Route path="pages/:id/edit" element={<Suspense fallback={null}><GeneratedPageEditor /></Suspense>} />
               <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
             </Route>
