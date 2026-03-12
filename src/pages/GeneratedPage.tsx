@@ -10,6 +10,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PillarBanner from "@/components/PillarBanner";
 import RelatedResources from "@/components/RelatedResources";
 import StructuredData from "@/components/StructuredData";
+import SiloSidebar from "@/components/SiloSidebar";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
