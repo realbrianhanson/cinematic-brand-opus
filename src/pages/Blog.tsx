@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
+import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import CustomCursor from "@/components/CustomCursor";
 
