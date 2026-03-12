@@ -254,7 +254,7 @@ const BlogPost = () => {
                       {faq.question}
                     </h4>
                     <p
-                      className="font-body"
+                      className="faq-answer font-body"
                       style={{
                         fontSize: 14,
                         color: "rgba(255,255,255,0.45)",
