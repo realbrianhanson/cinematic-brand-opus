@@ -152,7 +152,7 @@ const GeneratedPagesManager = () => {
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
       if (error) throw error;
 
-      // On publish: trigger OG image generation and Google submission
+      // On publish: trigger OG image generation, Google submission, and silo linking
       if (status === "published") {
         for (const id of ids) {
           const pg = (pages ?? []).find((p) => p.id === id);
@@ -161,6 +161,7 @@ const GeneratedPagesManager = () => {
           const schema = (pg as any).content_schemas;
           // Fire and forget — don't block on these
           supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
+          supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
           if (niche?.slug && schema?.slug) {
             const pageUrl = `/resources/${schema.slug}/${niche.slug}`;
             supabase.functions.invoke("submit-to-google", { body: { page_id: id, page_url: pageUrl } }).catch(() => {});

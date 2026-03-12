@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.weekly-report]
 verify_jwt = false
+
+[functions.build-silo-links]
+verify_jwt = false

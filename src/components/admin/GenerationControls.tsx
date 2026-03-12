@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon, Link2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 interface BatchGroup {
@@ -30,7 +30,7 @@ const GenerationControls = () => {
   const [result, setResult] = useState<any>(null);
   const [dryRunResult, setDryRunResult] = useState<any>(null);
   const [generatingOg, setGeneratingOg] = useState(false);
-
+  const [buildingLinks, setBuildingLinks] = useState(false);
   // Batch expansion
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
 
@@ -422,6 +422,39 @@ const GenerationControls = () => {
             <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> Generating...</>
           ) : (
             <><ImageIcon size={16} style={{ marginRight: 8 }} /> Generate All Missing OG Images</>
+          )}
+        </button>
+      </div>
+
+      {/* Silo Link Building */}
+      <div className="admin-card" style={{ padding: 24, marginTop: 20 }}>
+        <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+          Silo Links
+        </h2>
+        <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 16 }}>
+          Rebuild internal silo links for all published pages. Links flow UP to pillar pages and ACROSS to siblings within the same niche. No cross-silo links.
+        </p>
+        <button
+          className="admin-btn-primary font-body"
+          disabled={buildingLinks}
+          onClick={async () => {
+            setBuildingLinks(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("build-silo-links", { body: { rebuild_all: true } });
+              if (error) throw error;
+              if (data?.error) throw new Error(data.error);
+              toast({ title: "Silo links rebuilt", description: `${data.links_created} links created.` });
+            } catch (err: any) {
+              toast({ title: "Failed", description: err.message, variant: "destructive" });
+            } finally {
+              setBuildingLinks(false);
+            }
+          }}
+        >
+          {buildingLinks ? (
+            <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> Building...</>
+          ) : (
+            <><Link2 size={16} style={{ marginRight: 8 }} /> Rebuild All Silo Links</>
           )}
         </button>
       </div>

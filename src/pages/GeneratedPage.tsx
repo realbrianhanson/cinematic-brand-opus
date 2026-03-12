@@ -10,6 +10,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PillarBanner from "@/components/PillarBanner";
 import RelatedResources from "@/components/RelatedResources";
 import StructuredData from "@/components/StructuredData";
+import SiloSidebar from "@/components/SiloSidebar";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
@@ -101,7 +102,14 @@ const GeneratedPage = () => {
         authorName={settings?.author_name}
       />
       <Nav />
-      <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
+      <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1140 }}>
+        <SiloSidebar
+          nicheId={page.niche.id}
+          nicheName={page.niche.name}
+          currentPageId={page.id}
+          contentSchemaId={page.schema.id}
+        />
+      <article className="flex-1 min-w-0" style={{ maxWidth: 900 }}>
         <StructuredData
           pageType="generated"
           title={page.title}
@@ -194,6 +202,7 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
+      </div>
 
       <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
