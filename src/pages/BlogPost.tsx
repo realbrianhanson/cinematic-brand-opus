@@ -1,10 +1,11 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Clock, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Calendar, BookOpen } from "lucide-react";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
 import WidgetRenderer from "@/components/WidgetRenderer";
+import { findRelatedNiches } from "@/lib/crossLinkMatcher";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
