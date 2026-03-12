@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   FileText,
   FolderOpen,
+  Files,
   LogOut,
   Menu,
   X,
