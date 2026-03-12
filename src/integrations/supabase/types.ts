@@ -644,6 +644,8 @@ export type Database = {
           id: string
           publisher_name: string | null
           publisher_url: string | null
+          report_email: string | null
+          report_enabled: boolean | null
           site_name: string
           site_url: string
           updated_at: string | null
@@ -662,6 +664,8 @@ export type Database = {
           id?: string
           publisher_name?: string | null
           publisher_url?: string | null
+          report_email?: string | null
+          report_enabled?: boolean | null
           site_name?: string
           site_url?: string
           updated_at?: string | null
@@ -680,6 +684,8 @@ export type Database = {
           id?: string
           publisher_name?: string | null
           publisher_url?: string | null
+          report_email?: string | null
+          report_enabled?: boolean | null
           site_name?: string
           site_url?: string
           updated_at?: string | null
