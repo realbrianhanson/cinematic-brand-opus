@@ -30,7 +30,7 @@ const GenerationControls = () => {
   const [result, setResult] = useState<any>(null);
   const [dryRunResult, setDryRunResult] = useState<any>(null);
   const [generatingOg, setGeneratingOg] = useState(false);
-
+  const [buildingLinks, setBuildingLinks] = useState(false);
   // Batch expansion
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
 
