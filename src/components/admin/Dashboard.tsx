@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2, Globe, Send } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
