@@ -22,6 +22,8 @@ const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPag
 const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
 const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsManager"));
 const NichesManager = lazy(() => import("./components/admin/NichesManager"));
+const ContentTypesManager = lazy(() => import("./components/admin/ContentTypesManager"));
+const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
