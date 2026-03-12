@@ -10,6 +10,7 @@ import {
   Tags,
   Layers,
   BookOpen,
+  Zap,
   LogOut,
   Menu,
   X,
