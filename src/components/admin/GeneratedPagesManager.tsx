@@ -80,6 +80,16 @@ const GeneratedPagesManager = () => {
     },
   });
 
+  const { data: indexingMap } = useQuery({
+    queryKey: ["admin-indexing-logs"],
+    queryFn: async () => {
+      const { data } = await supabase.from("indexing_log").select("page_id, status").order("submitted_at", { ascending: false });
+      const map = new Map<string, string>();
+      (data ?? []).forEach((log: any) => { if (!map.has(log.page_id)) map.set(log.page_id, log.status); });
+      return map;
+    },
+  });
+
   // Filter + sort
   const filtered = useMemo(() => {
     let list = pages ?? [];
