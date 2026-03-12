@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, BookOpen } from "lucide-react";
+import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
 
 interface RelatedResourcesProps {
   currentPageId: string;
   nicheId: string;
   nicheName: string;
+  nicheContext?: any;
   contentSchemaId: string;
   contentTypeName: string;
 }
 
-const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
+const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
   // Siblings: same niche, different content type (silo-aware — NO cross-silo)
   const { data: siblings } = useQuery({
     queryKey: ["silo-siblings", nicheId, contentSchemaId],
@@ -44,8 +46,32 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
     staleTime: 60000,
   });
 
+  // Blog posts related to this niche (bidirectional cross-link)
+  const { data: relatedBlogPosts } = useQuery({
+    queryKey: ["crosslink-blog-for-niche", nicheId],
+    queryFn: async () => {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!posts || posts.length === 0) return [];
+      const postsWithCat = posts.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        category_name: p.categories?.name || "",
+      }));
+      return findRelatedNicheForPage(nicheName, nicheContext, postsWithCat, 2);
+    },
+    enabled: !!nicheId,
+    staleTime: 60000,
+  });
+
   const hasSiblings = siblings && siblings.length > 0;
-  if (!hasSiblings && !pillar) return null;
+  const hasBlogPosts = relatedBlogPosts && relatedBlogPosts.length > 0;
+  if (!hasSiblings && !pillar && !hasBlogPosts) return null;
 
   return (
     <div className="mt-16">
@@ -111,6 +137,29 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
                 </a>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Blog posts related to this niche */}
+      {hasBlogPosts && (
+        <div className="mt-10" style={{ paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <h3 className="font-body uppercase mb-4" style={{ fontSize: 10, letterSpacing: "0.15em", color: "hsl(var(--accent))", fontWeight: 700 }}>
+            From the Blog
+          </h3>
+          <div className="flex flex-col gap-3">
+            {relatedBlogPosts!.map((post) => (
+              <a
+                key={post.id}
+                href={`/blog/${post.slug}`}
+                className="font-body flex items-center gap-2 transition-colors"
+                style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+              >
+                {post.title} <ArrowRight size={12} />
+              </a>
+            ))}
           </div>
         </div>
       )}

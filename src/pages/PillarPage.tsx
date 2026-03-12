@@ -1,13 +1,14 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, Calendar } from "lucide-react";
+import { Clock, Calendar, ArrowRight } from "lucide-react";
 import { useEffect } from "react";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
 import SiloNavigation from "@/components/SiloNavigation";
+import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -22,7 +23,7 @@ const PillarPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pillar_pages")
-        .select("*, niches(id, name)")
+        .select("*, niches(id, name, slug, context)")
         .eq("slug", slug!)
         .eq("status", "published")
         .maybeSingle();
@@ -62,9 +63,37 @@ const PillarPage = () => {
     staleTime: 60000,
   });
 
+  // Related blog posts for this pillar's niche
+  const { data: relatedBlogPosts } = useQuery({
+    queryKey: ["pillar-related-blog", nicheId],
+    queryFn: async () => {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!posts || posts.length === 0) return [];
+      const postsWithCat = posts.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        category_name: p.categories?.name || "",
+      }));
+      const nicheData = (pillar as any)?.niches;
+      return findRelatedNicheForPage(
+        nicheData?.name || "",
+        nicheData?.context,
+        postsWithCat,
+        5
+      );
+    },
+    enabled: !!nicheId && !!pillar,
+    staleTime: 60000,
+  });
+
   useEffect(() => {
     if (!pillar) return;
-    // PageHead handles meta tags via react-helmet-async now
   }, [pillar, siteSettings]);
 
   if (isLoading) {
@@ -164,6 +193,27 @@ const PillarPage = () => {
                   )}
                   <h3 className="font-body font-medium transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>{rp.title}</h3>
                 </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Related Blog Articles */}
+        {relatedBlogPosts && relatedBlogPosts.length > 0 && (
+          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Related Articles</h2>
+            <div className="flex flex-col gap-3">
+              {relatedBlogPosts.map((post) => (
+                <a
+                  key={post.id}
+                  href={`/blog/${post.slug}`}
+                  className="font-body flex items-center gap-2 transition-colors"
+                  style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                >
+                  {post.title} <ArrowRight size={12} />
+                </a>
               ))}
             </div>
           </section>
