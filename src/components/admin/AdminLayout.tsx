@@ -9,6 +9,7 @@ import {
   Globe,
   Tags,
   Layers,
+  BookOpen,
   LogOut,
   Menu,
   X,
