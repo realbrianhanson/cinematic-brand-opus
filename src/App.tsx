@@ -21,6 +21,7 @@ const ChangePassword = lazy(() => import("./components/admin/ChangePassword"));
 const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPagesManager"));
 const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
 const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsManager"));
+const NichesManager = lazy(() => import("./components/admin/NichesManager"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
