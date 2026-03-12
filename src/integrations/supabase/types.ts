@@ -41,6 +41,338 @@ export type Database = {
         }
         Relationships: []
       }
+      content_schemas: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          description_template: string | null
+          id: string
+          is_active: boolean | null
+          items_per_section: number | null
+          name: string
+          renderer_component: string
+          schema_definition: Json
+          slug: string
+          title_template: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          description_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          items_per_section?: number | null
+          name: string
+          renderer_component: string
+          schema_definition: Json
+          slug: string
+          title_template: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          description_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          items_per_section?: number | null
+          name?: string
+          renderer_component?: string
+          schema_definition?: Json
+          slug?: string
+          title_template?: string
+        }
+        Relationships: []
+      }
+      cta_events: {
+        Row: {
+          content_type_slug: string | null
+          created_at: string | null
+          cta_variant: string | null
+          event_type: string | null
+          id: string
+          niche_slug: string | null
+          page_id: string | null
+          page_type: string | null
+        }
+        Insert: {
+          content_type_slug?: string | null
+          created_at?: string | null
+          cta_variant?: string | null
+          event_type?: string | null
+          id?: string
+          niche_slug?: string | null
+          page_id?: string | null
+          page_type?: string | null
+        }
+        Update: {
+          content_type_slug?: string | null
+          created_at?: string | null
+          cta_variant?: string | null
+          event_type?: string | null
+          id?: string
+          niche_slug?: string | null
+          page_id?: string | null
+          page_type?: string | null
+        }
+        Relationships: []
+      }
+      generated_pages: {
+        Row: {
+          content_json: Json
+          content_schema_id: string | null
+          created_at: string | null
+          generation_cost: number | null
+          generation_model: string | null
+          id: string
+          last_refreshed: string | null
+          niche_id: string | null
+          performance_trend: string | null
+          published_at: string | null
+          quality_score: number | null
+          refresh_count: number | null
+          schema_markup: Json | null
+          seo_meta: Json | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          views: number | null
+        }
+        Insert: {
+          content_json: Json
+          content_schema_id?: string | null
+          created_at?: string | null
+          generation_cost?: number | null
+          generation_model?: string | null
+          id?: string
+          last_refreshed?: string | null
+          niche_id?: string | null
+          performance_trend?: string | null
+          published_at?: string | null
+          quality_score?: number | null
+          refresh_count?: number | null
+          schema_markup?: Json | null
+          seo_meta?: Json | null
+          slug: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          views?: number | null
+        }
+        Update: {
+          content_json?: Json
+          content_schema_id?: string | null
+          created_at?: string | null
+          generation_cost?: number | null
+          generation_model?: string | null
+          id?: string
+          last_refreshed?: string | null
+          niche_id?: string | null
+          performance_trend?: string | null
+          published_at?: string | null
+          quality_score?: number | null
+          refresh_count?: number | null
+          schema_markup?: Json | null
+          seo_meta?: Json | null
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_pages_content_schema_id_fkey"
+            columns: ["content_schema_id"]
+            isOneToOne: false
+            referencedRelation: "content_schemas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_pages_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generation_logs: {
+        Row: {
+          batch_id: string | null
+          cost: number | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          generated_page_id: string | null
+          id: string
+          status: string | null
+          tokens_used: number | null
+        }
+        Insert: {
+          batch_id?: string | null
+          cost?: number | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          generated_page_id?: string | null
+          id?: string
+          status?: string | null
+          tokens_used?: number | null
+        }
+        Update: {
+          batch_id?: string | null
+          cost?: number | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          generated_page_id?: string | null
+          id?: string
+          status?: string | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_logs_generated_page_id_fkey"
+            columns: ["generated_page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indexing_log: {
+        Row: {
+          checked_at: string | null
+          id: string
+          indexed_at: string | null
+          page_id: string | null
+          page_url: string
+          status: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          checked_at?: string | null
+          id?: string
+          indexed_at?: string | null
+          page_id?: string | null
+          page_url: string
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Update: {
+          checked_at?: string | null
+          id?: string
+          indexed_at?: string | null
+          page_id?: string | null
+          page_url?: string
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indexing_log_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_links: {
+        Row: {
+          anchor_text: string
+          created_at: string | null
+          id: string
+          link_type: string
+          position: string | null
+          source_page_id: string
+          source_page_type: string
+          target_page_id: string
+          target_page_type: string
+        }
+        Insert: {
+          anchor_text: string
+          created_at?: string | null
+          id?: string
+          link_type: string
+          position?: string | null
+          source_page_id: string
+          source_page_type: string
+          target_page_id: string
+          target_page_type: string
+        }
+        Update: {
+          anchor_text?: string
+          created_at?: string | null
+          id?: string
+          link_type?: string
+          position?: string | null
+          source_page_id?: string
+          source_page_type?: string
+          target_page_id?: string
+          target_page_type?: string
+        }
+        Relationships: []
+      }
+      keyword_assignments: {
+        Row: {
+          created_at: string | null
+          id: string
+          page_id: string | null
+          primary_keyword: string
+          secondary_keywords: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          page_id?: string | null
+          primary_keyword: string
+          secondary_keywords?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          page_id?: string | null
+          primary_keyword?: string
+          secondary_keywords?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "keyword_assignments_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_clicks: {
+        Row: {
+          clicked_at: string | null
+          id: string
+          internal_link_id: string | null
+        }
+        Insert: {
+          clicked_at?: string | null
+          id?: string
+          internal_link_id?: string | null
+        }
+        Update: {
+          clicked_at?: string | null
+          id?: string
+          internal_link_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_clicks_internal_link_id_fkey"
+            columns: ["internal_link_id"]
+            isOneToOne: false
+            referencedRelation: "internal_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media: {
         Row: {
           created_at: string
@@ -73,6 +405,126 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      niches: {
+        Row: {
+          context: Json
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_niche_id: string | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          context?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_niche_id?: string | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          context?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_niche_id?: string | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "niches_parent_niche_id_fkey"
+            columns: ["parent_niche_id"]
+            isOneToOne: false
+            referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      page_engagement: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          page_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          page_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          page_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_engagement_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pillar_pages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          niche_id: string | null
+          published_at: string | null
+          seo_meta: Json | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          niche_id?: string | null
+          published_at?: string | null
+          seo_meta?: Json | null
+          slug: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          niche_id?: string | null
+          published_at?: string | null
+          seo_meta?: Json | null
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pillar_pages_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posts: {
         Row: {
@@ -176,6 +628,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_settings: {
+        Row: {
+          author_bio: string | null
+          author_credentials: string[] | null
+          author_name: string
+          author_social_links: Json | null
+          author_title: string | null
+          cta_button_text: string | null
+          cta_headline: string | null
+          cta_social_proof: string | null
+          cta_subtext: string | null
+          cta_url: string | null
+          id: string
+          publisher_name: string | null
+          publisher_url: string | null
+          site_name: string
+          site_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          author_bio?: string | null
+          author_credentials?: string[] | null
+          author_name?: string
+          author_social_links?: Json | null
+          author_title?: string | null
+          cta_button_text?: string | null
+          cta_headline?: string | null
+          cta_social_proof?: string | null
+          cta_subtext?: string | null
+          cta_url?: string | null
+          id?: string
+          publisher_name?: string | null
+          publisher_url?: string | null
+          site_name?: string
+          site_url?: string
+          updated_at?: string | null
+        }
+        Update: {
+          author_bio?: string | null
+          author_credentials?: string[] | null
+          author_name?: string
+          author_social_links?: Json | null
+          author_title?: string | null
+          cta_button_text?: string | null
+          cta_headline?: string | null
+          cta_social_proof?: string | null
+          cta_subtext?: string | null
+          cta_url?: string | null
+          id?: string
+          publisher_name?: string | null
+          publisher_url?: string | null
+          site_name?: string
+          site_url?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
