@@ -91,6 +91,15 @@ const GeneratedPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={seo.title || page.title}
+        description={seo.description || content?.intro || ""}
+        url={pageUrl}
+        image={seo.og_image}
+        publishedAt={page.published_at || page.created_at || ""}
+        updatedAt={page.updated_at || ""}
+        authorName={settings?.author_name}
+      />
       <Nav />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
         <StructuredData
