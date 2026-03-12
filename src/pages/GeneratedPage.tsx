@@ -82,13 +82,7 @@ const GeneratedPage = () => {
     let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
     canon.href = url;
-    const markup = page.schema_markup;
-    if (markup) {
-      let script = document.getElementById("json-ld-generated");
-      if (!script) { script = document.createElement("script"); script.id = "json-ld-generated"; script.setAttribute("type", "application/ld+json"); document.head.appendChild(script); }
-      script.textContent = JSON.stringify(Array.isArray(markup) ? markup : [markup]);
-    }
-    return () => { document.getElementById("json-ld-generated")?.remove(); };
+    return () => {};
   }, [page, settings, contentType, nicheSlug]);
 
   const content = page?.content_json as any;
