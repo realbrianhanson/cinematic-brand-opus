@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.build-silo-links]
 verify_jwt = false
+
+[functions.submit-indexnow]
+verify_jwt = false
