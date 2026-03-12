@@ -16,6 +16,7 @@ import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
+import PageHead from "@/components/PageHead";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
