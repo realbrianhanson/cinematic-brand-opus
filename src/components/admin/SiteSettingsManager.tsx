@@ -378,7 +378,36 @@ const SiteSettingsManager = () => {
               </Field>
             </div>
           </div>
-        </div>
+
+          {/* Section 4: Weekly Reports */}
+          <div className="admin-card" style={{ padding: 24 }}>
+            <h2
+              className="font-body"
+              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+            >
+              Weekly Reports
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Field label="Report Email">
+                <input
+                  className="admin-input font-body"
+                  value={(form as any).report_email ?? ""}
+                  onChange={(e) => updateField("report_email" as any, e.target.value)}
+                  placeholder="admin@yoursite.com"
+                  type="email"
+                />
+              </Field>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={(form as any).report_enabled ?? false}
+                  onCheckedChange={(v) => updateField("report_enabled" as any, v)}
+                />
+                <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                  Enable weekly email reports
+                </span>
+              </div>
+            </div>
+          </div>
 
         {/* Right column - Live CTA Preview + Sitemap Card */}
         <div style={{ position: "sticky", top: 32, display: "flex", flexDirection: "column", gap: 20 }}>
