@@ -27,6 +27,7 @@ const navItems = [
   { to: "/admin/pages", label: "pSEO Pages", icon: Files },
   { to: "/admin/library", label: "Library", icon: ImageIcon },
   { to: "/admin/settings", label: "Settings", icon: KeyRound },
+  { to: "/admin/site-settings", label: "Site Config", icon: Globe },
 ];
 
 const AdminLayout = () => {
