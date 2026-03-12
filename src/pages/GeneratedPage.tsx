@@ -11,6 +11,7 @@ import PillarBanner from "@/components/PillarBanner";
 import RelatedResources from "@/components/RelatedResources";
 import StructuredData from "@/components/StructuredData";
 import SiloSidebar from "@/components/SiloSidebar";
+import WidgetRenderer from "@/components/WidgetRenderer";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
@@ -191,6 +192,8 @@ const GeneratedPage = () => {
           </div>
           {feedback && <p className="font-body mt-3" style={{ fontSize: 12, color: "#D4AF55" }}>Thanks for your feedback!</p>}
         </div>
+
+        <WidgetRenderer zone="page" />
 
         <RelatedResources
           currentPageId={page.id}

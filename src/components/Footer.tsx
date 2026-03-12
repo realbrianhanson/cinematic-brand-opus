@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-
+import WidgetRenderer from "@/components/WidgetRenderer";
 const navLinks = [
   { label: "Story", href: "#story" },
   { label: "Expertise", href: "#expertise" },
@@ -81,6 +81,8 @@ const Footer = () => (
           </p>
         </div>
       </div>
+
+      <WidgetRenderer zone="footer" />
 
       {/* Bottom bar */}
       <div

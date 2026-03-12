@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
+import WidgetRenderer from "@/components/WidgetRenderer";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -278,6 +279,8 @@ const BlogPost = () => {
               </div>
             </div>
           )}
+
+        <WidgetRenderer zone="page" pageContext={{ postId: post.id, categoryId: (post as any).categories?.id }} />
       </article>
     </div>
   );
