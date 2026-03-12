@@ -185,8 +185,8 @@ const PillarPage = () => {
           </section>
         )}
 
-        {/* CTA Placeholder */}
-        <div id="cta-placeholder" style={{ marginTop: 64 }} />
+        {/* End CTA */}
+        <PublicCTA variant="end" pageId={pillar.id} pageType="pillar" nicheName={(pillar as any).niches?.name} />
       </article>
     </div>
   );

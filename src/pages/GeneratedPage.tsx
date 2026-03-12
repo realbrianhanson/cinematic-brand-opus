@@ -271,9 +271,6 @@ const GeneratedPage = () => {
           {feedback && <p className="font-body mt-3" style={{ fontSize: 12, color: "#D4AF55" }}>Thanks for your feedback!</p>}
         </div>
 
-        {/* CTA slot */}
-        <div id="cta-slot" className="mt-16" />
-
         {/* Related */}
         <div className="mt-16">
           <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>More Resources for {page.niche.name}</h2>
@@ -283,7 +280,13 @@ const GeneratedPage = () => {
           <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Similar Resources for Other Industries</h2>
           <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Cross-industry resources coming soon.</p>
         </div>
+
+        {/* End CTA */}
+        <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
+
+      {/* Sticky CTA */}
+      <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );
 };

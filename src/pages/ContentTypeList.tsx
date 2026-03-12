@@ -149,6 +149,8 @@ const ContentTypeList = () => {
         {filtered.length === 0 && pages && (
           <p className="font-body" style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>No published resources found.</p>
         )}
+
+        <PublicCTA variant="end" contentTypeSlug={contentType} pageType="content-type-list" />
       </main>
     </div>
   );

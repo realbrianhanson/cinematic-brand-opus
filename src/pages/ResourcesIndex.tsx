@@ -108,6 +108,8 @@ const ResourcesIndex = () => {
             );
           })}
         </div>
+
+        <PublicCTA variant="end" pageType="resources-index" />
       </main>
     </div>
   );
