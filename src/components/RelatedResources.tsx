@@ -46,8 +46,32 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
     staleTime: 60000,
   });
 
+  // Blog posts related to this niche (bidirectional cross-link)
+  const { data: relatedBlogPosts } = useQuery({
+    queryKey: ["crosslink-blog-for-niche", nicheId],
+    queryFn: async () => {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!posts || posts.length === 0) return [];
+      const postsWithCat = posts.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        category_name: p.categories?.name || "",
+      }));
+      return findRelatedNicheForPage(nicheName, nicheContext, postsWithCat, 2);
+    },
+    enabled: !!nicheId,
+    staleTime: 60000,
+  });
+
   const hasSiblings = siblings && siblings.length > 0;
-  if (!hasSiblings && !pillar) return null;
+  const hasBlogPosts = relatedBlogPosts && relatedBlogPosts.length > 0;
+  if (!hasSiblings && !pillar && !hasBlogPosts) return null;
 
   return (
     <div className="mt-16">
