@@ -27,6 +27,7 @@ const ContentTypesManager = lazy(() => import("./components/admin/ContentTypesMa
 const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEditor"));
 const PillarPagesManager = lazy(() => import("./components/admin/PillarPagesManager"));
 const PillarPageEditor = lazy(() => import("./components/admin/PillarPageEditor"));
+const GenerationControls = lazy(() => import("./components/admin/GenerationControls"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="pillars" element={<Suspense fallback={null}><PillarPagesManager /></Suspense>} />
               <Route path="pillars/new" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
               <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
+              <Route path="generate" element={<Suspense fallback={null}><GenerationControls /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

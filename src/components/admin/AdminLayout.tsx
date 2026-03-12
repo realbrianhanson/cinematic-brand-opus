@@ -10,6 +10,7 @@ import {
   Tags,
   Layers,
   BookOpen,
+  Zap,
   LogOut,
   Menu,
   X,
@@ -34,6 +35,7 @@ const navItems = [
   { to: "/admin/niches", label: "Niches", icon: Tags },
   { to: "/admin/content-types", label: "Content Types", icon: Layers },
   { to: "/admin/pillars", label: "Pillars", icon: BookOpen },
+  { to: "/admin/generate", label: "Generate", icon: Zap },
 ];
 
 const AdminLayout = () => {
