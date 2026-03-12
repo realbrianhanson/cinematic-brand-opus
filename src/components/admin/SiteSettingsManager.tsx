@@ -19,6 +19,8 @@ const defaultSettings = {
   cta_subtext: "Join thousands learning to grow their business.",
   cta_button_text: "Get Free Access",
   cta_social_proof: "",
+  report_email: "",
+  report_enabled: false,
 };
 
 type Settings = typeof defaultSettings & { id?: string };
