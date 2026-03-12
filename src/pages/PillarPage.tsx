@@ -44,20 +44,7 @@ const PillarPage = () => {
 
   const nicheId = (pillar as any)?.niches?.id ?? pillar?.niche_id;
 
-  const { data: connectedPages } = useQuery({
-    queryKey: ["public-pillar-pages", nicheId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("generated_pages")
-        .select("id, title, slug, status, content_schema_id, content_schemas(name, slug)")
-        .eq("niche_id", nicheId!)
-        .eq("status", "published")
-        .order("title");
-      return data ?? [];
-    },
-    enabled: !!nicheId,
-    staleTime: 30000,
-  });
+  // connectedPages query removed — SiloNavigation handles its own fetching
 
   // Related pillar guides
   const { data: relatedPillars } = useQuery({
