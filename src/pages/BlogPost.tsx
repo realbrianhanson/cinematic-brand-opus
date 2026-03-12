@@ -69,7 +69,21 @@ const BlogPost = () => {
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
-        {/* Back link */}
+        <StructuredData
+          pageType="blog"
+          title={post.title}
+          description={post.excerpt || post.tldr || ""}
+          url={`${siteSettings?.site_url || ""}/blog/${slug}`}
+          publishedAt={post.created_at}
+          updatedAt={post.updated_at}
+          breadcrumbs={[
+            { name: "Home", url: siteSettings?.site_url || "/" },
+            { name: "Blog", url: `${siteSettings?.site_url || ""}/blog` },
+            { name: post.title, url: `${siteSettings?.site_url || ""}/blog/${slug}` },
+          ]}
+          faqs={blogFaqs}
+          siteSettings={siteSettings}
+        />
         <Link
           to="/blog"
           className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
