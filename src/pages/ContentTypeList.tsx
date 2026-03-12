@@ -52,6 +52,12 @@ const ContentTypeList = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={`${schema?.name || "Resources"} | Resources`}
+        description={schema?.description || `Browse ${schema?.name || ""} resources by industry.`}
+        url={`/resources/${contentType}`}
+        type="website"
+      />
       <Nav />
       <header className="pt-32 pb-8 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
         <Breadcrumbs items={[

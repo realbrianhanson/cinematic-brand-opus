@@ -56,6 +56,12 @@ const ResourcesIndex = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={`Free Resources | ${settings?.site_name || "Resources"}`}
+        description="Actionable guides, checklists, templates, and tools organized by industry."
+        url={`${settings?.site_url || ""}/resources`}
+        type="website"
+      />
       <Nav />
       <header className="pt-32 pb-16 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
         <Breadcrumbs items={[
