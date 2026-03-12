@@ -375,8 +375,8 @@ const SiteSettingsManager = () => {
           </div>
         </div>
 
-        {/* Right column - Live CTA Preview */}
-        <div style={{ position: "sticky", top: 32 }}>
+        {/* Right column - Live CTA Preview + Sitemap Card */}
+        <div style={{ position: "sticky", top: 32, display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
@@ -451,6 +451,8 @@ const SiteSettingsManager = () => {
               Live preview — updates as you type
             </p>
           </div>
+
+          <SitemapInfoCard />
         </div>
       </div>
     </div>
