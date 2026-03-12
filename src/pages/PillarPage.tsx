@@ -156,31 +156,7 @@ const PillarPage = () => {
           dangerouslySetInnerHTML={{ __html: pillar.content }}
         />
 
-        {Object.keys(grouped).length > 0 && (
-          <section style={{ marginTop: 64, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <h2 className="font-display italic" style={{ fontSize: 28, marginBottom: 28 }}>Resources in This Guide</h2>
-            {Object.entries(grouped).map(([schemaSlug, group]) => (
-              <div key={schemaSlug} style={{ marginBottom: 28 }}>
-                <h3 className="font-body" style={{ fontSize: 14, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "#D4AF55", marginBottom: 12 }}>{group.name}</h3>
-                <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {group.pages.map((pg: any) => (
-                    <li key={pg.id}>
-                      <Link
-                        to={`/resources/${schemaSlug}/${pg.slug}`}
-                        className="font-body"
-                        style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", textDecoration: "none", transition: "color 0.2s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
-                      >
-                        → {pg.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        )}
+        <SiloNavigation nicheId={nicheId!} pillarTitle={pillar.title} />
 
         {/* Related Pillar Guides */}
         {relatedPillars && relatedPillars.length > 0 && (
