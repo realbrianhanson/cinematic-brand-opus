@@ -27,6 +27,7 @@ const Blog = () => {
       className="public-site min-h-screen"
       style={{ background: "#07070E", color: "#fff" }}
     >
+      <PageHead title="Blog | Brian Hanson" description="Insights on authority, leadership, and legacy." url="/blog" type="website" />
       <CustomCursor />
       <Nav />
       {/* Header */}
