@@ -488,6 +488,7 @@ const SiteSettingsManager = () => {
           </div>
 
           <SitemapInfoCard />
+          <IndexNowCard siteUrl={form.site_url} />
         </div>
       </div>
     </div>
