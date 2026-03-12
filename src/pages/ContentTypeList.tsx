@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight } from "lucide-react";
+import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -51,6 +52,12 @@ const ContentTypeList = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={`${schema?.name || "Resources"} | Resources`}
+        description={schema?.description || `Browse ${schema?.name || ""} resources by industry.`}
+        url={`/resources/${contentType}`}
+        type="website"
+      />
       <Nav />
       <header className="pt-32 pb-8 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
         <Breadcrumbs items={[

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StructuredData from "@/components/StructuredData";
+import PageHead from "@/components/PageHead";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -75,18 +76,7 @@ const PillarPage = () => {
 
   useEffect(() => {
     if (!pillar) return;
-    const seo = (pillar.seo_meta ?? {}) as any;
-    document.title = seo.title || pillar.title;
-    const setMeta = (name: string, content: string) => {
-      if (!content) return;
-      let el = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[property="${name}"]`);
-      if (!el) { el = document.createElement("meta"); (name.startsWith("og:") ? el.setAttribute("property", name) : el.setAttribute("name", name)); document.head.appendChild(el); }
-      el.setAttribute("content", content);
-    };
-    setMeta("description", seo.description || "");
-    setMeta("og:title", seo.title || pillar.title);
-    setMeta("og:description", seo.description || "");
-    if (seo.og_image) setMeta("og:image", seo.og_image);
+    // PageHead handles meta tags via react-helmet-async now
   }, [pillar, siteSettings]);
 
   if (isLoading) {
@@ -119,6 +109,15 @@ const PillarPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={((pillar.seo_meta as any)?.title) || pillar.title}
+        description={((pillar.seo_meta as any)?.description) || ""}
+        url={`${siteSettings?.site_url || ""}/guides/${slug}`}
+        image={(pillar.seo_meta as any)?.og_image}
+        publishedAt={pillar.published_at || pillar.created_at || ""}
+        updatedAt={pillar.updated_at || ""}
+        authorName={siteSettings?.author_name}
+      />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
         <StructuredData
           pageType="pillar"

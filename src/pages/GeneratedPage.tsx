@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import PageHead from "@/components/PageHead";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,28 +64,8 @@ const GeneratedPage = () => {
     }
   }, [page?.id]);
 
-  useEffect(() => {
-    if (!page) return;
-    const seo = (page.seo_meta as any) || {};
-    document.title = seo.title || page.title;
-    const setMeta = (name: string, content: string, prop?: string) => {
-      if (!content) return;
-      let el = document.querySelector(prop ? `meta[property="${prop}"]` : `meta[name="${name}"]`);
-      if (!el) { el = document.createElement("meta"); prop ? el.setAttribute("property", prop) : el.setAttribute("name", name); document.head.appendChild(el); }
-      el.setAttribute("content", content);
-    };
-    setMeta("description", seo.description || "");
-    const url = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
-    setMeta("", seo.title || page.title, "og:title");
-    setMeta("", seo.description || "", "og:description");
-    setMeta("", "article", "og:type");
-    setMeta("", url, "og:url");
-    if (seo.og_image) setMeta("", seo.og_image, "og:image");
-    let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
-    canon.href = url;
-    return () => {};
-  }, [page, settings, contentType, nicheSlug]);
+  const seo = (page?.seo_meta as any) || {};
+  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
 
   const content = page?.content_json as any;
   const Renderer = page?.schema?.renderer_component ? renderers[page.schema.renderer_component] : null;
@@ -110,6 +91,15 @@ const GeneratedPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <PageHead
+        title={seo.title || page.title}
+        description={seo.description || content?.intro || ""}
+        url={pageUrl}
+        image={seo.og_image}
+        publishedAt={page.published_at || page.created_at || ""}
+        updatedAt={page.updated_at || ""}
+        authorName={settings?.author_name}
+      />
       <Nav />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
         <StructuredData

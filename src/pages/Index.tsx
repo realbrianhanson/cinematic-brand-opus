@@ -16,6 +16,7 @@ import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
+import PageHead from "@/components/PageHead";
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
@@ -28,6 +29,7 @@ const Index = () => {
 
   return (
     <>
+      <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Brian Hanson — Authority, Leadership, Legacy." url="/" type="website" />
       {!loaded && <Loader onComplete={handleLoaderComplete} />}
       <div
         className="public-site min-h-screen"
