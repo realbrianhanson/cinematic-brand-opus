@@ -20,6 +20,7 @@ const MediaLibrary = lazy(() => import("./components/admin/MediaLibrary"));
 const ChangePassword = lazy(() => import("./components/admin/ChangePassword"));
 const GeneratedPagesManager = lazy(() => import("./components/admin/GeneratedPagesManager"));
 const GeneratedPageEditor = lazy(() => import("./components/admin/GeneratedPageEditor"));
+const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsManager"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="pages/:id/edit" element={<Suspense fallback={null}><GeneratedPageEditor /></Suspense>} />
               <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
+              <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
