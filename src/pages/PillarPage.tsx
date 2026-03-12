@@ -7,6 +7,7 @@ import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
+import SiloNavigation from "@/components/SiloNavigation";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -43,20 +44,7 @@ const PillarPage = () => {
 
   const nicheId = (pillar as any)?.niches?.id ?? pillar?.niche_id;
 
-  const { data: connectedPages } = useQuery({
-    queryKey: ["public-pillar-pages", nicheId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("generated_pages")
-        .select("id, title, slug, status, content_schema_id, content_schemas(name, slug)")
-        .eq("niche_id", nicheId!)
-        .eq("status", "published")
-        .order("title");
-      return data ?? [];
-    },
-    enabled: !!nicheId,
-    staleTime: 30000,
-  });
+  // connectedPages query removed — SiloNavigation handles its own fetching
 
   // Related pillar guides
   const { data: relatedPillars } = useQuery({
@@ -99,13 +87,7 @@ const PillarPage = () => {
   const readingTime = Math.max(1, Math.ceil(wordCount(pillar.content) / 250));
   const authorName = siteSettings?.author_name || "Author";
 
-  const grouped: Record<string, { name: string; pages: any[] }> = {};
-  (connectedPages ?? []).forEach((pg: any) => {
-    const schemaName = pg.content_schemas?.name ?? "Other";
-    const schemaSlug = pg.content_schemas?.slug ?? "other";
-    if (!grouped[schemaSlug]) grouped[schemaSlug] = { name: schemaName, pages: [] };
-    grouped[schemaSlug].pages.push(pg);
-  });
+  const nicheName = (pillar as any)?.niches?.name || "";
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
@@ -161,31 +143,7 @@ const PillarPage = () => {
           dangerouslySetInnerHTML={{ __html: pillar.content }}
         />
 
-        {Object.keys(grouped).length > 0 && (
-          <section style={{ marginTop: 64, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <h2 className="font-display italic" style={{ fontSize: 28, marginBottom: 28 }}>Resources in This Guide</h2>
-            {Object.entries(grouped).map(([schemaSlug, group]) => (
-              <div key={schemaSlug} style={{ marginBottom: 28 }}>
-                <h3 className="font-body" style={{ fontSize: 14, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "#D4AF55", marginBottom: 12 }}>{group.name}</h3>
-                <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {group.pages.map((pg: any) => (
-                    <li key={pg.id}>
-                      <Link
-                        to={`/resources/${schemaSlug}/${pg.slug}`}
-                        className="font-body"
-                        style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", textDecoration: "none", transition: "color 0.2s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
-                      >
-                        → {pg.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        )}
+        <SiloNavigation nicheId={nicheId!} pillarTitle={pillar.title} />
 
         {/* Related Pillar Guides */}
         {relatedPillars && relatedPillars.length > 0 && (
