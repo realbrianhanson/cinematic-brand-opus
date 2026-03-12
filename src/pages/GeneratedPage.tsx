@@ -224,6 +224,9 @@ const GeneratedPage = () => {
         {/* Renderer */}
         {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}
 
+        {/* Inline CTA */}
+        <PublicCTA variant="inline" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+
         {/* FAQ accordion */}
         {faqs && Array.isArray(faqs) && faqs.length > 0 && (
           <div className="mt-16">
