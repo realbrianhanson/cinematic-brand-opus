@@ -279,6 +279,8 @@ const BlogPost = () => {
               </div>
             </div>
           )}
+
+        <WidgetRenderer zone="page" pageContext={{ postId: post.id, categoryId: (post as any).categories?.id }} />
       </article>
     </div>
   );

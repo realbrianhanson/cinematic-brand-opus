@@ -193,6 +193,8 @@ const GeneratedPage = () => {
           {feedback && <p className="font-body mt-3" style={{ fontSize: 12, color: "#D4AF55" }}>Thanks for your feedback!</p>}
         </div>
 
+        <WidgetRenderer zone="page" />
+
         <RelatedResources
           currentPageId={page.id}
           nicheId={page.niche.id}
