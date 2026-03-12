@@ -124,6 +124,7 @@ export type Database = {
           generation_cost: number | null
           generation_model: string | null
           id: string
+          keyword_difficulty: string | null
           last_refreshed: string | null
           niche_id: string | null
           performance_trend: string | null
@@ -132,8 +133,10 @@ export type Database = {
           refresh_count: number | null
           schema_markup: Json | null
           seo_meta: Json | null
+          silo_niche_id: string | null
           slug: string
           status: string | null
+          target_keyword: string | null
           title: string
           updated_at: string | null
           views: number | null
@@ -145,6 +148,7 @@ export type Database = {
           generation_cost?: number | null
           generation_model?: string | null
           id?: string
+          keyword_difficulty?: string | null
           last_refreshed?: string | null
           niche_id?: string | null
           performance_trend?: string | null
@@ -153,8 +157,10 @@ export type Database = {
           refresh_count?: number | null
           schema_markup?: Json | null
           seo_meta?: Json | null
+          silo_niche_id?: string | null
           slug: string
           status?: string | null
+          target_keyword?: string | null
           title: string
           updated_at?: string | null
           views?: number | null
@@ -166,6 +172,7 @@ export type Database = {
           generation_cost?: number | null
           generation_model?: string | null
           id?: string
+          keyword_difficulty?: string | null
           last_refreshed?: string | null
           niche_id?: string | null
           performance_trend?: string | null
@@ -174,8 +181,10 @@ export type Database = {
           refresh_count?: number | null
           schema_markup?: Json | null
           seo_meta?: Json | null
+          silo_niche_id?: string | null
           slug?: string
           status?: string | null
+          target_keyword?: string | null
           title?: string
           updated_at?: string | null
           views?: number | null
@@ -191,6 +200,13 @@ export type Database = {
           {
             foreignKeyName: "generated_pages_niche_id_fkey"
             columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_pages_silo_niche_id_fkey"
+            columns: ["silo_niche_id"]
             isOneToOne: false
             referencedRelation: "niches"
             referencedColumns: ["id"]
@@ -710,6 +726,42 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      widget_config: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean | null
+          sort_order: number | null
+          updated_at: string | null
+          widget_slug: string
+          widget_zone: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+          widget_slug: string
+          widget_zone: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+          widget_slug?: string
+          widget_zone?: string
         }
         Relationships: []
       }
