@@ -66,6 +66,9 @@ const App = () => (
               <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
               <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
               <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
+              <Route path="pillars" element={<Suspense fallback={null}><PillarPagesManager /></Suspense>} />
+              <Route path="pillars/new" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
+              <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
