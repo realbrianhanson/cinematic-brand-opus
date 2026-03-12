@@ -6,6 +6,7 @@ import {
   FileText,
   FolderOpen,
   Files,
+  Globe,
   LogOut,
   Menu,
   X,
