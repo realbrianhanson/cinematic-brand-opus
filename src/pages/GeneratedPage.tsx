@@ -64,28 +64,8 @@ const GeneratedPage = () => {
     }
   }, [page?.id]);
 
-  useEffect(() => {
-    if (!page) return;
-    const seo = (page.seo_meta as any) || {};
-    document.title = seo.title || page.title;
-    const setMeta = (name: string, content: string, prop?: string) => {
-      if (!content) return;
-      let el = document.querySelector(prop ? `meta[property="${prop}"]` : `meta[name="${name}"]`);
-      if (!el) { el = document.createElement("meta"); prop ? el.setAttribute("property", prop) : el.setAttribute("name", name); document.head.appendChild(el); }
-      el.setAttribute("content", content);
-    };
-    setMeta("description", seo.description || "");
-    const url = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
-    setMeta("", seo.title || page.title, "og:title");
-    setMeta("", seo.description || "", "og:description");
-    setMeta("", "article", "og:type");
-    setMeta("", url, "og:url");
-    if (seo.og_image) setMeta("", seo.og_image, "og:image");
-    let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
-    canon.href = url;
-    return () => {};
-  }, [page, settings, contentType, nicheSlug]);
+  const seo = (page?.seo_meta as any) || {};
+  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
 
   const content = page?.content_json as any;
   const Renderer = page?.schema?.renderer_component ? renderers[page.schema.renderer_component] : null;
