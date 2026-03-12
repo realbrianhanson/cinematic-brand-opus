@@ -223,7 +223,7 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
             <span style={{ fontSize: 18, marginLeft: 12 }}>{open === i ? "−" : "+"}</span>
           </button>
           {open === i && (
-            <p className="font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
+            <p className="faq-answer font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
           )}
         </div>
       ))}
