@@ -23,7 +23,7 @@ const PillarPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pillar_pages")
-        .select("*, niches(id, name)")
+        .select("*, niches(id, name, slug, context)")
         .eq("slug", slug!)
         .eq("status", "published")
         .maybeSingle();
