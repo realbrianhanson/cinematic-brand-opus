@@ -202,6 +202,7 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
+      </div>
 
       <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
