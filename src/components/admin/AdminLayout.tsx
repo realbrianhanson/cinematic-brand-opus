@@ -37,6 +37,7 @@ const navItems = [
   { to: "/admin/content-types", label: "Content Types", icon: Layers },
   { to: "/admin/pillars", label: "Pillars", icon: BookOpen },
   { to: "/admin/generate", label: "Generate", icon: Zap },
+  { to: "/admin/pseo-dashboard", label: "Performance", icon: BarChart3 },
 ];
 
 const AdminLayout = () => {
