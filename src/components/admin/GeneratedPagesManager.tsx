@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, MoreHorizontal, ExternalLink, Pencil, Eye, Archive,
   Trash2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown,
-  ArrowUp, ArrowDown, CheckSquare, ImageIcon,
+  ArrowUp, ArrowDown, CheckSquare, ImageIcon, Globe, Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -80,6 +80,16 @@ const GeneratedPagesManager = () => {
     },
   });
 
+  const { data: indexingMap } = useQuery({
+    queryKey: ["admin-indexing-logs"],
+    queryFn: async () => {
+      const { data } = await supabase.from("indexing_log").select("page_id, status").order("submitted_at", { ascending: false });
+      const map = new Map<string, string>();
+      (data ?? []).forEach((log: any) => { if (!map.has(log.page_id)) map.set(log.page_id, log.status); });
+      return map;
+    },
+  });
+
   // Filter + sort
   const filtered = useMemo(() => {
     let list = pages ?? [];
@@ -141,9 +151,26 @@ const GeneratedPagesManager = () => {
       if (status === "published") updateData.published_at = new Date().toISOString();
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
       if (error) throw error;
+
+      // On publish: trigger OG image generation and Google submission
+      if (status === "published") {
+        for (const id of ids) {
+          const pg = (pages ?? []).find((p) => p.id === id);
+          if (!pg) continue;
+          const niche = (pg as any).niches;
+          const schema = (pg as any).content_schemas;
+          // Fire and forget — don't block on these
+          supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
+          if (niche?.slug && schema?.slug) {
+            const pageUrl = `/resources/${schema.slug}/${niche.slug}`;
+            supabase.functions.invoke("submit-to-google", { body: { page_id: id, page_url: pageUrl } }).catch(() => {});
+          }
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+      qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
       setSelected(new Set());
       setBulkAction(null);
       toast({ title: "Updated" });
@@ -429,6 +456,13 @@ const GeneratedPagesManager = () => {
               >
                 {pg.status}
               </span>
+              {(() => {
+                const idxStatus = indexingMap?.get(pg.id);
+                if (!idxStatus) return null;
+                const color = idxStatus === "indexed" ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))";
+                const label = idxStatus === "indexed" ? "Indexed by Google" : "Submitted to Google";
+                return <span title={label}><Globe size={12} style={{ color, flexShrink: 0 }} /></span>;
+              })()}
               <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
                 {pg.quality_score != null ? Number(pg.quality_score).toFixed(1) : "—"}
               </span>
