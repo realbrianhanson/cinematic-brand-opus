@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Globe, FileText, AlertTriangle } from "lucide-react";
 
 const defaultSettings = {
   site_name: "My Website",
@@ -375,8 +375,8 @@ const SiteSettingsManager = () => {
           </div>
         </div>
 
-        {/* Right column - Live CTA Preview */}
-        <div style={{ position: "sticky", top: 32 }}>
+        {/* Right column - Live CTA Preview + Sitemap Card */}
+        <div style={{ position: "sticky", top: 32, display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
@@ -451,6 +451,86 @@ const SiteSettingsManager = () => {
               Live preview — updates as you type
             </p>
           </div>
+
+          <SitemapInfoCard />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SitemapInfoCard = () => {
+  const { data: publishedCount } = useQuery({
+    queryKey: ["sitemap-page-count"],
+    queryFn: async () => {
+      const [gen, pillar] = await Promise.all([
+        supabase.from("generated_pages").select("id", { count: "exact", head: true }).eq("status", "published"),
+        supabase.from("pillar_pages").select("id", { count: "exact", head: true }).eq("status", "published"),
+      ]);
+      return (gen.count || 0) + (pillar.count || 0);
+    },
+  });
+
+  return (
+    <div className="admin-card" style={{ padding: 24 }}>
+      <h2
+        className="font-body"
+        style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}
+      >
+        <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
+        Sitemap &amp; Crawlers
+      </h2>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 6,
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            border: "1px solid hsl(var(--admin-border))",
+          }}
+        >
+          <FileText size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
+          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+            robots.txt: <span style={{ color: "hsl(120 60% 45%)" }}>Active</span>
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 6,
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            border: "1px solid hsl(var(--admin-border))",
+          }}
+        >
+          <FileText size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
+          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+            {publishedCount ?? "…"} published pages in sitemap
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            padding: "10px 12px",
+            borderRadius: 6,
+            backgroundColor: "hsl(40 90% 55% / 0.08)",
+            border: "1px solid hsl(40 90% 55% / 0.2)",
+          }}
+        >
+          <AlertTriangle size={14} style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }} />
+          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5 }}>
+            Update the Sitemap URL in <code style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))" }}>public/robots.txt</code> to your actual domain before going live.
+          </span>
         </div>
       </div>
     </div>
