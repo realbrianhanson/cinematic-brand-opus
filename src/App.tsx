@@ -8,6 +8,7 @@ import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import PillarPage from "./pages/PillarPage";
 import NotFound from "./pages/NotFound";
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
@@ -24,6 +25,8 @@ const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsMa
 const NichesManager = lazy(() => import("./components/admin/NichesManager"));
 const ContentTypesManager = lazy(() => import("./components/admin/ContentTypesManager"));
 const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEditor"));
+const PillarPagesManager = lazy(() => import("./components/admin/PillarPagesManager"));
+const PillarPageEditor = lazy(() => import("./components/admin/PillarPageEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -39,6 +42,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
+            <Route path="/guides/:slug" element={<PillarPage />} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
@@ -62,6 +66,9 @@ const App = () => (
               <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
               <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
               <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
+              <Route path="pillars" element={<Suspense fallback={null}><PillarPagesManager /></Suspense>} />
+              <Route path="pillars/new" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
+              <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

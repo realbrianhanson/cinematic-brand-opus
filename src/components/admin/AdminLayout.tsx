@@ -9,6 +9,7 @@ import {
   Globe,
   Tags,
   Layers,
+  BookOpen,
   LogOut,
   Menu,
   X,
@@ -32,6 +33,7 @@ const navItems = [
   { to: "/admin/site-settings", label: "Site Config", icon: Globe },
   { to: "/admin/niches", label: "Niches", icon: Tags },
   { to: "/admin/content-types", label: "Content Types", icon: Layers },
+  { to: "/admin/pillars", label: "Pillars", icon: BookOpen },
 ];
 
 const AdminLayout = () => {
