@@ -12,7 +12,7 @@ interface RelatedResourcesProps {
   contentTypeName: string;
 }
 
-const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
+const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
   // Siblings: same niche, different content type (silo-aware — NO cross-silo)
   const { data: siblings } = useQuery({
     queryKey: ["silo-siblings", nicheId, contentSchemaId],
