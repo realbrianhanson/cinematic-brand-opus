@@ -34,10 +34,10 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
             {done} of {total} completed ({pct}%)
           </span>
           <div className="flex gap-2">
-            <button onClick={() => setChecked(new Set())} className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+            <button onClick={() => setChecked(new Set())} aria-label="Reset checklist" className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
               <RotateCcw size={12} /> Reset
             </button>
-            <button onClick={() => window.print()} className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+            <button onClick={() => window.print()} aria-label="Print checklist" data-print-hide className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
               <Printer size={12} /> Print
             </button>
           </div>

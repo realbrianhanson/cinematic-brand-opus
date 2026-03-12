@@ -435,3 +435,97 @@
 .admin-shell.admin-light .admin-input[type="datetime-local"] {
   color-scheme: light;
 }
+
+/* Skip to content — accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 9999;
+  padding: 12px 24px;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 4px 4px;
+  transition: top 0.2s;
+}
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Focus styles — accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  nav, .skip-to-content,
+  [data-widget-zone="sidebar"],
+  [data-print-hide],
+  .public-cta,
+  button:not([data-print-show]) {
+    display: none !important;
+  }
+
+  /* Show all checklist items */
+  label {
+    opacity: 1 !important;
+    border-color: #ccc !important;
+    background: transparent !important;
+    page-break-inside: avoid;
+  }
+
+  /* Checkboxes as empty squares */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px !important;
+    height: 14px !important;
+    border: 1.5px solid #000 !important;
+    background: #fff !important;
+    border-radius: 2px;
+    accent-color: unset;
+  }
+  input[type="checkbox"]:checked::after {
+    content: "✓";
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    line-height: 14px;
+    color: #000;
+  }
+
+  h1, h2, h3, h4, p, span, li, pre {
+    color: #000 !important;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+
+  /* Progress bars */
+  [style*="background: #D4AF55"],
+  [style*="background: rgba(212,175,85"] {
+    background: #ccc !important;
+  }
+
+  /* Clean layout */
+  .font-display, .font-body {
+    font-family: serif;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+}

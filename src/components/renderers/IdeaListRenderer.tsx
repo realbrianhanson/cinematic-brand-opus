@@ -91,7 +91,7 @@ const IdeaListRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
                   onClick={() => handleCopy(item.title, i)}
                   className="shrink-0 p-1.5 transition-colors"
                   style={{ color: copiedIdx === i ? "#D4AF55" : "rgba(255,255,255,0.2)", background: "none", border: "none", cursor: "pointer" }}
-                  title="Copy title"
+                  aria-label={`Copy title: ${item.title}`}
                 >
                   {copiedIdx === i ? <Check size={14} /> : <Copy size={14} />}
                 </button>

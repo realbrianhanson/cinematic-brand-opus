@@ -129,7 +129,7 @@ const PillarPage = () => {
         updatedAt={pillar.updated_at || ""}
         authorName={siteSettings?.author_name}
       />
-      <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
+      <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
         <StructuredData
           pageType="pillar"
           title={pillar.title}
