@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 
 interface RelatedResourcesProps {
   currentPageId: string;
@@ -12,9 +12,9 @@ interface RelatedResourcesProps {
 }
 
 const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
-  // Siblings: same niche, different content type
+  // Siblings: same niche, different content type (silo-aware — NO cross-silo)
   const { data: siblings } = useQuery({
-    queryKey: ["related-siblings", nicheId, contentSchemaId],
+    queryKey: ["silo-siblings", nicheId, contentSchemaId],
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
@@ -22,45 +22,68 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
         .eq("niche_id", nicheId)
         .neq("content_schema_id", contentSchemaId)
         .eq("status", "published")
-        .limit(5);
+        .limit(8);
       return data ?? [];
     },
     enabled: !!nicheId && !!contentSchemaId,
     staleTime: 60000,
   });
 
-  // Cousins: same content type, different niche
-  const { data: cousins } = useQuery({
-    queryKey: ["related-cousins", contentSchemaId, nicheId],
+  // Pillar page for this niche (link juice flows UP)
+  const { data: pillar } = useQuery({
+    queryKey: ["silo-pillar", nicheId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("generated_pages")
-        .select("id, title, slug, niche_id, content_schema_id, niches(name, slug), content_schemas(slug)")
-        .eq("content_schema_id", contentSchemaId)
-        .neq("niche_id", nicheId)
+        .from("pillar_pages")
+        .select("id, title, slug")
+        .eq("niche_id", nicheId)
         .eq("status", "published")
-        .order("views", { ascending: false })
-        .limit(8);
-      return data ?? [];
+        .maybeSingle();
+      return data;
     },
-    enabled: !!contentSchemaId && !!nicheId,
+    enabled: !!nicheId,
     staleTime: 60000,
   });
 
   const hasSiblings = siblings && siblings.length > 0;
-  const hasCousins = cousins && cousins.length > 0;
-
-  if (!hasSiblings && !hasCousins) return null;
+  if (!hasSiblings && !pillar) return null;
 
   return (
     <div className="mt-16">
-      {/* Siblings */}
+      {/* Pillar link — prominent, link juice flows UP */}
+      {pillar && (
+        <Link
+          to={`/guides/${pillar.slug}`}
+          className="group flex items-center gap-4 mb-10 p-5"
+          style={{
+            border: "1px solid rgba(212,175,85,0.15)",
+            background: "rgba(212,175,85,0.04)",
+            textDecoration: "none",
+            transition: "border-color 0.3s, background 0.3s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)"; e.currentTarget.style.background = "rgba(212,175,85,0.07)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.15)"; e.currentTarget.style.background = "rgba(212,175,85,0.04)"; }}
+        >
+          <BookOpen size={20} style={{ color: "#D4AF55", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <span className="font-body uppercase block" style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
+              Complete Guide
+            </span>
+            <span className="font-body font-medium group-hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>
+              {pillar.title}
+            </span>
+          </div>
+          <ArrowRight size={16} className="shrink-0 group-hover:text-[#D4AF55] transition-colors" style={{ color: "rgba(255,255,255,0.2)" }} />
+        </Link>
+      )}
+
+      {/* Sibling resources — same niche only (silo-contained) */}
       {hasSiblings && (
-        <div className="mb-12">
+        <div>
           <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
             More {nicheName} Resources
           </h2>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {siblings.map((pg: any) => {
               const ctSlug = pg.content_schemas?.slug || "";
               const nSlug = pg.niches?.slug || "";
@@ -93,38 +116,7 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, contentSchemaId, 
         </div>
       )}
 
-      {/* Cousins */}
-      {hasCousins && (
-        <div>
-          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
-            Explore {contentTypeName} for Other Industries
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {cousins.map((pg: any) => {
-              const ctSlug = pg.content_schemas?.slug || "";
-              const nSlug = pg.niches?.slug || "";
-              return (
-                <Link
-                  key={pg.id}
-                  to={`/resources/${ctSlug}/${nSlug}`}
-                  className="font-body px-4 py-2 transition-all duration-200"
-                  style={{
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.45)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    textDecoration: "none",
-                    borderRadius: 999,
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.3)"; e.currentTarget.style.color = "#D4AF55"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}
-                >
-                  {pg.niches?.name || "Other"}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* NO cross-silo links — link juice stays within the silo */}
     </div>
   );
 };
