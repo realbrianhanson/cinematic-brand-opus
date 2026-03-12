@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Nav from "@/components/Nav";
+import PublicCTA from "@/components/PublicCTA";
 
 const ContentTypeList = () => {
   const { contentType } = useParams<{ contentType: string }>();
