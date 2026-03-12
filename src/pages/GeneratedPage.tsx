@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Linkedin, Twitter, Facebook, Link2, ThumbsUp, ThumbsDown, Clock, Calendar } from "lucide-react";
 import Nav from "@/components/Nav";
+import PublicCTA from "@/components/PublicCTA";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
