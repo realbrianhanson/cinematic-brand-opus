@@ -250,6 +250,69 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Indexing Status */}
+      <div className="admin-card" style={{ overflow: "hidden", marginTop: 24 }}>
+        <div
+          className="flex items-center justify-between"
+          style={{ padding: "18px 24px", borderBottom: "1px solid hsl(var(--admin-border))" }}
+        >
+          <div className="flex items-center gap-2">
+            <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
+            <span className="font-body" style={{ fontSize: 16, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+              Indexing Status
+            </span>
+          </div>
+          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+            {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
+          </span>
+        </div>
+        {(!indexingStats?.recent || indexingStats.recent.length === 0) ? (
+          <div style={{ padding: "40px 24px", textAlign: "center" }}>
+            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}>
+              No pages submitted yet. Publish pages to start indexing.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {/* Header */}
+            <div className="hidden lg:grid" style={{ gridTemplateColumns: "1fr 150px 100px", padding: "8px 24px", backgroundColor: "hsl(var(--admin-surface-2))", borderBottom: "1px solid hsl(var(--admin-border))" }}>
+              <span className="admin-label" style={{ marginBottom: 0 }}>URL</span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>Submitted</span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>Status</span>
+            </div>
+            {indexingStats.recent.map((log: any) => (
+              <div
+                key={log.id}
+                className="lg:grid flex flex-col"
+                style={{ gridTemplateColumns: "1fr 150px 100px", padding: "10px 24px", borderBottom: "1px solid hsl(var(--admin-border))", alignItems: "center" }}
+              >
+                <span className="font-body truncate" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+                  {log.page_url}
+                </span>
+                <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+                  {new Date(log.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span
+                  className="font-body"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    width: "fit-content",
+                    textTransform: "capitalize",
+                    background: log.status === "indexed" ? "hsl(var(--admin-sage) / 0.12)" : "hsl(var(--admin-accent) / 0.12)",
+                    color: log.status === "indexed" ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))",
+                  }}
+                >
+                  {log.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
