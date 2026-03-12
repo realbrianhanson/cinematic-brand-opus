@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight } from "lucide-react";
+import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
