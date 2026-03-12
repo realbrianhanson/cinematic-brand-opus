@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Files,
   Globe,
+  Tags,
   LogOut,
   Menu,
   X,
