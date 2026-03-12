@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight, List, CheckSquare, BookOpen, Wrench, FileText, HelpCircle } from "lucide-react";
+import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
