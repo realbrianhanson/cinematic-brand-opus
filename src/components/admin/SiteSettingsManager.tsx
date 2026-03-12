@@ -408,6 +408,7 @@ const SiteSettingsManager = () => {
               </div>
             </div>
           </div>
+        </div>
 
         {/* Right column - Live CTA Preview + Sitemap Card */}
         <div style={{ position: "sticky", top: 32, display: "flex", flexDirection: "column", gap: 20 }}>
