@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Linkedin, Twitter, Facebook, Link2, ThumbsUp, ThumbsDown, Clock, Calendar } from "lucide-react";
+import { Linkedin, Twitter, Facebook, Link2, ThumbsUp, ThumbsDown, Clock, Calendar } from "lucide-react";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import PillarBanner from "@/components/PillarBanner";
+import RelatedResources from "@/components/RelatedResources";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
@@ -14,12 +17,7 @@ import TemplateRenderer from "@/components/renderers/TemplateRenderer";
 import FAQRenderer from "@/components/renderers/FAQRenderer";
 
 const renderers: Record<string, React.ComponentType<{ contentJson: any; nicheName: string; pageId: string }>> = {
-  IdeaListRenderer,
-  ChecklistRenderer,
-  GuideRenderer,
-  ToolRoundupRenderer,
-  TemplateRenderer,
-  FAQRenderer,
+  IdeaListRenderer, ChecklistRenderer, GuideRenderer, ToolRoundupRenderer, TemplateRenderer, FAQRenderer,
 };
 
 function readingTime(json: any): number {
@@ -33,7 +31,6 @@ const GeneratedPage = () => {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
-  // Fetch page
   const { data: page } = useQuery({
     queryKey: ["public-gen-page", contentType, nicheSlug],
     queryFn: async () => {
@@ -42,12 +39,8 @@ const GeneratedPage = () => {
       const { data: niche } = await supabase.from("niches").select("id, name, slug").eq("slug", nicheSlug!).maybeSingle();
       if (!niche) return null;
       const { data: pg } = await supabase
-        .from("generated_pages")
-        .select("*")
-        .eq("content_schema_id", schema.id)
-        .eq("niche_id", niche.id)
-        .eq("status", "published")
-        .maybeSingle();
+        .from("generated_pages").select("*")
+        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).eq("status", "published").maybeSingle();
       if (!pg) return null;
       return { ...pg, schema, niche };
     },
@@ -62,21 +55,6 @@ const GeneratedPage = () => {
     },
   });
 
-  const { data: pillar } = useQuery({
-    queryKey: ["public-pillar-for-niche", page?.niche?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("pillar_pages")
-        .select("title, slug")
-        .eq("niche_id", page!.niche.id)
-        .eq("status", "published")
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!page?.niche?.id,
-  });
-
-  // Increment views
   useEffect(() => {
     if (page?.id && !viewCounted.current) {
       viewCounted.current = true;
@@ -84,7 +62,6 @@ const GeneratedPage = () => {
     }
   }, [page?.id]);
 
-  // SEO head tags
   useEffect(() => {
     if (!page) return;
     const seo = (page.seo_meta as any) || {};
@@ -102,23 +79,16 @@ const GeneratedPage = () => {
     setMeta("", "article", "og:type");
     setMeta("", url, "og:url");
     if (seo.og_image) setMeta("", seo.og_image, "og:image");
-
-    // Canonical
     let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
     canon.href = url;
-
-    // JSON-LD
     const markup = page.schema_markup;
     if (markup) {
       let script = document.getElementById("json-ld-generated");
       if (!script) { script = document.createElement("script"); script.id = "json-ld-generated"; script.setAttribute("type", "application/ld+json"); document.head.appendChild(script); }
       script.textContent = JSON.stringify(Array.isArray(markup) ? markup : [markup]);
     }
-
-    return () => {
-      document.getElementById("json-ld-generated")?.remove();
-    };
+    return () => { document.getElementById("json-ld-generated")?.remove(); };
   }, [page, settings, contentType, nicheSlug]);
 
   const content = page?.content_json as any;
@@ -132,17 +102,8 @@ const GeneratedPage = () => {
     await supabase.from("page_engagement").insert({ page_id: page.id, event_type: eventType, metadata });
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleFeedback = (type: "up" | "down") => {
-    if (feedback) return;
-    setFeedback(type);
-    logEngagement("feedback", { type });
-  };
+  const handleCopyLink = () => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  const handleFeedback = (type: "up" | "down") => { if (feedback) return; setFeedback(type); logEngagement("feedback", { type }); };
 
   if (!page) {
     return (
@@ -156,38 +117,19 @@ const GeneratedPage = () => {
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
       <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 font-body uppercase mb-8 flex-wrap" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)" }}>
-          <Link to="/" className="hover:text-[#D4AF55] transition-colors">Home</Link>
-          <span>›</span>
-          <Link to="/resources" className="hover:text-[#D4AF55] transition-colors">Resources</Link>
-          <span>›</span>
-          <Link to={`/resources/${contentType}`} className="hover:text-[#D4AF55] transition-colors">{page.schema.name}</Link>
-          <span>›</span>
-          <span style={{ color: "rgba(255,255,255,0.5)" }}>{page.niche.name}</span>
-        </div>
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Resources", href: "/resources" },
+          { label: page.schema.name, href: `/resources/${contentType}` },
+          { label: page.niche.name },
+        ]} />
 
-        {/* Pillar banner */}
-        {pillar && (
-          <Link
-            to={`/guides/${pillar.slug}`}
-            className="block mb-8 p-4 font-body transition-colors hover:text-[#D4AF55]"
-            style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)", fontSize: 13, color: "rgba(255,255,255,0.5)" }}
-          >
-            Part of our complete guide: <span style={{ color: "#D4AF55", fontWeight: 500 }}>{pillar.title} →</span>
-          </Link>
-        )}
+        <PillarBanner nicheId={page.niche.id} />
 
-        {/* Title */}
-        <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>
-          {page.title}
-        </h1>
+        <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
-        {/* Meta line */}
         <div className="flex items-center gap-4 flex-wrap mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-          {settings?.author_name && (
-            <span className="font-body">By {settings.author_name}</span>
-          )}
+          {settings?.author_name && <span className="font-body">By {settings.author_name}</span>}
           <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
           {page.last_refreshed && (
             <span className="font-body flex items-center gap-1">
@@ -196,7 +138,6 @@ const GeneratedPage = () => {
           )}
         </div>
 
-        {/* Share */}
         <div className="flex items-center gap-3 mb-10">
           {[
             { icon: Linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
@@ -212,22 +153,16 @@ const GeneratedPage = () => {
           </button>
         </div>
 
-        {/* Intro / answer block */}
         {content?.intro && (
           <div className="mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
-            <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>
-              {content.intro}
-            </p>
+            <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>{content.intro}</p>
           </div>
         )}
 
-        {/* Renderer */}
         {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}
 
-        {/* Inline CTA */}
         <PublicCTA variant="inline" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
 
-        {/* FAQ accordion */}
         {faqs && Array.isArray(faqs) && faqs.length > 0 && (
           <div className="mt-16">
             <h2 className="font-display italic mb-8" style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
@@ -235,63 +170,35 @@ const GeneratedPage = () => {
           </div>
         )}
 
-        {/* Feedback */}
         <div className="mt-16 p-8 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="font-body mb-4" style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>Was this helpful?</p>
           <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => handleFeedback("up")}
-              disabled={!!feedback}
-              className="p-3 transition-all"
-              style={{
-                border: "1px solid",
-                borderColor: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.1)",
-                color: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.4)",
-                background: feedback === "up" ? "rgba(212,175,85,0.08)" : "transparent",
-                cursor: feedback ? "default" : "pointer",
-              }}
-            >
+            <button onClick={() => handleFeedback("up")} disabled={!!feedback} className="p-3 transition-all" style={{ border: "1px solid", borderColor: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.1)", color: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.4)", background: feedback === "up" ? "rgba(212,175,85,0.08)" : "transparent", cursor: feedback ? "default" : "pointer" }}>
               <ThumbsUp size={18} />
             </button>
-            <button
-              onClick={() => handleFeedback("down")}
-              disabled={!!feedback}
-              className="p-3 transition-all"
-              style={{
-                border: "1px solid",
-                borderColor: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.1)",
-                color: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.4)",
-                background: feedback === "down" ? "rgba(212,175,85,0.08)" : "transparent",
-                cursor: feedback ? "default" : "pointer",
-              }}
-            >
+            <button onClick={() => handleFeedback("down")} disabled={!!feedback} className="p-3 transition-all" style={{ border: "1px solid", borderColor: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.1)", color: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.4)", background: feedback === "down" ? "rgba(212,175,85,0.08)" : "transparent", cursor: feedback ? "default" : "pointer" }}>
               <ThumbsDown size={18} />
             </button>
           </div>
           {feedback && <p className="font-body mt-3" style={{ fontSize: 12, color: "#D4AF55" }}>Thanks for your feedback!</p>}
         </div>
 
-        {/* Related */}
-        <div className="mt-16">
-          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>More Resources for {page.niche.name}</h2>
-          <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Related resources coming soon.</p>
-        </div>
-        <div className="mt-10">
-          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Similar Resources for Other Industries</h2>
-          <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Cross-industry resources coming soon.</p>
-        </div>
+        <RelatedResources
+          currentPageId={page.id}
+          nicheId={page.niche.id}
+          nicheName={page.niche.name}
+          contentSchemaId={page.schema.id}
+          contentTypeName={page.schema.name}
+        />
 
-        {/* End CTA */}
         <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
 
-      {/* Sticky CTA */}
       <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );
 };
 
-/* Inline FAQ Accordion */
 const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
   const [open, setOpen] = useState<number | null>(null);
   return (
@@ -307,9 +214,7 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
             <span style={{ fontSize: 18, marginLeft: 12 }}>{open === i ? "−" : "+"}</span>
           </button>
           {open === i && (
-            <p className="font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>
-              {faq.answer}
-            </p>
+            <p className="font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
           )}
         </div>
       ))}

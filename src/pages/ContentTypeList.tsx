@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Nav from "@/components/Nav";
 import PublicCTA from "@/components/PublicCTA";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 const ContentTypeList = () => {
   const { contentType } = useParams<{ contentType: string }>();
@@ -52,14 +53,11 @@ const ContentTypeList = () => {
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
       <header className="pt-32 pb-8 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 font-body uppercase mb-10" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)" }}>
-          <Link to="/" className="hover:text-[#D4AF55] transition-colors">Home</Link>
-          <span>›</span>
-          <Link to="/resources" className="hover:text-[#D4AF55] transition-colors">Resources</Link>
-          <span>›</span>
-          <span style={{ color: "rgba(255,255,255,0.5)" }}>{schema?.name || "..."}</span>
-        </div>
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Resources", href: "/resources" },
+          { label: schema?.name || "..." },
+        ]} />
 
         <h1 className="font-display italic" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.1 }}>
           {schema?.name || "Loading..."}
