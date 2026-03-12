@@ -127,6 +127,7 @@ const GeneratedPage = () => {
           faqs={faqs}
           siteSettings={settings}
         />
+        <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Resources", href: "/resources" },
           { label: page.schema.name, href: `/resources/${contentType}` },
