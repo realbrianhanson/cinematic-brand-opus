@@ -25,6 +25,8 @@ const SiteSettingsManager = lazy(() => import("./components/admin/SiteSettingsMa
 const NichesManager = lazy(() => import("./components/admin/NichesManager"));
 const ContentTypesManager = lazy(() => import("./components/admin/ContentTypesManager"));
 const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEditor"));
+const PillarPagesManager = lazy(() => import("./components/admin/PillarPagesManager"));
+const PillarPageEditor = lazy(() => import("./components/admin/PillarPageEditor"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
