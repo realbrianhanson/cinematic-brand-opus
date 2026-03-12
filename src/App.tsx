@@ -80,6 +80,7 @@ const App = () => (
               <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
               <Route path="generate" element={<Suspense fallback={null}><GenerationControls /></Suspense>} />
               <Route path="pseo-dashboard" element={<Suspense fallback={null}><PseoDashboard /></Suspense>} />
+              <Route path="widgets" element={<Suspense fallback={null}><WidgetsManager /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
