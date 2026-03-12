@@ -110,7 +110,7 @@ const GeneratedPage = () => {
           currentPageId={page.id}
           contentSchemaId={page.schema.id}
         />
-      <article className="flex-1 min-w-0" style={{ maxWidth: 900 }}>
+      <article id="main-content" className="flex-1 min-w-0" style={{ maxWidth: 900 }}>
         <StructuredData
           pageType="generated"
           title={page.title}

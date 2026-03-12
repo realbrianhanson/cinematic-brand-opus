@@ -76,7 +76,7 @@ const ResourcesIndex = () => {
         </p>
       </header>
 
-      <main className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
+      <main id="main-content" className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {schemas?.map((s) => {
             const Icon = rendererIcons[s.renderer_component] || List;

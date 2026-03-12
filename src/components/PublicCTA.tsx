@@ -139,6 +139,7 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
           </a>
           <button
             onClick={() => setDismissed(true)}
+            aria-label="Dismiss notification"
             style={{ color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: 4 }}
           >
             <X size={16} />

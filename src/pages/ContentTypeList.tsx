@@ -76,7 +76,7 @@ const ContentTypeList = () => {
         )}
       </header>
 
-      <main className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
+      <main id="main-content" className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
         {/* Filter */}
         {niches.length > 1 && (
           <div className="mb-10 flex flex-wrap gap-2">
