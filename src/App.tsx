@@ -9,6 +9,9 @@ import Index from "./pages/Index";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import PillarPage from "./pages/PillarPage";
+import ResourcesIndex from "./pages/ResourcesIndex";
+import ContentTypeList from "./pages/ContentTypeList";
+import GeneratedPage from "./pages/GeneratedPage";
 import NotFound from "./pages/NotFound";
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
