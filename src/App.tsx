@@ -31,6 +31,7 @@ const ContentTypeEditor = lazy(() => import("./components/admin/ContentTypeEdito
 const PillarPagesManager = lazy(() => import("./components/admin/PillarPagesManager"));
 const PillarPageEditor = lazy(() => import("./components/admin/PillarPageEditor"));
 const GenerationControls = lazy(() => import("./components/admin/GenerationControls"));
+const PseoDashboard = lazy(() => import("./components/admin/PseoDashboard"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
