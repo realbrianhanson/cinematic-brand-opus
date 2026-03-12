@@ -63,9 +63,37 @@ const PillarPage = () => {
     staleTime: 60000,
   });
 
+  // Related blog posts for this pillar's niche
+  const { data: relatedBlogPosts } = useQuery({
+    queryKey: ["pillar-related-blog", nicheId],
+    queryFn: async () => {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!posts || posts.length === 0) return [];
+      const postsWithCat = posts.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        category_name: p.categories?.name || "",
+      }));
+      const nicheData = (pillar as any)?.niches;
+      return findRelatedNicheForPage(
+        nicheData?.name || "",
+        nicheData?.context,
+        postsWithCat,
+        5
+      );
+    },
+    enabled: !!nicheId && !!pillar,
+    staleTime: 60000,
+  });
+
   useEffect(() => {
     if (!pillar) return;
-    // PageHead handles meta tags via react-helmet-async now
   }, [pillar, siteSettings]);
 
   if (isLoading) {
