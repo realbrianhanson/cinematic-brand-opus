@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight, List, CheckSquare, BookOpen, Wrench, FileText, HelpCircle } from "lucide-react";
 import Nav from "@/components/Nav";
+import PublicCTA from "@/components/PublicCTA";
 
 const rendererIcons: Record<string, typeof List> = {
   IdeaListRenderer: List,
