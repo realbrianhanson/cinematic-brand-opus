@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, MoreHorizontal, ExternalLink, Pencil, Eye, Archive,
   Trash2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown,
-  ArrowUp, ArrowDown, CheckSquare,
+  ArrowUp, ArrowDown, CheckSquare, ImageIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -472,6 +472,20 @@ const GeneratedPagesManager = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => regenerateMutation.mutate(pg)}>
                     <RefreshCw size={14} className="mr-2" /> Regenerate
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      toast({ title: "Generating OG image..." });
+                      const { data, error } = await supabase.functions.invoke("generate-og-image", { body: { page_id: pg.id } });
+                      if (error || data?.error) {
+                        toast({ title: "Failed", description: error?.message || data?.error, variant: "destructive" });
+                      } else {
+                        qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+                        toast({ title: "OG image generated" });
+                      }
+                    }}
+                  >
+                    <ImageIcon size={14} className="mr-2" /> Generate OG Image
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setDeleteId(pg.id)}

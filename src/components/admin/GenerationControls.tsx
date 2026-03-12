@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 interface BatchGroup {
@@ -29,6 +29,7 @@ const GenerationControls = () => {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [dryRunResult, setDryRunResult] = useState<any>(null);
+  const [generatingOg, setGeneratingOg] = useState(false);
 
   // Batch expansion
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
@@ -390,6 +391,39 @@ const GenerationControls = () => {
             ))}
           </div>
         )}
+      </div>
+
+      {/* OG Image Generation */}
+      <div className="admin-card" style={{ padding: 24, marginTop: 20 }}>
+        <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+          OG Images
+        </h2>
+        <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 16 }}>
+          Generate branded Open Graph images for all published pages that don't have one yet.
+        </p>
+        <button
+          className="admin-btn-primary font-body"
+          disabled={generatingOg}
+          onClick={async () => {
+            setGeneratingOg(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("generate-og-image", { body: { batch: true } });
+              if (error) throw error;
+              if (data?.error) throw new Error(data.error);
+              toast({ title: "OG images generated", description: `${data.processed} images created.` });
+            } catch (err: any) {
+              toast({ title: "Failed", description: err.message, variant: "destructive" });
+            } finally {
+              setGeneratingOg(false);
+            }
+          }}
+        >
+          {generatingOg ? (
+            <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> Generating...</>
+          ) : (
+            <><ImageIcon size={16} style={{ marginRight: 8 }} /> Generate All Missing OG Images</>
+          )}
+        </button>
       </div>
 
       {/* Indeterminate animation */}
