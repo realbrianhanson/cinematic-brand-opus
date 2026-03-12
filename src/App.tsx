@@ -42,6 +42,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
+            <Route path="/guides/:slug" element={<PillarPage />} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
