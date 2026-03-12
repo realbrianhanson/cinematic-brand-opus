@@ -29,6 +29,7 @@ const Index = () => {
 
   return (
     <>
+      <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Brian Hanson — Authority, Leadership, Legacy." url="/" type="website" />
       {!loaded && <Loader onComplete={handleLoaderComplete} />}
       <div
         className="public-site min-h-screen"
