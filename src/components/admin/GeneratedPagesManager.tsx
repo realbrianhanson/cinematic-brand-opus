@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, MoreHorizontal, ExternalLink, Pencil, Eye, Archive,
   Trash2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown,
-  ArrowUp, ArrowDown, CheckSquare,
+  ArrowUp, ArrowDown, CheckSquare, ImageIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
