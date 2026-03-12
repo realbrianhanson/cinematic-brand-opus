@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import StructuredData from "@/components/StructuredData";
+import PageHead from "@/components/PageHead";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
