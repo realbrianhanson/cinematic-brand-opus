@@ -8,6 +8,9 @@ import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2 }
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data: postStats } = useQuery({
     queryKey: ["admin-post-stats"],
