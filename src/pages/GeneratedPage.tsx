@@ -199,6 +199,7 @@ const GeneratedPage = () => {
           currentPageId={page.id}
           nicheId={page.niche.id}
           nicheName={page.niche.name}
+          nicheContext={page.niche.context}
           contentSchemaId={page.schema.id}
           contentTypeName={page.schema.name}
         />
