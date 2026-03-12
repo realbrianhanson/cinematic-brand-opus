@@ -57,15 +57,10 @@ const ResourcesIndex = () => {
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
       <header className="pt-32 pb-16 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
-          style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.4)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
-        >
-          <ArrowLeft size={14} /> Back to Home
-        </Link>
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Resources" },
+        ]} />
         <h1 className="font-display italic" style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", lineHeight: 1.1 }}>
           Free Resources{settings?.publisher_name ? ` from ${settings.publisher_name}` : ""}
         </h1>
