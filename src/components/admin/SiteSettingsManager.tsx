@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, X, Globe, FileText, AlertTriangle } from "lucide-react";
+import { Loader2, X, Globe, FileText, AlertTriangle, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 const defaultSettings = {
@@ -488,6 +488,7 @@ const SiteSettingsManager = () => {
           </div>
 
           <SitemapInfoCard />
+          <IndexNowCard siteUrl={form.site_url} />
         </div>
       </div>
     </div>
@@ -567,6 +568,98 @@ const SitemapInfoCard = () => {
             Update the Sitemap URL in <code style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))" }}>public/robots.txt</code> to your actual domain before going live.
           </span>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
+  const { toast } = useToast();
+  const [testing, setTesting] = useState(false);
+  const indexNowKey = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"; // Display-only placeholder
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const cleanUrl = (siteUrl || "https://example.com").replace(/\/$/, "");
+      const { data, error } = await supabase.functions.invoke("submit-indexnow", {
+        body: { urls: [cleanUrl] },
+      });
+      if (error) throw error;
+      toast({
+        title: "Test submitted",
+        description: `IndexNow: ${data?.indexnow_status || "unknown"} · Google: ${data?.google_ping_status || "unknown"}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="admin-card" style={{ padding: 24 }}>
+      <h2
+        className="font-body"
+        style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}
+      >
+        <Send size={16} style={{ color: "hsl(var(--admin-accent))" }} />
+        IndexNow
+      </h2>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: 6,
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            border: "1px solid hsl(var(--admin-border))",
+          }}
+        >
+          <span className="admin-label" style={{ marginBottom: 4 }}>API Key</span>
+          <code
+            className="font-body block"
+            style={{
+              fontSize: 11,
+              color: "hsl(var(--admin-text-soft))",
+              wordBreak: "break-all",
+              userSelect: "all",
+            }}
+          >
+            {indexNowKey}
+          </code>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            padding: "10px 12px",
+            borderRadius: 6,
+            backgroundColor: "hsl(40 90% 55% / 0.08)",
+            border: "1px solid hsl(40 90% 55% / 0.2)",
+          }}
+        >
+          <AlertTriangle size={14} style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }} />
+          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5 }}>
+            Host a file named <code style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))" }}>{indexNowKey}.txt</code> at your site root containing just the key string.
+          </span>
+        </div>
+
+        <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", lineHeight: 1.5 }}>
+          IndexNow instantly notifies Bing, Yandex, DuckDuckGo, Naver &amp; Seznam when pages are published. Google is pinged via sitemap.
+        </p>
+
+        <button
+          onClick={handleTest}
+          disabled={testing}
+          className="admin-btn-ghost font-body flex items-center justify-center gap-2 w-full"
+          style={{ fontSize: 12, padding: "8px 14px" }}
+        >
+          {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {testing ? "Testing..." : "Test IndexNow"}
+        </button>
       </div>
     </div>
   );

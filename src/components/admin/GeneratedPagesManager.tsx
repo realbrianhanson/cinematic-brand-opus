@@ -152,8 +152,9 @@ const GeneratedPagesManager = () => {
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
       if (error) throw error;
 
-      // On publish: trigger OG image generation, Google submission, and silo linking
+      // On publish: trigger OG image generation, silo linking, and IndexNow submission
       if (status === "published") {
+        const publishedUrls: string[] = [];
         for (const id of ids) {
           const pg = (pages ?? []).find((p) => p.id === id);
           if (!pg) continue;
@@ -163,9 +164,12 @@ const GeneratedPagesManager = () => {
           supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
           supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
           if (niche?.slug && schema?.slug) {
-            const pageUrl = `/resources/${schema.slug}/${niche.slug}`;
-            supabase.functions.invoke("submit-to-google", { body: { page_id: id, page_url: pageUrl } }).catch(() => {});
+            publishedUrls.push(`/resources/${schema.slug}/${niche.slug}`);
           }
+        }
+        // Submit all published URLs at once via IndexNow
+        if (publishedUrls.length > 0) {
+          supabase.functions.invoke("submit-indexnow", { body: { urls: publishedUrls } }).catch(() => {});
         }
       }
     },

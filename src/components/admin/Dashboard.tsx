@@ -11,6 +11,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: postStats } = useQuery({
     queryKey: ["admin-post-stats"],
@@ -263,9 +264,37 @@ const Dashboard = () => {
               Indexing Status
             </span>
           </div>
-          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
-            {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+              {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
+            </span>
+            <button
+              onClick={async () => {
+                setSubmitting(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("submit-indexnow", {
+                    body: { all_unsubmitted: true },
+                  });
+                  if (error) throw error;
+                  toast({
+                    title: "Indexing submitted",
+                    description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
+                  });
+                  qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
+                } catch (e: any) {
+                  toast({ title: "Submit failed", description: e.message, variant: "destructive" });
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              disabled={submitting}
+              className="admin-btn-ghost flex items-center gap-2"
+              style={{ fontSize: 11, padding: "5px 12px" }}
+            >
+              {submitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+              {submitting ? "Submitting..." : "Submit All Unsubmitted"}
+            </button>
+          </div>
         </div>
         {(!indexingStats?.recent || indexingStats.recent.length === 0) ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
