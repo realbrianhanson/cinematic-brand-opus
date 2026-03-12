@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, BookOpen } from "lucide-react";
+import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
 
 interface RelatedResourcesProps {
   currentPageId: string;
   nicheId: string;
   nicheName: string;
+  nicheContext?: any;
   contentSchemaId: string;
   contentTypeName: string;
 }
