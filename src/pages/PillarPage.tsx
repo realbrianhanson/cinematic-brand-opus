@@ -100,13 +100,7 @@ const PillarPage = () => {
   const readingTime = Math.max(1, Math.ceil(wordCount(pillar.content) / 250));
   const authorName = siteSettings?.author_name || "Author";
 
-  const grouped: Record<string, { name: string; pages: any[] }> = {};
-  (connectedPages ?? []).forEach((pg: any) => {
-    const schemaName = pg.content_schemas?.name ?? "Other";
-    const schemaSlug = pg.content_schemas?.slug ?? "other";
-    if (!grouped[schemaSlug]) grouped[schemaSlug] = { name: schemaName, pages: [] };
-    grouped[schemaSlug].pages.push(pg);
-  });
+  const nicheName = (pillar as any)?.niches?.name || "";
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
