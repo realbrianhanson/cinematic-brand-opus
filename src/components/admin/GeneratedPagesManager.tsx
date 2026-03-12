@@ -456,6 +456,13 @@ const GeneratedPagesManager = () => {
               >
                 {pg.status}
               </span>
+              {(() => {
+                const idxStatus = indexingMap?.get(pg.id);
+                if (!idxStatus) return null;
+                const color = idxStatus === "indexed" ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))";
+                const title = idxStatus === "indexed" ? "Indexed by Google" : "Submitted to Google";
+                return <Globe size={12} style={{ color, flexShrink: 0 }} title={title} />;
+              })()}
               <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
                 {pg.quality_score != null ? Number(pg.quality_score).toFixed(1) : "—"}
               </span>
