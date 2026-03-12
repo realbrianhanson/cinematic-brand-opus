@@ -1,11 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, FileText, Eye, Pencil, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data: postStats } = useQuery({
     queryKey: ["admin-post-stats"],
@@ -39,8 +44,81 @@ const Dashboard = () => {
     { label: "Scheduled", value: postStats?.scheduled ?? 0, icon: Clock, color: "#60a5fa" },
   ];
 
+  // Stale pages query
+  const { data: staleCount } = useQuery({
+    queryKey: ["admin-stale-pages-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("generated_pages")
+        .select("*", { count: "exact", head: true })
+        .eq("performance_trend", "needs_refresh");
+      if (error) return 0;
+      return count ?? 0;
+    },
+  });
+
+  const handleAutoRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("refresh-stale-content", {
+        body: { all_stale: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Refresh complete", description: `${data.refreshed} pages refreshed.` });
+      qc.invalidateQueries({ queryKey: ["admin-stale-pages-count"] });
+      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+    } catch (e: any) {
+      toast({ title: "Refresh failed", description: e.message, variant: "destructive" });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <div>
+      {/* Stale content alert */}
+      {(staleCount ?? 0) > 0 && (
+        <div
+          className="flex items-center justify-between flex-wrap gap-3"
+          style={{
+            padding: "16px 20px",
+            marginBottom: 24,
+            borderRadius: 6,
+            backgroundColor: "hsl(var(--admin-accent) / 0.08)",
+            border: "1px solid hsl(var(--admin-accent) / 0.2)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={18} style={{ color: "hsl(var(--admin-accent))" }} />
+            <span className="font-body" style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
+              {staleCount} page{staleCount !== 1 ? "s" : ""} need content refresh (90+ days old)
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              to="/admin/pages?trend=needs_refresh"
+              className="admin-btn-ghost"
+              style={{ fontSize: 12, padding: "6px 14px" }}
+            >
+              Review
+            </Link>
+            <button
+              onClick={handleAutoRefresh}
+              disabled={refreshing}
+              className="admin-btn-primary flex items-center gap-2"
+              style={{ fontSize: 12, padding: "6px 14px" }}
+            >
+              {refreshing ? (
+                <><Loader2 size={14} className="animate-spin" /> Refreshing...</>
+              ) : (
+                <><RefreshCw size={14} /> Auto-Refresh All</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 32 }}>
         <div>

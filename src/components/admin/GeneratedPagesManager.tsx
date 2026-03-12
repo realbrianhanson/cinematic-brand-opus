@@ -370,13 +370,28 @@ const GeneratedPagesManager = () => {
                   style={{ accentColor: "hsl(var(--admin-accent))" }}
                 />
               </label>
-              <span
-                className="font-body truncate"
-                style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}
-                title={pg.title}
-              >
-                {pg.title.length > 50 ? pg.title.slice(0, 50) + "…" : pg.title}
-              </span>
+              <div className="flex items-center gap-2 min-w-0">
+                {pg.performance_trend === "needs_refresh" && (
+                  <span
+                    title="Needs refresh (90+ days old)"
+                    style={{
+                      display: "inline-block",
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: "hsl(var(--admin-accent))",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <span
+                  className="font-body truncate"
+                  style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}
+                  title={pg.title}
+                >
+                  {pg.title.length > 50 ? pg.title.slice(0, 50) + "…" : pg.title}
+                </span>
+              </div>
               <span
                 className="admin-badge font-body"
                 style={{
