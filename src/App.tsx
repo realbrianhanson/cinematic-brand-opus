@@ -49,6 +49,8 @@ const App = () => (
               <Route path="posts/new" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
               <Route path="posts/:id/edit" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
               <Route path="categories" element={<Suspense fallback={null}><CategoriesManager /></Suspense>} />
+              <Route path="pages" element={<Suspense fallback={null}><GeneratedPagesManager /></Suspense>} />
+              <Route path="pages/:id/edit" element={<Suspense fallback={null}><GeneratedPageEditor /></Suspense>} />
               <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
             </Route>

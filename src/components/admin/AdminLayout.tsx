@@ -23,6 +23,7 @@ const navItems = [
   { to: "/admin/posts", label: "Posts", icon: FileText, end: true },
   { to: "/admin/posts/new", label: "New Post", icon: FilePlus },
   { to: "/admin/categories", label: "Categories", icon: FolderOpen },
+  { to: "/admin/pages", label: "pSEO Pages", icon: Files },
   { to: "/admin/library", label: "Library", icon: ImageIcon },
   { to: "/admin/settings", label: "Settings", icon: KeyRound },
 ];
