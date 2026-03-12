@@ -29,6 +29,7 @@ const navItems = [
   { to: "/admin/library", label: "Library", icon: ImageIcon },
   { to: "/admin/settings", label: "Settings", icon: KeyRound },
   { to: "/admin/site-settings", label: "Site Config", icon: Globe },
+  { to: "/admin/niches", label: "Niches", icon: Tags },
 ];
 
 const AdminLayout = () => {

@@ -56,6 +56,7 @@ const App = () => (
               <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
               <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
               <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
+              <Route path="niches" element={<Suspense fallback={null}><NichesManager /></Suspense>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
