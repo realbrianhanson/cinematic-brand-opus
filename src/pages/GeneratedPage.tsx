@@ -1,0 +1,313 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, Linkedin, Twitter, Facebook, Link2, ThumbsUp, ThumbsDown, Clock, Calendar } from "lucide-react";
+import Nav from "@/components/Nav";
+
+import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
+import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
+import GuideRenderer from "@/components/renderers/GuideRenderer";
+import ToolRoundupRenderer from "@/components/renderers/ToolRoundupRenderer";
+import TemplateRenderer from "@/components/renderers/TemplateRenderer";
+import FAQRenderer from "@/components/renderers/FAQRenderer";
+
+const renderers: Record<string, React.ComponentType<{ contentJson: any; nicheName: string; pageId: string }>> = {
+  IdeaListRenderer,
+  ChecklistRenderer,
+  GuideRenderer,
+  ToolRoundupRenderer,
+  TemplateRenderer,
+  FAQRenderer,
+};
+
+function readingTime(json: any): number {
+  const text = JSON.stringify(json);
+  return Math.max(1, Math.round(text.split(/\s+/).length / 200));
+}
+
+const GeneratedPage = () => {
+  const { contentType, nicheSlug } = useParams<{ contentType: string; nicheSlug: string }>();
+  const viewCounted = useRef(false);
+  const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
+
+  // Fetch page
+  const { data: page } = useQuery({
+    queryKey: ["public-gen-page", contentType, nicheSlug],
+    queryFn: async () => {
+      const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
+      if (!schema) return null;
+      const { data: niche } = await supabase.from("niches").select("id, name, slug").eq("slug", nicheSlug!).maybeSingle();
+      if (!niche) return null;
+      const { data: pg } = await supabase
+        .from("generated_pages")
+        .select("*")
+        .eq("content_schema_id", schema.id)
+        .eq("niche_id", niche.id)
+        .eq("status", "published")
+        .maybeSingle();
+      if (!pg) return null;
+      return { ...pg, schema, niche };
+    },
+    enabled: !!contentType && !!nicheSlug,
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["public-site-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: pillar } = useQuery({
+    queryKey: ["public-pillar-for-niche", page?.niche?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("pillar_pages")
+        .select("title, slug")
+        .eq("niche_id", page!.niche.id)
+        .eq("status", "published")
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!page?.niche?.id,
+  });
+
+  // Increment views
+  useEffect(() => {
+    if (page?.id && !viewCounted.current) {
+      viewCounted.current = true;
+      supabase.from("generated_pages").update({ views: (page.views || 0) + 1 }).eq("id", page.id).then(() => {});
+    }
+  }, [page?.id]);
+
+  // SEO head tags
+  useEffect(() => {
+    if (!page) return;
+    const seo = (page.seo_meta as any) || {};
+    document.title = seo.title || page.title;
+    const setMeta = (name: string, content: string, prop?: string) => {
+      if (!content) return;
+      let el = document.querySelector(prop ? `meta[property="${prop}"]` : `meta[name="${name}"]`);
+      if (!el) { el = document.createElement("meta"); prop ? el.setAttribute("property", prop) : el.setAttribute("name", name); document.head.appendChild(el); }
+      el.setAttribute("content", content);
+    };
+    setMeta("description", seo.description || "");
+    const url = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
+    setMeta("", seo.title || page.title, "og:title");
+    setMeta("", seo.description || "", "og:description");
+    setMeta("", "article", "og:type");
+    setMeta("", url, "og:url");
+    if (seo.og_image) setMeta("", seo.og_image, "og:image");
+
+    // Canonical
+    let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
+    canon.href = url;
+
+    // JSON-LD
+    const markup = page.schema_markup;
+    if (markup) {
+      let script = document.getElementById("json-ld-generated");
+      if (!script) { script = document.createElement("script"); script.id = "json-ld-generated"; script.setAttribute("type", "application/ld+json"); document.head.appendChild(script); }
+      script.textContent = JSON.stringify(Array.isArray(markup) ? markup : [markup]);
+    }
+
+    return () => {
+      document.getElementById("json-ld-generated")?.remove();
+    };
+  }, [page, settings, contentType, nicheSlug]);
+
+  const content = page?.content_json as any;
+  const Renderer = page?.schema?.renderer_component ? renderers[page.schema.renderer_component] : null;
+  const faqs = content?.frequently_asked_questions;
+  const rt = content ? readingTime(content) : 1;
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const logEngagement = async (eventType: string, metadata: any = {}) => {
+    if (!page?.id) return;
+    await supabase.from("page_engagement").insert({ page_id: page.id, event_type: eventType, metadata });
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFeedback = (type: "up" | "down") => {
+    if (feedback) return;
+    setFeedback(type);
+    logEngagement("feedback", { type });
+  };
+
+  if (!page) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
+        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <Nav />
+      <article className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
+        {/* Breadcrumbs */}
+        <div className="flex items-center gap-2 font-body uppercase mb-8 flex-wrap" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)" }}>
+          <Link to="/" className="hover:text-[#D4AF55] transition-colors">Home</Link>
+          <span>›</span>
+          <Link to="/resources" className="hover:text-[#D4AF55] transition-colors">Resources</Link>
+          <span>›</span>
+          <Link to={`/resources/${contentType}`} className="hover:text-[#D4AF55] transition-colors">{page.schema.name}</Link>
+          <span>›</span>
+          <span style={{ color: "rgba(255,255,255,0.5)" }}>{page.niche.name}</span>
+        </div>
+
+        {/* Pillar banner */}
+        {pillar && (
+          <Link
+            to={`/guides/${pillar.slug}`}
+            className="block mb-8 p-4 font-body transition-colors hover:text-[#D4AF55]"
+            style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)", fontSize: 13, color: "rgba(255,255,255,0.5)" }}
+          >
+            Part of our complete guide: <span style={{ color: "#D4AF55", fontWeight: 500 }}>{pillar.title} →</span>
+          </Link>
+        )}
+
+        {/* Title */}
+        <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>
+          {page.title}
+        </h1>
+
+        {/* Meta line */}
+        <div className="flex items-center gap-4 flex-wrap mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+          {settings?.author_name && (
+            <span className="font-body">By {settings.author_name}</span>
+          )}
+          <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
+          {page.last_refreshed && (
+            <span className="font-body flex items-center gap-1">
+              <Calendar size={11} /> Updated {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </span>
+          )}
+        </div>
+
+        {/* Share */}
+        <div className="flex items-center gap-3 mb-10">
+          {[
+            { icon: Linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+            { icon: Twitter, href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(page.title)}` },
+            { icon: Facebook, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+          ].map(({ icon: Icon, href }, i) => (
+            <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="p-2 transition-colors hover:text-[#D4AF55]" style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <Icon size={14} />
+            </a>
+          ))}
+          <button onClick={handleCopyLink} className="p-2 transition-colors hover:text-[#D4AF55] font-body flex items-center gap-1" style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 11, cursor: "pointer", background: "none" }}>
+            <Link2 size={14} /> {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+
+        {/* Intro / answer block */}
+        {content?.intro && (
+          <div className="mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
+            <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>
+              {content.intro}
+            </p>
+          </div>
+        )}
+
+        {/* Renderer */}
+        {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}
+
+        {/* FAQ accordion */}
+        {faqs && Array.isArray(faqs) && faqs.length > 0 && (
+          <div className="mt-16">
+            <h2 className="font-display italic mb-8" style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
+            <FAQAccordion faqs={faqs} pageId={page.id} />
+          </div>
+        )}
+
+        {/* Feedback */}
+        <div className="mt-16 p-8 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+          <p className="font-body mb-4" style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>Was this helpful?</p>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => handleFeedback("up")}
+              disabled={!!feedback}
+              className="p-3 transition-all"
+              style={{
+                border: "1px solid",
+                borderColor: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.1)",
+                color: feedback === "up" ? "#D4AF55" : "rgba(255,255,255,0.4)",
+                background: feedback === "up" ? "rgba(212,175,85,0.08)" : "transparent",
+                cursor: feedback ? "default" : "pointer",
+              }}
+            >
+              <ThumbsUp size={18} />
+            </button>
+            <button
+              onClick={() => handleFeedback("down")}
+              disabled={!!feedback}
+              className="p-3 transition-all"
+              style={{
+                border: "1px solid",
+                borderColor: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.1)",
+                color: feedback === "down" ? "#D4AF55" : "rgba(255,255,255,0.4)",
+                background: feedback === "down" ? "rgba(212,175,85,0.08)" : "transparent",
+                cursor: feedback ? "default" : "pointer",
+              }}
+            >
+              <ThumbsDown size={18} />
+            </button>
+          </div>
+          {feedback && <p className="font-body mt-3" style={{ fontSize: 12, color: "#D4AF55" }}>Thanks for your feedback!</p>}
+        </div>
+
+        {/* CTA slot */}
+        <div id="cta-slot" className="mt-16" />
+
+        {/* Related */}
+        <div className="mt-16">
+          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>More Resources for {page.niche.name}</h2>
+          <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Related resources coming soon.</p>
+        </div>
+        <div className="mt-10">
+          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Similar Resources for Other Industries</h2>
+          <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Cross-industry resources coming soon.</p>
+        </div>
+      </article>
+    </div>
+  );
+};
+
+/* Inline FAQ Accordion */
+const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <div className="flex flex-col">
+      {faqs.map((faq, i) => (
+        <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <button
+            onClick={() => { setOpen(open === i ? null : i); supabase.from("page_engagement").insert({ page_id: pageId, event_type: "faq_click", metadata: { index: i } }).then(() => {}); }}
+            className="w-full text-left py-5 font-body flex items-center justify-between"
+            style={{ background: "none", border: "none", cursor: "pointer", color: open === i ? "#D4AF55" : "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: 500 }}
+          >
+            {faq.question}
+            <span style={{ fontSize: 18, marginLeft: 12 }}>{open === i ? "−" : "+"}</span>
+          </button>
+          {open === i && (
+            <p className="font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>
+              {faq.answer}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default GeneratedPage;
