@@ -57,6 +57,20 @@ const Dashboard = () => {
     },
   });
 
+  const { data: indexingStats } = useQuery({
+    queryKey: ["admin-indexing-stats"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("indexing_log")
+        .select("id, page_url, submitted_at, status")
+        .order("submitted_at", { ascending: false })
+        .limit(10);
+      const { count: totalSubmitted } = await supabase.from("indexing_log").select("*", { count: "exact", head: true });
+      const { count: totalIndexed } = await supabase.from("indexing_log").select("*", { count: "exact", head: true }).eq("status", "indexed");
+      return { recent: data ?? [], submitted: totalSubmitted ?? 0, indexed: totalIndexed ?? 0 };
+    },
+  });
+
   const handleAutoRefresh = async () => {
     setRefreshing(true);
     try {
