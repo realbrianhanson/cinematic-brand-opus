@@ -22,6 +22,7 @@ import {
   ExternalLink,
   KeyRound,
   BarChart3,
+  LayoutGrid,
 } from "lucide-react";
 
 const navItems = [
