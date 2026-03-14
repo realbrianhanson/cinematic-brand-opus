@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     if (!currentPage) {
       return new Response(
         JSON.stringify({ error: "Page not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
