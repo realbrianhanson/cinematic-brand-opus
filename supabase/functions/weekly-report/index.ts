@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
         message: resendKey ? "Report sent successfully" : "Report generated (no email service configured — add RESEND_API_KEY to send)",
         stats: { newPages, viewsThisWeek: vt, viewsLastWeek: vl, changePercent, ctaClicks, refreshNeeded },
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Weekly report error:", error);
