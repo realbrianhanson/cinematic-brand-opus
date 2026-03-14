@@ -346,7 +346,7 @@ Generate the content now. Return ONLY the JSON object.`;
               title,
               content_json: contentJson,
               seo_meta: seoMeta,
-                schema_markup: {},
+              schema_markup: {},
               status: "draft",
               quality_score: null,
               generation_model: AI_MODEL,
