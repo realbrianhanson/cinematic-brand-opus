@@ -90,6 +90,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </AriaLiveAnnouncer>
     </AuthProvider>
   </QueryClientProvider>
 );
