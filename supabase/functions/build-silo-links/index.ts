@@ -125,13 +125,14 @@ Deno.serve(async (req) => {
       if (!existing) {
         const nicheName = (currentPage as any).niches?.name || "";
         const contentName = (currentPage as any).content_schemas?.name || "";
+        const anchorText = pickAnchor(contentName, nicheName, currentPage.title, sibling.id, page_id);
         await supabase.from("internal_links").insert({
           source_page_id: sibling.id,
           source_page_type: "generated",
           target_page_id: page_id,
           target_page_type: "generated",
           link_type: "silo_sibling",
-          anchor_text: `${contentName} for ${nicheName}`,
+          anchor_text: anchorText,
           position: "related",
         });
       }
@@ -149,6 +150,17 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+function pickAnchor(contentName: string, nicheName: string, title: string, sourceId: string, targetId: string): string {
+  const variants = [
+    `${contentName} for ${nicheName}`,
+    `${nicheName} ${contentName.toLowerCase()}`,
+    `Explore ${contentName.toLowerCase()}`,
+    title.length <= 60 ? title : title.slice(0, 57) + "...",
+  ];
+  const hash = (sourceId + targetId).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return variants[hash % variants.length];
+}
 
 async function buildSiloLinks(
   supabase: any,
@@ -204,13 +216,14 @@ async function buildSiloLinks(
 
     if (!existing) {
       const contentName = (sibling as any).content_schemas?.name || "";
+      const anchorText = pickAnchor(contentName, nicheName, sibling.title, page.id, sibling.id);
       await supabase.from("internal_links").insert({
         source_page_id: page.id,
         source_page_type: "generated",
         target_page_id: sibling.id,
         target_page_type: "generated",
         link_type: "silo_sibling",
-        anchor_text: `${contentName} for ${nicheName}`,
+        anchor_text: anchorText,
         position: "related",
       });
       count++;
