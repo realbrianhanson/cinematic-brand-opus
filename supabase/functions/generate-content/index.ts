@@ -427,7 +427,7 @@ Generate the content now. Return ONLY the JSON object.`;
     }
 
     return new Response(JSON.stringify(summary), {
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("generate-content error:", err);
