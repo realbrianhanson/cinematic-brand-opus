@@ -17,7 +17,7 @@ const getCorsHeaders = (req: Request) => ({
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   // Auth: verify caller is admin
