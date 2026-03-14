@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { lazy, Suspense } from "react";
+import PublicPageSkeleton from "@/components/PublicPageSkeleton";
+import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
 import Index from "./pages/Index";
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
@@ -49,14 +51,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/blog" element={<Suspense fallback={null}><Blog /></Suspense>} />
-            <Route path="/blog/:slug" element={<Suspense fallback={null}><BlogPost /></Suspense>} />
-            <Route path="/guides/:slug" element={<Suspense fallback={null}><PillarPage /></Suspense>} />
-            <Route path="/resources" element={<Suspense fallback={null}><ResourcesIndex /></Suspense>} />
-            <Route path="/resources/:contentType" element={<Suspense fallback={null}><ContentTypeList /></Suspense>} />
-            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={null}><GeneratedPage /></Suspense>} />
-            <Route path="/sitemap" element={<Suspense fallback={null}><HTMLSitemap /></Suspense>} />
-            <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
+            <Route path="/blog" element={<Suspense fallback={<PublicPageSkeleton />}><Blog /></Suspense>} />
+            <Route path="/blog/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><BlogPost /></Suspense>} />
+            <Route path="/guides/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><PillarPage /></Suspense>} />
+            <Route path="/resources" element={<Suspense fallback={<PublicPageSkeleton />}><ResourcesIndex /></Suspense>} />
+            <Route path="/resources/:contentType" element={<Suspense fallback={<PublicPageSkeleton />}><ContentTypeList /></Suspense>} />
+            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={<PublicPageSkeleton />}><GeneratedPage /></Suspense>} />
+            <Route path="/sitemap" element={<Suspense fallback={<PublicPageSkeleton />}><HTMLSitemap /></Suspense>} />
+            <Route path="/admin/login" element={<Suspense fallback={<PublicPageSkeleton />}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
               element={
@@ -65,28 +67,28 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Suspense fallback={null}><Dashboard /></Suspense>} />
-              <Route path="posts" element={<Suspense fallback={null}><PostsManager /></Suspense>} />
-              <Route path="posts/new" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
-              <Route path="posts/:id/edit" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
-              <Route path="categories" element={<Suspense fallback={null}><CategoriesManager /></Suspense>} />
-              <Route path="pages" element={<Suspense fallback={null}><GeneratedPagesManager /></Suspense>} />
-              <Route path="pages/:id/edit" element={<Suspense fallback={null}><GeneratedPageEditor /></Suspense>} />
-              <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
-              <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
-              <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
-              <Route path="niches" element={<Suspense fallback={null}><NichesManager /></Suspense>} />
-              <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
-              <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
-              <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
-              <Route path="pillars" element={<Suspense fallback={null}><PillarPagesManager /></Suspense>} />
-              <Route path="pillars/new" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
-              <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
-              <Route path="generate" element={<Suspense fallback={null}><GenerationControls /></Suspense>} />
-              <Route path="pseo-dashboard" element={<Suspense fallback={null}><PseoDashboard /></Suspense>} />
-              <Route path="widgets" element={<Suspense fallback={null}><WidgetsManager /></Suspense>} />
+              <Route index element={<Suspense fallback={<AdminPageSkeleton />}><Dashboard /></Suspense>} />
+              <Route path="posts" element={<Suspense fallback={<AdminPageSkeleton />}><PostsManager /></Suspense>} />
+              <Route path="posts/new" element={<Suspense fallback={<AdminPageSkeleton />}><PostEditor /></Suspense>} />
+              <Route path="posts/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><PostEditor /></Suspense>} />
+              <Route path="categories" element={<Suspense fallback={<AdminPageSkeleton />}><CategoriesManager /></Suspense>} />
+              <Route path="pages" element={<Suspense fallback={<AdminPageSkeleton />}><GeneratedPagesManager /></Suspense>} />
+              <Route path="pages/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><GeneratedPageEditor /></Suspense>} />
+              <Route path="library" element={<Suspense fallback={<AdminPageSkeleton />}><MediaLibrary /></Suspense>} />
+              <Route path="settings" element={<Suspense fallback={<AdminPageSkeleton />}><ChangePassword /></Suspense>} />
+              <Route path="site-settings" element={<Suspense fallback={<AdminPageSkeleton />}><SiteSettingsManager /></Suspense>} />
+              <Route path="niches" element={<Suspense fallback={<AdminPageSkeleton />}><NichesManager /></Suspense>} />
+              <Route path="content-types" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypesManager /></Suspense>} />
+              <Route path="content-types/new" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypeEditor /></Suspense>} />
+              <Route path="content-types/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypeEditor /></Suspense>} />
+              <Route path="pillars" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPagesManager /></Suspense>} />
+              <Route path="pillars/new" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPageEditor /></Suspense>} />
+              <Route path="pillars/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPageEditor /></Suspense>} />
+              <Route path="generate" element={<Suspense fallback={<AdminPageSkeleton />}><GenerationControls /></Suspense>} />
+              <Route path="pseo-dashboard" element={<Suspense fallback={<AdminPageSkeleton />}><PseoDashboard /></Suspense>} />
+              <Route path="widgets" element={<Suspense fallback={<AdminPageSkeleton />}><WidgetsManager /></Suspense>} />
             </Route>
-            <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+            <Route path="*" element={<Suspense fallback={<PublicPageSkeleton />}><NotFound /></Suspense>} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
