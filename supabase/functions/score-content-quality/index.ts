@@ -71,7 +71,7 @@ function scoreContent(contentJson: any, title: string): { score: number; issues:
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   // Auth: verify caller is admin
