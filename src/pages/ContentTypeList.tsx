@@ -28,7 +28,7 @@ const ContentTypeList = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches(name, slug)")
+        .select("*, niches!generated_pages_niche_id_fkey(name, slug)")
         .eq("content_schema_id", schema!.id)
         .eq("status", "published")
         .order("title");
