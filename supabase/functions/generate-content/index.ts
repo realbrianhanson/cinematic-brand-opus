@@ -318,69 +318,7 @@ Generate the content now. Return ONLY the JSON object.`;
             og_image: null,
           };
 
-          // 4j. Generate schema_markup (JSON-LD)
-          const faqs =
-            contentJson.frequently_asked_questions ||
-            contentJson.faq_items ||
-            [];
-          const schemaMarkup = {
-            "@context": "https://schema.org",
-            "@graph": [
-              {
-                "@type": "Article",
-                headline: title,
-                author: {
-                  "@type": "Person",
-                  name: siteSettings.author_name,
-                  jobTitle: siteSettings.author_title || undefined,
-                },
-                publisher: {
-                  "@type": "Organization",
-                  name: siteSettings.publisher_name,
-                  url: siteSettings.publisher_url,
-                },
-                datePublished: new Date().toISOString(),
-                dateModified: new Date().toISOString(),
-              },
-              ...(faqs.length > 0
-                ? [
-                    {
-                      "@type": "FAQPage",
-                      mainEntity: faqs.map((f: any) => ({
-                        "@type": "Question",
-                        name: f.question,
-                        acceptedAnswer: {
-                          "@type": "Answer",
-                          text: f.answer,
-                        },
-                      })),
-                    },
-                  ]
-                : []),
-              {
-                "@type": "BreadcrumbList",
-                itemListElement: [
-                  {
-                    "@type": "ListItem",
-                    position: 1,
-                    name: "Home",
-                    item: siteSettings.site_url,
-                  },
-                  {
-                    "@type": "ListItem",
-                    position: 2,
-                    name: niche.name,
-                    item: `${siteSettings.site_url}/${niche.slug}`,
-                  },
-                  {
-                    "@type": "ListItem",
-                    position: 3,
-                    name: title,
-                  },
-                ],
-              },
-            ],
-          };
+          // schema_markup handled by frontend StructuredData component
 
           // Dry run: return without saving
           if (dry_run) {
