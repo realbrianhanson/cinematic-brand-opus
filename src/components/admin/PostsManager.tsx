@@ -57,7 +57,13 @@ const PostsManager = () => {
     },
   });
 
-  const filtered = posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const filtered = useMemo(
+    () => posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [],
+    [posts, search]
+  );
+
+  const handleDelete = useCallback((id: string) => setDeleteId(id), []);
+  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
 
   return (
     <div>

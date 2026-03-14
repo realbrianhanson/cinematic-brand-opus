@@ -72,7 +72,7 @@ const Dashboard = () => {
     },
   });
 
-  const handleAutoRefresh = async () => {
+  const handleAutoRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       const { data, error } = await supabase.functions.invoke("refresh-stale-content", {
@@ -88,7 +88,26 @@ const Dashboard = () => {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [toast, qc]);
+
+  const handleSubmitIndexing = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-indexnow", {
+        body: { all_unsubmitted: true },
+      });
+      if (error) throw error;
+      toast({
+        title: "Indexing submitted",
+        description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
+      });
+      qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
+    } catch (e: any) {
+      toast({ title: "Submit failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [toast, qc]);
 
   return (
     <div>
