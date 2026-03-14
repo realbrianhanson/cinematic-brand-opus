@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     console.error("Error publishing scheduled posts:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });
