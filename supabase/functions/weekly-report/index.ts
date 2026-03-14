@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     if (!reportEmail) {
       return new Response(
         JSON.stringify({ message: "No report email configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
