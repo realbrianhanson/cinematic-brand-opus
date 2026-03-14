@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       .from("generated_pages")
       .select("id")
       .eq("status", "published")
-      .lt("last_refreshed", cutoff);
+      .or(`last_refreshed.lt.${cutoff},last_refreshed.is.null`);
 
     if (fetchErr) throw new Error(`Query failed: ${fetchErr.message}`);
 
