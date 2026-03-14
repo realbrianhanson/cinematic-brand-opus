@@ -288,24 +288,7 @@ const Dashboard = () => {
               {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
             </span>
             <button
-              onClick={async () => {
-                setSubmitting(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke("submit-indexnow", {
-                    body: { all_unsubmitted: true },
-                  });
-                  if (error) throw error;
-                  toast({
-                    title: "Indexing submitted",
-                    description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
-                  });
-                  qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
-                } catch (e: any) {
-                  toast({ title: "Submit failed", description: e.message, variant: "destructive" });
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
+              onClick={handleSubmitIndexing}
               disabled={submitting}
               className="admin-btn-ghost flex items-center gap-2"
               style={{ fontSize: 11, padding: "5px 12px" }}
