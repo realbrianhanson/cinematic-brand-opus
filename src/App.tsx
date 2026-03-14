@@ -13,6 +13,7 @@ import ResourcesIndex from "./pages/ResourcesIndex";
 import ContentTypeList from "./pages/ContentTypeList";
 import GeneratedPage from "./pages/GeneratedPage";
 import NotFound from "./pages/NotFound";
+import HTMLSitemap from "./pages/HTMLSitemap";
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/resources" element={<ResourcesIndex />} />
             <Route path="/resources/:contentType" element={<ContentTypeList />} />
             <Route path="/resources/:contentType/:nicheSlug" element={<GeneratedPage />} />
+            <Route path="/sitemap" element={<HTMLSitemap />} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
