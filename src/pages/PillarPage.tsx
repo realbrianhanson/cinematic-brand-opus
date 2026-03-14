@@ -9,6 +9,7 @@ import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
 import SiloNavigation from "@/components/SiloNavigation";
 import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
+import Nav from "@/components/Nav";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
