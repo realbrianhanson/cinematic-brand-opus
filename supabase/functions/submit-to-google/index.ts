@@ -109,7 +109,7 @@ const DAILY_INDEXING_API_LIMIT = 200;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   // Auth: verify caller is admin
