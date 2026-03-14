@@ -69,12 +69,7 @@ Deno.serve(async (req) => {
     const changePercent = vl > 0 ? (((vt - vl) / vl) * 100).toFixed(1) : "N/A";
 
     // Top 5 pages
-    const { data: topPages } = await supabase
-      .from("generated_pages")
-      .select("title, views")
-      .eq("status", "published")
-      .order("views", { ascending: false })
-      .limit(5);
+    const { data: topPages } = await supabase.rpc("top_pages_by_views", { limit_count: 5 });
 
     // CTA clicks this week
     const { count: ctaClicks } = await supabase
