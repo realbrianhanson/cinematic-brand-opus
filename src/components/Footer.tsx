@@ -78,6 +78,7 @@ const Footer = () => (
             >
               Sitemap
             </Link>
+          </div>
         </div>
 
         {/* Col 3 */}
