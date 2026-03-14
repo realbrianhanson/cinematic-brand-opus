@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, ...results }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Submit to Google error:", error);
