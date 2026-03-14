@@ -35,7 +35,6 @@ function readingTime(json: any): number {
   const wordCount = strings.join(" ").split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(wordCount / 200));
 }
-}
 
 const GeneratedPage = () => {
   const { contentType, nicheSlug } = useParams<{ contentType: string; nicheSlug: string }>();
