@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, links_created: linksCreated }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
