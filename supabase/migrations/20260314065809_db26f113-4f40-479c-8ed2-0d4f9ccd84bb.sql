@@ -1,0 +1,1 @@
+ALTER TABLE public.indexing_log ADD COLUMN IF NOT EXISTS method TEXT DEFAULT 'sitemap_ping';
