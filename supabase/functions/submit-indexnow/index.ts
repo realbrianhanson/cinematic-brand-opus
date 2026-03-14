@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     } else {
       return new Response(
         JSON.stringify({ error: "Provide urls array or all_unsubmitted: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
