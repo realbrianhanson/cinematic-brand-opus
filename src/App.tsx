@@ -47,13 +47,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPost />} />
-            <Route path="/guides/:slug" element={<PillarPage />} />
-            <Route path="/resources" element={<ResourcesIndex />} />
-            <Route path="/resources/:contentType" element={<ContentTypeList />} />
-            <Route path="/resources/:contentType/:nicheSlug" element={<GeneratedPage />} />
-            <Route path="/sitemap" element={<HTMLSitemap />} />
+            <Route path="/blog" element={<Suspense fallback={null}><Blog /></Suspense>} />
+            <Route path="/blog/:slug" element={<Suspense fallback={null}><BlogPost /></Suspense>} />
+            <Route path="/guides/:slug" element={<Suspense fallback={null}><PillarPage /></Suspense>} />
+            <Route path="/resources" element={<Suspense fallback={null}><ResourcesIndex /></Suspense>} />
+            <Route path="/resources/:contentType" element={<Suspense fallback={null}><ContentTypeList /></Suspense>} />
+            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={null}><GeneratedPage /></Suspense>} />
+            <Route path="/sitemap" element={<Suspense fallback={null}><HTMLSitemap /></Suspense>} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
