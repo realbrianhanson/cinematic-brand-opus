@@ -90,8 +90,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
         </svg>
       </div>
 
-      {/* BG Layer 5: Decorative lines */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* BG Layer 5: Decorative lines (hidden on mobile) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
         <div className="absolute" style={{
           width: 1, height: "35%", top: 0, left: "18%",
           background: "linear-gradient(180deg, rgba(212,175,85,0.12), transparent)",
