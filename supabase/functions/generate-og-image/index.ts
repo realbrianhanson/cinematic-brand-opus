@@ -1,10 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// TODO: resvg-wasm may not work reliably in all Deno edge environments.
+// If PNG conversion fails, the function falls back to uploading SVG.
+// For guaranteed PNG output, consider an external screenshot service.
+import { Resvg, initWasm } from "https://esm.sh/@aspect-dev/resvg-wasm@0.1.0";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+let wasmInitialized = false;
 
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
@@ -91,6 +98,16 @@ function generateSvg(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Initialize resvg wasm once
+  if (!wasmInitialized) {
+    try {
+      await initWasm(fetch("https://esm.sh/@aspect-dev/resvg-wasm@0.1.0/resvg.wasm"));
+      wasmInitialized = true;
+    } catch (e) {
+      console.warn("resvg-wasm init failed, will fall back to SVG:", e);
+    }
   }
 
   try {
@@ -180,13 +197,37 @@ async function processPage(
 ) {
   const contentTypeName = pg.content_schemas?.name || "Resource";
   const svg = generateSvg(pg.title, authorName, contentTypeName, siteUrl);
-  const fileName = `og-${pg.slug}.svg`;
+
+  let fileName: string;
+  let uploadBlob: Blob;
+  let contentType: string;
+
+  if (wasmInitialized) {
+    // Convert SVG to PNG via resvg
+    try {
+      const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } });
+      const pngData = resvg.render().asPng();
+      fileName = `og-${pg.slug}.png`;
+      uploadBlob = new Blob([pngData], { type: "image/png" });
+      contentType = "image/png";
+    } catch (e) {
+      console.warn("PNG conversion failed, falling back to SVG:", e);
+      fileName = `og-${pg.slug}.svg`;
+      uploadBlob = new Blob([svg], { type: "image/svg+xml" });
+      contentType = "image/svg+xml";
+    }
+  } else {
+    // Fallback: upload SVG directly
+    fileName = `og-${pg.slug}.svg`;
+    uploadBlob = new Blob([svg], { type: "image/svg+xml" });
+    contentType = "image/svg+xml";
+  }
 
   // Upload to storage
   const { error: uploadError } = await supabase.storage
     .from("og-images")
-    .upload(fileName, new Blob([svg], { type: "image/svg+xml" }), {
-      contentType: "image/svg+xml",
+    .upload(fileName, uploadBlob, {
+      contentType,
       upsert: true,
     });
 
