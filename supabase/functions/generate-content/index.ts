@@ -322,20 +322,18 @@ Generate the content now. Return ONLY the JSON object.`;
 
           // schema_markup handled by frontend StructuredData component
 
-          // Dry run: return without saving
+          // Dry run: collect without saving
           if (dry_run) {
-            return new Response(
-              JSON.stringify({
-                dry_run: true,
-                title,
-                slug: pageSlug,
-                content_json: contentJson,
-                seo_meta: seoMeta,
-                schema_markup: {},
-                tokens_used: tokensUsed,
-              }),
-              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
+            dryRunResults.push({
+              title,
+              slug: pageSlug,
+              niche: niche.name,
+              content_type: schema.name,
+              content_json: contentJson,
+              seo_meta: seoMeta,
+              tokens_used: tokensUsed,
+            });
+            continue;
           }
 
           // 4k. Save to generated_pages
