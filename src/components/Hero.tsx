@@ -61,9 +61,9 @@ const Hero = ({ loaded = true }: HeroProps) => {
         }} />
       </div>
 
-      {/* BG Layer 2: Rotating gradient mesh */}
+    {/* BG Layer 2: Rotating gradient mesh (hidden on mobile) */}
       <div
-        className="absolute inset-0 pointer-events-none hero-rotate"
+        className="absolute inset-0 pointer-events-none hero-rotate hidden md:block"
         style={{
           width: "140%",
           height: "140%",
@@ -79,8 +79,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
         background: "radial-gradient(ellipse 60% 50% at 70% 25%, rgba(212,175,85,0.06), transparent), radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.04), transparent)",
       }} />
 
-      {/* BG Layer 4: Film grain */}
-      <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.35 }}>
+      {/* BG Layer 4: Film grain (hidden on mobile) */}
+      <div className="absolute inset-0 pointer-events-none hidden md:block" style={{ opacity: 0.35 }}>
         <svg className="w-full h-full">
           <filter id="grain">
             <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
@@ -90,8 +90,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
         </svg>
       </div>
 
-      {/* BG Layer 5: Decorative lines */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* BG Layer 5: Decorative lines (hidden on mobile) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
         <div className="absolute" style={{
           width: 1, height: "35%", top: 0, left: "18%",
           background: "linear-gradient(180deg, rgba(212,175,85,0.12), transparent)",
