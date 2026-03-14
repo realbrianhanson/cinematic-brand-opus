@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     if (!posts || posts.length === 0) {
       return new Response(JSON.stringify({ published: 0, message: "No posts to publish" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
