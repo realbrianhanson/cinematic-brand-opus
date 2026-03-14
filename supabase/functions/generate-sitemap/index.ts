@@ -174,3 +174,38 @@ async function generateGuidesSitemap(
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls}</urlset>`;
 }
+
+async function generateBlogSitemap(
+  supabase: any,
+  siteUrl: string
+): Promise<string> {
+  const { data: posts } = await supabase
+    .from("posts")
+    .select("slug, updated_at")
+    .eq("status", "published");
+
+  let urls = "";
+
+  urls += `  <url>
+    <loc>${siteUrl}/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>\n`;
+
+  for (const post of posts || []) {
+    const lastmod = post.updated_at
+      ? new Date(post.updated_at).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
+
+    urls += `  <url>
+    <loc>${siteUrl}/blog/${post.slug}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>\n`;
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}</urlset>`;
+}
