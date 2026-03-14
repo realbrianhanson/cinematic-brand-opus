@@ -25,8 +25,15 @@ const renderers: Record<string, React.ComponentType<{ contentJson: any; nicheNam
 };
 
 function readingTime(json: any): number {
-  const text = JSON.stringify(json);
-  return Math.max(1, Math.round(text.split(/\s+/).length / 200));
+  const strings: string[] = [];
+  function extract(obj: any) {
+    if (typeof obj === "string") strings.push(obj);
+    else if (Array.isArray(obj)) obj.forEach(extract);
+    else if (obj && typeof obj === "object") Object.values(obj).forEach(extract);
+  }
+  extract(json);
+  const wordCount = strings.join(" ").split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(wordCount / 200));
 }
 
 const GeneratedPage = () => {
