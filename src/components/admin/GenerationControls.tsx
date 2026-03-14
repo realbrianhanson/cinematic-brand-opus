@@ -302,25 +302,29 @@ const GenerationControls = () => {
       {dryRunResult && !generating && (
         <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
           <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
-            Dry Run Preview
+            Dry Run Preview ({dryRunResult.results?.length ?? 0} sample{(dryRunResult.results?.length ?? 0) !== 1 ? "s" : ""})
           </h2>
-          <p className="font-body" style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--admin-accent))", marginBottom: 16 }}>
-            {dryRunResult.title}
-          </p>
-          <pre
-            className="font-body"
-            style={{
-              fontSize: 11, lineHeight: 1.5,
-              backgroundColor: "hsl(var(--admin-surface-2))",
-              border: "1px solid hsl(var(--admin-border))",
-              borderRadius: 6, padding: 16, overflowX: "auto",
-              maxHeight: 400, overflowY: "auto",
-              color: "hsl(var(--admin-text-soft))",
-              fontFamily: "monospace", whiteSpace: "pre-wrap",
-            }}
-          >
-            {JSON.stringify(dryRunResult.content_json, null, 2)}
-          </pre>
+          {(dryRunResult.results ?? []).map((sample: any, idx: number) => (
+            <div key={idx} style={{ marginBottom: idx < (dryRunResult.results?.length ?? 1) - 1 ? 20 : 0 }}>
+              <p className="font-body" style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--admin-accent))", marginBottom: 8 }}>
+                {sample.title} <span style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>({sample.content_type} → {sample.niche})</span>
+              </p>
+              <pre
+                className="font-body"
+                style={{
+                  fontSize: 11, lineHeight: 1.5,
+                  backgroundColor: "hsl(var(--admin-surface-2))",
+                  border: "1px solid hsl(var(--admin-border))",
+                  borderRadius: 6, padding: 16, overflowX: "auto",
+                  maxHeight: 300, overflowY: "auto",
+                  color: "hsl(var(--admin-text-soft))",
+                  fontFamily: "monospace", whiteSpace: "pre-wrap",
+                }}
+              >
+                {JSON.stringify(sample.content_json, null, 2)}
+              </pre>
+            </div>
+          ))}
           <div className="flex gap-2" style={{ marginTop: 16 }}>
             <button
               className="admin-btn-primary font-body"
