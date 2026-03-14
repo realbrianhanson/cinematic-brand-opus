@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     if (!contentSchemas?.length) {
       return new Response(JSON.stringify({ error: "No content schemas found" }), {
         status: 400,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
