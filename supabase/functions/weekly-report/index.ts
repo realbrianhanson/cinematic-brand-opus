@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
         ${(topPages ?? []).map((p, i) => `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 8px 0; color: #333;">${i + 1}. ${p.title}</td>
-          <td style="padding: 8px 0; color: #999; text-align: right;">${(p.views ?? 0).toLocaleString()} views</td>
+          <td style="padding: 8px 0; color: #999; text-align: right;">${(p.view_count ?? 0).toLocaleString()} views</td>
         </tr>`).join("")}
       </table>
       ${(refreshNeeded ?? 0) > 0 ? `<p style="margin-top: 20px; padding: 12px; background: #fff8e1; border-radius: 6px; font-size: 13px; color: #795548;">⚠️ ${refreshNeeded} pages need content refresh</p>` : ""}

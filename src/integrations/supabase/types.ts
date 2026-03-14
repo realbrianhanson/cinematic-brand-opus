@@ -771,6 +771,13 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      top_pages_by_views: {
+        Args: { limit_count?: number }
+        Returns: {
+          title: string
+          view_count: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
