@@ -61,9 +61,9 @@ const Hero = ({ loaded = true }: HeroProps) => {
         }} />
       </div>
 
-      {/* BG Layer 2: Rotating gradient mesh */}
+    {/* BG Layer 2: Rotating gradient mesh (hidden on mobile) */}
       <div
-        className="absolute inset-0 pointer-events-none hero-rotate"
+        className="absolute inset-0 pointer-events-none hero-rotate hidden md:block"
         style={{
           width: "140%",
           height: "140%",
