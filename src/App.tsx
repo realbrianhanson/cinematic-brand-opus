@@ -88,7 +88,7 @@ const App = () => (
               <Route path="pseo-dashboard" element={<Suspense fallback={<AdminPageSkeleton />}><PseoDashboard /></Suspense>} />
               <Route path="widgets" element={<Suspense fallback={<AdminPageSkeleton />}><WidgetsManager /></Suspense>} />
             </Route>
-            <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+            <Route path="*" element={<Suspense fallback={<PublicPageSkeleton />}><NotFound /></Suspense>} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
