@@ -1,14 +1,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+const ALLOWED_ORIGINS = [
+  "https://cinematic-brand-opus.lovable.app",
+  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
+];
+const getAllowedOrigin = (req: Request) => {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
+  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
+};
+const getCorsHeaders = (req: Request) => ({
+  "Access-Control-Allow-Origin": getAllowedOrigin(req),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -47,7 +56,7 @@ Deno.serve(async (req) => {
 
     return new Response(xml, {
       headers: {
-        ...corsHeaders,
+        ...getCorsHeaders(req),
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
       },
@@ -58,7 +67,7 @@ Deno.serve(async (req) => {
       `<?xml version="1.0" encoding="UTF-8"?><error>${error.message}</error>`,
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/xml" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/xml" },
       }
     );
   }

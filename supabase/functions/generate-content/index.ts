@@ -1,10 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+const ALLOWED_ORIGINS = [
+  "https://cinematic-brand-opus.lovable.app",
+  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
+];
+const getAllowedOrigin = (req: Request) => {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
+  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
+};
+const getCorsHeaders = (req: Request) => ({
+  "Access-Control-Allow-Origin": getAllowedOrigin(req),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+});
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-3-flash-preview";
@@ -40,14 +49,14 @@ function delay(ms: number): Promise<void> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -56,7 +65,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 
@@ -64,7 +73,7 @@ Deno.serve(async (req) => {
   if (!LOVABLE_API_KEY) {
     return new Response(
       JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 
@@ -106,7 +115,7 @@ Deno.serve(async (req) => {
     if (!niches?.length) {
       return new Response(JSON.stringify({ error: "No niches found" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -122,7 +131,7 @@ Deno.serve(async (req) => {
     if (!contentSchemas?.length) {
       return new Response(JSON.stringify({ error: "No content schemas found" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -422,18 +431,18 @@ Generate the content now. Return ONLY the JSON object.`;
     if (dry_run) {
       return new Response(
         JSON.stringify({ dry_run: true, results: dryRunResults }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
     return new Response(JSON.stringify(summary), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("generate-content error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });
