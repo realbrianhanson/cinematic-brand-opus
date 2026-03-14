@@ -204,13 +204,14 @@ async function buildSiloLinks(
 
     if (!existing) {
       const contentName = (sibling as any).content_schemas?.name || "";
+      const anchorText = pickAnchor(contentName, nicheName, sibling.title, page.id, sibling.id);
       await supabase.from("internal_links").insert({
         source_page_id: page.id,
         source_page_type: "generated",
         target_page_id: sibling.id,
         target_page_type: "generated",
         link_type: "silo_sibling",
-        anchor_text: `${contentName} for ${nicheName}`,
+        anchor_text: anchorText,
         position: "related",
       });
       count++;
