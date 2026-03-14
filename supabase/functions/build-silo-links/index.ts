@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     if (!page_id) {
       return new Response(
         JSON.stringify({ error: "Provide page_id or rebuild_all: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
