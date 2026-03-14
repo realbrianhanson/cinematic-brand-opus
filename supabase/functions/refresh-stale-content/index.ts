@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     if (pagesToRefresh.length === 0) {
       return new Response(
         JSON.stringify({ refreshed: 0, message: "No pages to refresh." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
