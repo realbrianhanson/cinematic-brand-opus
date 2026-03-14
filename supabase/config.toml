@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.submit-indexnow]
 verify_jwt = false
+
+[functions.generate-seo-aeo]
+verify_jwt = false
+
+[functions.score-content-quality]
+verify_jwt = false
+
+[functions.publish-scheduled-posts]
+verify_jwt = false
