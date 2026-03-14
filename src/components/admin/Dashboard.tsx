@@ -38,12 +38,12 @@ const Dashboard = () => {
     },
   });
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: "Total Posts", value: postStats?.total ?? 0, icon: FileText, color: "#d4a843" },
     { label: "Published", value: postStats?.published ?? 0, icon: Eye, color: "#4ade80" },
     { label: "Drafts", value: postStats?.drafts ?? 0, icon: Pencil, color: "#facc15" },
     { label: "Scheduled", value: postStats?.scheduled ?? 0, icon: Clock, color: "#60a5fa" },
-  ];
+  ], [postStats]);
 
   // Stale pages query
   const { data: staleCount } = useQuery({
