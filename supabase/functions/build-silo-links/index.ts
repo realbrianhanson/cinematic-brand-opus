@@ -8,14 +8,14 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -38,7 +38,6 @@ Deno.serve(async (req) => {
     const { page_id, rebuild_all } = body;
 
     if (rebuild_all) {
-      // Batch rebuild: delete all auto-generated silo links, then recreate
       await supabase
         .from("internal_links")
         .delete()
@@ -46,7 +45,7 @@ Deno.serve(async (req) => {
 
       const { data: publishedPages } = await supabase
         .from("generated_pages")
-        .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches(slug, name)")
+        .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
         .eq("status", "published");
 
       const { data: pillarPages } = await supabase
@@ -68,25 +67,23 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, links_created: linksCreated }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!page_id) {
       return new Response(
         JSON.stringify({ error: "Provide page_id or rebuild_all: true" }),
-        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Single page: clear existing silo links for this page, then rebuild
     await supabase
       .from("internal_links")
       .delete()
       .eq("source_page_id", page_id)
       .in("link_type", ["silo_up", "silo_sibling"]);
 
-    // Also remove links from others pointing to this page as silo_sibling
     await supabase
       .from("internal_links")
       .delete()
@@ -95,26 +92,24 @@ Deno.serve(async (req) => {
 
     const { data: currentPage } = await supabase
       .from("generated_pages")
-      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches(slug, name)")
+      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
       .eq("id", page_id)
       .maybeSingle();
 
     if (!currentPage) {
       return new Response(
         JSON.stringify({ error: "Page not found" }),
-        { status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get all published pages in same niche (siblings)
     const { data: siblingPages } = await supabase
       .from("generated_pages")
-      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches(slug, name)")
+      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
       .eq("niche_id", currentPage.niche_id!)
       .eq("status", "published")
       .neq("id", page_id);
 
-    // Get pillar for this niche
     const { data: pillarPages } = await supabase
       .from("pillar_pages")
       .select("id, niche_id, slug, title")
@@ -128,9 +123,7 @@ Deno.serve(async (req) => {
       pillarPages ?? []
     );
 
-    // Also create reciprocal sibling links (siblings → this page)
     for (const sibling of siblingPages ?? []) {
-      // Check if sibling already has a link to this page
       const { data: existing } = await supabase
         .from("internal_links")
         .select("id")
@@ -157,13 +150,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, links_created: linksCreated }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Build silo links error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

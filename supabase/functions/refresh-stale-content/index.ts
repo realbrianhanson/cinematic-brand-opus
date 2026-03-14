@@ -20,14 +20,14 @@ function delay(ms: number): Promise<void> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   if (!LOVABLE_API_KEY) {
     return new Response(
       JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -57,12 +57,11 @@ Deno.serve(async (req) => {
     const { page_ids, all_stale = false } = body;
     const batch_id = crypto.randomUUID();
 
-    // Resolve pages to refresh
     let pagesToRefresh: any[] = [];
     if (all_stale) {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
+        .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
         .eq("performance_trend", "needs_refresh")
         .eq("status", "published");
       if (error) throw new Error(`Query failed: ${error.message}`);
@@ -70,25 +69,24 @@ Deno.serve(async (req) => {
     } else if (Array.isArray(page_ids) && page_ids.length > 0) {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
+        .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
         .in("id", page_ids);
       if (error) throw new Error(`Query failed: ${error.message}`);
       pagesToRefresh = data || [];
     } else {
       return new Response(
         JSON.stringify({ error: "Provide page_ids array or all_stale: true" }),
-        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (pagesToRefresh.length === 0) {
       return new Response(
         JSON.stringify({ refreshed: 0, message: "No pages to refresh." }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch site settings for SEO meta
     const { data: siteSettings } = await supabase
       .from("site_settings")
       .select("*")
@@ -124,7 +122,6 @@ Deno.serve(async (req) => {
 
       const ctx = (niche.context || {}) as Record<string, any>;
 
-      // Determine title — update year if present
       let title = page.title;
       const yearRegex = /\b(20\d{2})\b/;
       const yearMatch = title.match(yearRegex);
@@ -133,7 +130,6 @@ Deno.serve(async (req) => {
         title = title.replace(yearRegex, String(currentYear));
       }
 
-      // Build AI prompt
       const systemMessage =
         "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
 
@@ -235,7 +231,6 @@ Generate the content now. Return ONLY the JSON object.`;
         continue;
       }
 
-      // Update seo_meta if title changed
       let seoMeta = page.seo_meta || {};
       if (titleChanged && siteSettings) {
         seoMeta = {
@@ -244,7 +239,6 @@ Generate the content now. Return ONLY the JSON object.`;
         };
       }
 
-      // Update the page
       const { error: updateErr } = await supabase
         .from("generated_pages")
         .update({
@@ -289,13 +283,13 @@ Generate the content now. Return ONLY the JSON object.`;
     }
 
     return new Response(JSON.stringify(summary), {
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("refresh-stale-content error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

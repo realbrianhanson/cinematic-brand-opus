@@ -8,14 +8,14 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -37,7 +37,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { urls, all_unsubmitted } = body;
 
-    // Get site settings
     const { data: settings } = await supabase
       .from("site_settings")
       .select("site_url")
@@ -47,17 +46,15 @@ Deno.serve(async (req) => {
     const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
     const host = siteUrl.replace(/^https?:\/\//, "");
 
-    // Get IndexNow key
     const indexNowKey = Deno.env.get("INDEXNOW_KEY");
 
     let urlList: string[] = [];
-    let pageIdMap: Record<string, string> = {}; // url -> page_id
+    let pageIdMap: Record<string, string> = {};
 
     if (all_unsubmitted) {
-      // Find published pages not yet submitted
       const { data: pages } = await supabase
         .from("generated_pages")
-        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches(slug)")
+        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)")
         .eq("status", "published");
 
       const { data: existingLogs } = await supabase
@@ -77,7 +74,6 @@ Deno.serve(async (req) => {
         pageIdMap[url] = pg.id;
       }
 
-      // Also check pillar pages
       const { data: pillars } = await supabase
         .from("pillar_pages")
         .select("id, slug")
@@ -101,22 +97,20 @@ Deno.serve(async (req) => {
     } else {
       return new Response(
         JSON.stringify({ error: "Provide urls array or all_unsubmitted: true" }),
-        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (urlList.length === 0) {
       return new Response(
         JSON.stringify({ submitted_count: 0, indexnow_status: "no_urls", google_ping_status: "skipped" }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // STEP 1: IndexNow (Bing, Yandex, DuckDuckGo, Naver, Seznam)
     let indexnowStatus = "skipped";
     if (indexNowKey) {
       try {
-        // IndexNow supports max 10,000 URLs per request
         const batches: string[][] = [];
         for (let i = 0; i < urlList.length; i += 10000) {
           batches.push(urlList.slice(i, i + 10000));
@@ -145,7 +139,6 @@ Deno.serve(async (req) => {
       console.warn("INDEXNOW_KEY not set — skipping IndexNow submission");
     }
 
-    // STEP 2: Google Sitemap Ping
     let googlePingStatus = "skipped";
     try {
       const sitemapUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-sitemap?type=main`;
@@ -159,7 +152,6 @@ Deno.serve(async (req) => {
       googlePingStatus = `error: ${e.message}`;
     }
 
-    // STEP 3: Log results
     const logEntries = urlList.map((url) => ({
       page_id: pageIdMap[url] || null,
       page_url: url,
@@ -167,7 +159,6 @@ Deno.serve(async (req) => {
       status: "submitted",
     }));
 
-    // Insert in batches of 100
     for (let i = 0; i < logEntries.length; i += 100) {
       const batch = logEntries.slice(i, i + 100);
       const { error } = await supabase.from("indexing_log").insert(batch);
@@ -180,13 +171,13 @@ Deno.serve(async (req) => {
         indexnow_status: indexnowStatus,
         google_ping_status: googlePingStatus,
       }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("submit-indexnow error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
