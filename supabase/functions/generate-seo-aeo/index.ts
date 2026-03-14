@@ -116,7 +116,7 @@ Only include fields that need improvement based on the missing criteria.`
     }
 
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Edge function error:', err);
