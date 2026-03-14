@@ -227,7 +227,7 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
       {faqs.map((faq, i) => (
         <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <button
-            onClick={() => { setOpen(open === i ? null : i); supabase.from("page_engagement").insert({ page_id: pageId, event_type: "faq_click", metadata: { index: i } }).then(() => {}); }}
+            onClick={() => { const newOpen = open === i ? null : i; setOpen(newOpen); if (newOpen !== null) { supabase.from("page_engagement").insert({ page_id: pageId, event_type: "faq_click", metadata: { index: i } }).then(() => {}).catch(() => {}); } }}
             className="w-full text-left py-5 font-body flex items-center justify-between"
             style={{ background: "none", border: "none", cursor: "pointer", color: open === i ? "#D4AF55" : "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: 500 }}
           >
