@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
 
 const GeneratedPageEditor = () => {
   const { id } = useParams();
@@ -19,6 +19,8 @@ const GeneratedPageEditor = () => {
   const [metaKeywords, setMetaKeywords] = useState("");
   const [seoOpen, setSeoOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [scoring, setScoring] = useState(false);
+  const [qualityWarning, setQualityWarning] = useState<{ score: number; issues: string[] } | null>(null);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["admin-generated-page", id],
@@ -46,35 +48,37 @@ const GeneratedPageEditor = () => {
     }
   }, [page]);
 
+  const doSave = async () => {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(contentStr);
+    } catch {
+      throw new Error("Invalid JSON in content editor");
+    }
+
+    const seoMeta = {
+      title: metaTitle || null,
+      description: metaDesc || null,
+      keywords: metaKeywords ? metaKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
+      og_image: ((page?.seo_meta as any)?.og_image) || null,
+    };
+
+    const updateData: Record<string, any> = {
+      content_json: parsed,
+      status,
+      seo_meta: seoMeta,
+      quality_score: qualityScore ? Number(qualityScore) : null,
+    };
+    if (status === "published" && page?.status !== "published") {
+      updateData.published_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
+    if (error) throw error;
+  };
+
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      let parsed: any;
-      try {
-        parsed = JSON.parse(contentStr);
-      } catch {
-        throw new Error("Invalid JSON in content editor");
-      }
-
-      const seoMeta = {
-        title: metaTitle || null,
-        description: metaDesc || null,
-        keywords: metaKeywords ? metaKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
-        og_image: ((page?.seo_meta as any)?.og_image) || null,
-      };
-
-      const updateData: Record<string, any> = {
-        content_json: parsed,
-        status,
-        seo_meta: seoMeta,
-        quality_score: qualityScore ? Number(qualityScore) : null,
-      };
-      if (status === "published" && page?.status !== "published") {
-        updateData.published_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
-      if (error) throw error;
-    },
+    mutationFn: doSave,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
@@ -85,6 +89,34 @@ const GeneratedPageEditor = () => {
       toast({ title: "Save failed", description: e.message, variant: "destructive" });
     },
   });
+
+  const handleSave = async () => {
+    // If publishing for the first time, run quality check
+    const isPublishing = status === "published" && page?.status !== "published";
+    if (isPublishing && !qualityWarning) {
+      setScoring(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("score-content-quality", {
+          body: { page_id: id },
+        });
+        if (error) throw error;
+        if (data?.score != null) {
+          setQualityScore(String(data.score));
+        }
+        if (data?.score < 60) {
+          setQualityWarning({ score: data.score, issues: data.issues || [] });
+          setScoring(false);
+          return; // Show warning, don't save yet
+        }
+      } catch (e: any) {
+        // If scoring fails, allow publish anyway
+        console.warn("Quality scoring failed:", e.message);
+      }
+      setScoring(false);
+    }
+    setQualityWarning(null);
+    saveMutation.mutate();
+  };
 
   const handleFormat = () => {
     try {
@@ -147,17 +179,67 @@ const GeneratedPageEditor = () => {
 
   return (
     <div>
+      {/* Quality Warning Dialog */}
+      {qualityWarning && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            className="admin-card"
+            style={{ maxWidth: 480, width: "90%", padding: 28 }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle size={22} style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }} />
+              <h3 className="font-heading" style={{ fontSize: 18, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
+                Low Quality Score: {qualityWarning.score}/100
+              </h3>
+            </div>
+            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 16 }}>
+              This content scored below the recommended threshold of 60. Publishing may hurt SEO performance.
+            </p>
+            <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
+              {qualityWarning.issues.map((issue, i) => (
+                <li key={i} className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, listStyle: "disc" }}>
+                  {issue}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setQualityWarning(null); setStatus("draft"); }}
+                className="admin-btn-ghost"
+              >
+                Go Back to Draft
+              </button>
+              <button
+                onClick={() => { setQualityWarning(null); saveMutation.mutate(); }}
+                className="admin-btn-primary"
+                style={{ background: "hsl(var(--admin-warning, 40 90% 50%))" }}
+              >
+                Publish Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
         <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Edit Page</h1>
         <div className="flex gap-3">
           <button onClick={() => navigate("/admin/pages")} className="admin-btn-ghost">Cancel</button>
           <button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
+            onClick={handleSave}
+            disabled={saveMutation.isPending || scoring}
             className="admin-btn-primary"
           >
-            {saveMutation.isPending ? "Saving..." : "Save Changes"}
+            {scoring ? (
+              <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Scoring...</span>
+            ) : saveMutation.isPending ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
@@ -227,15 +309,58 @@ const GeneratedPageEditor = () => {
 
           {/* Quality score */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label">Quality Score</label>
-            <input
-              type="number"
-              step="0.1"
-              value={qualityScore}
-              onChange={(e) => setQualityScore(e.target.value)}
-              placeholder="—"
-              className="admin-input font-body w-full"
-            />
+            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+              <label className="admin-label" style={{ marginBottom: 0 }}>Quality Score</label>
+              <button
+                onClick={async () => {
+                  setScoring(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("score-content-quality", {
+                      body: { page_id: id },
+                    });
+                    if (error) throw error;
+                    if (data?.score != null) setQualityScore(String(data.score));
+                    if (data?.issues?.length > 0) {
+                      toast({
+                        title: `Score: ${data.score}/100`,
+                        description: data.issues.slice(0, 3).join("; "),
+                        variant: data.score >= 60 ? "default" : "destructive",
+                      });
+                    } else {
+                      toast({ title: `Score: ${data.score}/100` });
+                    }
+                  } catch (e: any) {
+                    toast({ title: "Scoring failed", description: e.message, variant: "destructive" });
+                  } finally {
+                    setScoring(false);
+                  }
+                }}
+                disabled={scoring}
+                className="admin-btn-ghost"
+                style={{ fontSize: 10, padding: "2px 8px" }}
+              >
+                {scoring ? <Loader2 size={12} className="animate-spin" /> : "Run Score"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.1"
+                value={qualityScore}
+                onChange={(e) => setQualityScore(e.target.value)}
+                placeholder="—"
+                className="admin-input font-body w-full"
+              />
+              {qualityScore && (
+                <span style={{ flexShrink: 0 }}>
+                  {Number(qualityScore) >= 60 ? (
+                    <CheckCircle size={16} style={{ color: "hsl(var(--admin-success, 142 71% 45%))" }} />
+                  ) : (
+                    <AlertTriangle size={16} style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }} />
+                  )}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Info */}
