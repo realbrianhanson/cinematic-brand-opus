@@ -462,6 +462,34 @@
   outline-offset: 2px;
 }
 
+/* Reduced motion — accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-rotate,
+  .hero-scroll-dot,
+  .proof-marquee {
+    animation: none !important;
+  }
+
+  .hero-cta-primary:hover .hero-cta-shine {
+    animation: none !important;
+  }
+
+  .nav-link-underline::after {
+    transition: none !important;
+  }
+}
+
 /* Print styles */
 @media print {
   body {
