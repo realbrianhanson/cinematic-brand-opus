@@ -132,6 +132,8 @@ Deno.serve(async (req) => {
       pages: [] as { id: string; title: string; slug: string; status: string }[],
     };
 
+    const dryRunResults: any[] = [];
+
     // 4. Iterate niche × content_type
     for (const niche of niches) {
       for (const schema of contentSchemas) {
