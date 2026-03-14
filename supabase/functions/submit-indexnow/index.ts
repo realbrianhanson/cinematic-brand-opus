@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
               urlList: batch,
             }),
           });
+          await resp.text(); // consume body to prevent resource leak
           indexnowStatus = resp.ok ? "ok" : `error_${resp.status}`;
           console.log(`IndexNow response: ${resp.status} for ${batch.length} URLs`);
         }
