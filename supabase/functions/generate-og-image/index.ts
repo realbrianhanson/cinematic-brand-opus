@@ -1,17 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// TODO: resvg-wasm may not work reliably in all Deno edge environments.
-// If PNG conversion fails, the function falls back to uploading SVG.
-// For guaranteed PNG output, consider an external screenshot service.
-import { Resvg, initWasm } from "https://esm.sh/@aspect-dev/resvg-wasm@0.1.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-let wasmInitialized = false;
 
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
@@ -19,7 +12,6 @@ function truncateText(text: string, maxChars: number): string {
 }
 
 function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
-  // Approximate: ~0.55 chars per pixel at given font size
   const charsPerLine = Math.floor(maxWidth / (fontSize * 0.55));
   const words = text.split(" ");
   const lines: string[] = [];
@@ -59,7 +51,6 @@ function generateSvg(
   const titleLines = wrapText(title, 1000, 48);
   const titleStartY = 315 - (titleLines.length - 1) * 30;
 
-  // Grid lines for premium feel
   let gridLines = "";
   for (let y = 0; y <= 630; y += 63) {
     gridLines += `<line x1="0" y1="${y}" x2="1200" y2="${y}" stroke="white" stroke-opacity="0.04" stroke-width="1"/>`;
@@ -81,16 +72,11 @@ function generateSvg(
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   ${gridLines}
-  <!-- Author name -->
   <text x="100" y="80" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="white" letter-spacing="4" text-transform="uppercase" opacity="0.9">${escapeXml(authorName.toUpperCase())}</text>
-  <!-- Accent line -->
   <rect x="100" y="100" width="80" height="3" fill="#D4AF55" rx="1.5"/>
-  <!-- Title -->
   ${titleTexts}
-  <!-- Content type badge -->
   <rect x="100" y="530" width="${Math.max(120, contentTypeName.length * 14 + 40)}" height="36" rx="18" fill="#D4AF55"/>
   <text x="${100 + Math.max(120, contentTypeName.length * 14 + 40) / 2}" y="553" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#0a0a0a" text-anchor="middle" letter-spacing="2">${escapeXml(contentTypeName.toUpperCase())}</text>
-  <!-- Site URL -->
   <text x="1100" y="555" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="white" opacity="0.3" text-anchor="end">${escapeXml(siteUrl.replace(/^https?:\/\//, ""))}</text>
 </svg>`;
 }
@@ -98,16 +84,6 @@ function generateSvg(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
-  }
-
-  // Initialize resvg wasm once
-  if (!wasmInitialized) {
-    try {
-      await initWasm(fetch("https://esm.sh/@aspect-dev/resvg-wasm@0.1.0/resvg.wasm"));
-      wasmInitialized = true;
-    } catch (e) {
-      console.warn("resvg-wasm init failed, will fall back to SVG:", e);
-    }
   }
 
   try {
@@ -119,7 +95,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { page_id, batch } = body;
 
-    // Fetch site settings
     const { data: settings } = await supabase
       .from("site_settings")
       .select("author_name, site_url")
@@ -133,7 +108,6 @@ Deno.serve(async (req) => {
     let errors: string[] = [];
 
     if (batch) {
-      // Batch mode: process all published pages with no og_image
       const { data: pages } = await supabase
         .from("generated_pages")
         .select("id, title, slug, seo_meta, content_schema_id, content_schemas(name)")
@@ -153,7 +127,6 @@ Deno.serve(async (req) => {
         }
       }
     } else if (page_id) {
-      // Single page mode
       const { data: pg } = await supabase
         .from("generated_pages")
         .select("id, title, slug, seo_meta, content_schema_id, content_schemas(name)")
@@ -198,49 +171,24 @@ async function processPage(
   const contentTypeName = pg.content_schemas?.name || "Resource";
   const svg = generateSvg(pg.title, authorName, contentTypeName, siteUrl);
 
-  let fileName: string;
-  let uploadBlob: Blob;
-  let contentType: string;
+  const fileName = `og-${pg.slug}.svg`;
+  const uploadBlob = new Blob([svg], { type: "image/svg+xml" });
 
-  if (wasmInitialized) {
-    // Convert SVG to PNG via resvg
-    try {
-      const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } });
-      const pngData = resvg.render().asPng();
-      fileName = `og-${pg.slug}.png`;
-      uploadBlob = new Blob([pngData], { type: "image/png" });
-      contentType = "image/png";
-    } catch (e) {
-      console.warn("PNG conversion failed, falling back to SVG:", e);
-      fileName = `og-${pg.slug}.svg`;
-      uploadBlob = new Blob([svg], { type: "image/svg+xml" });
-      contentType = "image/svg+xml";
-    }
-  } else {
-    // Fallback: upload SVG directly
-    fileName = `og-${pg.slug}.svg`;
-    uploadBlob = new Blob([svg], { type: "image/svg+xml" });
-    contentType = "image/svg+xml";
-  }
-
-  // Upload to storage
   const { error: uploadError } = await supabase.storage
     .from("og-images")
     .upload(fileName, uploadBlob, {
-      contentType,
+      contentType: "image/svg+xml",
       upsert: true,
     });
 
   if (uploadError) throw uploadError;
 
-  // Get public URL
   const { data: urlData } = supabase.storage
     .from("og-images")
     .getPublicUrl(fileName);
 
   const ogImageUrl = urlData.publicUrl;
 
-  // Update page seo_meta
   const existingMeta = (pg.seo_meta as any) || {};
   const { error: updateError } = await supabase
     .from("generated_pages")
