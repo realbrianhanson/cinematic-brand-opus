@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     if (staleIds.length === 0) {
       return new Response(
         JSON.stringify({ flagged: 0, message: "All content is fresh." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
