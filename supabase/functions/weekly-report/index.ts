@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
         console.error("Resend error:", sendResult);
         return new Response(
           JSON.stringify({ message: "Report generated but email failed", error: sendResult }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
     } else {
