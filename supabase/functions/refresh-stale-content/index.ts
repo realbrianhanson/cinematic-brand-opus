@@ -178,7 +178,7 @@ Generate the content now. Return ONLY the JSON object.`;
               model: AI_MODEL,
               messages: promptMessages,
               temperature: 0.7,
-              max_tokens: 4096,
+              max_tokens: 8192,
             }),
           });
 
