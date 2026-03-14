@@ -62,7 +62,7 @@ const GeneratedPage = () => {
   useEffect(() => {
     if (page?.id && !viewCounted.current) {
       viewCounted.current = true;
-      supabase.from("generated_pages").update({ views: (page.views || 0) + 1 }).eq("id", page.id).then(() => {});
+      supabase.from("page_engagement").insert({ page_id: page.id, event_type: "view", metadata: {} }).then(() => {});
     }
   }, [page?.id]);
 
