@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, processed: processedCount, errors }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("OG image generation error:", error);
