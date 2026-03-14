@@ -402,6 +402,13 @@ Generate the content now. Return ONLY the JSON object.`;
       }
     }
 
+    if (dry_run) {
+      return new Response(
+        JSON.stringify({ dry_run: true, results: dryRunResults }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
