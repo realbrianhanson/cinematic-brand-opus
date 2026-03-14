@@ -329,7 +329,7 @@ Generate the content now. Return ONLY the JSON object.`;
                 slug: pageSlug,
                 content_json: contentJson,
                 seo_meta: seoMeta,
-                schema_markup: schemaMarkup,
+                schema_markup: {},
                 tokens_used: tokensUsed,
               }),
               { headers: { ...corsHeaders, "Content-Type": "application/json" } }
