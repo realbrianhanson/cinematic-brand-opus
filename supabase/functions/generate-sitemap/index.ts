@@ -38,6 +38,8 @@ Deno.serve(async (req) => {
       xml = await generateResourcesSitemap(supabase, siteUrl);
     } else if (type === "guides") {
       xml = await generateGuidesSitemap(supabase, siteUrl);
+    } else if (type === "blog") {
+      xml = await generateBlogSitemap(supabase, siteUrl);
     } else {
       // main - sitemap index
       xml = generateSitemapIndex(siteUrl);
