@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { lazy, Suspense } from "react";
+import PublicPageSkeleton from "@/components/PublicPageSkeleton";
+import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
 import Index from "./pages/Index";
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
