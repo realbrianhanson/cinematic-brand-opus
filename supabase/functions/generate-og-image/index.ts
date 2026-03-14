@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     } else {
       return new Response(
         JSON.stringify({ error: "Provide page_id or batch: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
