@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     if (!settings?.report_enabled && !(await req.json().catch(() => ({})))?.manual) {
       return new Response(
         JSON.stringify({ message: "Reports are disabled" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
