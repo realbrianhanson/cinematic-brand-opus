@@ -122,7 +122,7 @@ Only include fields that need improvement based on the missing criteria.`
     console.error('Edge function error:', err);
     return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 });
