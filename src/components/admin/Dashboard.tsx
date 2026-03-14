@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,12 +38,12 @@ const Dashboard = () => {
     },
   });
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: "Total Posts", value: postStats?.total ?? 0, icon: FileText, color: "#d4a843" },
     { label: "Published", value: postStats?.published ?? 0, icon: Eye, color: "#4ade80" },
     { label: "Drafts", value: postStats?.drafts ?? 0, icon: Pencil, color: "#facc15" },
     { label: "Scheduled", value: postStats?.scheduled ?? 0, icon: Clock, color: "#60a5fa" },
-  ];
+  ], [postStats]);
 
   // Stale pages query
   const { data: staleCount } = useQuery({
@@ -72,7 +72,7 @@ const Dashboard = () => {
     },
   });
 
-  const handleAutoRefresh = async () => {
+  const handleAutoRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       const { data, error } = await supabase.functions.invoke("refresh-stale-content", {
@@ -88,7 +88,26 @@ const Dashboard = () => {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [toast, qc]);
+
+  const handleSubmitIndexing = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-indexnow", {
+        body: { all_unsubmitted: true },
+      });
+      if (error) throw error;
+      toast({
+        title: "Indexing submitted",
+        description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
+      });
+      qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
+    } catch (e: any) {
+      toast({ title: "Submit failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [toast, qc]);
 
   return (
     <div>
@@ -269,24 +288,7 @@ const Dashboard = () => {
               {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
             </span>
             <button
-              onClick={async () => {
-                setSubmitting(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke("submit-indexnow", {
-                    body: { all_unsubmitted: true },
-                  });
-                  if (error) throw error;
-                  toast({
-                    title: "Indexing submitted",
-                    description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
-                  });
-                  qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
-                } catch (e: any) {
-                  toast({ title: "Submit failed", description: e.message, variant: "destructive" });
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
+              onClick={handleSubmitIndexing}
               disabled={submitting}
               className="admin-btn-ghost flex items-center gap-2"
               style={{ fontSize: 11, padding: "5px 12px" }}

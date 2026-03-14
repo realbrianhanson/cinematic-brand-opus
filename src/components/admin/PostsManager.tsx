@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +57,13 @@ const PostsManager = () => {
     },
   });
 
-  const filtered = posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const filtered = useMemo(
+    () => posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [],
+    [posts, search]
+  );
+
+  const handleDelete = useCallback((id: string) => setDeleteId(id), []);
+  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
 
   return (
     <div>
