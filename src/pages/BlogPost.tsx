@@ -1,4 +1,5 @@
 import { useParams, Link } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight, Clock, Calendar, BookOpen } from "lucide-react";
@@ -257,7 +258,7 @@ const BlogPost = () => {
             lineHeight: 1.85,
             color: "rgba(255,255,255,0.65)",
           }}
-          dangerouslySetInnerHTML={{ __html: post.content ?? "" }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content ?? "") }}
         />
 
         {/* Key Takeaways */}
