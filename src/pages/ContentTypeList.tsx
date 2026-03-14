@@ -158,6 +158,7 @@ const ContentTypeList = () => {
 
         <PublicCTA variant="end" contentTypeSlug={contentType} pageType="content-type-list" />
       </main>
+      <Footer />
     </div>
   );
 };

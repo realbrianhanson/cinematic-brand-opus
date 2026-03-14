@@ -401,6 +401,7 @@ const BlogPost = () => {
           </div>
         )}
       </article>
+      <Footer />
     </div>
   );
 };

@@ -216,6 +216,7 @@ const GeneratedPage = () => {
       </article>
       </div>
 
+      <Footer />
       <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );

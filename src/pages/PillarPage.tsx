@@ -224,6 +224,7 @@ const PillarPage = () => {
 
         <PublicCTA variant="end" pageId={pillar.id} pageType="pillar" nicheName={(pillar as any).niches?.name} />
       </article>
+      <Footer />
     </div>
   );
 };
