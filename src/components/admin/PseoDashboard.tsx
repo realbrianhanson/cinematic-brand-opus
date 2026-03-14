@@ -91,7 +91,7 @@ const PseoDashboard = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, views, slug, niche_id, niches(name), content_schema_id, content_schemas(slug)")
+        .select("id, title, views, slug, niche_id, niches!generated_pages_niche_id_fkey(name), content_schema_id, content_schemas(slug)")
         .eq("status", "published")
         .order("views", { ascending: false })
         .limit(10);
