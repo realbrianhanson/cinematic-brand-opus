@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ flagged: staleIds.length, page_ids: staleIds }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("check-content-freshness error:", err);
