@@ -34,6 +34,12 @@ const StructuredData = ({
 }: StructuredDataProps) => {
   const instanceId = useId().replace(/:/g, "-");
 
+  // Ensure structured data URLs use the canonical domain, not the preview domain
+  const canonicalUrl =
+    url && !url.includes("example.com")
+      ? url
+      : `${typeof window !== "undefined" ? window.location.origin : ""}${typeof window !== "undefined" ? window.location.pathname : ""}`;
+
   useEffect(() => {
     const scripts: HTMLScriptElement[] = [];
 
@@ -55,7 +61,7 @@ const StructuredData = ({
         name: siteSettings.author_name,
         ...(siteSettings.author_title && { jobTitle: siteSettings.author_title }),
         ...(siteSettings.author_bio && { description: siteSettings.author_bio }),
-        ...(siteSettings.site_url && { url: siteSettings.site_url }),
+        ...(siteSettings.site_url && !siteSettings.site_url.includes("example.com") && { url: siteSettings.site_url }),
         ...(sameAs.length > 0 && { sameAs }),
         ...(siteSettings.author_credentials?.length && { knowsAbout: siteSettings.author_credentials }),
       });
@@ -75,7 +81,7 @@ const StructuredData = ({
       },
       datePublished: publishedAt,
       dateModified: updatedAt,
-      mainEntityOfPage: url,
+      mainEntityOfPage: canonicalUrl,
     });
 
     // 3. FAQPage
@@ -118,7 +124,7 @@ const StructuredData = ({
     return () => {
       scripts.forEach((s) => s.remove());
     };
-  }, [instanceId, title, description, url, publishedAt, updatedAt, breadcrumbs, faqs, siteSettings]);
+  }, [instanceId, title, description, canonicalUrl, publishedAt, updatedAt, breadcrumbs, faqs, siteSettings]);
 
   return null;
 };
