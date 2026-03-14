@@ -151,6 +151,17 @@ Deno.serve(async (req) => {
   }
 });
 
+function pickAnchor(contentName: string, nicheName: string, title: string, sourceId: string, targetId: string): string {
+  const variants = [
+    `${contentName} for ${nicheName}`,
+    `${nicheName} ${contentName.toLowerCase()}`,
+    `Explore ${contentName.toLowerCase()}`,
+    title.length <= 60 ? title : title.slice(0, 57) + "...",
+  ];
+  const hash = (sourceId + targetId).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return variants[hash % variants.length];
+}
+
 async function buildSiloLinks(
   supabase: any,
   page: any,
