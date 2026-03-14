@@ -67,26 +67,26 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Suspense fallback={null}><Dashboard /></Suspense>} />
-              <Route path="posts" element={<Suspense fallback={null}><PostsManager /></Suspense>} />
-              <Route path="posts/new" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
-              <Route path="posts/:id/edit" element={<Suspense fallback={null}><PostEditor /></Suspense>} />
-              <Route path="categories" element={<Suspense fallback={null}><CategoriesManager /></Suspense>} />
-              <Route path="pages" element={<Suspense fallback={null}><GeneratedPagesManager /></Suspense>} />
-              <Route path="pages/:id/edit" element={<Suspense fallback={null}><GeneratedPageEditor /></Suspense>} />
-              <Route path="library" element={<Suspense fallback={null}><MediaLibrary /></Suspense>} />
-              <Route path="settings" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
-              <Route path="site-settings" element={<Suspense fallback={null}><SiteSettingsManager /></Suspense>} />
-              <Route path="niches" element={<Suspense fallback={null}><NichesManager /></Suspense>} />
-              <Route path="content-types" element={<Suspense fallback={null}><ContentTypesManager /></Suspense>} />
-              <Route path="content-types/new" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
-              <Route path="content-types/:id/edit" element={<Suspense fallback={null}><ContentTypeEditor /></Suspense>} />
-              <Route path="pillars" element={<Suspense fallback={null}><PillarPagesManager /></Suspense>} />
-              <Route path="pillars/new" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
-              <Route path="pillars/:id/edit" element={<Suspense fallback={null}><PillarPageEditor /></Suspense>} />
-              <Route path="generate" element={<Suspense fallback={null}><GenerationControls /></Suspense>} />
-              <Route path="pseo-dashboard" element={<Suspense fallback={null}><PseoDashboard /></Suspense>} />
-              <Route path="widgets" element={<Suspense fallback={null}><WidgetsManager /></Suspense>} />
+              <Route index element={<Suspense fallback={<AdminPageSkeleton />}><Dashboard /></Suspense>} />
+              <Route path="posts" element={<Suspense fallback={<AdminPageSkeleton />}><PostsManager /></Suspense>} />
+              <Route path="posts/new" element={<Suspense fallback={<AdminPageSkeleton />}><PostEditor /></Suspense>} />
+              <Route path="posts/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><PostEditor /></Suspense>} />
+              <Route path="categories" element={<Suspense fallback={<AdminPageSkeleton />}><CategoriesManager /></Suspense>} />
+              <Route path="pages" element={<Suspense fallback={<AdminPageSkeleton />}><GeneratedPagesManager /></Suspense>} />
+              <Route path="pages/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><GeneratedPageEditor /></Suspense>} />
+              <Route path="library" element={<Suspense fallback={<AdminPageSkeleton />}><MediaLibrary /></Suspense>} />
+              <Route path="settings" element={<Suspense fallback={<AdminPageSkeleton />}><ChangePassword /></Suspense>} />
+              <Route path="site-settings" element={<Suspense fallback={<AdminPageSkeleton />}><SiteSettingsManager /></Suspense>} />
+              <Route path="niches" element={<Suspense fallback={<AdminPageSkeleton />}><NichesManager /></Suspense>} />
+              <Route path="content-types" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypesManager /></Suspense>} />
+              <Route path="content-types/new" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypeEditor /></Suspense>} />
+              <Route path="content-types/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><ContentTypeEditor /></Suspense>} />
+              <Route path="pillars" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPagesManager /></Suspense>} />
+              <Route path="pillars/new" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPageEditor /></Suspense>} />
+              <Route path="pillars/:id/edit" element={<Suspense fallback={<AdminPageSkeleton />}><PillarPageEditor /></Suspense>} />
+              <Route path="generate" element={<Suspense fallback={<AdminPageSkeleton />}><GenerationControls /></Suspense>} />
+              <Route path="pseo-dashboard" element={<Suspense fallback={<AdminPageSkeleton />}><PseoDashboard /></Suspense>} />
+              <Route path="widgets" element={<Suspense fallback={<AdminPageSkeleton />}><WidgetsManager /></Suspense>} />
             </Route>
             <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
           </Routes>
