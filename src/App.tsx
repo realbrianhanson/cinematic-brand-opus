@@ -13,6 +13,7 @@ import ResourcesIndex from "./pages/ResourcesIndex";
 import ContentTypeList from "./pages/ContentTypeList";
 import GeneratedPage from "./pages/GeneratedPage";
 import NotFound from "./pages/NotFound";
+import HTMLSitemap from "./pages/HTMLSitemap";
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
