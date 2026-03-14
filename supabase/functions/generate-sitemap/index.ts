@@ -74,6 +74,9 @@ function generateSitemapIndex(siteUrl: string): string {
   <sitemap>
     <loc>${funcUrl}/functions/v1/generate-sitemap?type=guides</loc>
   </sitemap>
+  <sitemap>
+    <loc>${funcUrl}/functions/v1/generate-sitemap?type=blog</loc>
+  </sitemap>
 </sitemapindex>`;
 }
 
