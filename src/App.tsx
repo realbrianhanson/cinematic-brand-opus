@@ -6,14 +6,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-import PillarPage from "./pages/PillarPage";
-import ResourcesIndex from "./pages/ResourcesIndex";
-import ContentTypeList from "./pages/ContentTypeList";
-import GeneratedPage from "./pages/GeneratedPage";
-import NotFound from "./pages/NotFound";
-import HTMLSitemap from "./pages/HTMLSitemap";
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const PillarPage = lazy(() => import("./pages/PillarPage"));
+const ResourcesIndex = lazy(() => import("./pages/ResourcesIndex"));
+const ContentTypeList = lazy(() => import("./pages/ContentTypeList"));
+const GeneratedPage = lazy(() => import("./pages/GeneratedPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const HTMLSitemap = lazy(() => import("./pages/HTMLSitemap"));
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
@@ -47,13 +47,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPost />} />
-            <Route path="/guides/:slug" element={<PillarPage />} />
-            <Route path="/resources" element={<ResourcesIndex />} />
-            <Route path="/resources/:contentType" element={<ContentTypeList />} />
-            <Route path="/resources/:contentType/:nicheSlug" element={<GeneratedPage />} />
-            <Route path="/sitemap" element={<HTMLSitemap />} />
+            <Route path="/blog" element={<Suspense fallback={null}><Blog /></Suspense>} />
+            <Route path="/blog/:slug" element={<Suspense fallback={null}><BlogPost /></Suspense>} />
+            <Route path="/guides/:slug" element={<Suspense fallback={null}><PillarPage /></Suspense>} />
+            <Route path="/resources" element={<Suspense fallback={null}><ResourcesIndex /></Suspense>} />
+            <Route path="/resources/:contentType" element={<Suspense fallback={null}><ContentTypeList /></Suspense>} />
+            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={null}><GeneratedPage /></Suspense>} />
+            <Route path="/sitemap" element={<Suspense fallback={null}><HTMLSitemap /></Suspense>} />
             <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
@@ -84,7 +84,7 @@ const App = () => (
               <Route path="pseo-dashboard" element={<Suspense fallback={null}><PseoDashboard /></Suspense>} />
               <Route path="widgets" element={<Suspense fallback={null}><WidgetsManager /></Suspense>} />
             </Route>
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
