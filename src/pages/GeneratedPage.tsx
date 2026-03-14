@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PageHead from "@/components/PageHead";
+import Footer from "@/components/Footer";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -215,6 +216,7 @@ const GeneratedPage = () => {
       </article>
       </div>
 
+      <Footer />
       <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );

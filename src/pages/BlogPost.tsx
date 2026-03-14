@@ -7,6 +7,7 @@ import PageHead from "@/components/PageHead";
 import WidgetRenderer from "@/components/WidgetRenderer";
 import { findRelatedNiches } from "@/lib/crossLinkMatcher";
 import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -400,6 +401,7 @@ const BlogPost = () => {
           </div>
         )}
       </article>
+      <Footer />
     </div>
   );
 };

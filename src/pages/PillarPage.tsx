@@ -10,6 +10,7 @@ import PageHead from "@/components/PageHead";
 import SiloNavigation from "@/components/SiloNavigation";
 import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
 import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -223,6 +224,7 @@ const PillarPage = () => {
 
         <PublicCTA variant="end" pageId={pillar.id} pageType="pillar" nicheName={(pillar as any).niches?.name} />
       </article>
+      <Footer />
     </div>
   );
 };
