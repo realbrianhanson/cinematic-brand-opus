@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
         indexnow_status: indexnowStatus,
         google_ping_status: googlePingStatus,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("submit-indexnow error:", error);
