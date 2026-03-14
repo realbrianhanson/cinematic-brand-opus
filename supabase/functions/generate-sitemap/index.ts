@@ -8,7 +8,7 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     return new Response(xml, {
       headers: {
-        ...getCorsHeaders(req),
+        ...corsHeaders,
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
       },
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       `<?xml version="1.0" encoding="UTF-8"?><error>${error.message}</error>`,
       {
         status: 500,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/xml" },
+        headers: { ...corsHeaders, "Content-Type": "application/xml" },
       }
     );
   }

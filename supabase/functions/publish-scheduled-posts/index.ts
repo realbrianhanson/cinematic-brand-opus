@@ -8,14 +8,14 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders(req) });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -35,7 +35,6 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Find all posts that are scheduled and whose scheduled_at has passed
     const { data: posts, error: fetchError } = await supabase
       .from("posts")
       .select("id, title, scheduled_at")
@@ -46,7 +45,7 @@ Deno.serve(async (req) => {
 
     if (!posts || posts.length === 0) {
       return new Response(JSON.stringify({ published: 0, message: "No posts to publish" }), {
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -63,13 +62,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ published: ids.length, ids }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("Error publishing scheduled posts:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
