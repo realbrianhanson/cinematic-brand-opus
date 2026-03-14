@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     const { page_id } = await req.json();
     if (!page_id) {
       return new Response(JSON.stringify({ error: "page_id required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
