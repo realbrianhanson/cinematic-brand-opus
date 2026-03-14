@@ -6,117 +6,130 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
-  "https://cinematic-brand-opus.lovable.app",
-  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
-];
-const getAllowedOrigin = (req: Request) => {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
-  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
-};
-const getCorsHeaders = (req: Request) => ({
-  "Access-Control-Allow-Origin": getAllowedOrigin(req),
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-});
+};
 
-// ---------- Google Indexing API helpers ----------
-
-function pemToBuffer(pem: string): ArrayBuffer {
-  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n|\r/g, "");
-  const binary = atob(b64);
+function pemToBuffer(pem: string) {
+  const base64 = pem.replace(/\\n/g, "").replace(/-----BEGIN PRIVATE KEY-----/, "").replace(/-----END PRIVATE KEY-----/, "");
+  const binary = atob(base64);
   const buffer = new ArrayBuffer(binary.length);
   const view = new Uint8Array(buffer);
-  for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binary.length; i++) {
+    view[i] = binary.charCodeAt(i);
+  }
   return buffer;
 }
 
-function base64url(input: string | ArrayBuffer): string {
-  const str =
-    typeof input === "string"
-      ? btoa(input)
-      : btoa(String.fromCharCode(...new Uint8Array(input)));
-  return str.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function base64url(source: ArrayBuffer) {
+  // Convert the buffer to a string
+  let string = String.fromCharCode.apply(null, new Uint8Array(source) as any);
+
+  // Base64 encode the string
+  let base64 = btoa(string);
+
+  // Replace non-url compatible characters
+  base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  return base64;
 }
 
 async function getGoogleAccessToken(serviceAccountJson: string): Promise<string> {
-  const sa = JSON.parse(serviceAccountJson);
-
-  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const serviceAccount = JSON.parse(serviceAccountJson);
   const now = Math.floor(Date.now() / 1000);
-  const claimSet = base64url(
-    JSON.stringify({
-      iss: sa.client_email,
-      scope: "https://www.googleapis.com/auth/indexing",
-      aud: "https://oauth2.googleapis.com/token",
-      exp: now + 3600,
-      iat: now,
-    })
-  );
+  const jwtHeader = JSON.stringify({
+    alg: "RS256",
+    typ: "JWT"
+  });
 
-  const key = await crypto.subtle.importKey(
+  const jwtClaimSet = JSON.stringify({
+    iss: serviceAccount.client_email,
+    scope: "https://www.googleapis.com/auth/indexing",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  });
+
+  const headerBase64 = base64url(new TextEncoder().encode(jwtHeader));
+  const claimBase64 = base64url(new TextEncoder().encode(jwtClaimSet));
+
+  const data = `${headerBase64}.${claimBase64}`;
+
+  const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
-    pemToBuffer(sa.private_key),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    pemToBuffer(serviceAccount.private_key),
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256"
+    },
     false,
     ["sign"]
   );
 
-  const encoder = new TextEncoder();
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
-    key,
-    encoder.encode(`${header}.${claimSet}`)
+    cryptoKey,
+    new TextEncoder().encode(data)
   );
 
-  const jwt = `${header}.${claimSet}.${base64url(signature)}`;
+  const signatureBase64 = base64url(signature);
+  const jwt = `${data}.${signatureBase64}`;
 
-  const resp = await fetch("https://oauth2.googleapis.com/token", {
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
   });
 
-  const data = await resp.json();
-  if (!data.access_token) {
-    throw new Error(`Google OAuth failed: ${JSON.stringify(data)}`);
+  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error(`Token request failed: ${JSON.stringify(tokenData)}`);
   }
-  return data.access_token;
+
+  return tokenData.access_token;
 }
 
-async function submitToIndexingApi(
-  url: string,
-  accessToken: string
-): Promise<{ success: boolean; status: number }> {
-  const resp = await fetch(
-    "https://indexing.googleapis.com/v3/urlNotifications:publish",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ url, type: "URL_UPDATED" }),
-    }
-  );
-  return { success: resp.ok, status: resp.status };
-}
+async function submitToIndexingApi(accessToken: string, pageUrl: string) {
+  const apiUrl = "https://indexing.googleapis.com/v2/urlNotifications:publish";
+  const payload = {
+    url: pageUrl,
+    type: "URL_UPDATED"
+  };
 
-// ---------- Main handler ----------
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Indexing API error: ${JSON.stringify(data)}`);
+  }
+
+  console.log("Indexing API response:", data);
+  return data;
+}
 
 const DAILY_INDEXING_API_LIMIT = 200;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -125,7 +138,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -147,7 +160,6 @@ Deno.serve(async (req) => {
     const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
     const sitemapUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-sitemap?type=main`;
 
-    // Determine method
     const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
     let accessToken: string | null = null;
     let method: "indexing_api" | "sitemap_ping" = "sitemap_ping";
@@ -174,7 +186,7 @@ Deno.serve(async (req) => {
     if (all_unsubmitted) {
       const { data: pages } = await supabase
         .from("generated_pages")
-        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches(slug)")
+        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)")
         .eq("status", "published");
 
       const { data: existingLogs } = await supabase
@@ -192,7 +204,6 @@ Deno.serve(async (req) => {
         urlList.push({ id: pg.id, url: `${siteUrl}/resources/${contentSlug}/${nicheSlug}` });
       }
 
-      // Rate limit for Indexing API
       if (method === "indexing_api" && urlList.length > DAILY_INDEXING_API_LIMIT) {
         results.warnings.push(
           `${urlList.length} URLs queued but Indexing API limit is ${DAILY_INDEXING_API_LIMIT}/day. Only first ${DAILY_INDEXING_API_LIMIT} will be submitted.`
@@ -214,19 +225,19 @@ Deno.serve(async (req) => {
     } else {
       return new Response(
         JSON.stringify({ error: "Provide page_id + page_url, or all_unsubmitted: true" }),
-        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
       JSON.stringify({ success: true, ...results }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Submit to Google error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
@@ -239,29 +250,34 @@ async function submitPage(
   method: "indexing_api" | "sitemap_ping",
   accessToken: string | null
 ) {
-  if (method === "indexing_api" && accessToken) {
-    const result = await submitToIndexingApi(pageUrl, accessToken);
-    if (!result.success) {
-      throw new Error(`Indexing API returned ${result.status} for ${pageUrl}`);
-    }
-  } else {
-    // Fallback: sitemap ping
-    try {
+  try {
+    if (method === "indexing_api") {
+      await submitToIndexingApi(accessToken!, pageUrl);
+    } else {
       const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
       const resp = await fetch(pingUrl);
       await resp.text();
-    } catch (e) {
-      console.warn("Google ping failed:", e);
+      if (!resp.ok) {
+        throw new Error(`Sitemap ping failed: ${resp.status}`);
+      }
+      console.log("Sitemap ping successful");
     }
+
+    await supabase.from("indexing_log").insert({
+      page_id: pageId,
+      page_url: pageUrl,
+      submitted_at: new Date().toISOString(),
+      status: "submitted",
+    });
+  } catch (e: any) {
+    console.error(`Submit ${pageId} failed:`, e);
+    await supabase.from("indexing_log").insert({
+      page_id: pageId,
+      page_url: pageUrl,
+      submitted_at: new Date().toISOString(),
+      status: "error",
+      error_message: e.message,
+    });
+    throw e;
   }
-
-  const { error } = await supabase.from("indexing_log").insert({
-    page_id: pageId,
-    page_url: pageUrl,
-    submitted_at: new Date().toISOString(),
-    status: "submitted",
-    method,
-  });
-
-  if (error) throw error;
 }

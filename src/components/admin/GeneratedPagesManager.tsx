@@ -57,7 +57,7 @@ const GeneratedPagesManager = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches(name, slug), content_schemas(name, slug)")
+.select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];

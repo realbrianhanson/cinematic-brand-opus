@@ -20,7 +20,7 @@ const HTMLSitemap = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, slug, content_schema_id, niche_id, content_schemas(name, slug), niches(name, slug)")
+        .select("id, title, slug, content_schema_id, niche_id, content_schemas(name, slug), niches!generated_pages_niche_id_fkey(name, slug)")
         .eq("status", "published")
         .order("title");
       return data ?? [];

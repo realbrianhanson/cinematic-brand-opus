@@ -1,28 +1,19 @@
-const ALLOWED_ORIGINS = [
-  "https://cinematic-brand-opus.lovable.app",
-  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
-];
-const getAllowedOrigin = (req: Request) => {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
-  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
-};
-const getCorsHeaders = (req: Request) => ({
-  "Access-Control-Allow-Origin": getAllowedOrigin(req),
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-});
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
@@ -32,7 +23,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -43,7 +34,7 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
         status: 500,
-        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -93,14 +84,13 @@ Only include fields that need improvement based on the missing criteria.`
       console.error('AI API error:', errText);
       return new Response(JSON.stringify({ error: 'AI generation failed' }), {
         status: 500,
-        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const aiData = await response.json();
     const raw = aiData.choices?.[0]?.message?.content || '';
 
-    // Extract JSON from response (handle markdown code blocks)
     const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
     const jsonStr = (jsonMatch[1] || raw).trim();
 
@@ -111,18 +101,18 @@ Only include fields that need improvement based on the missing criteria.`
       console.error('Failed to parse AI response:', jsonStr);
       return new Response(JSON.stringify({ error: 'Failed to parse AI response' }), {
         status: 500,
-        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(JSON.stringify(result), {
-      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Edge function error:', err);
     return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), {
       status: 500,
-      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

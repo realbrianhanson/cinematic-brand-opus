@@ -1,30 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
-const ALLOWED_ORIGINS = [
-  "https://cinematic-brand-opus.lovable.app",
-  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
-];
-const getAllowedOrigin = (req: Request) => {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
-  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
-};
-const getCorsHeaders = (req: Request) => ({
-  "Access-Control-Allow-Origin": getAllowedOrigin(req),
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-});
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -34,7 +25,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -42,7 +33,6 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    // Find published pages not refreshed in 90+ days
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: stalePages, error: fetchErr } = await supabase
@@ -58,11 +48,10 @@ Deno.serve(async (req) => {
     if (staleIds.length === 0) {
       return new Response(
         JSON.stringify({ flagged: 0, message: "All content is fresh." }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Flag them
     const { error: updateErr } = await supabase
       .from("generated_pages")
       .update({ performance_trend: "needs_refresh" })
@@ -72,13 +61,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ flagged: staleIds.length, page_ids: staleIds }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("check-content-freshness error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

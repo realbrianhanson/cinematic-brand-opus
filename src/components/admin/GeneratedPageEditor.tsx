@@ -27,7 +27,7 @@ const GeneratedPageEditor = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches(name, slug), content_schemas(name, slug)")
+        .select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
         .eq("id", id!)
         .single();
       if (error) throw error;

@@ -1,30 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
-  "https://cinematic-brand-opus.lovable.app",
-  /^https:\/\/.*--aad54f9f-2dc1-4e99-9396-88f3e07eb70c\.lovable\.app$/,
-];
-const getAllowedOrigin = (req: Request) => {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowed = ALLOWED_ORIGINS.some((o) => typeof o === "string" ? o === origin : o.test(origin));
-  return allowed ? origin : ALLOWED_ORIGINS[0] as string;
-};
-const getCorsHeaders = (req: Request) => ({
-  "Access-Control-Allow-Origin": getAllowedOrigin(req),
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-});
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   // Auth: verify caller is admin
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -33,7 +24,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims?.sub) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -53,7 +44,7 @@ Deno.serve(async (req) => {
     if (!settings?.report_enabled && !(await req.json().catch(() => ({})))?.manual) {
       return new Response(
         JSON.stringify({ message: "Reports are disabled" }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -61,7 +52,7 @@ Deno.serve(async (req) => {
     if (!reportEmail) {
       return new Response(
         JSON.stringify({ message: "No report email configured" }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -69,14 +60,12 @@ Deno.serve(async (req) => {
     const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
     const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString();
 
-    // New pages published this week
     const { count: newPages } = await supabase
       .from("generated_pages")
       .select("id", { count: "exact", head: true })
       .eq("status", "published")
       .gte("published_at", weekAgo);
 
-    // Views this week vs last week
     const { count: viewsThisWeek } = await supabase
       .from("page_engagement")
       .select("id", { count: "exact", head: true })
@@ -94,17 +83,14 @@ Deno.serve(async (req) => {
     const vl = viewsLastWeek ?? 0;
     const changePercent = vl > 0 ? (((vt - vl) / vl) * 100).toFixed(1) : "N/A";
 
-    // Top 5 pages
     const { data: topPages } = await supabase.rpc("top_pages_by_views", { limit_count: 5 });
 
-    // CTA clicks this week
     const { count: ctaClicks } = await supabase
       .from("cta_events")
       .select("id", { count: "exact", head: true })
       .eq("event_type", "click")
       .gte("created_at", weekAgo);
 
-    // Pages needing refresh
     const { count: refreshNeeded } = await supabase
       .from("generated_pages")
       .select("id", { count: "exact", head: true })
@@ -112,7 +98,6 @@ Deno.serve(async (req) => {
 
     const siteName = settings?.site_name || "Your Site";
 
-    // Build HTML email
     const html = `
 <!DOCTYPE html>
 <html>
@@ -155,8 +140,6 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    // For now, log the report. Actual sending requires an email service.
-    // If RESEND_API_KEY is configured, send via Resend
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
       const sendResp = await fetch("https://api.resend.com/emails", {
@@ -177,7 +160,7 @@ Deno.serve(async (req) => {
         console.error("Resend error:", sendResult);
         return new Response(
           JSON.stringify({ message: "Report generated but email failed", error: sendResult }),
-          { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     } else {
@@ -189,13 +172,13 @@ Deno.serve(async (req) => {
         message: resendKey ? "Report sent successfully" : "Report generated (no email service configured — add RESEND_API_KEY to send)",
         stats: { newPages, viewsThisWeek: vt, viewsLastWeek: vl, changePercent, ctaClicks, refreshNeeded },
       }),
-      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Weekly report error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

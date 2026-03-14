@@ -91,7 +91,7 @@ const PseoDashboard = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, views, slug, niche_id, niches(name), content_schema_id, content_schemas(slug)")
+        .select("id, title, views, slug, niche_id, niches!generated_pages_niche_id_fkey(name), content_schema_id, content_schemas(slug)")
         .eq("status", "published")
         .order("views", { ascending: false })
         .limit(10);
@@ -116,7 +116,7 @@ const PseoDashboard = () => {
   const { data: topNiches } = useQuery({
     queryKey: ["pseo-top-niches"],
     queryFn: async () => {
-      const { data: pages } = await supabase.from("generated_pages").select("id, views, niche_id, niches(name)").eq("status", "published");
+      const { data: pages } = await supabase.from("generated_pages").select("id, views, niche_id, niches!generated_pages_niche_id_fkey(name)").eq("status", "published");
       const { data: clicks } = await supabase.from("cta_events").select("page_id, niche_slug").eq("event_type", "click");
       if (!pages?.length) return [];
       const clicksByPage: Record<string, number> = {};
