@@ -51,14 +51,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/blog" element={<Suspense fallback={null}><Blog /></Suspense>} />
-            <Route path="/blog/:slug" element={<Suspense fallback={null}><BlogPost /></Suspense>} />
-            <Route path="/guides/:slug" element={<Suspense fallback={null}><PillarPage /></Suspense>} />
-            <Route path="/resources" element={<Suspense fallback={null}><ResourcesIndex /></Suspense>} />
-            <Route path="/resources/:contentType" element={<Suspense fallback={null}><ContentTypeList /></Suspense>} />
-            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={null}><GeneratedPage /></Suspense>} />
-            <Route path="/sitemap" element={<Suspense fallback={null}><HTMLSitemap /></Suspense>} />
-            <Route path="/admin/login" element={<Suspense fallback={null}><AdminLogin /></Suspense>} />
+            <Route path="/blog" element={<Suspense fallback={<PublicPageSkeleton />}><Blog /></Suspense>} />
+            <Route path="/blog/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><BlogPost /></Suspense>} />
+            <Route path="/guides/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><PillarPage /></Suspense>} />
+            <Route path="/resources" element={<Suspense fallback={<PublicPageSkeleton />}><ResourcesIndex /></Suspense>} />
+            <Route path="/resources/:contentType" element={<Suspense fallback={<PublicPageSkeleton />}><ContentTypeList /></Suspense>} />
+            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={<PublicPageSkeleton />}><GeneratedPage /></Suspense>} />
+            <Route path="/sitemap" element={<Suspense fallback={<PublicPageSkeleton />}><HTMLSitemap /></Suspense>} />
+            <Route path="/admin/login" element={<Suspense fallback={<PublicPageSkeleton />}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
               element={
