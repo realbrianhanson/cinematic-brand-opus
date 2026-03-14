@@ -422,7 +422,7 @@ Generate the content now. Return ONLY the JSON object.`;
     if (dry_run) {
       return new Response(
         JSON.stringify({ dry_run: true, results: dryRunResults }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
