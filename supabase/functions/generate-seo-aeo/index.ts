@@ -93,7 +93,7 @@ Only include fields that need improvement based on the missing criteria.`
       console.error('AI API error:', errText);
       return new Response(JSON.stringify({ error: 'AI generation failed' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
 
