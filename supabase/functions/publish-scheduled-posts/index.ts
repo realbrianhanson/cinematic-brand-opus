@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ published: ids.length, ids }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("Error publishing scheduled posts:", err);
