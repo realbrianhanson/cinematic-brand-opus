@@ -111,7 +111,7 @@ Only include fields that need improvement based on the missing criteria.`
       console.error('Failed to parse AI response:', jsonStr);
       return new Response(JSON.stringify({ error: 'Failed to parse AI response' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
 
