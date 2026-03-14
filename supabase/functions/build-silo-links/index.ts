@@ -125,13 +125,14 @@ Deno.serve(async (req) => {
       if (!existing) {
         const nicheName = (currentPage as any).niches?.name || "";
         const contentName = (currentPage as any).content_schemas?.name || "";
+        const anchorText = pickAnchor(contentName, nicheName, currentPage.title, sibling.id, page_id);
         await supabase.from("internal_links").insert({
           source_page_id: sibling.id,
           source_page_type: "generated",
           target_page_id: page_id,
           target_page_type: "generated",
           link_type: "silo_sibling",
-          anchor_text: `${contentName} for ${nicheName}`,
+          anchor_text: anchorText,
           position: "related",
         });
       }
