@@ -262,6 +262,7 @@ export type Database = {
           checked_at: string | null
           id: string
           indexed_at: string | null
+          method: string | null
           page_id: string | null
           page_url: string
           status: string | null
@@ -271,6 +272,7 @@ export type Database = {
           checked_at?: string | null
           id?: string
           indexed_at?: string | null
+          method?: string | null
           page_id?: string | null
           page_url: string
           status?: string | null
@@ -280,6 +282,7 @@ export type Database = {
           checked_at?: string | null
           id?: string
           indexed_at?: string | null
+          method?: string | null
           page_id?: string | null
           page_url?: string
           status?: string | null
