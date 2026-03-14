@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     if (urlList.length === 0) {
       return new Response(
         JSON.stringify({ submitted_count: 0, indexnow_status: "no_urls", google_ping_status: "skipped" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
