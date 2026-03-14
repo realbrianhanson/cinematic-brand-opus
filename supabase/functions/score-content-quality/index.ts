@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       .eq("id", page_id);
 
     return new Response(JSON.stringify({ page_id, score, issues, publishable: score >= 60 }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), {
