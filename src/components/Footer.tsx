@@ -58,7 +58,26 @@ const Footer = () => (
             >
               Blog
             </Link>
-          </div>
+            <Link
+              to="/resources"
+              data-hover
+              className="font-body transition-colors duration-200"
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+            >
+              Resources
+            </Link>
+            <Link
+              to="/sitemap"
+              data-hover
+              className="font-body transition-colors duration-200"
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+            >
+              Sitemap
+            </Link>
         </div>
 
         {/* Col 3 */}
