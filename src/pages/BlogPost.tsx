@@ -126,6 +126,7 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <Nav />
       <PageHead
         title={post.title}
         description={post.excerpt || post.tldr || ""}

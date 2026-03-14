@@ -121,6 +121,7 @@ const PillarPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <Nav />
       <PageHead
         title={((pillar.seo_meta as any)?.title) || pillar.title}
         description={((pillar.seo_meta as any)?.description) || ""}
