@@ -173,7 +173,7 @@ const PillarPage = () => {
         <div
           className="blog-content font-body"
           style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(255,255,255,0.8)" }}
-          dangerouslySetInnerHTML={{ __html: pillar.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pillar.content) }}
         />
 
         <SiloNavigation nicheId={nicheId!} pillarTitle={pillar.title} />

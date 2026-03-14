@@ -258,7 +258,7 @@ const BlogPost = () => {
             lineHeight: 1.85,
             color: "rgba(255,255,255,0.65)",
           }}
-          dangerouslySetInnerHTML={{ __html: post.content ?? "" }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content ?? "") }}
         />
 
         {/* Key Takeaways */}
