@@ -6,6 +6,7 @@ import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
 import WidgetRenderer from "@/components/WidgetRenderer";
 import { findRelatedNiches } from "@/lib/crossLinkMatcher";
+import Nav from "@/components/Nav";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -125,6 +126,7 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <Nav />
       <PageHead
         title={post.title}
         description={post.excerpt || post.tldr || ""}

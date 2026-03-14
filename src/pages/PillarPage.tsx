@@ -9,6 +9,7 @@ import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
 import SiloNavigation from "@/components/SiloNavigation";
 import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
+import Nav from "@/components/Nav";
 
 const wordCount = (html: string) => {
   const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -120,6 +121,7 @@ const PillarPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+      <Nav />
       <PageHead
         title={((pillar.seo_meta as any)?.title) || pillar.title}
         description={((pillar.seo_meta as any)?.description) || ""}
