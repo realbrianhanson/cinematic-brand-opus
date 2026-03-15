@@ -140,9 +140,12 @@ const GenerationControls = () => {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
-      <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 24 }}>
+      <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
         Generate Content
       </h1>
+      <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 24, lineHeight: 1.5 }}>
+        Create SEO-optimized pages automatically. Pick which industries you want to target and what type of content to create — the AI does the rest.
+      </p>
 
       {/* Section 1: Form */}
       <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
@@ -150,7 +153,10 @@ const GenerationControls = () => {
           {/* Content Type */}
           <div>
             <span className="admin-label">Content Type</span>
-            <select className="admin-input font-body" value={contentTypeSlug} onChange={(e) => setContentTypeSlug(e.target.value)} style={{ marginTop: 6, width: "100%" }}>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 6px" }}>
+              What kind of page should be created? e.g. "Tool Roundups" or "How-To Guides". Choose "All Active Types" to generate one of each.
+            </p>
+            <select className="admin-input font-body" value={contentTypeSlug} onChange={(e) => setContentTypeSlug(e.target.value)} style={{ width: "100%" }}>
               <option value="all_active">All Active Types</option>
               {(schemas ?? []).map((s) => (
                 <option key={s.slug} value={s.slug}>{s.name}{!s.is_active ? " (inactive)" : ""}</option>
