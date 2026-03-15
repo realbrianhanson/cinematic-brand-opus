@@ -18,10 +18,7 @@ function slugify(text: string): string {
     .slice(0, 120);
 }
 
-function fillTemplate(
-  template: string,
-  vars: Record<string, string | number>
-): string {
+function fillTemplate(template: string, vars: Record<string, string | number>): string {
   let result = template;
   for (const [key, val] of Object.entries(vars)) {
     result = result.replaceAll(`{{${key}}}`, String(val));
@@ -43,23 +40,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: verify caller is admin
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     return new Response(
@@ -72,6 +52,39 @@ Deno.serve(async (req) => {
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+  // Self-invoked background processing call
+  const isBackgroundProcess = req.headers.get("x-job-process") === "true";
+  if (isBackgroundProcess) {
+    try {
+      await handleBackgroundProcessing(req, supabase, LOVABLE_API_KEY);
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (err: any) {
+      console.error("Background processing error:", err);
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  // Normal request: verify user auth
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
+  if (userErr || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await req.json();
     const {
@@ -82,21 +95,9 @@ Deno.serve(async (req) => {
       batch_id = crypto.randomUUID(),
     } = body;
 
-    // 1. Fetch site_settings
-    const { data: siteSettings, error: ssErr } = await supabase
-      .from("site_settings")
-      .select("*")
-      .limit(1)
-      .single();
-    if (ssErr) throw new Error(`Failed to fetch site_settings: ${ssErr.message}`);
-
-    // 2. Resolve niches
+    // Resolve niches
     let nichesQuery = supabase.from("niches").select("*");
-    if (
-      Array.isArray(niche_slugs) &&
-      niche_slugs.length === 1 &&
-      niche_slugs[0] === "all_active"
-    ) {
+    if (Array.isArray(niche_slugs) && niche_slugs.length === 1 && niche_slugs[0] === "all_active") {
       nichesQuery = nichesQuery.eq("is_active", true);
     } else {
       nichesQuery = nichesQuery.in("slug", niche_slugs);
@@ -105,12 +106,11 @@ Deno.serve(async (req) => {
     if (nErr) throw new Error(`Failed to fetch niches: ${nErr.message}`);
     if (!niches?.length) {
       return new Response(JSON.stringify({ error: "No niches found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 3. Resolve content schemas
+    // Resolve content schemas
     let schemasQuery = supabase.from("content_schemas").select("*");
     if (content_type_slug === "all_active") {
       schemasQuery = schemasQuery.eq("is_active", true);
@@ -121,94 +121,234 @@ Deno.serve(async (req) => {
     if (csErr) throw new Error(`Failed to fetch content_schemas: ${csErr.message}`);
     if (!contentSchemas?.length) {
       return new Response(JSON.stringify({ error: "No content schemas found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Pre-fetch existing slugs and keywords for dedup
-    const { data: existingSlugs } = await supabase
-      .from("generated_pages")
-      .select("slug");
-    const slugSet = new Set((existingSlugs || []).map((r: any) => r.slug));
+    // For dry run, process synchronously (it's fast — only 1 page)
+    if (dry_run) {
+      return await handleDryRun(supabase, niches, contentSchemas, LOVABLE_API_KEY, corsHeaders);
+    }
 
-    const { data: existingKeywords } = await supabase
-      .from("keyword_assignments")
-      .select("primary_keyword");
-    const kwSet = new Set(
-      (existingKeywords || []).map((r: any) => r.primary_keyword)
+    // Calculate total combinations
+    const totalCombinations = niches.length * contentSchemas.length * count_per_combination;
+
+    // Create a job record and return immediately
+    const { data: job, error: jobErr } = await supabase
+      .from("generation_jobs")
+      .insert({
+        batch_id,
+        status: "pending",
+        total_combinations: totalCombinations,
+        request_payload: { niche_slugs, content_type_slug, count_per_combination },
+      })
+      .select("id")
+      .single();
+
+    if (jobErr) throw new Error(`Failed to create job: ${jobErr.message}`);
+
+    // Fire-and-forget: self-invoke the processing endpoint
+    const processUrl = `${SUPABASE_URL}/functions/v1/generate-content`;
+    fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "x-job-process": "true",
+      },
+      body: JSON.stringify({
+        job_id: job.id,
+        batch_id,
+        niche_ids: niches.map((n: any) => n.id),
+        schema_ids: contentSchemas.map((s: any) => s.id),
+        count_per_combination,
+      }),
+    }).catch((e) => console.error("Failed to self-invoke processing:", e));
+
+    // Return job_id immediately
+    return new Response(
+      JSON.stringify({ job_id: job.id, batch_id, total_combinations: totalCombinations }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+  } catch (err: any) {
+    console.error("generate-content error:", err);
+    return new Response(
+      JSON.stringify({ error: err.message || "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
 
-    const currentYear = new Date().getFullYear();
-    const summary = {
-      batch_id,
-      total_attempted: 0,
-      success: 0,
-      failed: 0,
-      skipped_duplicates: 0,
-      pages: [] as { id: string; title: string; slug: string; status: string }[],
-    };
+// ─── Background processing (self-invoked) ───
 
-    const dryRunResults: any[] = [];
+async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_API_KEY: string) {
+  const { job_id, batch_id, niche_ids, schema_ids, count_per_combination } = await req.json();
 
-    // 4. Iterate niche × content_type
-    for (const niche of niches) {
-      for (const schema of contentSchemas) {
-        for (let i = 0; i < count_per_combination; i++) {
-          summary.total_attempted++;
-          const startTime = Date.now();
+  // Update job to running
+  await supabase.from("generation_jobs").update({ status: "running" }).eq("id", job_id);
 
-          const ctx = (niche.context || {}) as Record<string, any>;
-          const estimatedCount =
-            (schema.items_per_section || 15) * 3; // estimate 3 sections
+  // Fetch full niche + schema data
+  const { data: niches } = await supabase.from("niches").select("*").in("id", niche_ids);
+  const { data: contentSchemas } = await supabase.from("content_schemas").select("*").in("id", schema_ids);
+  const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).single();
 
-          // 4a. Generate title
-          const title = fillTemplate(schema.title_template, {
-            count: estimatedCount,
-            content_type: schema.name,
-            niche_name: niche.name,
-            year: currentYear,
-          });
+  // Pre-fetch existing slugs and keywords
+  const { data: existingSlugs } = await supabase.from("generated_pages").select("slug");
+  const slugSet = new Set((existingSlugs || []).map((r: any) => r.slug));
+  const { data: existingKeywords } = await supabase.from("keyword_assignments").select("primary_keyword");
+  const kwSet = new Set((existingKeywords || []).map((r: any) => r.primary_keyword));
 
-          // 4b. Generate slug
-          const pageSlug = slugify(title);
+  const currentYear = new Date().getFullYear();
+  const pages: any[] = [];
+  let successCount = 0, failedCount = 0, skippedCount = 0, completedCount = 0;
 
-          // 4c. Check slug duplicate
-          if (slugSet.has(pageSlug)) {
-            summary.skipped_duplicates++;
-            await logGeneration(supabase, {
-              batch_id,
-              generated_page_id: null,
-              status: "duplicate_skipped",
-              error_message: `Slug already exists: ${pageSlug}`,
-              tokens_used: 0,
-              cost: 0,
-              duration_ms: Date.now() - startTime,
+  for (const niche of (niches || [])) {
+    for (const schema of (contentSchemas || [])) {
+      for (let i = 0; i < count_per_combination; i++) {
+        const startTime = Date.now();
+        const ctx = (niche.context || {}) as Record<string, any>;
+        const estimatedCount = (schema.items_per_section || 15) * 3;
+
+        const title = fillTemplate(schema.title_template, {
+          count: estimatedCount,
+          content_type: schema.name,
+          niche_name: niche.name,
+          year: currentYear,
+        });
+
+        const pageSlug = slugify(title);
+
+        // Check duplicates
+        if (slugSet.has(pageSlug)) {
+          skippedCount++;
+          completedCount++;
+          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+          continue;
+        }
+
+        const primaryKeyword = `${schema.name} for ${niche.name}`.toLowerCase();
+        if (kwSet.has(primaryKeyword)) {
+          skippedCount++;
+          completedCount++;
+          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Keyword exists: ${primaryKeyword}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+          continue;
+        }
+
+        // Build AI prompt
+        const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+        const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear);
+
+        // Call AI with retry
+        let contentJson: any = null;
+        let tokensUsed = 0;
+        let aiError: string | null = null;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const aiResp = await fetch(AI_GATEWAY, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+              body: JSON.stringify({
+                model: AI_MODEL,
+                messages: [
+                  { role: "system", content: systemMessage },
+                  { role: "user", content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Your previous response was not valid JSON. Return ONLY a JSON object with no other text." },
+                ],
+                temperature: 0.7,
+                max_tokens: 8192,
+              }),
             });
-            continue;
+
+            if (!aiResp.ok) {
+              aiError = `AI gateway ${aiResp.status}: ${await aiResp.text()}`;
+              if (aiResp.status === 429 || aiResp.status === 402) break;
+              continue;
+            }
+
+            const aiData = await aiResp.json();
+            tokensUsed = aiData.usage?.total_tokens || 0;
+            const raw = aiData.choices?.[0]?.message?.content || "";
+            contentJson = JSON.parse(extractJson(raw));
+            aiError = null;
+            break;
+          } catch (parseErr: any) {
+            aiError = `JSON parse failed: ${parseErr.message}`;
           }
+        }
 
-          // 4d. Check primary keyword duplicate
-          const primaryKeyword = `${schema.name} for ${niche.name}`.toLowerCase();
-          if (kwSet.has(primaryKeyword)) {
-            summary.skipped_duplicates++;
-            await logGeneration(supabase, {
-              batch_id,
-              generated_page_id: null,
-              status: "duplicate_skipped",
-              error_message: `Primary keyword already exists: ${primaryKeyword}`,
-              tokens_used: 0,
-              cost: 0,
-              duration_ms: Date.now() - startTime,
-            });
-            continue;
-          }
+        if (!contentJson) {
+          failedCount++;
+          completedCount++;
+          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: aiError || "Unknown error", tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+          await delay(1000);
+          continue;
+        }
 
-          // 4e. Build AI prompt
-          const systemMessage =
-            "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+        // Build SEO meta
+        const metaTitle = `${title} | ${siteSettings?.publisher_name || ""}`.slice(0, 60);
+        const metaDesc = schema.description_template
+          ? fillTemplate(schema.description_template, { niche_name: niche.name, content_type: schema.name, year: currentYear, count: estimatedCount }).slice(0, 160)
+          : `Discover ${schema.name.toLowerCase()} curated for ${niche.name}. Updated ${currentYear}.`.slice(0, 160);
+        const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
+        const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, schema.name.toLowerCase(), niche.name.toLowerCase()], og_image: null };
 
-          const userMessage = `NICHE CONTEXT:
+        // Save page
+        const { data: savedPage, error: saveErr } = await supabase
+          .from("generated_pages")
+          .insert({ niche_id: niche.id, content_schema_id: schema.id, slug: pageSlug, title, content_json: contentJson, seo_meta: seoMeta, schema_markup: {}, status: "draft", quality_score: null, generation_model: AI_MODEL, generation_cost: 0 })
+          .select("id, title, slug, status")
+          .single();
+
+        if (saveErr) {
+          failedCount++;
+          completedCount++;
+          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: `DB save: ${saveErr.message}`, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+          await delay(1000);
+          continue;
+        }
+
+        slugSet.add(pageSlug);
+        kwSet.add(primaryKeyword);
+
+        await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: primaryKeyword, secondary_keywords: seedKeywords.slice(0, 5) });
+        await logGeneration(supabase, { batch_id, generated_page_id: savedPage.id, status: "success", error_message: null, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+
+        successCount++;
+        completedCount++;
+        pages.push(savedPage);
+        await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+
+        await delay(1000);
+      }
+    }
+  }
+
+  // Mark job complete
+  await supabase.from("generation_jobs").update({
+    status: failedCount > 0 && successCount === 0 ? "failed" : "completed",
+    completed_count: completedCount,
+    success_count: successCount,
+    failed_count: failedCount,
+    skipped_count: skippedCount,
+    result_summary: { pages, total_attempted: completedCount, success: successCount, failed: failedCount, skipped_duplicates: skippedCount },
+  }).eq("id", job_id);
+}
+
+async function updateJobProgress(supabase: any, jobId: string, counts: { completedCount: number; successCount: number; failedCount: number; skippedCount: number }) {
+  await supabase.from("generation_jobs").update({
+    completed_count: counts.completedCount,
+    success_count: counts.successCount,
+    failed_count: counts.failedCount,
+    skipped_count: counts.skippedCount,
+  }).eq("id", jobId);
+}
+
+function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, currentYear: number): string {
+  return `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
 Pain Points: ${ctx.pain_points || "N/A"}
@@ -236,220 +376,67 @@ TITLE (pre-generated, include in output as-is):
 ${title}
 
 Generate the content now. Return ONLY the JSON object.`;
+}
 
-          // 4f. Call AI
-          let contentJson: any = null;
-          let tokensUsed = 0;
-          let aiError: string | null = null;
+async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[], apiKey: string, corsHeaders: Record<string, string>) {
+  const currentYear = new Date().getFullYear();
+  const niche = niches[0];
+  const schema = contentSchemas[0];
+  const ctx = (niche.context || {}) as Record<string, any>;
+  const estimatedCount = (schema.items_per_section || 15) * 3;
 
-          for (let attempt = 0; attempt < 2; attempt++) {
-            const promptMessages = [
-              { role: "system", content: systemMessage },
-              {
-                role: "user",
-                content:
-                  attempt === 0
-                    ? userMessage
-                    : userMessage +
-                      "\n\nCRITICAL: Your previous response was not valid JSON. Return ONLY a JSON object with no other text.",
-              },
-            ];
+  const title = fillTemplate(schema.title_template, { count: estimatedCount, content_type: schema.name, niche_name: niche.name, year: currentYear });
+  const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+  const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear);
 
-            try {
-              const aiResp = await fetch(AI_GATEWAY, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                },
-                body: JSON.stringify({
-                  model: AI_MODEL,
-                  messages: promptMessages,
-                  temperature: 0.7,
-                  max_tokens: 8192,
-                }),
-              });
+  let contentJson: any = null;
+  let tokensUsed = 0;
 
-              if (!aiResp.ok) {
-                const errText = await aiResp.text();
-                aiError = `AI gateway ${aiResp.status}: ${errText}`;
-                console.error(aiError);
-                if (aiResp.status === 429 || aiResp.status === 402) {
-                  // Don't retry on rate limit / payment errors
-                  break;
-                }
-                continue;
-              }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const aiResp = await fetch(AI_GATEWAY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Return ONLY a JSON object." },
+          ],
+          temperature: 0.7,
+          max_tokens: 8192,
+        }),
+      });
 
-              const aiData = await aiResp.json();
-              tokensUsed = aiData.usage?.total_tokens || 0;
-              const raw = aiData.choices?.[0]?.message?.content || "";
+      if (!aiResp.ok) {
+        const errText = await aiResp.text();
+        throw new Error(`AI gateway ${aiResp.status}: ${errText}`);
+      }
 
-              // 4g. Parse response
-              const jsonStr = extractJson(raw);
-              contentJson = JSON.parse(jsonStr);
-              aiError = null;
-              break; // success
-            } catch (parseErr: any) {
-              aiError = `JSON parse failed: ${parseErr.message}`;
-              console.error(`Attempt ${attempt + 1} failed:`, aiError);
-              // retry once
-            }
-          }
-
-          if (!contentJson) {
-            summary.failed++;
-            await logGeneration(supabase, {
-              batch_id,
-              generated_page_id: null,
-              status: "failed",
-              error_message: aiError || "Unknown error",
-              tokens_used: tokensUsed,
-              cost: 0,
-              duration_ms: Date.now() - startTime,
-            });
-            await delay(1000);
-            continue;
-          }
-
-          // 4i. Generate seo_meta
-          const metaTitle = `${title} | ${siteSettings.publisher_name || ""}`.slice(0, 60);
-          const metaDesc = schema.description_template
-            ? fillTemplate(schema.description_template, {
-                niche_name: niche.name,
-                content_type: schema.name,
-                year: currentYear,
-                count: estimatedCount,
-              }).slice(0, 160)
-            : `Discover ${schema.name.toLowerCase()} curated for ${niche.name}. Updated ${currentYear}.`.slice(0, 160);
-
-          const seedKeywords = Array.isArray(ctx.keywords_seed)
-            ? ctx.keywords_seed
-            : [];
-          const seoMeta = {
-            title: metaTitle,
-            description: metaDesc,
-            keywords: [
-              ...seedKeywords,
-              schema.name.toLowerCase(),
-              niche.name.toLowerCase(),
-            ],
-            og_image: null,
-          };
-
-          // schema_markup handled by frontend StructuredData component
-
-          // Dry run: collect without saving
-          if (dry_run) {
-            dryRunResults.push({
-              title,
-              slug: pageSlug,
-              niche: niche.name,
-              content_type: schema.name,
-              content_json: contentJson,
-              seo_meta: seoMeta,
-              tokens_used: tokensUsed,
-            });
-            continue;
-          }
-
-          // 4k. Save to generated_pages
-          const { data: savedPage, error: saveErr } = await supabase
-            .from("generated_pages")
-            .insert({
-              niche_id: niche.id,
-              content_schema_id: schema.id,
-              slug: pageSlug,
-              title,
-              content_json: contentJson,
-              seo_meta: seoMeta,
-              schema_markup: {},
-              status: "draft",
-              quality_score: null,
-              generation_model: AI_MODEL,
-              generation_cost: 0,
-            })
-            .select("id, title, slug, status")
-            .single();
-
-          if (saveErr) {
-            summary.failed++;
-            console.error("Save error:", saveErr.message);
-            await logGeneration(supabase, {
-              batch_id,
-              generated_page_id: null,
-              status: "failed",
-              error_message: `DB save: ${saveErr.message}`,
-              tokens_used: tokensUsed,
-              cost: 0,
-              duration_ms: Date.now() - startTime,
-            });
-            await delay(1000);
-            continue;
-          }
-
-          // Mark slug/keyword as used
-          slugSet.add(pageSlug);
-          kwSet.add(primaryKeyword);
-
-          // 4l. Save keyword_assignments
-          await supabase.from("keyword_assignments").insert({
-            page_id: savedPage.id,
-            primary_keyword: primaryKeyword,
-            secondary_keywords: seedKeywords.slice(0, 5),
-          });
-
-          // 4m. Log generation
-          await logGeneration(supabase, {
-            batch_id,
-            generated_page_id: savedPage.id,
-            status: "success",
-            error_message: null,
-            tokens_used: tokensUsed,
-            cost: 0,
-            duration_ms: Date.now() - startTime,
-          });
-
-          summary.success++;
-          summary.pages.push(savedPage);
-
-          // Rate limit delay
-          await delay(1000);
-        }
+      const aiData = await aiResp.json();
+      tokensUsed = aiData.usage?.total_tokens || 0;
+      const raw = aiData.choices?.[0]?.message?.content || "";
+      contentJson = JSON.parse(extractJson(raw));
+      break;
+    } catch (e: any) {
+      if (attempt === 1) {
+        return new Response(JSON.stringify({ error: `Dry run failed: ${e.message}` }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
-
-    if (dry_run) {
-      return new Response(
-        JSON.stringify({ dry_run: true, results: dryRunResults }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    return new Response(JSON.stringify(summary), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err: any) {
-    console.error("generate-content error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   }
-});
 
-async function logGeneration(
-  supabase: any,
-  log: {
-    batch_id: string;
-    generated_page_id: string | null;
-    status: string;
-    error_message: string | null;
-    tokens_used: number;
-    cost: number;
-    duration_ms: number;
-  }
-) {
+  return new Response(
+    JSON.stringify({
+      dry_run: true,
+      results: [{ title, slug: slugify(title), niche: niche.name, content_type: schema.name, content_json: contentJson, tokens_used: tokensUsed }],
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+async function logGeneration(supabase: any, log: { batch_id: string; generated_page_id: string | null; status: string; error_message: string | null; tokens_used: number; cost: number; duration_ms: number }) {
   try {
     await supabase.from("generation_logs").insert(log);
   } catch (e: any) {

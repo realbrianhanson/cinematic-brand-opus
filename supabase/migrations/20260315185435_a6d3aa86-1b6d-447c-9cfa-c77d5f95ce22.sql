@@ -1,0 +1,1 @@
+DROP POLICY "Service role full access" ON public.generation_jobs;
