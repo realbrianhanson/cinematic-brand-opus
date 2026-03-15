@@ -157,9 +157,36 @@ const GenerationControls = () => {
     return niches.filter((n) => n.name.toLowerCase().includes(q) || n.slug.toLowerCase().includes(q));
   }, [niches, nicheSearch]);
 
-  const activeSchemaCount = contentTypeSlug === "all_active" ? (schemas?.filter((s) => s.is_active).length ?? 1) : 1;
-  const estimatedPages = selectedNiches.size * activeSchemaCount * pagesPerCombo;
+  const activeSchemas = schemas?.filter((s) => s.is_active) ?? [];
+  const isAllSelected = selectedContentTypes.has("all_active");
+  const activeSchemaCount = isAllSelected ? activeSchemas.length : selectedContentTypes.size;
+  const estimatedPages = selectedNiches.size * Math.max(activeSchemaCount, 1) * pagesPerCombo;
   const hasSchemas = (schemas?.length ?? 0) > 0;
+
+  const toggleAllContentTypes = () => {
+    if (isAllSelected) {
+      setSelectedContentTypes(new Set());
+    } else {
+      setSelectedContentTypes(new Set(["all_active"]));
+    }
+  };
+
+  const toggleContentType = (slug: string) => {
+    setSelectedContentTypes((prev) => {
+      const next = new Set(prev);
+      next.delete("all_active"); // Remove "all" when manually picking
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      // If all active schemas are now selected, switch to "all_active"
+      if (activeSchemas.length > 0 && activeSchemas.every((s) => next.has(s.slug))) {
+        return new Set(["all_active"]);
+      }
+      return next;
+    });
+  };
 
   const toggleAll = () => {
     if (!niches) return;
