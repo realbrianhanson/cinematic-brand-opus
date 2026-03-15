@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         batch_id,
         status: "pending",
         total_combinations: totalCombinations,
-        request_payload: { niche_slugs, content_type_slug, count_per_combination },
+        request_payload: { niche_slugs, content_type_slugs: resolvedSlugs, count_per_combination },
       })
       .select("id")
       .single();
