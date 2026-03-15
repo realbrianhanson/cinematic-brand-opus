@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon, Link2 } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronUp, Zap, ImageIcon, Link2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 
 interface BatchGroup {
   batch_id: string;
@@ -12,6 +13,21 @@ interface BatchGroup {
   failed: number;
   total: number;
   logs: any[];
+}
+
+interface GenerationJob {
+  id: string;
+  batch_id: string;
+  status: string;
+  total_combinations: number;
+  completed_count: number;
+  success_count: number;
+  failed_count: number;
+  skipped_count: number;
+  result_summary: any;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 const GenerationControls = () => {
@@ -27,12 +43,13 @@ const GenerationControls = () => {
 
   // Progress state
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [dryRunResult, setDryRunResult] = useState<any>(null);
   const [generatingOg, setGeneratingOg] = useState(false);
   const [buildingLinks, setBuildingLinks] = useState(false);
-  // Batch expansion
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
+
+  // Active jobs (realtime)
+  const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
 
   const { data: schemas } = useQuery({
     queryKey: ["gen-schemas"],
@@ -72,6 +89,67 @@ const GenerationControls = () => {
     },
   });
 
+  // Fetch active/recent jobs on mount
+  useEffect(() => {
+    const fetchJobs = async () => {
+      const { data } = await supabase
+        .from("generation_jobs")
+        .select("*")
+        .in("status", ["pending", "running"])
+        .order("created_at", { ascending: false });
+      if (data) setActiveJobs(data as GenerationJob[]);
+    };
+    fetchJobs();
+  }, []);
+
+  // Subscribe to realtime updates on generation_jobs
+  useEffect(() => {
+    const channel = supabase
+      .channel("generation-jobs-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "generation_jobs" },
+        (payload) => {
+          const newRow = payload.new as GenerationJob;
+          if (!newRow?.id) return;
+
+          setActiveJobs((prev) => {
+            const existing = prev.findIndex((j) => j.id === newRow.id);
+            if (newRow.status === "completed" || newRow.status === "failed") {
+              // Remove from active, show toast
+              if (newRow.status === "completed") {
+                toast({
+                  title: "Generation complete",
+                  description: `${newRow.success_count} pages created, ${newRow.failed_count} failed, ${newRow.skipped_count} skipped.`,
+                });
+                qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+                refetchBatches();
+              } else {
+                toast({
+                  title: "Generation failed",
+                  description: newRow.error_message || "An error occurred during generation.",
+                  variant: "destructive",
+                });
+              }
+              return prev.filter((j) => j.id !== newRow.id);
+            }
+
+            if (existing >= 0) {
+              const updated = [...prev];
+              updated[existing] = newRow;
+              return updated;
+            }
+            return [newRow, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast, qc, refetchBatches]);
+
   const filteredNiches = useMemo(() => {
     if (!niches) return [];
     if (!nicheSearch.trim()) return niches;
@@ -81,6 +159,7 @@ const GenerationControls = () => {
 
   const activeSchemaCount = contentTypeSlug === "all_active" ? (schemas?.filter((s) => s.is_active).length ?? 1) : 1;
   const estimatedPages = selectedNiches.size * activeSchemaCount * pagesPerCombo;
+  const hasSchemas = (schemas?.length ?? 0) > 0;
 
   const toggleAll = () => {
     if (!niches) return;
@@ -105,35 +184,71 @@ const GenerationControls = () => {
       toast({ title: "Select niches", description: "Pick at least one niche.", variant: "destructive" });
       return;
     }
-    setGenerating(true);
-    setResult(null);
-    setDryRunResult(null);
+    if (!hasSchemas) {
+      toast({ title: "No content types", description: "Create at least one content type first.", variant: "destructive" });
+      return;
+    }
 
+    if (isDry) {
+      // Dry run is synchronous
+      setGenerating(true);
+      setDryRunResult(null);
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-content", {
+          body: {
+            niche_slugs: Array.from(selectedNiches),
+            content_type_slug: contentTypeSlug,
+            count_per_combination: pagesPerCombo,
+            dry_run: true,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setDryRunResult(data);
+        toast({ title: "Dry run complete", description: "Preview the generated content below." });
+      } catch (err: any) {
+        toast({ title: "Dry run failed", description: err.message, variant: "destructive" });
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // Real generation — returns job_id immediately
     try {
       const { data, error } = await supabase.functions.invoke("generate-content", {
         body: {
           niche_slugs: Array.from(selectedNiches),
           content_type_slug: contentTypeSlug,
           count_per_combination: pagesPerCombo,
-          dry_run: isDry,
+          dry_run: false,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (isDry) {
-        setDryRunResult(data);
-        toast({ title: "Dry run complete", description: "Preview the generated content below." });
-      } else {
-        setResult(data);
-        toast({ title: "Generation complete", description: `${data.success} pages generated.` });
-        qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-        refetchBatches();
-      }
+      toast({ title: "Generation started", description: `Job queued — ${data.total_combinations} pages. You can navigate away.` });
+
+      // Add to active jobs optimistically
+      setActiveJobs((prev) => [
+        {
+          id: data.job_id,
+          batch_id: data.batch_id,
+          status: "pending",
+          total_combinations: data.total_combinations,
+          completed_count: 0,
+          success_count: 0,
+          failed_count: 0,
+          skipped_count: 0,
+          result_summary: null,
+          error_message: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
     } catch (err: any) {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -145,6 +260,51 @@ const GenerationControls = () => {
       <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 24, lineHeight: 1.5 }}>
         Create SEO-optimized pages automatically. Pick which industries you want to target and what type of content to create — the AI does the rest.
       </p>
+
+      {/* Active Jobs */}
+      {activeJobs.length > 0 && (
+        <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
+          <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16 }}>
+            Active Jobs
+          </h2>
+          {activeJobs.map((job) => {
+            const pct = job.total_combinations > 0 ? Math.round((job.completed_count / job.total_combinations) * 100) : 0;
+            return (
+              <div key={job.id} style={{ marginBottom: 16 }}>
+                <div className="flex items-center justify-between font-body" style={{ marginBottom: 8 }}>
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+                    <span style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                      {job.status === "pending" ? "Starting..." : `${job.completed_count} of ${job.total_combinations} pages`}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", fontFamily: "monospace" }}>
+                    {job.batch_id.slice(0, 8)}…
+                  </span>
+                </div>
+                <Progress value={pct} className="h-2" />
+                <div className="flex gap-4 font-body" style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 11, color: "hsl(var(--admin-sage))" }}>✓ {job.success_count}</span>
+                  {job.failed_count > 0 && <span style={{ fontSize: 11, color: "hsl(var(--admin-danger))" }}>✗ {job.failed_count}</span>}
+                  {job.skipped_count > 0 && <span style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>⊘ {job.skipped_count}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* No content types guard */}
+      {!hasSchemas && schemas !== undefined && (
+        <div className="admin-card" style={{ padding: 24, marginBottom: 20, borderColor: "hsl(var(--admin-warning) / 0.3)" }}>
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={18} style={{ color: "hsl(var(--admin-warning, 45 93% 47%))" }} />
+            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+              No content types found. Create at least one content type before generating content.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Section 1: Form */}
       <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
@@ -262,7 +422,7 @@ const GenerationControls = () => {
           <button
             className="admin-btn-primary font-body"
             onClick={() => runGeneration()}
-            disabled={generating || selectedNiches.size === 0}
+            disabled={generating || selectedNiches.size === 0 || !hasSchemas}
             style={{ width: "100%", justifyContent: "center", padding: "12px 20px", fontSize: 14 }}
           >
             {generating ? (
@@ -274,48 +434,7 @@ const GenerationControls = () => {
         </div>
       </div>
 
-      {/* Section 2: Progress */}
-      {generating && (
-        <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ height: 6, borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))", overflow: "hidden" }}>
-              <div style={{
-                height: "100%", borderRadius: 3, backgroundColor: "hsl(var(--admin-accent))",
-                width: "40%", animation: "indeterminate 1.5s infinite ease-in-out",
-              }} />
-            </div>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
-              Generating... this may take several minutes for large batches
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Section 2b: Results */}
-      {result && !generating && (
-        <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
-          <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16 }}>
-            Generation Complete
-          </h2>
-          <div className="flex gap-6 flex-wrap" style={{ marginBottom: 16 }}>
-            <Stat label="Success" value={result.success} color="hsl(var(--admin-sage))" />
-            <Stat label="Failed" value={result.failed} color="hsl(var(--admin-danger))" />
-            <Stat label="Skipped" value={result.skipped_duplicates} color="hsl(var(--admin-text-ghost))" />
-          </div>
-          {result.pages?.length > 0 && (
-            <div style={{ maxHeight: 200, overflowY: "auto" }}>
-              {result.pages.map((p: any) => (
-                <div key={p.id} className="font-body flex items-center justify-between" style={{ padding: "6px 0", fontSize: 12, color: "hsl(var(--admin-text-soft))", borderBottom: "1px solid hsl(var(--admin-border))" }}>
-                  <span>{p.title}</span>
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, backgroundColor: "hsl(var(--admin-text-ghost) / 0.15)", color: "hsl(var(--admin-text-ghost))" }}>{p.status}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Section 3: Dry Run Preview */}
+      {/* Dry Run Preview */}
       {dryRunResult && !generating && (
         <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
           <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
@@ -362,7 +481,7 @@ const GenerationControls = () => {
         </div>
       )}
 
-      {/* Section 4: Recent Batches */}
+      {/* Recent Batches */}
       <div className="admin-card" style={{ padding: 24 }}>
         <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16 }}>
           Recent Generation Runs
@@ -479,15 +598,6 @@ const GenerationControls = () => {
           )}
         </button>
       </div>
-
-      {/* Indeterminate animation */}
-      <style>{`
-        @keyframes indeterminate {
-          0% { transform: translateX(-100%); width: 40%; }
-          50% { transform: translateX(100%); width: 60%; }
-          100% { transform: translateX(300%); width: 40%; }
-        }
-      `}</style>
     </div>
   );
 };
