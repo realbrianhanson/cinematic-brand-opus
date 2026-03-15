@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { HelpCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
