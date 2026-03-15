@@ -89,11 +89,17 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const {
       niche_slugs = ["all_active"],
-      content_type_slug = "all_active",
+      content_type_slugs,
+      content_type_slug,
       count_per_combination = 1,
       dry_run = false,
       batch_id = crypto.randomUUID(),
     } = body;
+
+    // Normalize content_type_slugs (backward compat with old content_type_slug string)
+    let resolvedSlugs: string[] = content_type_slugs
+      ? (Array.isArray(content_type_slugs) ? content_type_slugs : [content_type_slugs])
+      : (content_type_slug ? [content_type_slug] : ["all_active"]);
 
     // Resolve niches
     let nichesQuery = supabase.from("niches").select("*");
@@ -112,10 +118,10 @@ Deno.serve(async (req) => {
 
     // Resolve content schemas
     let schemasQuery = supabase.from("content_schemas").select("*");
-    if (content_type_slug === "all_active") {
+    if (resolvedSlugs.length === 1 && resolvedSlugs[0] === "all_active") {
       schemasQuery = schemasQuery.eq("is_active", true);
     } else {
-      schemasQuery = schemasQuery.eq("slug", content_type_slug);
+      schemasQuery = schemasQuery.in("slug", resolvedSlugs);
     }
     const { data: contentSchemas, error: csErr } = await schemasQuery;
     if (csErr) throw new Error(`Failed to fetch content_schemas: ${csErr.message}`);
@@ -140,7 +146,7 @@ Deno.serve(async (req) => {
         batch_id,
         status: "pending",
         total_combinations: totalCombinations,
-        request_payload: { niche_slugs, content_type_slug, count_per_combination },
+        request_payload: { niche_slugs, content_type_slugs: resolvedSlugs, count_per_combination },
       })
       .select("id")
       .single();
