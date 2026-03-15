@@ -227,12 +227,15 @@ const GenerationControls = () => {
 
           {/* Pages per combo */}
           <div>
-            <span className="admin-label">Pages Per Combination</span>
+            <span className="admin-label">Pages Per Industry</span>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 6px" }}>
+              How many pages to create for each industry + content type pair. For example, if you pick 3 industries and 2 content types with "2" here, you'll get 12 pages total.
+            </p>
             <input
               className="admin-input font-body"
               type="number" min={1} max={5} value={pagesPerCombo}
               onChange={(e) => setPagesPerCombo(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
-              style={{ marginTop: 6, width: 100 }}
+              style={{ width: 100 }}
             />
           </div>
 
