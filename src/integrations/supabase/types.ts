@@ -213,6 +213,54 @@ export type Database = {
           },
         ]
       }
+      generation_jobs: {
+        Row: {
+          batch_id: string
+          completed_count: number
+          created_at: string
+          error_message: string | null
+          failed_count: number
+          id: string
+          request_payload: Json
+          result_summary: Json | null
+          skipped_count: number
+          status: string
+          success_count: number
+          total_combinations: number
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          completed_count?: number
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          request_payload?: Json
+          result_summary?: Json | null
+          skipped_count?: number
+          status?: string
+          success_count?: number
+          total_combinations?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          completed_count?: number
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          request_payload?: Json
+          result_summary?: Json | null
+          skipped_count?: number
+          status?: string
+          success_count?: number
+          total_combinations?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       generation_logs: {
         Row: {
           batch_id: string | null
