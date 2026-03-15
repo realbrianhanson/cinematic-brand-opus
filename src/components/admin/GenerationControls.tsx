@@ -244,9 +244,14 @@ const GenerationControls = () => {
           {/* Dry run */}
           <div className="flex items-center gap-3">
             <Switch checked={dryRun} onCheckedChange={setDryRun} />
-            <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
-              Dry Run — generate 1 sample first for preview
-            </span>
+            <div>
+              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                Preview First (Dry Run)
+              </span>
+              <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
+                Generate a sample without saving anything — so you can review the quality before committing.
+              </p>
+            </div>
           </div>
 
           {/* Estimate */}
