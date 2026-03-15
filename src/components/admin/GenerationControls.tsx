@@ -139,9 +139,12 @@ const GenerationControls = () => {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
-      <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 24 }}>
+      <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
         Generate Content
       </h1>
+      <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 24, lineHeight: 1.5 }}>
+        Create SEO-optimized pages automatically. Pick which industries you want to target and what type of content to create — the AI does the rest.
+      </p>
 
       {/* Section 1: Form */}
       <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
@@ -149,7 +152,10 @@ const GenerationControls = () => {
           {/* Content Type */}
           <div>
             <span className="admin-label">Content Type</span>
-            <select className="admin-input font-body" value={contentTypeSlug} onChange={(e) => setContentTypeSlug(e.target.value)} style={{ marginTop: 6, width: "100%" }}>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 6px" }}>
+              What kind of page should be created? e.g. "Tool Roundups" or "How-To Guides". Choose "All Active Types" to generate one of each.
+            </p>
+            <select className="admin-input font-body" value={contentTypeSlug} onChange={(e) => setContentTypeSlug(e.target.value)} style={{ width: "100%" }}>
               <option value="all_active">All Active Types</option>
               {(schemas ?? []).map((s) => (
                 <option key={s.slug} value={s.slug}>{s.name}{!s.is_active ? " (inactive)" : ""}</option>
@@ -159,8 +165,8 @@ const GenerationControls = () => {
 
           {/* Niches multi-select */}
           <div>
-            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <span className="admin-label" style={{ margin: 0 }}>Niches</span>
+            <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+              <span className="admin-label" style={{ margin: 0 }}>Industries / Niches</span>
               <div className="flex items-center gap-3">
                 <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
                   {selectedNiches.size} of {niches?.length ?? 0} selected
@@ -174,6 +180,9 @@ const GenerationControls = () => {
                 </button>
               </div>
             </div>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "0 0 8px" }}>
+              Each niche is an industry or audience you want to target. Select one or more — content will be tailored for each.
+            </p>
             <div style={{ position: "relative", marginBottom: 8 }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "hsl(var(--admin-text-ghost))" }} />
               <input
@@ -219,21 +228,29 @@ const GenerationControls = () => {
 
           {/* Pages per combo */}
           <div>
-            <span className="admin-label">Pages Per Combination</span>
+            <span className="admin-label">Pages Per Industry</span>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 6px" }}>
+              How many pages to create for each industry + content type pair. For example, if you pick 3 industries and 2 content types with "2" here, you'll get 12 pages total.
+            </p>
             <input
               className="admin-input font-body"
               type="number" min={1} max={5} value={pagesPerCombo}
               onChange={(e) => setPagesPerCombo(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
-              style={{ marginTop: 6, width: 100 }}
+              style={{ width: 100 }}
             />
           </div>
 
           {/* Dry run */}
           <div className="flex items-center gap-3">
             <Switch checked={dryRun} onCheckedChange={setDryRun} />
-            <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
-              Dry Run — generate 1 sample first for preview
-            </span>
+            <div>
+              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                Preview First (Dry Run)
+              </span>
+              <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
+                Generate a sample without saving anything — so you can review the quality before committing.
+              </p>
+            </div>
           </div>
 
           {/* Estimate */}
