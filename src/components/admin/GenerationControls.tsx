@@ -166,11 +166,8 @@ const GenerationControls = () => {
 
           {/* Niches multi-select */}
           <div>
-            <div style={{ marginBottom: 8 }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="admin-label" style={{ margin: 0 }}>Industries / Niches</span>
-                </div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+              <span className="admin-label" style={{ margin: 0 }}>Industries / Niches</span>
               <div className="flex items-center gap-3">
                 <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
                   {selectedNiches.size} of {niches?.length ?? 0} selected
@@ -184,6 +181,9 @@ const GenerationControls = () => {
                 </button>
               </div>
             </div>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "0 0 8px" }}>
+              Each niche is an industry or audience you want to target. Select one or more — content will be tailored for each.
+            </p>
             <div style={{ position: "relative", marginBottom: 8 }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "hsl(var(--admin-text-ghost))" }} />
               <input
