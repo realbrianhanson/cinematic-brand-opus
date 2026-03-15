@@ -166,9 +166,11 @@ const GenerationControls = () => {
 
           {/* Niches multi-select */}
           <div>
-            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <span className="admin-label" style={{ margin: 0 }}>Industries / Niches</span>
-              <HelpCircle size={12} style={{ color: "hsl(var(--admin-text-ghost))", marginLeft: 4, cursor: "help" }} title="Each niche represents an industry or audience you want to target. Select multiple to create content for several industries at once." />
+            <div style={{ marginBottom: 8 }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <span className="admin-label" style={{ margin: 0 }}>Industries / Niches</span>
+                </div>
               <div className="flex items-center gap-3">
                 <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
                   {selectedNiches.size} of {niches?.length ?? 0} selected
