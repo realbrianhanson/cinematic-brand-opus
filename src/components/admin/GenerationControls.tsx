@@ -336,18 +336,60 @@ const GenerationControls = () => {
       {/* Section 1: Form */}
       <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Content Type */}
+          {/* Content Types multi-select */}
           <div>
-            <span className="admin-label">Content Type</span>
-            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 6px" }}>
-              What kind of page should be created? e.g. "Tool Roundups" or "How-To Guides". Choose "All Active Types" to generate one of each.
+            <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+              <span className="admin-label" style={{ margin: 0 }}>Content Types</span>
+              <div className="flex items-center gap-3">
+                <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+                  {isAllSelected ? activeSchemas.length : selectedContentTypes.size} of {activeSchemas.length} selected
+                </span>
+                <button
+                  onClick={toggleAllContentTypes}
+                  className="font-body"
+                  style={{ fontSize: 11, color: "hsl(var(--admin-accent))", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                >
+                  {isAllSelected ? "Deselect All" : "Select All"}
+                </button>
+              </div>
+            </div>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "0 0 8px" }}>
+              Pick the page types you want. Each selected type will be generated for each selected industry.
+              {selectedNiches.size > 0 && activeSchemaCount > 0 && (
+                <> For example: {selectedNiches.size} {selectedNiches.size === 1 ? "industry" : "industries"} × {activeSchemaCount} {activeSchemaCount === 1 ? "type" : "types"} × {pagesPerCombo} = {estimatedPages} pages total.</>
+              )}
             </p>
-            <select className="admin-input font-body" value={contentTypeSlug} onChange={(e) => setContentTypeSlug(e.target.value)} style={{ width: "100%" }}>
-              <option value="all_active">All Active Types</option>
-              {(schemas ?? []).map((s) => (
-                <option key={s.slug} value={s.slug}>{s.name}{!s.is_active ? " (inactive)" : ""}</option>
+            <div
+              style={{
+                maxHeight: 200, overflowY: "auto", border: "1px solid hsl(var(--admin-border))",
+                borderRadius: 6, backgroundColor: "hsl(var(--admin-surface-2))",
+              }}
+            >
+              {(schemas ?? []).filter((s) => s.is_active).map((s) => (
+                <label
+                  key={s.slug}
+                  className="flex items-center gap-3 font-body"
+                  style={{
+                    padding: "8px 12px", fontSize: 13, cursor: "pointer",
+                    color: "hsl(var(--admin-text-soft))",
+                    borderBottom: "1px solid hsl(var(--admin-border))",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected || selectedContentTypes.has(s.slug)}
+                    onChange={() => toggleContentType(s.slug)}
+                    style={{ accentColor: "hsl(var(--admin-accent))" }}
+                  />
+                  {s.name}
+                </label>
               ))}
-            </select>
+              {activeSchemas.length === 0 && (
+                <div className="font-body" style={{ padding: 16, textAlign: "center", fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+                  No active content types found
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Niches multi-select */}
