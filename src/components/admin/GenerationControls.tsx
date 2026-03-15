@@ -491,7 +491,7 @@ const GenerationControls = () => {
           <button
             className="admin-btn-primary font-body"
             onClick={() => runGeneration()}
-            disabled={generating || selectedNiches.size === 0 || !hasSchemas}
+            disabled={generating || selectedNiches.size === 0 || !hasSchemas || (!isAllSelected && selectedContentTypes.size === 0)}
             style={{ width: "100%", justifyContent: "center", padding: "12px 20px", fontSize: 14 }}
           >
             {generating ? (
