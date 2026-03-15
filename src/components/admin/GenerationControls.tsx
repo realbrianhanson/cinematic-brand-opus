@@ -246,7 +246,7 @@ const GenerationControls = () => {
       const { data, error } = await supabase.functions.invoke("generate-content", {
         body: {
           niche_slugs: Array.from(selectedNiches),
-          content_type_slug: contentTypeSlug,
+          content_type_slugs: isAllSelected ? ["all_active"] : Array.from(selectedContentTypes),
           count_per_combination: pagesPerCombo,
           dry_run: false,
         },
