@@ -35,7 +35,7 @@ const GenerationControls = () => {
   const qc = useQueryClient();
 
   // Form state
-  const [contentTypeSlug, setContentTypeSlug] = useState("all_active");
+  const [selectedContentTypes, setSelectedContentTypes] = useState<Set<string>>(new Set(["all_active"]));
   const [selectedNiches, setSelectedNiches] = useState<Set<string>>(new Set());
   const [nicheSearch, setNicheSearch] = useState("");
   const [pagesPerCombo, setPagesPerCombo] = useState(1);
