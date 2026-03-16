@@ -91,10 +91,19 @@ const GeneratedPage = () => {
   const handleCopyLink = () => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const handleFeedback = (type: "up" | "down") => { if (feedback) return; setFeedback(type); logEngagement("feedback", { type }); };
 
-  if (!page) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
         <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07070E" }}>
+        <p className="font-display italic text-2xl" style={{ color: "rgba(255,255,255,0.5)" }}>Page not found</p>
+        <Link to="/resources" className="font-body underline" style={{ color: "#D4AF55", fontSize: 14 }}>← Back to Resources</Link>
       </div>
     );
   }
