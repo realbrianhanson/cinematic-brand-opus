@@ -43,7 +43,7 @@ const GeneratedPage = () => {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
-  const { data: page } = useQuery({
+  const { data: page, isLoading } = useQuery({
     queryKey: ["public-gen-page", contentType, nicheSlug],
     queryFn: async () => {
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
@@ -52,7 +52,7 @@ const GeneratedPage = () => {
       if (!niche) return null;
       const { data: pg } = await supabase
         .from("generated_pages").select("*")
-        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).eq("status", "published").maybeSingle();
+        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).maybeSingle();
       if (!pg) return null;
       return { ...pg, schema, niche };
     },
@@ -91,10 +91,19 @@ const GeneratedPage = () => {
   const handleCopyLink = () => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const handleFeedback = (type: "up" | "down") => { if (feedback) return; setFeedback(type); logEngagement("feedback", { type }); };
 
-  if (!page) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
         <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07070E" }}>
+        <p className="font-display italic text-2xl" style={{ color: "rgba(255,255,255,0.5)" }}>Page not found</p>
+        <Link to="/resources" className="font-body underline" style={{ color: "#D4AF55", fontSize: 14 }}>← Back to Resources</Link>
       </div>
     );
   }
@@ -143,6 +152,12 @@ const GeneratedPage = () => {
         ]} />
 
         <PillarBanner nicheId={page.niche.id} />
+
+        {page.status !== "published" && (
+          <div className="mb-6 px-4 py-2 font-body text-sm" style={{ background: "rgba(212,175,85,0.12)", border: "1px solid rgba(212,175,85,0.3)", color: "#D4AF55" }}>
+            ⚠ This page is in <strong>{page.status}</strong> mode and is only visible to admins.
+          </div>
+        )}
 
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
