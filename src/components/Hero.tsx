@@ -6,7 +6,7 @@ import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
 
 const headlineLines = [
-  { text: "AI Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
+  { text: "A.I. Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
   { text: "Replace People.", gold: false, italic: false, spring: false, springDelay: 0 },
   { text: "It Replaces", gold: true, italic: true, spring: true, springDelay: 0.9 },
   { text: "Inefficiency.", gold: true, italic: true, spring: true, springDelay: 1.1 },
