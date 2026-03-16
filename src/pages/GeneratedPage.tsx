@@ -43,7 +43,7 @@ const GeneratedPage = () => {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
-  const { data: page } = useQuery({
+  const { data: page, isLoading } = useQuery({
     queryKey: ["public-gen-page", contentType, nicheSlug],
     queryFn: async () => {
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
@@ -52,7 +52,7 @@ const GeneratedPage = () => {
       if (!niche) return null;
       const { data: pg } = await supabase
         .from("generated_pages").select("*")
-        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).eq("status", "published").maybeSingle();
+        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).maybeSingle();
       if (!pg) return null;
       return { ...pg, schema, niche };
     },
