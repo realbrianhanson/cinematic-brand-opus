@@ -153,6 +153,12 @@ const GeneratedPage = () => {
 
         <PillarBanner nicheId={page.niche.id} />
 
+        {page.status !== "published" && (
+          <div className="mb-6 px-4 py-2 font-body text-sm" style={{ background: "rgba(212,175,85,0.12)", border: "1px solid rgba(212,175,85,0.3)", color: "#D4AF55" }}>
+            ⚠ This page is in <strong>{page.status}</strong> mode and is only visible to admins.
+          </div>
+        )}
+
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
         <div className="flex items-center gap-4 flex-wrap mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
