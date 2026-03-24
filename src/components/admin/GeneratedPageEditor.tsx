@@ -12,6 +12,8 @@ const GeneratedPageEditor = () => {
   const { toast } = useToast();
 
   const [contentStr, setContentStr] = useState("");
+  const [ogImage, setOgImage] = useState("");
+  const [generatingOg, setGeneratingOg] = useState(false);
   const [status, setStatus] = useState("draft");
   const [qualityScore, setQualityScore] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
@@ -48,6 +50,7 @@ const GeneratedPageEditor = () => {
       setMetaTitle(seo.title || "");
       setMetaDesc(seo.description || "");
       setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
+      setOgImage(seo.og_image || "");
       if (seo.title || seo.description || (Array.isArray(seo.keywords) && seo.keywords.length > 0)) {
         setHasGenerated(true);
       }
@@ -173,7 +176,7 @@ const GeneratedPageEditor = () => {
       title: metaTitle || null,
       description: metaDesc || null,
       keywords: metaKeywords ? metaKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
-      og_image: ((page?.seo_meta as any)?.og_image) || null,
+      og_image: ogImage || null,
     };
 
     const updateData: Record<string, any> = {
@@ -616,6 +619,39 @@ const GeneratedPageEditor = () => {
                 <div>
                   <label className="admin-label" style={{ fontSize: 10 }}>Keywords</label>
                   <input value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="comma, separated, keywords" className="admin-input font-body w-full" />
+                </div>
+                <div>
+                  <label className="admin-label" style={{ fontSize: 10 }}>OG Image URL</label>
+                  <div className="flex gap-2">
+                    <input value={ogImage} onChange={(e) => setOgImage(e.target.value)} placeholder="https://..." className="admin-input font-body w-full" />
+                    <button
+                      onClick={async () => {
+                        setGeneratingOg(true);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("generate-og-image", { body: { page_id: id } });
+                          if (error || data?.error) throw new Error(error?.message || data?.error);
+                          // Refetch page to get updated og_image
+                          const { data: updated } = await supabase.from("generated_pages").select("seo_meta").eq("id", id!).single();
+                          const newOg = (updated?.seo_meta as any)?.og_image || "";
+                          setOgImage(newOg);
+                          toast({ title: "OG image generated!" });
+                        } catch (e: any) {
+                          toast({ title: "Failed", description: e.message, variant: "destructive" });
+                        } finally {
+                          setGeneratingOg(false);
+                        }
+                      }}
+                      disabled={generatingOg}
+                      className="admin-btn-ghost flex items-center gap-1 whitespace-nowrap"
+                      style={{ fontSize: 11 }}
+                    >
+                      {generatingOg ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                      {generatingOg ? "Generating..." : "Generate"}
+                    </button>
+                  </div>
+                  {ogImage && (
+                    <img src={ogImage} alt="OG preview" style={{ marginTop: 8, width: "100%", borderRadius: 4, border: "1px solid hsl(var(--admin-border))" }} />
+                  )}
                 </div>
               </div>
             )}
