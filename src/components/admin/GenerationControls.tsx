@@ -118,7 +118,12 @@ const GenerationControls = () => {
           setActiveJobs((prev) => {
             const existing = prev.findIndex((j) => j.id === newRow.id);
             if (newRow.status === "completed" || newRow.status === "failed") {
-              // Remove from active, show toast
+              // Move to completed jobs list (visible for 8 seconds)
+              setCompletedJobs((cj) => [...cj, newRow]);
+              setTimeout(() => {
+                setCompletedJobs((cj) => cj.filter((j) => j.id !== newRow.id));
+              }, 8000);
+
               if (newRow.status === "completed") {
                 toast({
                   title: "Generation complete",
@@ -133,6 +138,7 @@ const GenerationControls = () => {
                   variant: "destructive",
                 });
               }
+              setGenerating(false);
               return prev.filter((j) => j.id !== newRow.id);
             }
 
