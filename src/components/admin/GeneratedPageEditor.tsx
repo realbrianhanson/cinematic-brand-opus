@@ -12,6 +12,8 @@ const GeneratedPageEditor = () => {
   const { toast } = useToast();
 
   const [contentStr, setContentStr] = useState("");
+  const [ogImage, setOgImage] = useState("");
+  const [generatingOg, setGeneratingOg] = useState(false);
   const [status, setStatus] = useState("draft");
   const [qualityScore, setQualityScore] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
