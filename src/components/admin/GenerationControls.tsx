@@ -50,6 +50,8 @@ const GenerationControls = () => {
 
   // Active jobs (realtime)
   const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<GenerationJob[]>([]);
+  const hasRunningJob = activeJobs.some((j) => j.status === "pending" || j.status === "running");
 
   const { data: schemas } = useQuery({
     queryKey: ["gen-schemas"],
