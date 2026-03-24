@@ -7,6 +7,7 @@ const navLinks = [
   { label: "Expertise", href: "#expertise" },
   { label: "Speaking", href: "#speaking" },
   { label: "Results", href: "#results" },
+  { label: "Resources", href: "/resources" },
 ];
 
 interface NavProps {
@@ -94,23 +95,39 @@ const Nav = ({ loaded = true }: NavProps) => {
           {/* Desktop right */}
           <div className="hidden lg:flex items-center gap-8">
             <div className="flex items-center gap-7">
-              {navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  data-hover
-                  className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    color: activeSection === link.href.slice(1)
-                      ? "#D4AF55"
-                      : "rgba(255,255,255,0.45)",
-                  }}
-                >
-                  {link.label}
-                </a>
-              ))}
+              {navLinks.map((link) =>
+                link.href.startsWith("/") ? (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    data-hover
+                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    data-hover
+                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      color: activeSection === link.href.slice(1)
+                        ? "#D4AF55"
+                        : "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    {link.label}
+                  </a>
+                )
+              )}
               <Link
                 to="/blog"
                 data-hover
@@ -182,22 +199,39 @@ const Nav = ({ loaded = true }: NavProps) => {
 
           {/* Links */}
           <div className="flex-1 flex flex-col justify-center px-8">
-            {navLinks.map((link, i) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center justify-between py-5 font-display italic text-foreground"
-                style={{
-                  fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
-                }}
-              >
-                {link.label}
-                <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-              </a>
-            ))}
+            {navLinks.map((link, i) =>
+              link.href.startsWith("/") ? (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between py-5 font-display italic text-foreground"
+                  style={{
+                    fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
+                  }}
+                >
+                  {link.label}
+                  <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+                </Link>
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between py-5 font-display italic text-foreground"
+                  style={{
+                    fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
+                  }}
+                >
+                  {link.label}
+                  <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+                </a>
+              )
+            )}
             <Link
               to="/blog"
               onClick={() => setMenuOpen(false)}
