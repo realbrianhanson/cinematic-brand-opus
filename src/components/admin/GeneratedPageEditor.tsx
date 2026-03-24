@@ -25,6 +25,32 @@ const GeneratedPageEditor = () => {
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
 
+  const { data: page, isLoading } = useQuery({
+    queryKey: ["admin-generated-page", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("generated_pages")
+        .select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
+        .eq("id", id!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (page) {
+      setContentStr(JSON.stringify(page.content_json, null, 2));
+      setStatus(page.status);
+      setQualityScore(page.quality_score != null ? String(page.quality_score) : "");
+      const seo = (page.seo_meta as any) || {};
+      setMetaTitle(seo.title || "");
+      setMetaDesc(seo.description || "");
+      setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
+    }
+  }, [page]);
+
   // Compute SEO score
   const seoData = useMemo(() => {
     const criteria: { label: string; done: boolean; points: string }[] = [];
@@ -199,7 +225,6 @@ const GeneratedPageEditor = () => {
   });
 
   const handleSave = async () => {
-    // If publishing for the first time, run quality check
     const isPublishing = status === "published" && page?.status !== "published";
     if (isPublishing && !qualityWarning) {
       setScoring(true);
@@ -214,10 +239,9 @@ const GeneratedPageEditor = () => {
         if (data?.score < 60) {
           setQualityWarning({ score: data.score, issues: data.issues || [] });
           setScoring(false);
-          return; // Show warning, don't save yet
+          return;
         }
       } catch (e: any) {
-        // If scoring fails, allow publish anyway
         console.warn("Quality scoring failed:", e.message);
       }
       setScoring(false);
@@ -285,6 +309,11 @@ const GeneratedPageEditor = () => {
   const niche = (page as any).niches;
   const schema = (page as any).content_schemas;
 
+  const { score: seoScore, criteria: seoCriteria } = seoData;
+  const done = seoCriteria.filter(c => c.done).length;
+  const total = seoCriteria.length;
+  const scoreColor = seoScore >= 75 ? "admin-sage" : seoScore >= 40 ? "admin-accent" : "admin-danger";
+
   return (
     <div>
       {/* Quality Warning Dialog */}
@@ -296,10 +325,7 @@ const GeneratedPageEditor = () => {
             background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
           }}
         >
-          <div
-            className="admin-card"
-            style={{ maxWidth: 480, width: "90%", padding: 28 }}
-          >
+          <div className="admin-card" style={{ maxWidth: 480, width: "90%", padding: 28 }}>
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle size={22} style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }} />
               <h3 className="font-heading" style={{ fontSize: 18, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
@@ -317,10 +343,7 @@ const GeneratedPageEditor = () => {
               ))}
             </ul>
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => { setQualityWarning(null); setStatus("draft"); }}
-                className="admin-btn-ghost"
-              >
+              <button onClick={() => { setQualityWarning(null); setStatus("draft"); }} className="admin-btn-ghost">
                 Go Back to Draft
               </button>
               <button
@@ -357,10 +380,7 @@ const GeneratedPageEditor = () => {
         <div className="lg:col-span-2 flex flex-col gap-5">
           {/* Title */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <h2
-              className="font-heading"
-              style={{ fontSize: 22, fontWeight: 500, color: "hsl(var(--admin-text))", marginBottom: 8 }}
-            >
+            <h2 className="font-heading" style={{ fontSize: 22, fontWeight: 500, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
               {page.title}
             </h2>
             <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
@@ -382,17 +402,10 @@ const GeneratedPageEditor = () => {
               className="font-body w-full"
               spellCheck={false}
               style={{
-                fontFamily: "monospace",
-                fontSize: 13,
-                lineHeight: 1.6,
-                minHeight: 500,
-                padding: 20,
-                borderRadius: 6,
-                border: "1px solid hsl(var(--admin-border))",
-                backgroundColor: "hsl(var(--admin-surface-2))",
-                color: "hsl(var(--admin-text))",
-                resize: "vertical",
-                outline: "none",
+                fontFamily: "monospace", fontSize: 13, lineHeight: 1.6, minHeight: 500, padding: 20,
+                borderRadius: 6, border: "1px solid hsl(var(--admin-border))",
+                backgroundColor: "hsl(var(--admin-surface-2))", color: "hsl(var(--admin-text))",
+                resize: "vertical", outline: "none",
               }}
             />
           </div>
@@ -403,16 +416,114 @@ const GeneratedPageEditor = () => {
           {/* Status */}
           <div className="admin-card" style={{ padding: 20 }}>
             <label className="admin-label">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="admin-input font-body w-full"
-            >
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="admin-input font-body w-full">
               <option value="draft">Draft</option>
               <option value="review">Review</option>
               <option value="published">Published</option>
               <option value="archived">Archived</option>
             </select>
+          </div>
+
+          {/* A.I. SEO Helper */}
+          <div className="admin-card" style={{ padding: 20 }}>
+            <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+              <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
+              <span className="admin-label" style={{ marginBottom: 0 }}>A.I. SEO Helper</span>
+            </div>
+            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 14, lineHeight: 1.5 }}>
+              Generate &amp; optimize SEO fields using A.I. based on your page content.
+            </p>
+
+            {/* Score Ring */}
+            <div style={{ marginBottom: 16, textAlign: "center" }}>
+              <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 10px" }}>
+                <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--admin-surface-2))" strokeWidth="2.8" />
+                  <circle cx="18" cy="18" r="15.9" fill="none"
+                    stroke={`hsl(var(--${scoreColor}))`}
+                    strokeWidth="2.8"
+                    strokeDasharray={`${seoScore} ${100 - seoScore}`}
+                    strokeLinecap="round"
+                    style={{ transition: "stroke-dasharray 0.5s ease" }}
+                  />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <span className="font-heading" style={{ fontSize: 24, color: `hsl(var(--${scoreColor}))`, lineHeight: 1 }}>{seoScore}</span>
+                  <span className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}>/ 100</span>
+                </div>
+              </div>
+              <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                SEO Score
+              </p>
+            </div>
+
+            {/* Checklist */}
+            <div style={{ marginBottom: 14 }}>
+              <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>📈 Increase Your Score</p>
+              <div style={{ backgroundColor: "hsl(var(--admin-surface-2))", borderRadius: 6, padding: "4px", marginBottom: 10 }}>
+                <div style={{
+                  height: 6, borderRadius: 3,
+                  background: done === total
+                    ? "hsl(var(--admin-sage))"
+                    : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                  width: `${(done / total) * 100}%`,
+                  transition: "width 0.4s ease",
+                }} />
+              </div>
+              <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginBottom: 10, textAlign: "right" }}>
+                {done}/{total} completed
+              </p>
+              {seoCriteria.map((c, i) => (
+                <div key={i} className="flex items-start gap-2" style={{ marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, lineHeight: "18px", flexShrink: 0, color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-text-ghost))" }}>
+                    {c.done ? "✓" : "○"}
+                  </span>
+                  <span className="font-body" style={{ fontSize: 11, lineHeight: "18px", flex: 1, color: c.done ? "hsl(var(--admin-text-ghost))" : "hsl(var(--admin-text-soft))", textDecoration: c.done ? "line-through" : "none" }}>
+                    {c.label}
+                  </span>
+                  <span className="font-body" style={{ fontSize: 9, lineHeight: "18px", color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))", fontWeight: 600 }}>
+                    {c.done ? "✓" : c.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Buttons */}
+            <button
+              onClick={handleGenerateSeo}
+              disabled={aiGenerating}
+              className="admin-btn-primary w-full flex items-center justify-center gap-2"
+              style={{ fontSize: 13 }}
+            >
+              {aiGenerating ? (
+                <><Loader2 size={14} className="animate-spin" />Generating...</>
+              ) : (
+                <><Sparkles size={14} />Generate SEO</>
+              )}
+            </button>
+
+            {hasGenerated && (
+              <button
+                onClick={handleEnhanceSeo}
+                disabled={enhancing}
+                className="w-full flex items-center justify-center gap-2 font-body"
+                style={{
+                  marginTop: 8,
+                  background: enhancing
+                    ? "hsl(var(--admin-surface-2))"
+                    : "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                  color: enhancing ? "hsl(var(--admin-text-ghost))" : "#fff",
+                  border: "none", borderRadius: 6, padding: "10px 16px", fontSize: 13, fontWeight: 600,
+                  cursor: enhancing ? "not-allowed" : "pointer",
+                }}
+              >
+                {enhancing ? (
+                  <><Loader2 size={14} className="animate-spin" />Enhancing...</>
+                ) : (
+                  <>📈 Increase Score <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{seoScore}%</span></>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Quality score */}
@@ -452,12 +563,9 @@ const GeneratedPageEditor = () => {
             </div>
             <div className="flex items-center gap-2">
               <input
-                type="number"
-                step="0.1"
-                value={qualityScore}
+                type="number" step="0.1" value={qualityScore}
                 onChange={(e) => setQualityScore(e.target.value)}
-                placeholder="—"
-                className="admin-input font-body w-full"
+                placeholder="—" className="admin-input font-body w-full"
               />
               {qualityScore && (
                 <span style={{ flexShrink: 0 }}>
@@ -510,36 +618,21 @@ const GeneratedPageEditor = () => {
               <div className="flex flex-col gap-3" style={{ marginTop: 12 }}>
                 <div>
                   <label className="admin-label" style={{ fontSize: 10 }}>Meta Title</label>
-                  <input
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    className="admin-input font-body w-full"
-                  />
+                  <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} className="admin-input font-body w-full" />
                   <span className="font-body" style={{ fontSize: 10, color: metaTitle.length > 60 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))" }}>
                     {metaTitle.length}/60
                   </span>
                 </div>
                 <div>
                   <label className="admin-label" style={{ fontSize: 10 }}>Meta Description</label>
-                  <textarea
-                    value={metaDesc}
-                    onChange={(e) => setMetaDesc(e.target.value)}
-                    className="admin-input font-body w-full"
-                    rows={3}
-                    style={{ resize: "vertical" }}
-                  />
+                  <textarea value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} className="admin-input font-body w-full" rows={3} style={{ resize: "vertical" }} />
                   <span className="font-body" style={{ fontSize: 10, color: metaDesc.length > 160 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))" }}>
                     {metaDesc.length}/160
                   </span>
                 </div>
                 <div>
                   <label className="admin-label" style={{ fontSize: 10 }}>Keywords</label>
-                  <input
-                    value={metaKeywords}
-                    onChange={(e) => setMetaKeywords(e.target.value)}
-                    placeholder="comma, separated, keywords"
-                    className="admin-input font-body w-full"
-                  />
+                  <input value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="comma, separated, keywords" className="admin-input font-body w-full" />
                 </div>
               </div>
             )}
