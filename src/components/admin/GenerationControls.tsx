@@ -527,11 +527,11 @@ const GenerationControls = () => {
           <button
             className="admin-btn-primary font-body"
             onClick={() => runGeneration()}
-            disabled={generating || selectedNiches.size === 0 || !hasSchemas || (!isAllSelected && selectedContentTypes.size === 0)}
+            disabled={generating || hasRunningJob || selectedNiches.size === 0 || !hasSchemas || (!isAllSelected && selectedContentTypes.size === 0)}
             style={{ width: "100%", justifyContent: "center", padding: "12px 20px", fontSize: 14 }}
           >
-            {generating ? (
-              <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> Generating...</>
+            {generating || hasRunningJob ? (
+              <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> {hasRunningJob ? "Generation in progress..." : "Generating..."}</>
             ) : (
               <><Zap size={16} style={{ marginRight: 8 }} /> Generate Content</>
             )}
