@@ -48,6 +48,9 @@ const GeneratedPageEditor = () => {
       setMetaTitle(seo.title || "");
       setMetaDesc(seo.description || "");
       setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
+      if (seo.title || seo.description || (Array.isArray(seo.keywords) && seo.keywords.length > 0)) {
+        setHasGenerated(true);
+      }
     }
   }, [page]);
 
