@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useAdminPreferences } from "@/hooks/useAdminPreferences";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
@@ -34,7 +35,8 @@ const PostEditor = () => {
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [timezone, setTimezone] = useState(() => localStorage.getItem("admin-timezone") || "America/New_York");
+  const { prefs, updatePref } = useAdminPreferences();
+  const [timezone, setTimezone] = useState(prefs.timezone);
   const [featuredImage, setFeaturedImage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
@@ -376,7 +378,7 @@ const PostEditor = () => {
         <div className="flex flex-col gap-5">
           <PostEditorSidebar
             status={status} setStatus={setStatus}
-            timezone={timezone} setTimezone={setTimezone}
+            timezone={timezone} setTimezone={(v: string) => { setTimezone(v); updatePref("timezone", v); }}
             scheduledAt={scheduledAt} setScheduledAt={setScheduledAt}
             categoryId={categoryId} setCategoryId={setCategoryId}
             categories={categories ?? []}

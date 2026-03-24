@@ -48,7 +48,6 @@ const PostEditorSidebar = ({
             value={timezone}
             onChange={(e) => {
               setTimezone(e.target.value);
-              localStorage.setItem("admin-timezone", e.target.value);
             }}
             className="admin-input font-body w-full"
             style={{ marginBottom: 10 }}

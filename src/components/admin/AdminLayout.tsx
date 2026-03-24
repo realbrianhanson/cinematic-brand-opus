@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useAdminPreferences } from "@/hooks/useAdminPreferences";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -47,13 +48,8 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [lightMode, setLightMode] = useState(() => {
-    return localStorage.getItem("admin-theme") === "light";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("admin-theme", lightMode ? "light" : "dark");
-  }, [lightMode]);
+  const { prefs, updatePref } = useAdminPreferences();
+  const lightMode = prefs.theme === "light";
 
   const handleSignOut = async () => {
     await signOut();
@@ -214,7 +210,7 @@ const AdminLayout = () => {
             </div>
           )}
           <button
-            onClick={() => setLightMode(!lightMode)}
+            onClick={() => updatePref("theme", lightMode ? "dark" : "light")}
             className="font-body flex items-center w-full rounded"
             style={{
               fontSize: 13,
