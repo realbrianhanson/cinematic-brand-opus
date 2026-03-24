@@ -7,6 +7,7 @@ const navLinks = [
   { label: "Expertise", href: "#expertise" },
   { label: "Speaking", href: "#speaking" },
   { label: "Results", href: "#results" },
+  { label: "Resources", href: "/resources" },
 ];
 
 interface NavProps {
