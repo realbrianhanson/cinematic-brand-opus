@@ -199,22 +199,39 @@ const Nav = ({ loaded = true }: NavProps) => {
 
           {/* Links */}
           <div className="flex-1 flex flex-col justify-center px-8">
-            {navLinks.map((link, i) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center justify-between py-5 font-display italic text-foreground"
-                style={{
-                  fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
-                }}
-              >
-                {link.label}
-                <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-              </a>
-            ))}
+            {navLinks.map((link, i) =>
+              link.href.startsWith("/") ? (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between py-5 font-display italic text-foreground"
+                  style={{
+                    fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
+                  }}
+                >
+                  {link.label}
+                  <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+                </Link>
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between py-5 font-display italic text-foreground"
+                  style={{
+                    fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
+                  }}
+                >
+                  {link.label}
+                  <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+                </a>
+              )
+            )}
             <Link
               to="/blog"
               onClick={() => setMenuOpen(false)}
