@@ -250,6 +250,7 @@ const GenerationControls = () => {
     }
 
     // Real generation — returns job_id immediately
+    setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-content", {
         body: {
@@ -282,7 +283,9 @@ const GenerationControls = () => {
         },
         ...prev,
       ]);
+      // Keep generating=true until realtime reports completion
     } catch (err: any) {
+      setGenerating(false);
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
     }
   };
