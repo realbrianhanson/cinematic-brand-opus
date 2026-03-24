@@ -50,6 +50,8 @@ const GenerationControls = () => {
 
   // Active jobs (realtime)
   const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<GenerationJob[]>([]);
+  const hasRunningJob = activeJobs.some((j) => j.status === "pending" || j.status === "running");
 
   const { data: schemas } = useQuery({
     queryKey: ["gen-schemas"],
@@ -116,7 +118,12 @@ const GenerationControls = () => {
           setActiveJobs((prev) => {
             const existing = prev.findIndex((j) => j.id === newRow.id);
             if (newRow.status === "completed" || newRow.status === "failed") {
-              // Remove from active, show toast
+              // Move to completed jobs list (visible for 8 seconds)
+              setCompletedJobs((cj) => [...cj, newRow]);
+              setTimeout(() => {
+                setCompletedJobs((cj) => cj.filter((j) => j.id !== newRow.id));
+              }, 8000);
+
               if (newRow.status === "completed") {
                 toast({
                   title: "Generation complete",
@@ -131,6 +138,7 @@ const GenerationControls = () => {
                   variant: "destructive",
                 });
               }
+              setGenerating(false);
               return prev.filter((j) => j.id !== newRow.id);
             }
 
@@ -242,6 +250,7 @@ const GenerationControls = () => {
     }
 
     // Real generation — returns job_id immediately
+    setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-content", {
         body: {
@@ -274,7 +283,9 @@ const GenerationControls = () => {
         },
         ...prev,
       ]);
+      // Keep generating=true until realtime reports completion
     } catch (err: any) {
+      setGenerating(false);
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
     }
   };
@@ -288,11 +299,11 @@ const GenerationControls = () => {
         Create SEO-optimized pages automatically. Pick which industries you want to target and what type of content to create — the AI does the rest.
       </p>
 
-      {/* Active Jobs */}
-      {activeJobs.length > 0 && (
+      {/* Active Jobs & Completed Jobs */}
+      {(activeJobs.length > 0 || completedJobs.length > 0) && (
         <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
           <h2 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16 }}>
-            Active Jobs
+            {activeJobs.length > 0 ? "Active Jobs" : "Just Completed"}
           </h2>
           {activeJobs.map((job) => {
             const pct = job.total_combinations > 0 ? Math.round((job.completed_count / job.total_combinations) * 100) : 0;
@@ -318,6 +329,31 @@ const GenerationControls = () => {
               </div>
             );
           })}
+          {completedJobs.map((job) => (
+            <div key={job.id} style={{ marginBottom: 12, padding: 12, borderRadius: 6, backgroundColor: job.status === "completed" ? "hsl(var(--admin-sage) / 0.08)" : "hsl(var(--admin-danger) / 0.08)", border: `1px solid ${job.status === "completed" ? "hsl(var(--admin-sage) / 0.2)" : "hsl(var(--admin-danger) / 0.2)"}` }}>
+              <div className="flex items-center gap-2 font-body">
+                {job.status === "completed" ? (
+                  <CheckCircle2 size={16} style={{ color: "hsl(var(--admin-sage))" }} />
+                ) : (
+                  <XCircle size={16} style={{ color: "hsl(var(--admin-danger))" }} />
+                )}
+                <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
+                  {job.status === "completed"
+                    ? `Done — ${job.success_count} pages created${job.failed_count > 0 ? `, ${job.failed_count} failed` : ""}${job.skipped_count > 0 ? `, ${job.skipped_count} skipped` : ""}`
+                    : `Failed — ${job.error_message || "An error occurred"}`}
+                </span>
+              </div>
+              {job.status === "completed" && (
+                <a
+                  href="/admin/generated-pages"
+                  className="font-body"
+                  style={{ fontSize: 12, color: "hsl(var(--admin-accent))", textDecoration: "underline", marginTop: 6, display: "inline-block" }}
+                >
+                  View generated pages →
+                </a>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -491,11 +527,11 @@ const GenerationControls = () => {
           <button
             className="admin-btn-primary font-body"
             onClick={() => runGeneration()}
-            disabled={generating || selectedNiches.size === 0 || !hasSchemas || (!isAllSelected && selectedContentTypes.size === 0)}
+            disabled={generating || hasRunningJob || selectedNiches.size === 0 || !hasSchemas || (!isAllSelected && selectedContentTypes.size === 0)}
             style={{ width: "100%", justifyContent: "center", padding: "12px 20px", fontSize: 14 }}
           >
-            {generating ? (
-              <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> Generating...</>
+            {generating || hasRunningJob ? (
+              <><Loader2 size={16} className="animate-spin" style={{ marginRight: 8 }} /> {hasRunningJob ? "Generation in progress..." : "Generating..."}</>
             ) : (
               <><Zap size={16} style={{ marginRight: 8 }} /> Generate Content</>
             )}
