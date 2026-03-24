@@ -35,7 +35,8 @@ const PostEditor = () => {
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [timezone, setTimezone] = useState(() => localStorage.getItem("admin-timezone") || "America/New_York");
+  const { prefs, updatePref } = useAdminPreferences();
+  const [timezone, setTimezone] = useState(prefs.timezone);
   const [featuredImage, setFeaturedImage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
