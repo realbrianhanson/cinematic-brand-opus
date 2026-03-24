@@ -50,6 +50,7 @@ const GeneratedPageEditor = () => {
       setMetaTitle(seo.title || "");
       setMetaDesc(seo.description || "");
       setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
+      setOgImage(seo.og_image || "");
       if (seo.title || seo.description || (Array.isArray(seo.keywords) && seo.keywords.length > 0)) {
         setHasGenerated(true);
       }
