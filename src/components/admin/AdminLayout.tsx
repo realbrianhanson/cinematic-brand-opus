@@ -210,7 +210,7 @@ const AdminLayout = () => {
             </div>
           )}
           <button
-            onClick={() => setLightMode(!lightMode)}
+            onClick={() => updatePref("theme", lightMode ? "dark" : "light")}
             className="font-body flex items-center w-full rounded"
             style={{
               fontSize: 13,
