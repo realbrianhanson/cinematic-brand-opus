@@ -21,6 +21,114 @@ const GeneratedPageEditor = () => {
   const [regenerating, setRegenerating] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [qualityWarning, setQualityWarning] = useState<{ score: number; issues: string[] } | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+
+  // Compute SEO score
+  const seoData = useMemo(() => {
+    const criteria: { label: string; done: boolean; points: string }[] = [];
+    let score = 0;
+
+    const hasMeta = metaTitle.length > 0 && metaTitle.length <= 60;
+    criteria.push({ label: "Meta title (under 60 chars)", done: hasMeta, points: "+20" });
+    if (hasMeta) score += 20;
+
+    const hasDesc = metaDesc.length > 0 && metaDesc.length <= 160;
+    criteria.push({ label: "Meta description (under 160 chars)", done: hasDesc, points: "+20" });
+    if (hasDesc) score += 20;
+
+    const kwCount = metaKeywords.split(",").map(k => k.trim()).filter(Boolean).length;
+    const hasKw = kwCount >= 3;
+    criteria.push({ label: "At least 3 keywords", done: hasKw, points: "+15" });
+    if (hasKw) score += 15;
+
+    let wordCount = 0;
+    try {
+      const parsed = JSON.parse(contentStr);
+      wordCount = JSON.stringify(parsed).replace(/[{}[\]":,]/g, " ").split(/\s+/).filter(Boolean).length;
+    } catch { /* ignore */ }
+    const hasWords = wordCount >= 300;
+    criteria.push({ label: "Content has 300+ words", done: hasWords, points: "+15" });
+    if (hasWords) score += 15;
+
+    const titleStr = page?.title || "";
+    const hasYear = /20\d{2}/.test(titleStr);
+    criteria.push({ label: "Title contains a year", done: hasYear, points: "+10" });
+    if (hasYear) score += 10;
+
+    let hasFaq = false;
+    try {
+      const parsed = JSON.parse(contentStr);
+      hasFaq = !!(parsed.faq_items?.length || parsed.faqs?.length);
+    } catch { /* ignore */ }
+    criteria.push({ label: "Content has FAQ items", done: hasFaq, points: "+10" });
+    if (hasFaq) score += 10;
+
+    let hasIntro = false;
+    try {
+      const parsed = JSON.parse(contentStr);
+      hasIntro = !!(parsed.intro || parsed.introduction || parsed.description);
+    } catch { /* ignore */ }
+    criteria.push({ label: "Content has intro section", done: hasIntro, points: "+10" });
+    if (hasIntro) score += 10;
+
+    return { score, criteria };
+  }, [metaTitle, metaDesc, metaKeywords, contentStr, page?.title]);
+
+  const handleGenerateSeo = async () => {
+    setAiGenerating(true);
+    try {
+      let excerpt = "";
+      try { excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || ""; } catch {}
+      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
+        body: {
+          title: page?.title || "",
+          content: contentStr.slice(0, 4000),
+          excerpt,
+        },
+      });
+      if (error) throw error;
+      if (data?.meta_title) setMetaTitle(data.meta_title);
+      if (data?.meta_description) setMetaDesc(data.meta_description);
+      if (data?.keywords) setMetaKeywords(data.keywords);
+      setHasGenerated(true);
+      setSeoOpen(true);
+      toast({ title: "SEO fields generated!" });
+    } catch (e: any) {
+      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleEnhanceSeo = async () => {
+    setEnhancing(true);
+    try {
+      const missing = seoData.criteria.filter(c => !c.done).map(c => c.label);
+      let excerpt = "";
+      try { excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || ""; } catch {}
+      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
+        body: {
+          title: page?.title || "",
+          content: contentStr.slice(0, 4000),
+          excerpt,
+          enhance: true,
+          missing_criteria: missing,
+        },
+      });
+      if (error) throw error;
+      if (data?.meta_title) setMetaTitle(data.meta_title);
+      if (data?.meta_description) setMetaDesc(data.meta_description);
+      if (data?.keywords) setMetaKeywords(data.keywords);
+      setSeoOpen(true);
+      toast({ title: "SEO enhanced!" });
+    } catch (e: any) {
+      toast({ title: "Enhancement failed", description: e.message, variant: "destructive" });
+    } finally {
+      setEnhancing(false);
+    }
+  };
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["admin-generated-page", id],
