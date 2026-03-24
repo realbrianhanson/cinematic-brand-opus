@@ -176,7 +176,7 @@ const GeneratedPageEditor = () => {
       title: metaTitle || null,
       description: metaDesc || null,
       keywords: metaKeywords ? metaKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
-      og_image: ((page?.seo_meta as any)?.og_image) || null,
+      og_image: ogImage || null,
     };
 
     const updateData: Record<string, any> = {
