@@ -378,7 +378,7 @@ const PostEditor = () => {
         <div className="flex flex-col gap-5">
           <PostEditorSidebar
             status={status} setStatus={setStatus}
-            timezone={timezone} setTimezone={setTimezone}
+            timezone={timezone} setTimezone={(v: string) => { setTimezone(v); updatePref("timezone", v); }}
             scheduledAt={scheduledAt} setScheduledAt={setScheduledAt}
             categoryId={categoryId} setCategoryId={setCategoryId}
             categories={categories ?? []}
