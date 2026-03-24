@@ -1,27 +1,37 @@
 
 
-## Problem
+## Add A.I. SEO Generator & Score Indicator to pSEO Edit Page
 
-When you click "Generate Content" (non-dry-run), there's no visible processing feedback because:
+### What You'll Get
+- A new "A.I. SEO Helper" card in the right sidebar of the generated page editor
+- A circular score ring showing your SEO completeness percentage (0-100)
+- A checklist showing which SEO criteria are met/missing
+- "Generate SEO" button that auto-fills meta title, description, and keywords using A.I.
+- "Enhance SEO" button that fixes only the missing criteria to boost the score
 
-1. **The button doesn't change** — the `generating` state is only set for dry runs. For real generation, the button stays the same — no spinner, no "Processing..." text.
-2. **The Active Jobs card appears briefly then vanishes** — if the job completes fast (or the realtime update arrives quickly with "completed" status), the job is immediately removed from the active list before you can even notice it.
-3. **No transition state** — between clicking the button and the Active Jobs card rendering, there's a gap where nothing visual happens.
+### How It Works
 
-## Fix — `src/components/admin/GenerationControls.tsx`
+The score is computed client-side based on these criteria:
+- **Meta title** exists and is under 60 chars (+20 pts)
+- **Meta description** exists and is under 160 chars (+20 pts)
+- **Keywords** have at least 3 terms (+15 pts)
+- **Content has 300+ words** (+15 pts)
+- **Title contains a year** (freshness signal) (+10 pts)
+- **Content has FAQ items** (+10 pts)
+- **Content has intro section** (+10 pts)
 
-### 1. Add a loading state during the edge function call
-Set `generating = true` at the start of the non-dry-run path (line ~245) and `false` after the response comes back. This makes the button show a spinner while the initial request is in flight.
+### Files Changed
 
-### 2. Keep completed jobs visible for a few seconds
-Instead of instantly removing completed/failed jobs from `activeJobs`, keep them in the list with a "completed" or "failed" visual state (green checkmark or red X instead of spinner) for ~5 seconds before fading out. This gives the user time to see the result.
+**`src/components/admin/GeneratedPageEditor.tsx`**
+1. Add state for `aiGenerating`, `enhancing`, `hasGenerated`
+2. Add a `computeSeoScore()` function that evaluates the 7 criteria above against current content/meta fields and returns `{ score, criteria[] }`
+3. Add `handleGenerateSeo()` — calls the existing `generate-seo-aeo` edge function with the page title + stringified content JSON + current excerpt, then populates metaTitle/metaDesc/metaKeywords from the response
+4. Add `handleEnhanceSeo()` — same edge function with `enhance: true` and `missing_criteria` listing only unfulfilled items
+5. Insert a new **A.I. SEO Helper card** in the right sidebar (between Quality Score and Info cards) containing:
+   - SVG score ring (reusing the exact pattern from `PostEditorAiHelper`)
+   - Criteria checklist with progress bar
+   - Generate and Enhance buttons
+6. The SEO meta section auto-opens when A.I. fills the fields
 
-### 3. Show a "just completed" summary card
-When a job finishes, instead of only showing a toast, display a brief summary card in the Active Jobs area: "Done — 6 pages created, 0 failed" with a link to the pSEO Pages list. This card stays visible until the user dismisses it or starts a new job.
-
-### 4. Disable button while a job is active
-If there's already an active job running, disable the Generate button and show "Generation in progress..." to prevent confusion.
-
-### Files changed
-- **`src/components/admin/GenerationControls.tsx`** — All 4 changes above
+No new files, no database changes, no new edge functions — reuses the existing `generate-seo-aeo` edge function already built for the blog post editor.
 
