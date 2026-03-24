@@ -95,23 +95,39 @@ const Nav = ({ loaded = true }: NavProps) => {
           {/* Desktop right */}
           <div className="hidden lg:flex items-center gap-8">
             <div className="flex items-center gap-7">
-              {navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  data-hover
-                  className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    color: activeSection === link.href.slice(1)
-                      ? "#D4AF55"
-                      : "rgba(255,255,255,0.45)",
-                  }}
-                >
-                  {link.label}
-                </a>
-              ))}
+              {navLinks.map((link) =>
+                link.href.startsWith("/") ? (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    data-hover
+                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    data-hover
+                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      color: activeSection === link.href.slice(1)
+                        ? "#D4AF55"
+                        : "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    {link.label}
+                  </a>
+                )
+              )}
               <Link
                 to="/blog"
                 data-hover
