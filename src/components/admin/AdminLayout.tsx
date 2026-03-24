@@ -47,13 +47,8 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [lightMode, setLightMode] = useState(() => {
-    return localStorage.getItem("admin-theme") === "light";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("admin-theme", lightMode ? "light" : "dark");
-  }, [lightMode]);
+  const { prefs, updatePref } = useAdminPreferences();
+  const lightMode = prefs.theme === "light";
 
   const handleSignOut = async () => {
     await signOut();
