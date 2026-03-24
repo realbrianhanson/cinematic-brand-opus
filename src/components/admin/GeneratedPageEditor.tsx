@@ -208,9 +208,12 @@ const GeneratedPageEditor = () => {
     if (isPublishing && !qualityWarning) {
       setScoring(true);
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
         const { data, error } = await supabase.functions.invoke("score-content-quality", {
           body: { page_id: id },
         });
+        clearTimeout(timeout);
         if (error) throw error;
         if (data?.score != null) {
           setQualityScore(String(data.score));
@@ -221,7 +224,8 @@ const GeneratedPageEditor = () => {
           return;
         }
       } catch (e: any) {
-        console.warn("Quality scoring failed:", e.message);
+        console.warn("Quality scoring failed, proceeding with publish:", e.message);
+        toast({ title: "Scoring skipped", description: "Could not score content — publishing anyway.", variant: "default" });
       }
       setScoring(false);
     }
