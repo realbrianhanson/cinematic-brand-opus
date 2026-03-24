@@ -560,6 +560,68 @@ const GenerationControls = () => {
               <><Zap size={16} style={{ marginRight: 8 }} /> Generate Content</>
             )}
           </button>
+
+          {/* Inline progress bar — visible immediately after clicking Generate */}
+          {(generating || hasRunningJob) && (
+            <div style={{ marginTop: 16, padding: 16, borderRadius: 8, backgroundColor: "hsl(var(--admin-surface-2))", border: "1px solid hsl(var(--admin-border))" }}>
+              {activeJobs.length > 0 ? (
+                activeJobs.map((job) => {
+                  const pct = job.total_combinations > 0 ? Math.round((job.completed_count / job.total_combinations) * 100) : 0;
+                  return (
+                    <div key={job.id}>
+                      <div className="flex items-center justify-between font-body" style={{ marginBottom: 8 }}>
+                        <div className="flex items-center gap-2">
+                          <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
+                            {job.status === "pending" ? "Starting generation..." : `Processing ${job.completed_count} of ${job.total_combinations} pages...`}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--admin-accent))" }}>{pct}%</span>
+                      </div>
+                      <Progress value={pct} className="h-3" />
+                      <div className="flex gap-4 font-body" style={{ marginTop: 8 }}>
+                        <span style={{ fontSize: 12, color: "hsl(var(--admin-sage))" }}>✓ {job.success_count} created</span>
+                        {job.failed_count > 0 && <span style={{ fontSize: 12, color: "hsl(var(--admin-danger))" }}>✗ {job.failed_count} failed</span>}
+                        {job.skipped_count > 0 && <span style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>⊘ {job.skipped_count} skipped</span>}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-center gap-2 font-body">
+                  <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+                  <span style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>Sending request to server...</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Inline completion summary */}
+          {completedJobs.length > 0 && !generating && !hasRunningJob && (
+            <div style={{ marginTop: 16 }}>
+              {completedJobs.map((job) => (
+                <div key={job.id} style={{ padding: 14, borderRadius: 8, backgroundColor: job.status === "completed" ? "hsl(var(--admin-sage) / 0.1)" : "hsl(var(--admin-danger) / 0.1)", border: `1px solid ${job.status === "completed" ? "hsl(var(--admin-sage) / 0.25)" : "hsl(var(--admin-danger) / 0.25)"}` }}>
+                  <div className="flex items-center gap-2 font-body">
+                    {job.status === "completed" ? (
+                      <CheckCircle2 size={16} style={{ color: "hsl(var(--admin-sage))" }} />
+                    ) : (
+                      <XCircle size={16} style={{ color: "hsl(var(--admin-danger))" }} />
+                    )}
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
+                      {job.status === "completed"
+                        ? `Done — ${job.success_count} pages created${job.failed_count > 0 ? `, ${job.failed_count} failed` : ""}${job.skipped_count > 0 ? `, ${job.skipped_count} skipped` : ""}`
+                        : `Failed — ${job.error_message || "An error occurred"}`}
+                    </span>
+                  </div>
+                  {job.status === "completed" && (
+                    <a href="/admin/generated-pages" className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-accent))", textDecoration: "underline", marginTop: 8, display: "inline-block" }}>
+                      View generated pages →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
