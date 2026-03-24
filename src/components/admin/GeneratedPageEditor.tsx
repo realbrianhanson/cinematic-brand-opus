@@ -156,31 +156,7 @@ const GeneratedPageEditor = () => {
     }
   };
 
-  const { data: page, isLoading } = useQuery({
-    queryKey: ["admin-generated-page", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
-        .eq("id", id!)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
 
-  useEffect(() => {
-    if (page) {
-      setContentStr(JSON.stringify(page.content_json, null, 2));
-      setStatus(page.status);
-      setQualityScore(page.quality_score != null ? String(page.quality_score) : "");
-      const seo = (page.seo_meta as any) || {};
-      setMetaTitle(seo.title || "");
-      setMetaDesc(seo.description || "");
-      setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
-    }
-  }, [page]);
 
   const doSave = async () => {
     let parsed: any;
