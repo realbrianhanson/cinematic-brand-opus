@@ -200,7 +200,7 @@ const GeneratedPagesManager = () => {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: async (pageItem: any) => {
+    mutationFn: (pageItem: any) => safeMutation(async () => {
       const nicheSlug = (pageItem as any).niches?.slug;
       const schemaSlug = (pageItem as any).content_schemas?.slug;
       if (!nicheSlug || !schemaSlug) throw new Error("Missing niche or schema");
