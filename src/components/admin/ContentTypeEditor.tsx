@@ -189,7 +189,7 @@ const ContentTypeEditor = () => {
               style={{ width: "100%" }}
               defaultValue=""
               onChange={(e) => {
-                const tpl = TEMPLATES.find((t) => t.slug === e.target.value);
+                const tpl = CONTENT_TYPE_TEMPLATES.find((t) => t.slug === e.target.value);
                 if (tpl) applyTemplate(tpl);
               }}
             >
