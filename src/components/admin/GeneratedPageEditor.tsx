@@ -165,7 +165,7 @@ const GeneratedPageEditor = () => {
 
 
 
-  const doSave = async () => {
+  const doSave = () => safeMutation(async () => {
     let parsed: any;
     try {
       parsed = JSON.parse(contentStr);
