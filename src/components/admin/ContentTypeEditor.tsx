@@ -194,7 +194,7 @@ const ContentTypeEditor = () => {
               }}
             >
               <option value="">Choose a template…</option>
-              {TEMPLATES.map((t) => (
+              {CONTENT_TYPE_TEMPLATES.map((t) => (
                 <option key={t.slug} value={t.slug}>
                   {t.name} — {t.description.slice(0, 70)}…
                 </option>
