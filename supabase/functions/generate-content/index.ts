@@ -477,11 +477,11 @@ async function handleStepProcessing(
   console.log(`[${current_index + 1}/${work_queue.length}] Generating: ${title}`);
 
   // Research phase
-  const researchContext = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
+  const { context: researchContext, hasResearch } = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
 
   // AI generation
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext);
+  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
