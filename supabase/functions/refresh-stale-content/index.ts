@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-3-flash-preview";
+const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
+const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
 function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -16,6 +18,60 @@ function extractJson(raw: string): string {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<string> {
+  const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  const researchParts: string[] = [];
+
+  if (PERPLEXITY_API_KEY) {
+    try {
+      const query = `What are the best ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
+      const resp = await fetch(PERPLEXITY_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You are a research assistant. Return factual, current information with specific names, numbers, and dates. No fluff." },
+            { role: "user", content: query },
+          ],
+          search_recency_filter: "month",
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        const citations = data.citations || [];
+        if (content) {
+          researchParts.push(`LIVE RESEARCH (sourced ${currentYear}):\n${content}`);
+          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
+        }
+      } else { console.error("Perplexity failed:", resp.status); }
+    } catch (e: any) { console.error("Perplexity error:", e.message); }
+  }
+
+  if (FIRECRAWL_API_KEY) {
+    try {
+      const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear}`, limit: 3, scrapeOptions: { formats: ["markdown"], onlyMainContent: true } }),
+      });
+      if (searchResp.ok) {
+        const searchData = await searchResp.json();
+        const results = searchData.data || [];
+        if (results.length > 0) {
+          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 500).trim()}`).join("\n\n");
+          researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+        }
+      } else { console.error("Firecrawl failed:", searchResp.status); }
+    } catch (e: any) { console.error("Firecrawl error:", e.message); }
+  }
+
+  if (researchParts.length === 0) return "";
+  return `\n\n─── REAL-TIME RESEARCH DATA ───\nUse this as your PRIMARY source of truth. Only reference tools/companies verified here or ones you are 100% certain exist in ${currentYear}.\n\n${researchParts.join("\n\n")}`;
 }
 
 Deno.serve(async (req) => {
@@ -130,6 +186,9 @@ Deno.serve(async (req) => {
         title = title.replace(yearRegex, String(currentYear));
       }
 
+      // Research phase: gather real-time data
+      const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+
       const systemMessage =
         "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
 
@@ -141,6 +200,7 @@ Monetization: ${ctx.monetization || "N/A"}
 Content That Works: ${ctx.content_that_works || "N/A"}
 Subtopics: ${Array.isArray(ctx.subtopics) ? ctx.subtopics.join(", ") : ctx.subtopics || "N/A"}
 AI Opportunities: ${ctx.ai_opportunities || "N/A"}
+${researchContext}
 
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
@@ -155,6 +215,8 @@ CONSTRAINTS:
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
 - Do NOT produce generic content that could apply to any niche
+- CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
+- Do NOT reference defunct companies or outdated tools
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 - This is a REFRESH of existing content — make it fresh with updated information for ${currentYear}
 
