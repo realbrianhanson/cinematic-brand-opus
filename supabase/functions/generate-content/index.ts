@@ -109,24 +109,24 @@ function generateFallbackAngles(nicheName: string, schemaName: string, count: nu
 
 // ─── Real-time research via Perplexity + Firecrawl ───
 
-async function researchTopic(angle: string, nicheName: string, audience: string, currentYear: number): Promise<string> {
+async function researchTopic(angle: string, nicheName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
 
   if (PERPLEXITY_API_KEY) {
     try {
-      const query = `What are the best ${angle.toLowerCase()} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
+      const query = `What are the most actively used and well-reviewed ${angle.toLowerCase()} in ${currentYear}? List ONLY tools and platforms that are currently popular, actively maintained, and have recent user reviews or updates. Include specific names, pricing, and what makes each one stand out. Exclude any tools that have shut down, pivoted away from this space, or lost significant market share. Focus on what ${audience} are actually adopting right now in ${currentYear}.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
         headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "sonar",
+          model: "sonar-pro",
           messages: [
-            { role: "system", content: "You are a research assistant. Return factual, current information with specific names, numbers, and dates. No fluff." },
+            { role: "system", content: `You are a research assistant specializing in current technology trends. Return ONLY factual, verified information from ${currentYear}. Never mention tools that have shut down or are no longer actively maintained. Include specific names, numbers, pricing, and dates. No fluff.` },
             { role: "user", content: query },
           ],
-          search_recency_filter: "month",
+          search_recency_filter: "week",
         }),
       });
       if (resp.ok) {
@@ -135,7 +135,7 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
         const citations = data.citations || [];
         if (content) {
           researchParts.push(`LIVE RESEARCH (sourced ${currentYear}, grounded in web search):\n${content}`);
-          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
+          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 8).join(", ")}`);
         }
       } else {
         console.error("Perplexity research failed:", resp.status);
@@ -151,7 +151,7 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
         method: "POST",
         headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `best ${angle.toLowerCase()} ${currentYear}`,
+          query: `best ${angle.toLowerCase()} ${currentYear} review`,
           limit: 3,
           scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
         }),
@@ -160,7 +160,7 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
         const searchData = await searchResp.json();
         const results = searchData.data || [];
         if (results.length > 0) {
-          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 500).trim()}`).join("\n\n");
+          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 600).trim()}`).join("\n\n");
           researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
         }
       } else {
@@ -171,8 +171,14 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
     }
   }
 
-  if (researchParts.length === 0) return "";
-  return `\n\n─── REAL-TIME RESEARCH DATA ───\nThe following is CURRENT, VERIFIED information from live web sources. Use this data as your PRIMARY source of truth. Do NOT hallucinate tools, companies, or platforms — only reference ones mentioned in this research or ones you are 100% certain still exist in ${currentYear}.\n\n${researchParts.join("\n\n")}`;
+  if (researchParts.length === 0) {
+    console.warn(`⚠️ No research data available for "${angle}" in "${nicheName}" — content will be conservative`);
+    return { context: "", hasResearch: false };
+  }
+  return {
+    context: `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\nThe following is CURRENT, VERIFIED information from live web sources. This is your ONLY source of truth for tool/platform/company names.\nYou MUST ONLY reference tools, platforms, and companies that appear in this research data.\nDo NOT add any tools from your own training data. If a tool is not listed below, do NOT include it.\n\n${researchParts.join("\n\n")}\n\n═══ END OF RESEARCH DATA ═══`,
+    hasResearch: true,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -471,11 +477,11 @@ async function handleStepProcessing(
   console.log(`[${current_index + 1}/${work_queue.length}] Generating: ${title}`);
 
   // Research phase
-  const researchContext = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
+  const { context: researchContext, hasResearch } = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
 
   // AI generation
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext);
+  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -596,7 +602,18 @@ async function updateJobProgress(supabase: any, jobId: string, completed: number
   }).eq("id", jobId);
 }
 
-function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string, currentYear: number, researchContext: string = ""): string {
+function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string, currentYear: number, researchContext: string = "", hasResearch: boolean = true): string {
+  const researchConstraints = hasResearch
+    ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
+- If the research data doesn't provide enough items to fill a section, use FEWER items rather than inventing tools from your training data. Quality over quantity.
+- Every tool/platform you mention MUST appear in the research data above. If it's not in the research, do NOT include it.`
+    : `- ⚠️ No real-time research was available for this topic. Be EXTREMELY conservative.
+- ONLY mention tools and platforms you are 100% certain still exist and are actively maintained in ${currentYear}.
+- Prefer fewer, verified items over a full list of potentially outdated ones. It is better to have 5 verified items than 15 questionable ones.
+- When in doubt about whether a tool still exists or is still relevant, LEAVE IT OUT.`;
+
+  const blocklist = `- NEVER mention these known defunct/outdated/irrelevant tools: Air.ai, Jasper, Copy.ai, Writesonic, Rytr, Article Forge, WordAI, Kafkai, or any tool you are not 100% certain is actively operating in ${currentYear}. If ANY of these appear in research data, they may be included ONLY if the research explicitly confirms they are active in ${currentYear}.`;
+
   return `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -614,7 +631,7 @@ CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
 
 CONSTRAINTS:
-- Each section MUST contain exactly ${schema.items_per_section || 15} items
+- Each section MUST contain exactly ${schema.items_per_section || 15} items (or fewer if research data doesn't support that many verified items)
 - Difficulty/priority enums must match the schema exactly
 - All descriptions must be specific to ${angle} within the ${niche.name} niche
 - Reference specific tools, platforms, and strategies used by ${ctx.audience || "the target audience"}
@@ -623,8 +640,8 @@ CONSTRAINTS:
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
 - Do NOT produce generic content that could apply to any niche or angle
-- CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
-- Do NOT reference defunct companies or outdated tools
+${researchConstraints}
+${blocklist}
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 
 TITLE (pre-generated, include in output as-is):
@@ -651,10 +668,10 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
   const estimatedCount = (schema.items_per_section || 15) * 3;
   const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
 
-  const researchContext = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
+  const { context: researchContext, hasResearch } = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext);
+  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
