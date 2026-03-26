@@ -668,10 +668,10 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
   const estimatedCount = (schema.items_per_section || 15) * 3;
   const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
 
-  const researchContext = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
+  const { context: researchContext, hasResearch } = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext);
+  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
