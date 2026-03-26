@@ -147,7 +147,7 @@ const GeneratedPagesManager = () => {
 
   // Mutations
   const updateStatus = useMutation({
-    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+    mutationFn: ({ ids, status }: { ids: string[]; status: string }) => safeMutation(async () => {
       const updateData: Record<string, any> = { status };
       if (status === "published") updateData.published_at = new Date().toISOString();
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
