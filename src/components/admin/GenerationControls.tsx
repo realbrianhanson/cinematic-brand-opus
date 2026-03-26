@@ -40,7 +40,6 @@ const GenerationControls = () => {
   const [nicheSearch, setNicheSearch] = useState("");
   const [pagesPerCombo, setPagesPerCombo] = useState(1);
   const [dryRun, setDryRun] = useState(false);
-  const [forceRegenerate, setForceRegenerate] = useState(true);
 
   // Progress state
   const [generating, setGenerating] = useState(false);
@@ -283,7 +282,6 @@ const GenerationControls = () => {
           content_type_slugs: isAllSelected ? ["all_active"] : Array.from(selectedContentTypes),
           count_per_combination: pagesPerCombo,
           dry_run: false,
-          force_regenerate: forceRegenerate,
         },
       });
       if (error) throw error;
@@ -544,17 +542,11 @@ const GenerationControls = () => {
             </div>
           </div>
 
-          {/* Force regenerate */}
-          <div className="flex items-center gap-3">
-            <Switch checked={forceRegenerate} onCheckedChange={setForceRegenerate} />
-            <div>
-              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
-                Force New Content
-              </span>
-              <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
-                Always create fresh pages, even if similar content already exists. Existing pages with the same slug will be replaced.
-              </p>
-            </div>
+          {/* Unique angles info */}
+          <div style={{ padding: "10px 14px", borderRadius: 6, backgroundColor: "hsl(var(--admin-accent) / 0.06)", border: "1px solid hsl(var(--admin-accent) / 0.15)" }}>
+            <p className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5, margin: 0 }}>
+              <strong>Smart unique generation:</strong> Each run automatically generates unique subtopic angles that don't overlap with existing content. You can run generation multiple times for the same niche — every batch produces fresh, non-duplicate pages.
+            </p>
           </div>
 
           {/* Estimate */}
