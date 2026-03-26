@@ -40,6 +40,7 @@ const GenerationControls = () => {
   const [nicheSearch, setNicheSearch] = useState("");
   const [pagesPerCombo, setPagesPerCombo] = useState(1);
   const [dryRun, setDryRun] = useState(false);
+  const [forceRegenerate, setForceRegenerate] = useState(true);
 
   // Progress state
   const [generating, setGenerating] = useState(false);
@@ -282,6 +283,7 @@ const GenerationControls = () => {
           content_type_slugs: isAllSelected ? ["all_active"] : Array.from(selectedContentTypes),
           count_per_combination: pagesPerCombo,
           dry_run: false,
+          force_regenerate: forceRegenerate,
         },
       });
       if (error) throw error;
@@ -538,6 +540,19 @@ const GenerationControls = () => {
               </span>
               <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
                 Generate a sample without saving anything — so you can review the quality before committing.
+              </p>
+            </div>
+          </div>
+
+          {/* Force regenerate */}
+          <div className="flex items-center gap-3">
+            <Switch checked={forceRegenerate} onCheckedChange={setForceRegenerate} />
+            <div>
+              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                Force New Content
+              </span>
+              <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
+                Always create fresh pages, even if similar content already exists. Existing pages with the same slug will be replaced.
               </p>
             </div>
           </div>
