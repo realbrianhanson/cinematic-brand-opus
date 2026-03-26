@@ -25,10 +25,6 @@ function extractJson(raw: string): string {
   return (fenced ? fenced[1] : raw).trim();
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 // ─── Generate unique content angles via AI ───
 
 async function generateUniqueAngles(
@@ -196,23 +192,49 @@ Deno.serve(async (req) => {
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // Self-invoked background processing call
-  const isBackgroundProcess = req.headers.get("x-job-process") === "true";
-  if (isBackgroundProcess) {
+  // ─── STEP PROCESSOR: handles ONE page then self-invokes for next ───
+  const isStepProcess = req.headers.get("x-job-step") === "true";
+  if (isStepProcess) {
     try {
-      await handleBackgroundProcessing(req, supabase, LOVABLE_API_KEY);
+      await handleStepProcessing(req, supabase, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err: any) {
-      console.error("Background processing error:", err);
+      console.error("Step processing error:", err);
       return new Response(JSON.stringify({ error: err.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   }
 
-  // Normal request: verify user auth
+  // ─── SETUP PROCESSOR: generates angles then kicks off step-by-step ───
+  const isSetupProcess = req.headers.get("x-job-setup") === "true";
+  if (isSetupProcess) {
+    try {
+      await handleSetupProcessing(req, supabase, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (err: any) {
+      console.error("Setup processing error:", err);
+      // Mark job as failed
+      try {
+        const body = await req.clone().json().catch(() => ({}));
+        if (body.job_id) {
+          await supabase.from("generation_jobs").update({
+            status: "failed",
+            error_message: `Setup failed: ${err.message}`,
+          }).eq("id", body.job_id);
+        }
+      } catch (_) {}
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  // ─── NORMAL REQUEST: verify user auth, create job, kick off setup ───
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -293,13 +315,14 @@ Deno.serve(async (req) => {
 
     if (jobErr) throw new Error(`Failed to create job: ${jobErr.message}`);
 
+    // Fire-and-forget: kick off setup phase (generates angles, then starts step-by-step)
     const processUrl = `${SUPABASE_URL}/functions/v1/generate-content`;
     fetch(processUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "x-job-process": "true",
+        "x-job-setup": "true",
       },
       body: JSON.stringify({
         job_id: job.id,
@@ -308,7 +331,7 @@ Deno.serve(async (req) => {
         schema_ids: contentSchemas.map((s: any) => s.id),
         count_per_combination,
       }),
-    }).catch((e) => console.error("Failed to self-invoke processing:", e));
+    }).catch((e) => console.error("Failed to self-invoke setup:", e));
 
     return new Response(
       JSON.stringify({ job_id: job.id, batch_id, total_combinations: totalCombinations }),
@@ -323,164 +346,253 @@ Deno.serve(async (req) => {
   }
 });
 
-// ─── Background processing (self-invoked) ───
+// ─── SETUP: generate all angles, build work queue, kick off first step ───
 
-async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_API_KEY: string) {
+async function handleSetupProcessing(
+  req: Request, supabase: any, apiKey: string, supabaseUrl: string, serviceRoleKey: string
+) {
   const { job_id, batch_id, niche_ids, schema_ids, count_per_combination } = await req.json();
 
   await supabase.from("generation_jobs").update({ status: "running" }).eq("id", job_id);
 
   const { data: niches } = await supabase.from("niches").select("*").in("id", niche_ids);
   const { data: contentSchemas } = await supabase.from("content_schemas").select("*").in("id", schema_ids);
-  const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).single();
 
-  const currentYear = new Date().getFullYear();
-  const pages: any[] = [];
-  let successCount = 0, failedCount = 0, skippedCount = 0, completedCount = 0;
+  // Build the full work queue: list of { niche, schema, angle, keyword } items
+  const workQueue: { niche_id: string; schema_id: string; angle: string; keyword: string }[] = [];
 
   for (const niche of (niches || [])) {
     for (const schema of (contentSchemas || [])) {
       const ctx = (niche.context || {}) as Record<string, any>;
 
-      // Step 1: Fetch existing titles for this niche+schema to avoid duplicates
+      // Fetch existing titles to avoid duplicates
       const { data: existingPages } = await supabase
         .from("generated_pages")
-        .select("title, slug")
+        .select("title")
         .eq("niche_id", niche.id)
         .eq("content_schema_id", schema.id);
       const existingTitles = (existingPages || []).map((p: any) => p.title);
-      const existingSlugs = new Set((existingPages || []).map((p: any) => p.slug));
 
-      // Step 2: Generate unique angles via AI
+      // Generate unique angles
       const angles = await generateUniqueAngles(
-        niche.name,
-        schema.name,
-        count_per_combination,
-        existingTitles,
-        ctx.audience || "general",
-        LOVABLE_API_KEY,
+        niche.name, schema.name, count_per_combination,
+        existingTitles, ctx.audience || "general", apiKey,
       );
 
-      // Step 3: For each angle, research + generate + save
       for (const { angle, keyword } of angles) {
-        const startTime = Date.now();
-        const estimatedCount = (schema.items_per_section || 15) * 3;
-        const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
-        const pageSlug = slugify(title);
-
-        // Skip if slug already exists
-        if (existingSlugs.has(pageSlug)) {
-          skippedCount++;
-          completedCount++;
-          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-          continue;
-        }
-
-        // Research phase: targeted to this specific angle
-        const researchContext = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
-
-        const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-        const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext);
-
-        let contentJson: any = null;
-        let tokensUsed = 0;
-        let aiError: string | null = null;
-
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const aiResp = await fetch(AI_GATEWAY, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
-              body: JSON.stringify({
-                model: AI_MODEL,
-                messages: [
-                  { role: "system", content: systemMessage },
-                  { role: "user", content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Your previous response was not valid JSON. Return ONLY a JSON object with no other text." },
-                ],
-                temperature: 0.7,
-                max_tokens: 8192,
-              }),
-            });
-
-            if (!aiResp.ok) {
-              aiError = `AI gateway ${aiResp.status}: ${await aiResp.text()}`;
-              if (aiResp.status === 429 || aiResp.status === 402) break;
-              continue;
-            }
-
-            const aiData = await aiResp.json();
-            tokensUsed = aiData.usage?.total_tokens || 0;
-            const raw = aiData.choices?.[0]?.message?.content || "";
-            contentJson = JSON.parse(extractJson(raw));
-            aiError = null;
-            break;
-          } catch (parseErr: any) {
-            aiError = `JSON parse failed: ${parseErr.message}`;
-          }
-        }
-
-        if (!contentJson) {
-          failedCount++;
-          completedCount++;
-          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: aiError || "Unknown error", tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
-          await delay(1000);
-          continue;
-        }
-
-        // Build SEO meta
-        const metaTitle = `${title} | ${siteSettings?.publisher_name || ""}`.slice(0, 60);
-        const metaDesc = `Discover the best ${angle.toLowerCase()} curated for ${niche.name}. Updated ${currentYear} with real-time research.`.slice(0, 160);
-        const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
-        const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, keyword, niche.name.toLowerCase()], og_image: null };
-
-        const { data: savedPage, error: saveErr } = await supabase
-          .from("generated_pages")
-          .insert({ niche_id: niche.id, content_schema_id: schema.id, slug: pageSlug, title, content_json: contentJson, seo_meta: seoMeta, schema_markup: {}, status: "draft", quality_score: null, generation_model: AI_MODEL, generation_cost: 0 })
-          .select("id, title, slug, status")
-          .single();
-
-        if (saveErr) {
-          failedCount++;
-          completedCount++;
-          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: `DB save: ${saveErr.message}`, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
-          await delay(1000);
-          continue;
-        }
-
-        existingSlugs.add(pageSlug);
-
-        await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: keyword, secondary_keywords: seedKeywords.slice(0, 5) });
-        await logGeneration(supabase, { batch_id, generated_page_id: savedPage.id, status: "success", error_message: null, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
-
-        successCount++;
-        completedCount++;
-        pages.push(savedPage);
-        await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-
-        await delay(1000);
+        workQueue.push({ niche_id: niche.id, schema_id: schema.id, angle, keyword });
       }
     }
   }
 
-  await supabase.from("generation_jobs").update({
-    status: failedCount > 0 && successCount === 0 ? "failed" : "completed",
-    completed_count: completedCount,
-    success_count: successCount,
-    failed_count: failedCount,
-    skipped_count: skippedCount,
-    result_summary: { pages, total_attempted: completedCount, success: successCount, failed: failedCount, skipped_duplicates: skippedCount },
-  }).eq("id", job_id);
+  console.log(`Setup complete: ${workQueue.length} pages queued for job ${job_id}`);
+
+  if (workQueue.length === 0) {
+    await supabase.from("generation_jobs").update({
+      status: "completed", completed_count: 0, success_count: 0, failed_count: 0, skipped_count: 0,
+      result_summary: { pages: [], total_attempted: 0, success: 0, failed: 0, skipped_duplicates: 0 },
+    }).eq("id", job_id);
+    return;
+  }
+
+  // Kick off first step
+  triggerNextStep(supabaseUrl, serviceRoleKey, {
+    job_id, batch_id, work_queue: workQueue, current_index: 0,
+    success_count: 0, failed_count: 0, skipped_count: 0, pages: [],
+  });
 }
 
-async function updateJobProgress(supabase: any, jobId: string, counts: { completedCount: number; successCount: number; failedCount: number; skippedCount: number }) {
+// ─── STEP: process ONE page, then self-invoke for next ───
+
+async function handleStepProcessing(
+  req: Request, supabase: any, apiKey: string, supabaseUrl: string, serviceRoleKey: string
+) {
+  const {
+    job_id, batch_id, work_queue, current_index,
+    success_count: prevSuccess, failed_count: prevFailed,
+    skipped_count: prevSkipped, pages: prevPages,
+  } = await req.json();
+
+  let successCount = prevSuccess;
+  let failedCount = prevFailed;
+  let skippedCount = prevSkipped;
+  const pages = [...prevPages];
+  const completedCount = current_index; // pages processed before this one
+
+  const item = work_queue[current_index];
+  if (!item) {
+    // No more work — finalize
+    await finalizeJob(supabase, job_id, pages, work_queue.length, successCount, failedCount, skippedCount);
+    return;
+  }
+
+  const startTime = Date.now();
+
+  // Fetch niche + schema details
+  const { data: niche } = await supabase.from("niches").select("*").eq("id", item.niche_id).single();
+  const { data: schema } = await supabase.from("content_schemas").select("*").eq("id", item.schema_id).single();
+  const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).single();
+
+  if (!niche || !schema) {
+    failedCount++;
+    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+    await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: "Niche or schema not found", tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+    triggerNextStep(supabaseUrl, serviceRoleKey, {
+      job_id, batch_id, work_queue, current_index: current_index + 1,
+      success_count: successCount, failed_count: failedCount, skipped_count: skippedCount, pages,
+    });
+    return;
+  }
+
+  const ctx = (niche.context || {}) as Record<string, any>;
+  const currentYear = new Date().getFullYear();
+  const estimatedCount = (schema.items_per_section || 15) * 3;
+  const title = `${estimatedCount} Best ${item.angle} in ${currentYear}`;
+  const pageSlug = slugify(title);
+
+  // Check for duplicate slug
+  const { data: existingSlug } = await supabase
+    .from("generated_pages")
+    .select("id")
+    .eq("slug", pageSlug)
+    .limit(1);
+
+  if (existingSlug && existingSlug.length > 0) {
+    skippedCount++;
+    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+    await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+    triggerNextStep(supabaseUrl, serviceRoleKey, {
+      job_id, batch_id, work_queue, current_index: current_index + 1,
+      success_count: successCount, failed_count: failedCount, skipped_count: skippedCount, pages,
+    });
+    return;
+  }
+
+  console.log(`[${current_index + 1}/${work_queue.length}] Generating: ${title}`);
+
+  // Research phase
+  const researchContext = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
+
+  // AI generation
+  const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext);
+
+  let contentJson: any = null;
+  let tokensUsed = 0;
+  let aiError: string | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const aiResp = await fetch(AI_GATEWAY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Your previous response was not valid JSON. Return ONLY a JSON object with no other text." },
+          ],
+          temperature: 0.7,
+          max_tokens: 8192,
+        }),
+      });
+
+      if (!aiResp.ok) {
+        aiError = `AI gateway ${aiResp.status}: ${await aiResp.text()}`;
+        if (aiResp.status === 429 || aiResp.status === 402) break;
+        continue;
+      }
+
+      const aiData = await aiResp.json();
+      tokensUsed = aiData.usage?.total_tokens || 0;
+      const raw = aiData.choices?.[0]?.message?.content || "";
+      contentJson = JSON.parse(extractJson(raw));
+      aiError = null;
+      break;
+    } catch (parseErr: any) {
+      aiError = `JSON parse failed: ${parseErr.message}`;
+    }
+  }
+
+  if (!contentJson) {
+    failedCount++;
+    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+    await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: aiError || "Unknown error", tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+    triggerNextStep(supabaseUrl, serviceRoleKey, {
+      job_id, batch_id, work_queue, current_index: current_index + 1,
+      success_count: successCount, failed_count: failedCount, skipped_count: skippedCount, pages,
+    });
+    return;
+  }
+
+  // Build SEO meta and save
+  const metaTitle = `${title} | ${siteSettings?.publisher_name || ""}`.slice(0, 60);
+  const metaDesc = `Discover the best ${item.angle.toLowerCase()} curated for ${niche.name}. Updated ${currentYear} with real-time research.`.slice(0, 160);
+  const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
+  const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, item.keyword, niche.name.toLowerCase()], og_image: null };
+
+  const { data: savedPage, error: saveErr } = await supabase
+    .from("generated_pages")
+    .insert({ niche_id: niche.id, content_schema_id: schema.id, slug: pageSlug, title, content_json: contentJson, seo_meta: seoMeta, schema_markup: {}, status: "draft", quality_score: null, generation_model: AI_MODEL, generation_cost: 0 })
+    .select("id, title, slug, status")
+    .single();
+
+  if (saveErr) {
+    failedCount++;
+    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+    await logGeneration(supabase, { batch_id, generated_page_id: null, status: "failed", error_message: `DB save: ${saveErr.message}`, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+  } else {
+    await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: item.keyword, secondary_keywords: seedKeywords.slice(0, 5) });
+    await logGeneration(supabase, { batch_id, generated_page_id: savedPage.id, status: "success", error_message: null, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
+    successCount++;
+    pages.push(savedPage);
+    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+  }
+
+  // Check if this was the last item
+  if (current_index + 1 >= work_queue.length) {
+    await finalizeJob(supabase, job_id, pages, work_queue.length, successCount, failedCount, skippedCount);
+  } else {
+    triggerNextStep(supabaseUrl, serviceRoleKey, {
+      job_id, batch_id, work_queue, current_index: current_index + 1,
+      success_count: successCount, failed_count: failedCount, skipped_count: skippedCount, pages,
+    });
+  }
+}
+
+// ─── Helpers ───
+
+function triggerNextStep(supabaseUrl: string, serviceRoleKey: string, payload: any) {
+  const processUrl = `${supabaseUrl}/functions/v1/generate-content`;
+  fetch(processUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "x-job-step": "true",
+    },
+    body: JSON.stringify(payload),
+  }).catch((e) => console.error("Failed to trigger next step:", e));
+}
+
+async function finalizeJob(supabase: any, jobId: string, pages: any[], total: number, success: number, failed: number, skipped: number) {
   await supabase.from("generation_jobs").update({
-    completed_count: counts.completedCount,
-    success_count: counts.successCount,
-    failed_count: counts.failedCount,
-    skipped_count: counts.skippedCount,
+    status: failed > 0 && success === 0 ? "failed" : "completed",
+    completed_count: success + failed + skipped,
+    success_count: success,
+    failed_count: failed,
+    skipped_count: skipped,
+    result_summary: { pages, total_attempted: total, success, failed, skipped_duplicates: skipped },
+  }).eq("id", jobId);
+  console.log(`Job ${jobId} finalized: ${success} success, ${failed} failed, ${skipped} skipped`);
+}
+
+async function updateJobProgress(supabase: any, jobId: string, completed: number, success: number, failed: number, skipped: number) {
+  await supabase.from("generation_jobs").update({
+    completed_count: completed,
+    success_count: success,
+    failed_count: failed,
+    skipped_count: skipped,
   }).eq("id", jobId);
 }
 
@@ -527,7 +639,6 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
   const schema = contentSchemas[0];
   const ctx = (niche.context || {}) as Record<string, any>;
 
-  // Fetch existing titles for context
   const { data: existingPages } = await supabase
     .from("generated_pages")
     .select("title")
@@ -535,7 +646,6 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
     .eq("content_schema_id", schema.id);
   const existingTitles = (existingPages || []).map((p: any) => p.title);
 
-  // Generate one unique angle
   const angles = await generateUniqueAngles(niche.name, schema.name, 1, existingTitles, ctx.audience || "general", apiKey);
   const { angle, keyword } = angles[0];
   const estimatedCount = (schema.items_per_section || 15) * 3;
