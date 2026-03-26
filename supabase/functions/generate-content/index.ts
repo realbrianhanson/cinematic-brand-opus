@@ -187,6 +187,7 @@ Deno.serve(async (req) => {
       content_type_slug,
       count_per_combination = 1,
       dry_run = false,
+      force_regenerate = false,
       batch_id = crypto.randomUUID(),
     } = body;
 
