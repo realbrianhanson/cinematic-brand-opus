@@ -87,7 +87,7 @@ const PillarPageEditor = () => {
   }, [title, slugManual]);
 
   const saveMutation = useMutation({
-    mutationFn: async (publishNow: boolean) => {
+    mutationFn: (publishNow: boolean) => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
       const finalStatus = publishNow ? "published" : status;
       const seoMeta = {
