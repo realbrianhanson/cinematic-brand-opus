@@ -263,6 +263,7 @@ Deno.serve(async (req) => {
         niche_ids: niches.map((n: any) => n.id),
         schema_ids: contentSchemas.map((s: any) => s.id),
         count_per_combination,
+        force_regenerate,
       }),
     }).catch((e) => console.error("Failed to self-invoke processing:", e));
 
