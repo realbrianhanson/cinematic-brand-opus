@@ -37,6 +37,98 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// ─── Real-time research via Perplexity + Firecrawl ───
+
+async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<string> {
+  const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+
+  const researchParts: string[] = [];
+
+  // Step 1: Perplexity — grounded web search for current data
+  if (PERPLEXITY_API_KEY) {
+    try {
+      const query = `What are the best ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
+
+      const resp = await fetch(PERPLEXITY_API, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You are a research assistant. Return factual, current information with specific names, numbers, and dates. No fluff." },
+            { role: "user", content: query },
+          ],
+          search_recency_filter: "month",
+        }),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        const citations = data.citations || [];
+        if (content) {
+          researchParts.push(`LIVE RESEARCH (sourced ${currentYear}, grounded in web search):\n${content}`);
+          if (citations.length > 0) {
+            researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
+          }
+        }
+      } else {
+        console.error("Perplexity research failed:", resp.status, await resp.text());
+      }
+    } catch (e: any) {
+      console.error("Perplexity research error:", e.message);
+    }
+  }
+
+  // Step 2: Firecrawl — search for recent articles on the topic
+  if (FIRECRAWL_API_KEY) {
+    try {
+      const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear}`,
+          limit: 3,
+          scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
+        }),
+      });
+
+      if (searchResp.ok) {
+        const searchData = await searchResp.json();
+        const results = searchData.data || [];
+        if (results.length > 0) {
+          const snippets = results
+            .map((r: any) => {
+              const markdown = r.markdown || "";
+              // Take first ~500 chars of each result for context
+              const snippet = markdown.slice(0, 500).trim();
+              return `[${r.title || r.url}]: ${snippet}`;
+            })
+            .join("\n\n");
+          researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+        }
+      } else {
+        console.error("Firecrawl search failed:", searchResp.status, await searchResp.text());
+      }
+    } catch (e: any) {
+      console.error("Firecrawl search error:", e.message);
+    }
+  }
+
+  if (researchParts.length === 0) {
+    return "";
+  }
+
+  return `\n\n─── REAL-TIME RESEARCH DATA ───\nThe following is CURRENT, VERIFIED information from live web sources. Use this data as your PRIMARY source of truth. Do NOT hallucinate tools, companies, or platforms — only reference ones mentioned in this research or ones you are 100% certain still exist in ${currentYear}.\n\n${researchParts.join("\n\n")}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
