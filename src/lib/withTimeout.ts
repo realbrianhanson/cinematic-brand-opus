@@ -9,7 +9,11 @@ export async function withTimeout<T>(promise: Promise<T>, ms = 15000): Promise<T
 
 /** Refresh the auth session before a mutation to prevent silent token hangs */
 export async function ensureFreshSession() {
-  await supabase.auth.getSession();
+  try {
+    await withTimeout(supabase.auth.getSession(), 5000);
+  } catch {
+    // If session refresh times out, proceed anyway — the mutation will fail with 401 if truly expired
+  }
 }
 
 /** Wrap a mutation body: refresh session + apply timeout */
