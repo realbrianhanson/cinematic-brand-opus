@@ -544,6 +544,19 @@ const GenerationControls = () => {
             </div>
           </div>
 
+          {/* Force regenerate */}
+          <div className="flex items-center gap-3">
+            <Switch checked={forceRegenerate} onCheckedChange={setForceRegenerate} />
+            <div>
+              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                Force New Content
+              </span>
+              <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", margin: "2px 0 0" }}>
+                Always create fresh pages, even if similar content already exists. Existing pages with the same slug will be replaced.
+              </p>
+            </div>
+          </div>
+
           {/* Estimate */}
           <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-accent))", fontWeight: 500 }}>
             This will generate approximately {dryRun ? 1 : estimatedPages} page{(dryRun ? 1 : estimatedPages) !== 1 ? "s" : ""}
