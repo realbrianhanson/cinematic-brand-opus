@@ -71,15 +71,56 @@ const ContentTypesManager = () => {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const bulkCreateMutation = useMutation({
+    mutationFn: () => safeMutation(async () => {
+      const existingSlugs = new Set((schemas ?? []).map((s) => s.slug));
+      const toCreate = CONTENT_TYPE_TEMPLATES.filter((t) => !existingSlugs.has(t.slug));
+      if (toCreate.length === 0) throw new Error("All 6 content type templates already exist.");
+      const { error } = await supabase.from("content_schemas").insert(
+        toCreate.map((t) => ({
+          name: t.name,
+          slug: t.slug,
+          description: t.description,
+          renderer_component: t.renderer_component,
+          items_per_section: t.items_per_section,
+          title_template: t.title_template,
+          description_template: t.description_template,
+          schema_definition: t.schema_definition as any,
+          is_active: true,
+        }))
+      );
+      if (error) throw error;
+      return toCreate.length;
+    }),
+    onSuccess: (_data) => {
+      qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
+      toast({ title: "All content type templates created!" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
         <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
           Content Types
         </h1>
-        <Link to="/admin/content-types/new" className="admin-btn-primary font-body" style={{ textDecoration: "none" }}>
-          <Plus size={14} style={{ marginRight: 6 }} /> Add Content Type
-        </Link>
+        <div className="flex items-center gap-2">
+          {(!schemas?.length || schemas.length < 6) && (
+            <button
+              className="admin-btn-primary font-body"
+              style={{ textDecoration: "none", background: "hsl(var(--admin-sage))" }}
+              onClick={() => bulkCreateMutation.mutate()}
+              disabled={bulkCreateMutation.isPending}
+            >
+              {bulkCreateMutation.isPending ? <Loader2 size={14} className="animate-spin" style={{ marginRight: 6 }} /> : <Zap size={14} style={{ marginRight: 6 }} />}
+              Create All Templates
+            </button>
+          )}
+          <Link to="/admin/content-types/new" className="admin-btn-primary font-body" style={{ textDecoration: "none" }}>
+            <Plus size={14} style={{ marginRight: 6 }} /> Add Content Type
+          </Link>
+        </div>
       </div>
 
       {isLoading ? (
