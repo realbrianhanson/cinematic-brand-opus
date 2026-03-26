@@ -1,36 +1,31 @@
 
 
-## Problem: AI Ignoring Research Data and Using Stale Training Knowledge
+## Scale Generation Controls for 20+ and 500+ Page Runs
 
-The research pipeline (Perplexity + Firecrawl) is set up and the API keys work. The issue is that the AI content model (`gemini-3-flash-preview`) is **mixing its outdated training data** with the research results. The prompt says "prefer research data" but isn't strict enough — the model still fills gaps with tools like Jasper and Air.ai from its training set.
+### What works already
+- The recursive self-invocation pattern processes one page per edge function call, so there's no timeout limit regardless of batch size
+- Once you click "Generate," the entire job runs server-side — you can close your browser, turn off your computer, go to sleep. The edge functions keep chaining themselves
+- Progress is stored in the `generation_jobs` table. When you come back to the admin panel, it picks up where it left off via Realtime
 
-Two fixes needed:
+### What needs to change
 
-### 1. Strengthen Research Quality
+**1. `src/components/admin/GenerationControls.tsx`**
+- Raise the max "Pages Per Industry" from 5 to 50
+- Add a warning when the total estimated pages exceeds 20 (e.g., "Large batch — this will run in the background and may take a while")
+- Add a note: "You can close this page. Generation continues on the server."
 
-**File: `supabase/functions/generate-content/index.ts`** — `researchTopic` function
+**2. No backend changes needed**
+- The `generate-content` edge function already handles any queue size
+- The setup phase generates all angles, builds the full work queue, then processes them one at a time via self-invocation
+- The stale-job recovery (10-minute timeout) is already in the UI
 
-- Upgrade Perplexity model from `sonar` to `sonar-pro` for deeper, more accurate research with 2x more citations
-- Make the research query more specific: ask for tools that are **actively popular and well-reviewed right now**, not just "best tools"
-- Add a follow-up instruction to Perplexity: "Exclude tools that have shut down, pivoted, or lost significant market share"
-- Add `search_recency_filter: "week"` to get the freshest data possible
+### How to test 20 pages
+After this change: select 1 niche, 1 content type, set pages to 20, hit Generate. The system will:
+1. Generate 20 unique angles via a lightweight AI call
+2. For each angle: research via Perplexity → scrape via Firecrawl → generate content → save as draft
+3. Progress bar updates in real-time
+4. You can navigate away — come back later to see results
 
-### 2. Lock the Content AI to Research Data Only
-
-**File: `supabase/functions/generate-content/index.ts`** — `buildUserMessage` function
-
-- Change the constraint from "prefer research data" to **"ONLY use tools, platforms, and companies explicitly mentioned in the research data above. Do NOT supplement with your own knowledge of tools."**
-- Add a new constraint: "If the research data doesn't provide enough items to fill a section, reduce the section size rather than inventing tools from your training data."
-- Add an explicit blocklist instruction: "Known defunct/outdated tools to NEVER mention: Air.ai, Jasper, Copy.ai (if not in research), or any tool you're unsure still operates in its current form."
-- Move the research context **above** the schema in the prompt so the AI reads it first and treats it as the primary source
-
-### 3. Research Fallback Handling
-
-If both Perplexity and Firecrawl return empty (no research data), the current code just returns an empty string and the AI generates entirely from training data. Fix this by:
-- Logging a warning when no research data is available
-- Adding a constraint to the prompt: "No real-time research was available. Be extremely conservative — only mention tools you are 100% certain exist and are actively maintained in {year}. Prefer fewer, verified items over a full list of potentially outdated ones."
-
-### Summary of Changes
-- One file: `supabase/functions/generate-content/index.ts`
-- Three functions modified: `researchTopic`, `buildUserMessage`, and the same changes mirrored in `refresh-stale-content/index.ts`
+### How 500 pages would work
+Select 10 niches × 1 content type × 50 pages = 500 pages. Or 5 niches × 2 content types × 50 = 500. The math is flexible. Each page takes ~1-2 minutes, so 500 pages ≈ 8-16 hours of background processing. No human intervention needed.
 
