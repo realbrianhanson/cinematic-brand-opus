@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-3-flash-preview";
+const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
+const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
 function slugify(text: string): string {
   return text
