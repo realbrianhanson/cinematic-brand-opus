@@ -193,7 +193,17 @@ Deno.serve(async (req) => {
       }
 
       // Research phase: gather real-time data
-      const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+      const { context: researchContext, hasResearch } = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+
+      const researchConstraints = hasResearch
+        ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
+- If the research data doesn't provide enough items to fill a section, use FEWER items rather than inventing tools from your training data.
+- Every tool/platform you mention MUST appear in the research data above.`
+        : `- ⚠️ No real-time research was available. Be EXTREMELY conservative.
+- ONLY mention tools you are 100% certain still exist and are actively maintained in ${currentYear}.
+- Prefer fewer, verified items over a full list of potentially outdated ones.`;
+
+      const blocklist = `- NEVER mention these known defunct/outdated tools: Air.ai, Jasper, Copy.ai, Writesonic, Rytr, Article Forge, WordAI, Kafkai, or any tool you are not 100% certain is actively operating in ${currentYear}.`;
 
       const systemMessage =
         "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
@@ -212,7 +222,7 @@ CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
 
 CONSTRAINTS:
-- Each section MUST contain exactly ${schema.items_per_section || 15} items
+- Each section MUST contain exactly ${schema.items_per_section || 15} items (or fewer if research data doesn't support that many verified items)
 - Difficulty/priority enums must match the schema exactly
 - All descriptions must be specific to the ${niche.name} niche
 - Reference specific tools, platforms, and strategies used by ${ctx.audience || "the target audience"}
@@ -221,8 +231,8 @@ CONSTRAINTS:
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
 - Do NOT produce generic content that could apply to any niche
-- CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
-- Do NOT reference defunct companies or outdated tools
+${researchConstraints}
+${blocklist}
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 - This is a REFRESH of existing content — make it fresh with updated information for ${currentYear}
 
