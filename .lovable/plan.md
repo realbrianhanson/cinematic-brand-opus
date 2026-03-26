@@ -1,37 +1,59 @@
 
 
-## Add A.I. SEO Generator & Score Indicator to pSEO Edit Page
+## Problem: Admin actions hang with infinite spinner
 
-### What You'll Get
-- A new "A.I. SEO Helper" card in the right sidebar of the generated page editor
-- A circular score ring showing your SEO completeness percentage (0-100)
-- A checklist showing which SEO criteria are met/missing
-- "Generate SEO" button that auto-fills meta title, description, and keywords using A.I.
-- "Enhance SEO" button that fixes only the missing criteria to boost the score
+Multiple admin operations (creating content types, saving settings, etc.) get stuck showing a spinning loader that never stops. The save mutations call Supabase but the response never comes back — no error toast appears either, meaning the request itself hangs rather than failing.
 
-### How It Works
+## Root Cause
 
-The score is computed client-side based on these criteria:
-- **Meta title** exists and is under 60 chars (+20 pts)
-- **Meta description** exists and is under 160 chars (+20 pts)
-- **Keywords** have at least 3 terms (+15 pts)
-- **Content has 300+ words** (+15 pts)
-- **Title contains a year** (freshness signal) (+10 pts)
-- **Content has FAQ items** (+10 pts)
-- **Content has intro section** (+10 pts)
+The Supabase client calls have **no timeout**. If the network request stalls (due to token refresh issues, network hiccups, or Supabase connection problems), the `mutationFn` promise never resolves or rejects, leaving `isPending` as `true` forever.
 
-### Files Changed
+Additionally, there's no **error boundary or timeout logic** in any mutation — if the Supabase SDK silently fails to return, the UI is stuck.
 
-**`src/components/admin/GeneratedPageEditor.tsx`**
-1. Add state for `aiGenerating`, `enhancing`, `hasGenerated`
-2. Add a `computeSeoScore()` function that evaluates the 7 criteria above against current content/meta fields and returns `{ score, criteria[] }`
-3. Add `handleGenerateSeo()` — calls the existing `generate-seo-aeo` edge function with the page title + stringified content JSON + current excerpt, then populates metaTitle/metaDesc/metaKeywords from the response
-4. Add `handleEnhanceSeo()` — same edge function with `enhance: true` and `missing_criteria` listing only unfulfilled items
-5. Insert a new **A.I. SEO Helper card** in the right sidebar (between Quality Score and Info cards) containing:
-   - SVG score ring (reusing the exact pattern from `PostEditorAiHelper`)
-   - Criteria checklist with progress bar
-   - Generate and Enhance buttons
-6. The SEO meta section auto-opens when A.I. fills the fields
+## Plan
 
-No new files, no database changes, no new edge functions — reuses the existing `generate-seo-aeo` edge function already built for the blog post editor.
+### 1. Add a global request timeout wrapper
+
+Create a utility function that wraps any async operation with a timeout (e.g., 15 seconds). If the operation doesn't complete in time, it rejects with a clear error message.
+
+**File:** `src/lib/withTimeout.ts` (new)
+
+```typescript
+export async function withTimeout<T>(promise: Promise<T>, ms = 15000): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+```
+
+### 2. Apply timeout to ContentTypeEditor save mutation
+
+Wrap the Supabase insert/update call in `withTimeout()` so the Create button stops spinning after 15 seconds with an error toast instead of spinning forever.
+
+**File:** `src/components/admin/ContentTypeEditor.tsx` (lines 172-207)
+
+### 3. Apply timeout to other hanging mutations
+
+Apply the same `withTimeout` wrapper to save mutations in:
+- `SiteSettingsManager.tsx`
+- `NichesManager.tsx`
+- `PillarPageEditor.tsx`
+- `PostEditor.tsx`
+- `GeneratedPagesManager.tsx` (OG image generation, link building, etc.)
+
+### 4. Add auth session refresh before mutations
+
+Add a proactive `supabase.auth.getSession()` call before critical mutations to ensure the auth token is fresh, preventing silent auth-related hangs.
+
+### 5. Fix the forwardRef console warning
+
+The `Field` component in `ContentTypeEditor.tsx` (line ~1656) is a function component receiving a ref. Wrap it with `React.forwardRef` to eliminate the console warning.
+
+## Technical Details
+
+- The `withTimeout` wrapper uses `Promise.race` — standard pattern for adding timeouts to promises
+- 15-second timeout is generous enough for normal DB operations but catches true hangs
+- The error will flow through `onError` in the mutation, showing a toast automatically
+- Auth session refresh adds ~50ms but prevents the most common cause of silent hangs
 
