@@ -20,14 +20,6 @@ function slugify(text: string): string {
     .slice(0, 120);
 }
 
-function fillTemplate(template: string, vars: Record<string, string | number>): string {
-  let result = template;
-  for (const [key, val] of Object.entries(vars)) {
-    result = result.replaceAll(`{{${key}}}`, String(val));
-  }
-  return result;
-}
-
 function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   return (fenced ? fenced[1] : raw).trim();
@@ -37,25 +29,101 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// ─── Generate unique content angles via AI ───
+
+async function generateUniqueAngles(
+  nicheName: string,
+  schemaName: string,
+  count: number,
+  existingTitles: string[],
+  audience: string,
+  apiKey: string,
+): Promise<{ angle: string; keyword: string }[]> {
+  const existingList = existingTitles.length > 0
+    ? `\n\nEXISTING CONTENT (DO NOT REPEAT ANY OF THESE TOPICS):\n${existingTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+    : "";
+
+  const prompt = `You are a content strategist. Generate exactly ${count} unique subtopic angles for "${schemaName}" content in the "${nicheName}" niche, targeting ${audience}.
+
+Each angle should be a SPECIFIC subtopic or category within the broader "${schemaName} for ${nicheName}" theme. Think of distinct subcategories, use cases, audience segments, or functional areas.
+
+Examples of good angles for "Tool Roundups" + "AI for Business":
+- "AI Sales Automation Tools"
+- "AI HR & Recruiting Tools"  
+- "AI Financial Planning & Accounting Tools"
+- "AI Customer Service & Chatbot Tools"
+- "AI Marketing Analytics Tools"
+
+BAD angles (too generic or overlapping):
+- "Best AI Tools" (too broad)
+- "Top AI Software" (same as above, just reworded)
+${existingList}
+
+Return a JSON array of objects with "angle" (the subtopic title phrase, 3-8 words) and "keyword" (the target SEO keyword, lowercase). Example:
+[{"angle": "AI Sales Automation Tools", "keyword": "ai sales automation tools for business"}]
+
+Return ONLY the JSON array. No other text.`;
+
+  try {
+    const resp = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: "Return ONLY valid JSON. No markdown, no explanation." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.9,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!resp.ok) {
+      console.error("Angle generation failed:", resp.status);
+      return generateFallbackAngles(nicheName, schemaName, count);
+    }
+
+    const data = await resp.json();
+    const raw = data.choices?.[0]?.message?.content || "";
+    const parsed = JSON.parse(extractJson(raw));
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.slice(0, count).map((a: any) => ({
+        angle: a.angle || a.title || `${schemaName} for ${nicheName}`,
+        keyword: (a.keyword || `${a.angle} ${nicheName}`).toLowerCase(),
+      }));
+    }
+  } catch (e: any) {
+    console.error("Angle generation error:", e.message);
+  }
+
+  return generateFallbackAngles(nicheName, schemaName, count);
+}
+
+function generateFallbackAngles(nicheName: string, schemaName: string, count: number): { angle: string; keyword: string }[] {
+  const suffixes = ["Essentials", "Advanced Picks", "Budget-Friendly Options", "Enterprise Solutions", "For Beginners", "Pro Recommendations", "Hidden Gems", "Top Rated", "Trending Now", "Most Popular"];
+  const angles: { angle: string; keyword: string }[] = [];
+  for (let i = 0; i < count; i++) {
+    const suffix = suffixes[i % suffixes.length];
+    const angle = `${schemaName} ${suffix} for ${nicheName}`;
+    angles.push({ angle, keyword: angle.toLowerCase() });
+  }
+  return angles;
+}
+
 // ─── Real-time research via Perplexity + Firecrawl ───
 
-async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<string> {
+async function researchTopic(angle: string, nicheName: string, audience: string, currentYear: number): Promise<string> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-
   const researchParts: string[] = [];
 
-  // Step 1: Perplexity — grounded web search for current data
   if (PERPLEXITY_API_KEY) {
     try {
-      const query = `What are the best ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
-
+      const query = `What are the best ${angle.toLowerCase()} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "sonar",
           messages: [
@@ -65,67 +133,49 @@ async function researchTopic(nicheName: string, schemaName: string, audience: st
           search_recency_filter: "month",
         }),
       });
-
       if (resp.ok) {
         const data = await resp.json();
         const content = data.choices?.[0]?.message?.content || "";
         const citations = data.citations || [];
         if (content) {
           researchParts.push(`LIVE RESEARCH (sourced ${currentYear}, grounded in web search):\n${content}`);
-          if (citations.length > 0) {
-            researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
-          }
+          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
         }
       } else {
-        console.error("Perplexity research failed:", resp.status, await resp.text());
+        console.error("Perplexity research failed:", resp.status);
       }
     } catch (e: any) {
       console.error("Perplexity research error:", e.message);
     }
   }
 
-  // Step 2: Firecrawl — search for recent articles on the topic
   if (FIRECRAWL_API_KEY) {
     try {
       const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear}`,
+          query: `best ${angle.toLowerCase()} ${currentYear}`,
           limit: 3,
           scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
         }),
       });
-
       if (searchResp.ok) {
         const searchData = await searchResp.json();
         const results = searchData.data || [];
         if (results.length > 0) {
-          const snippets = results
-            .map((r: any) => {
-              const markdown = r.markdown || "";
-              // Take first ~500 chars of each result for context
-              const snippet = markdown.slice(0, 500).trim();
-              return `[${r.title || r.url}]: ${snippet}`;
-            })
-            .join("\n\n");
+          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 500).trim()}`).join("\n\n");
           researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
         }
       } else {
-        console.error("Firecrawl search failed:", searchResp.status, await searchResp.text());
+        console.error("Firecrawl search failed:", searchResp.status);
       }
     } catch (e: any) {
       console.error("Firecrawl search error:", e.message);
     }
   }
 
-  if (researchParts.length === 0) {
-    return "";
-  }
-
+  if (researchParts.length === 0) return "";
   return `\n\n─── REAL-TIME RESEARCH DATA ───\nThe following is CURRENT, VERIFIED information from live web sources. Use this data as your PRIMARY source of truth. Do NOT hallucinate tools, companies, or platforms — only reference ones mentioned in this research or ones you are 100% certain still exist in ${currentYear}.\n\n${researchParts.join("\n\n")}`;
 }
 
@@ -187,11 +237,9 @@ Deno.serve(async (req) => {
       content_type_slug,
       count_per_combination = 1,
       dry_run = false,
-      force_regenerate = false,
       batch_id = crypto.randomUUID(),
     } = body;
 
-    // Normalize content_type_slugs (backward compat with old content_type_slug string)
     let resolvedSlugs: string[] = content_type_slugs
       ? (Array.isArray(content_type_slugs) ? content_type_slugs : [content_type_slugs])
       : (content_type_slug ? [content_type_slug] : ["all_active"]);
@@ -226,15 +274,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For dry run, process synchronously (it's fast — only 1 page)
     if (dry_run) {
       return await handleDryRun(supabase, niches, contentSchemas, LOVABLE_API_KEY, corsHeaders);
     }
 
-    // Calculate total combinations
     const totalCombinations = niches.length * contentSchemas.length * count_per_combination;
 
-    // Create a job record and return immediately
     const { data: job, error: jobErr } = await supabase
       .from("generation_jobs")
       .insert({
@@ -248,7 +293,6 @@ Deno.serve(async (req) => {
 
     if (jobErr) throw new Error(`Failed to create job: ${jobErr.message}`);
 
-    // Fire-and-forget: self-invoke the processing endpoint
     const processUrl = `${SUPABASE_URL}/functions/v1/generate-content`;
     fetch(processUrl, {
       method: "POST",
@@ -263,11 +307,9 @@ Deno.serve(async (req) => {
         niche_ids: niches.map((n: any) => n.id),
         schema_ids: contentSchemas.map((s: any) => s.id),
         count_per_combination,
-        force_regenerate,
       }),
     }).catch((e) => console.error("Failed to self-invoke processing:", e));
 
-    // Return job_id immediately
     return new Response(
       JSON.stringify({ job_id: job.id, batch_id, total_combinations: totalCombinations }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -284,21 +326,13 @@ Deno.serve(async (req) => {
 // ─── Background processing (self-invoked) ───
 
 async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_API_KEY: string) {
-  const { job_id, batch_id, niche_ids, schema_ids, count_per_combination, force_regenerate = false } = await req.json();
+  const { job_id, batch_id, niche_ids, schema_ids, count_per_combination } = await req.json();
 
-  // Update job to running
   await supabase.from("generation_jobs").update({ status: "running" }).eq("id", job_id);
 
-  // Fetch full niche + schema data
   const { data: niches } = await supabase.from("niches").select("*").in("id", niche_ids);
   const { data: contentSchemas } = await supabase.from("content_schemas").select("*").in("id", schema_ids);
   const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).single();
-
-  // Pre-fetch existing slugs and keywords (only used if not force_regenerate)
-  const { data: existingSlugs } = await supabase.from("generated_pages").select("id, slug");
-  const slugMap = new Map((existingSlugs || []).map((r: any) => [r.slug, r.id]));
-  const { data: existingKeywords } = await supabase.from("keyword_assignments").select("primary_keyword, page_id");
-  const kwMap = new Map((existingKeywords || []).map((r: any) => [r.primary_keyword, r.page_id]));
 
   const currentYear = new Date().getFullYear();
   const pages: any[] = [];
@@ -306,61 +340,49 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
 
   for (const niche of (niches || [])) {
     for (const schema of (contentSchemas || [])) {
-      for (let i = 0; i < count_per_combination; i++) {
+      const ctx = (niche.context || {}) as Record<string, any>;
+
+      // Step 1: Fetch existing titles for this niche+schema to avoid duplicates
+      const { data: existingPages } = await supabase
+        .from("generated_pages")
+        .select("title, slug")
+        .eq("niche_id", niche.id)
+        .eq("content_schema_id", schema.id);
+      const existingTitles = (existingPages || []).map((p: any) => p.title);
+      const existingSlugs = new Set((existingPages || []).map((p: any) => p.slug));
+
+      // Step 2: Generate unique angles via AI
+      const angles = await generateUniqueAngles(
+        niche.name,
+        schema.name,
+        count_per_combination,
+        existingTitles,
+        ctx.audience || "general",
+        LOVABLE_API_KEY,
+      );
+
+      // Step 3: For each angle, research + generate + save
+      for (const { angle, keyword } of angles) {
         const startTime = Date.now();
-        const ctx = (niche.context || {}) as Record<string, any>;
         const estimatedCount = (schema.items_per_section || 15) * 3;
-
-        const title = fillTemplate(schema.title_template, {
-          count: estimatedCount,
-          content_type: schema.name,
-          niche_name: niche.name,
-          year: currentYear,
-        });
-
+        const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
         const pageSlug = slugify(title);
 
-        // Check duplicates — if force_regenerate, delete existing instead of skipping
-        if (slugMap.has(pageSlug)) {
-          if (force_regenerate) {
-            const existingId = slugMap.get(pageSlug);
-            await supabase.from("keyword_assignments").delete().eq("page_id", existingId);
-            await supabase.from("generation_logs").delete().eq("generated_page_id", existingId);
-            await supabase.from("page_engagement").delete().eq("page_id", existingId);
-            await supabase.from("generated_pages").delete().eq("id", existingId);
-            slugMap.delete(pageSlug);
-          } else {
-            skippedCount++;
-            completedCount++;
-            await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-            await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-            continue;
-          }
+        // Skip if slug already exists
+        if (existingSlugs.has(pageSlug)) {
+          skippedCount++;
+          completedCount++;
+          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+          continue;
         }
 
-        const primaryKeyword = `${schema.name} for ${niche.name}`.toLowerCase();
-        if (kwMap.has(primaryKeyword)) {
-          if (force_regenerate) {
-            const existingPageId = kwMap.get(primaryKeyword);
-            await supabase.from("keyword_assignments").delete().eq("page_id", existingPageId);
-            kwMap.delete(primaryKeyword);
-          } else {
-            skippedCount++;
-            completedCount++;
-            await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-            await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Keyword exists: ${primaryKeyword}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-            continue;
-          }
-        }
+        // Research phase: targeted to this specific angle
+        const researchContext = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
-        // Research phase: gather real-time data
-        const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
-
-        // Build AI prompt
         const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-        const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear, researchContext);
+        const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext);
 
-        // Call AI with retry
         let contentJson: any = null;
         let tokensUsed = 0;
         let aiError: string | null = null;
@@ -409,13 +431,10 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
 
         // Build SEO meta
         const metaTitle = `${title} | ${siteSettings?.publisher_name || ""}`.slice(0, 60);
-        const metaDesc = schema.description_template
-          ? fillTemplate(schema.description_template, { niche_name: niche.name, content_type: schema.name, year: currentYear, count: estimatedCount }).slice(0, 160)
-          : `Discover ${schema.name.toLowerCase()} curated for ${niche.name}. Updated ${currentYear}.`.slice(0, 160);
+        const metaDesc = `Discover the best ${angle.toLowerCase()} curated for ${niche.name}. Updated ${currentYear} with real-time research.`.slice(0, 160);
         const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
-        const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, schema.name.toLowerCase(), niche.name.toLowerCase()], og_image: null };
+        const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, keyword, niche.name.toLowerCase()], og_image: null };
 
-        // Save page
         const { data: savedPage, error: saveErr } = await supabase
           .from("generated_pages")
           .insert({ niche_id: niche.id, content_schema_id: schema.id, slug: pageSlug, title, content_json: contentJson, seo_meta: seoMeta, schema_markup: {}, status: "draft", quality_score: null, generation_model: AI_MODEL, generation_cost: 0 })
@@ -431,10 +450,9 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
           continue;
         }
 
-        slugMap.set(pageSlug, savedPage.id);
-        kwMap.set(primaryKeyword, savedPage.id);
+        existingSlugs.add(pageSlug);
 
-        await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: primaryKeyword, secondary_keywords: seedKeywords.slice(0, 5) });
+        await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: keyword, secondary_keywords: seedKeywords.slice(0, 5) });
         await logGeneration(supabase, { batch_id, generated_page_id: savedPage.id, status: "success", error_message: null, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
 
         successCount++;
@@ -447,7 +465,6 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
     }
   }
 
-  // Mark job complete
   await supabase.from("generation_jobs").update({
     status: failedCount > 0 && successCount === 0 ? "failed" : "completed",
     completed_count: completedCount,
@@ -467,7 +484,7 @@ async function updateJobProgress(supabase: any, jobId: string, counts: { complet
   }).eq("id", jobId);
 }
 
-function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, currentYear: number, researchContext: string = ""): string {
+function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string, currentYear: number, researchContext: string = ""): string {
   return `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -476,6 +493,9 @@ Monetization: ${ctx.monetization || "N/A"}
 Content That Works: ${ctx.content_that_works || "N/A"}
 Subtopics: ${Array.isArray(ctx.subtopics) ? ctx.subtopics.join(", ") : ctx.subtopics || "N/A"}
 AI Opportunities: ${ctx.ai_opportunities || "N/A"}
+
+SPECIFIC ANGLE/FOCUS: ${angle}
+This page must focus SPECIFICALLY on "${angle}" — not the general "${schema.name}" topic. All items, examples, and recommendations should relate to this specific subtopic.
 ${researchContext}
 
 CONTENT SCHEMA:
@@ -484,13 +504,13 @@ ${JSON.stringify(schema.schema_definition, null, 2)}
 CONSTRAINTS:
 - Each section MUST contain exactly ${schema.items_per_section || 15} items
 - Difficulty/priority enums must match the schema exactly
-- All descriptions must be specific to the ${niche.name} niche
+- All descriptions must be specific to ${angle} within the ${niche.name} niche
 - Reference specific tools, platforms, and strategies used by ${ctx.audience || "the target audience"}
 - Use the language and terminology this audience actually uses
 - Pro tips must be non-obvious and actionable
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
-- Do NOT produce generic content that could apply to any niche
+- Do NOT produce generic content that could apply to any niche or angle
 - CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
 - Do NOT reference defunct companies or outdated tools
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
@@ -506,15 +526,25 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
   const niche = niches[0];
   const schema = contentSchemas[0];
   const ctx = (niche.context || {}) as Record<string, any>;
+
+  // Fetch existing titles for context
+  const { data: existingPages } = await supabase
+    .from("generated_pages")
+    .select("title")
+    .eq("niche_id", niche.id)
+    .eq("content_schema_id", schema.id);
+  const existingTitles = (existingPages || []).map((p: any) => p.title);
+
+  // Generate one unique angle
+  const angles = await generateUniqueAngles(niche.name, schema.name, 1, existingTitles, ctx.audience || "general", apiKey);
+  const { angle, keyword } = angles[0];
   const estimatedCount = (schema.items_per_section || 15) * 3;
+  const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
 
-  const title = fillTemplate(schema.title_template, { count: estimatedCount, content_type: schema.name, niche_name: niche.name, year: currentYear });
-
-  // Research phase: gather real-time data
-  const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+  const researchContext = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear, researchContext);
+  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -535,10 +565,7 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
         }),
       });
 
-      if (!aiResp.ok) {
-        const errText = await aiResp.text();
-        throw new Error(`AI gateway ${aiResp.status}: ${errText}`);
-      }
+      if (!aiResp.ok) throw new Error(`AI gateway ${aiResp.status}: ${await aiResp.text()}`);
 
       const aiData = await aiResp.json();
       tokensUsed = aiData.usage?.total_tokens || 0;
@@ -557,7 +584,7 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
   return new Response(
     JSON.stringify({
       dry_run: true,
-      results: [{ title, slug: slugify(title), niche: niche.name, content_type: schema.name, content_json: contentJson, tokens_used: tokensUsed }],
+      results: [{ title, slug: slugify(title), niche: niche.name, content_type: schema.name, angle, content_json: contentJson, tokens_used: tokensUsed }],
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
