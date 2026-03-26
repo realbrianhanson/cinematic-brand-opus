@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Loader2, Pencil, Trash2, Upload, X } from "lucide-react";
 import {
