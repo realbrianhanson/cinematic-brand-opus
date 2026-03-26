@@ -20,6 +20,60 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<string> {
+  const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  const researchParts: string[] = [];
+
+  if (PERPLEXITY_API_KEY) {
+    try {
+      const query = `What are the best ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? Include specific tool names, platforms, pricing, and recent developments. Focus on what ${audience} actually use right now.`;
+      const resp = await fetch(PERPLEXITY_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You are a research assistant. Return factual, current information with specific names, numbers, and dates. No fluff." },
+            { role: "user", content: query },
+          ],
+          search_recency_filter: "month",
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        const citations = data.citations || [];
+        if (content) {
+          researchParts.push(`LIVE RESEARCH (sourced ${currentYear}):\n${content}`);
+          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 5).join(", ")}`);
+        }
+      } else { console.error("Perplexity failed:", resp.status); }
+    } catch (e: any) { console.error("Perplexity error:", e.message); }
+  }
+
+  if (FIRECRAWL_API_KEY) {
+    try {
+      const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear}`, limit: 3, scrapeOptions: { formats: ["markdown"], onlyMainContent: true } }),
+      });
+      if (searchResp.ok) {
+        const searchData = await searchResp.json();
+        const results = searchData.data || [];
+        if (results.length > 0) {
+          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 500).trim()}`).join("\n\n");
+          researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+        }
+      } else { console.error("Firecrawl failed:", searchResp.status); }
+    } catch (e: any) { console.error("Firecrawl error:", e.message); }
+  }
+
+  if (researchParts.length === 0) return "";
+  return `\n\n─── REAL-TIME RESEARCH DATA ───\nUse this as your PRIMARY source of truth. Only reference tools/companies verified here or ones you are 100% certain exist in ${currentYear}.\n\n${researchParts.join("\n\n")}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
