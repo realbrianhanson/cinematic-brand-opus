@@ -450,7 +450,7 @@ async function updateJobProgress(supabase: any, jobId: string, counts: { complet
   }).eq("id", jobId);
 }
 
-function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, currentYear: number): string {
+function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, currentYear: number, researchContext: string = ""): string {
   return `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -459,6 +459,7 @@ Monetization: ${ctx.monetization || "N/A"}
 Content That Works: ${ctx.content_that_works || "N/A"}
 Subtopics: ${Array.isArray(ctx.subtopics) ? ctx.subtopics.join(", ") : ctx.subtopics || "N/A"}
 AI Opportunities: ${ctx.ai_opportunities || "N/A"}
+${researchContext}
 
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
@@ -473,6 +474,8 @@ CONSTRAINTS:
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
 - Do NOT produce generic content that could apply to any niche
+- CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
+- Do NOT reference defunct companies or outdated tools
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 
 TITLE (pre-generated, include in output as-is):
