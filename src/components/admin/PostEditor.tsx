@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import RichTextEditor from "./RichTextEditor";
 import PostEditorSidebar from "./PostEditorSidebar";
@@ -267,7 +268,7 @@ const PostEditor = () => {
 
   // Save
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
       const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
       const cleanFaq = faqItems.filter(f => f.question.trim() && f.answer.trim());
@@ -310,7 +311,7 @@ const PostEditor = () => {
         await supabase.from("seo_metadata").insert(seoData);
       }
       return postId;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       navigate("/admin/posts");

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronUp, Loader2, RefreshCw, AlertTriangle, CheckCircle, Wand2, Sparkles } from "lucide-react";
 
@@ -164,7 +165,7 @@ const GeneratedPageEditor = () => {
 
 
 
-  const doSave = async () => {
+  const doSave = () => safeMutation(async () => {
     let parsed: any;
     try {
       parsed = JSON.parse(contentStr);
@@ -191,7 +192,7 @@ const GeneratedPageEditor = () => {
 
     const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
     if (error) throw error;
-  };
+  });
 
   const saveMutation = useMutation({
     mutationFn: doSave,

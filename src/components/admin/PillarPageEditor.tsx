@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
@@ -86,7 +87,7 @@ const PillarPageEditor = () => {
   }, [title, slugManual]);
 
   const saveMutation = useMutation({
-    mutationFn: async (publishNow: boolean) => {
+    mutationFn: (publishNow: boolean) => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
       const finalStatus = publishNow ? "published" : status;
       const seoMeta = {
@@ -113,7 +114,7 @@ const PillarPageEditor = () => {
         const { error } = await supabase.from("pillar_pages").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
       toast({ title: "Pillar page saved" });

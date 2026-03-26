@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import {
   Search, MoreHorizontal, ExternalLink, Pencil, Eye, Archive,
@@ -146,7 +147,7 @@ const GeneratedPagesManager = () => {
 
   // Mutations
   const updateStatus = useMutation({
-    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+    mutationFn: ({ ids, status }: { ids: string[]; status: string }) => safeMutation(async () => {
       const updateData: Record<string, any> = { status };
       if (status === "published") updateData.published_at = new Date().toISOString();
       const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
@@ -172,7 +173,7 @@ const GeneratedPagesManager = () => {
           supabase.functions.invoke("submit-indexnow", { body: { urls: publishedUrls } }).catch(() => {});
         }
       }
-    },
+    }, 30000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
@@ -183,12 +184,12 @@ const GeneratedPagesManager = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
+    mutationFn: (ids: string[]) => safeMutation(async () => {
       await supabase.from("keyword_assignments").delete().in("page_id", ids);
       await supabase.from("generation_logs").delete().in("generated_page_id", ids);
       const { error } = await supabase.from("generated_pages").delete().in("id", ids);
       if (error) throw error;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       setSelected(new Set());
@@ -199,7 +200,7 @@ const GeneratedPagesManager = () => {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: async (pageItem: any) => {
+    mutationFn: (pageItem: any) => safeMutation(async () => {
       const nicheSlug = (pageItem as any).niches?.slug;
       const schemaSlug = (pageItem as any).content_schemas?.slug;
       if (!nicheSlug || !schemaSlug) throw new Error("Missing niche or schema");
@@ -226,7 +227,7 @@ const GeneratedPagesManager = () => {
         })
         .eq("id", pageItem.id);
       if (updateErr) throw updateErr;
-    },
+    }, 60000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       toast({ title: "Regenerated!" });

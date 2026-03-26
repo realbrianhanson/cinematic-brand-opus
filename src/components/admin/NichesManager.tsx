@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Loader2, Pencil, Trash2, Upload, X } from "lucide-react";
 import {
@@ -117,7 +118,7 @@ const NichesManager = () => {
   const inactiveCount = (niches?.length ?? 0) - activeCount;
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const payload = {
         name: form.name,
         slug: form.slug,
@@ -132,7 +133,7 @@ const NichesManager = () => {
         const { error } = await supabase.from("niches").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
       toast({ title: editingId ? "Niche updated" : "Niche created" });
@@ -144,10 +145,10 @@ const NichesManager = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: (id: string) => safeMutation(async () => {
       const { error } = await supabase.from("niches").delete().eq("id", id);
       if (error) throw error;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
       toast({ title: "Niche deleted" });

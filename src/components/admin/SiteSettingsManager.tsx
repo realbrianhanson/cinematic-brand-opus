@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, X, Globe, FileText, AlertTriangle, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -65,7 +66,7 @@ const SiteSettingsManager = () => {
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const payload = {
         site_name: form.site_name,
         site_url: form.site_url,
@@ -96,7 +97,7 @@ const SiteSettingsManager = () => {
         const { error } = await supabase.from("site_settings").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
       toast({ title: "Settings saved", description: "Your site settings have been updated." });
