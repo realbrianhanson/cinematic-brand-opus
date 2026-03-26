@@ -189,7 +189,7 @@ const GeneratedPagesManager = () => {
       await supabase.from("generation_logs").delete().in("generated_page_id", ids);
       const { error } = await supabase.from("generated_pages").delete().in("id", ids);
       if (error) throw error;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       setSelected(new Set());
