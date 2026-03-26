@@ -336,9 +336,12 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
           continue;
         }
 
+        // Research phase: gather real-time data
+        const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+
         // Build AI prompt
         const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-        const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear);
+        const userMessage = buildUserMessage(niche, schema, ctx, title, currentYear, researchContext);
 
         // Call AI with retry
         let contentJson: any = null;
