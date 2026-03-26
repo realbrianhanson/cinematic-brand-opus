@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Copy, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Zap } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CONTENT_TYPE_TEMPLATES } from "@/lib/contentTypeTemplates";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
