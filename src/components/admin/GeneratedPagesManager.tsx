@@ -173,7 +173,7 @@ const GeneratedPagesManager = () => {
           supabase.functions.invoke("submit-indexnow", { body: { urls: publishedUrls } }).catch(() => {});
         }
       }
-    },
+    }, 30000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
@@ -184,7 +184,7 @@ const GeneratedPagesManager = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
+    mutationFn: (ids: string[]) => safeMutation(async () => {
       await supabase.from("keyword_assignments").delete().in("page_id", ids);
       await supabase.from("generation_logs").delete().in("generated_page_id", ids);
       const { error } = await supabase.from("generated_pages").delete().in("id", ids);
