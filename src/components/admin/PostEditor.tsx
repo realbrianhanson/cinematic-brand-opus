@@ -268,7 +268,7 @@ const PostEditor = () => {
 
   // Save
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
       const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
       const cleanFaq = faqItems.filter(f => f.question.trim() && f.answer.trim());
