@@ -1,79 +1,36 @@
 
 
-## Scalable Content Engine — Angle-Based Unique Generation
+## Problem: AI Ignoring Research Data and Using Stale Training Knowledge
 
-### Problem
+The research pipeline (Perplexity + Firecrawl) is set up and the API keys work. The issue is that the AI content model (`gemini-3-flash-preview`) is **mixing its outdated training data** with the research results. The prompt says "prefer research data" but isn't strict enough — the model still fills gaps with tools like Jasper and Air.ai from its training set.
 
-The current system uses a fixed title template (`"{{count}} Best {{content_type}} for {{niche_name}} in {{year}}"`), which produces the exact same title and slug every time you generate for the same niche + content type. This makes it impossible to scale to thousands of pages — you'd just keep creating duplicates.
+Two fixes needed:
 
-### Solution: AI-Generated Unique Angles
+### 1. Strengthen Research Quality
 
-Replace the deterministic title system with an intelligent angle generator that creates unique subtopics before generating content. Each generation run produces pages that are different from everything already in the database.
+**File: `supabase/functions/generate-content/index.ts`** — `researchTopic` function
 
-### How It Works
+- Upgrade Perplexity model from `sonar` to `sonar-pro` for deeper, more accurate research with 2x more citations
+- Make the research query more specific: ask for tools that are **actively popular and well-reviewed right now**, not just "best tools"
+- Add a follow-up instruction to Perplexity: "Exclude tools that have shut down, pivoted, or lost significant market share"
+- Add `search_recency_filter: "week"` to get the freshest data possible
 
-```text
-┌──────────────────────────────────┐
-│  1. USER: "AI for Business" +    │
-│     "Tool Roundups" × 5 pages    │
-└──────────────┬───────────────────┘
-               ▼
-┌──────────────────────────────────┐
-│  2. FETCH existing titles for    │
-│     this niche+schema from DB    │
-│     e.g. "AI Writing Tools..."   │
-│         "AI Analytics Tools..."  │
-└──────────────┬───────────────────┘
-               ▼
-┌──────────────────────────────────┐
-│  3. LIGHTWEIGHT AI CALL:         │
-│     "Generate 5 unique subtopic  │
-│     angles. Do NOT repeat these  │
-│     existing titles: [...]"      │
-│                                  │
-│     Returns:                     │
-│     - "AI Sales Automation Tools"│
-│     - "AI HR & Recruiting Tools" │
-│     - "AI Financial Planning..." │
-│     - "AI Supply Chain Tools"    │
-│     - "AI Legal & Compliance..." │
-└──────────────┬───────────────────┘
-               ▼
-┌──────────────────────────────────┐
-│  4. FOR EACH ANGLE:              │
-│     - Research (Perplexity)      │
-│     - Scrape (Firecrawl)         │
-│     - Generate full content      │
-│     - Unique slug from angle     │
-└──────────────────────────────────┘
-```
+### 2. Lock the Content AI to Research Data Only
 
-Every run produces entirely new topics. Run it 10 times, get 50 unique pages covering different facets of the niche.
+**File: `supabase/functions/generate-content/index.ts`** — `buildUserMessage` function
 
-### Changes
+- Change the constraint from "prefer research data" to **"ONLY use tools, platforms, and companies explicitly mentioned in the research data above. Do NOT supplement with your own knowledge of tools."**
+- Add a new constraint: "If the research data doesn't provide enough items to fill a section, reduce the section size rather than inventing tools from your training data."
+- Add an explicit blocklist instruction: "Known defunct/outdated tools to NEVER mention: Air.ai, Jasper, Copy.ai (if not in research), or any tool you're unsure still operates in its current form."
+- Move the research context **above** the schema in the prompt so the AI reads it first and treats it as the primary source
 
-**1. Edge function: `supabase/functions/generate-content/index.ts`**
+### 3. Research Fallback Handling
 
-- Add `generateUniqueAngles()` function — a fast AI call that returns N unique subtopic angles as a JSON array, explicitly excluding existing titles from the DB
-- Replace the `for (let i = 0; i < count; i++)` loop with iteration over these angles
-- Title and slug derive from the angle (e.g., "15 Best AI Sales Automation Tools for Business in 2026") instead of the static template
-- Keyword assignment uses the angle-specific keyword instead of the generic "tools for AI for Business"
-- Research query is tailored to each angle for more targeted results
+If both Perplexity and Firecrawl return empty (no research data), the current code just returns an empty string and the AI generates entirely from training data. Fix this by:
+- Logging a warning when no research data is available
+- Adding a constraint to the prompt: "No real-time research was available. Be extremely conservative — only mention tools you are 100% certain exist and are actively maintained in {year}. Prefer fewer, verified items over a full list of potentially outdated ones."
 
-**2. UI: `src/components/admin/GenerationControls.tsx`**
-
-- Remove the `forceRegenerate` toggle (no longer needed — every run is inherently unique)
-- Add a small info note explaining that each run auto-generates unique subtopics
-
-**3. Edge function: `supabase/functions/refresh-stale-content/index.ts`**
-
-- No structural changes needed — refresh operates on existing pages by ID, not templates
-
-### Why This Scales to Thousands
-
-- Each generation run queries the DB for what already exists and tells the AI "don't repeat these"
-- The angle generator can produce unlimited subtopic variations within any niche
-- Keywords, slugs, and titles are all unique by construction
-- Research is tailored per-angle, so each page gets relevant, specific data
-- No manual intervention needed — just keep hitting "Generate" for more pages
+### Summary of Changes
+- One file: `supabase/functions/generate-content/index.ts`
+- Three functions modified: `researchTopic`, `buildUserMessage`, and the same changes mirrored in `refresh-stale-content/index.ts`
 
