@@ -66,7 +66,7 @@ const SiteSettingsManager = () => {
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const payload = {
         site_name: form.site_name,
         site_url: form.site_url,
