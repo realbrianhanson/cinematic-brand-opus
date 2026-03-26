@@ -282,7 +282,6 @@ const GenerationControls = () => {
           content_type_slugs: isAllSelected ? ["all_active"] : Array.from(selectedContentTypes),
           count_per_combination: pagesPerCombo,
           dry_run: false,
-          force_regenerate: forceRegenerate,
         },
       });
       if (error) throw error;
