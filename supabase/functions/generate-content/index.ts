@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
 // ─── Background processing (self-invoked) ───
 
 async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_API_KEY: string) {
-  const { job_id, batch_id, niche_ids, schema_ids, count_per_combination } = await req.json();
+  const { job_id, batch_id, niche_ids, schema_ids, count_per_combination, force_regenerate = false } = await req.json();
 
   // Update job to running
   await supabase.from("generation_jobs").update({ status: "running" }).eq("id", job_id);
@@ -294,11 +294,11 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
   const { data: contentSchemas } = await supabase.from("content_schemas").select("*").in("id", schema_ids);
   const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).single();
 
-  // Pre-fetch existing slugs and keywords
-  const { data: existingSlugs } = await supabase.from("generated_pages").select("slug");
-  const slugSet = new Set((existingSlugs || []).map((r: any) => r.slug));
-  const { data: existingKeywords } = await supabase.from("keyword_assignments").select("primary_keyword");
-  const kwSet = new Set((existingKeywords || []).map((r: any) => r.primary_keyword));
+  // Pre-fetch existing slugs and keywords (only used if not force_regenerate)
+  const { data: existingSlugs } = await supabase.from("generated_pages").select("id, slug");
+  const slugMap = new Map((existingSlugs || []).map((r: any) => [r.slug, r.id]));
+  const { data: existingKeywords } = await supabase.from("keyword_assignments").select("primary_keyword, page_id");
+  const kwMap = new Map((existingKeywords || []).map((r: any) => [r.primary_keyword, r.page_id]));
 
   const currentYear = new Date().getFullYear();
   const pages: any[] = [];
@@ -320,22 +320,37 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
 
         const pageSlug = slugify(title);
 
-        // Check duplicates
-        if (slugSet.has(pageSlug)) {
-          skippedCount++;
-          completedCount++;
-          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-          continue;
+        // Check duplicates — if force_regenerate, delete existing instead of skipping
+        if (slugMap.has(pageSlug)) {
+          if (force_regenerate) {
+            const existingId = slugMap.get(pageSlug);
+            await supabase.from("keyword_assignments").delete().eq("page_id", existingId);
+            await supabase.from("generation_logs").delete().eq("generated_page_id", existingId);
+            await supabase.from("page_engagement").delete().eq("page_id", existingId);
+            await supabase.from("generated_pages").delete().eq("id", existingId);
+            slugMap.delete(pageSlug);
+          } else {
+            skippedCount++;
+            completedCount++;
+            await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+            await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+            continue;
+          }
         }
 
         const primaryKeyword = `${schema.name} for ${niche.name}`.toLowerCase();
-        if (kwSet.has(primaryKeyword)) {
-          skippedCount++;
-          completedCount++;
-          await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
-          await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Keyword exists: ${primaryKeyword}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-          continue;
+        if (kwMap.has(primaryKeyword)) {
+          if (force_regenerate) {
+            const existingPageId = kwMap.get(primaryKeyword);
+            await supabase.from("keyword_assignments").delete().eq("page_id", existingPageId);
+            kwMap.delete(primaryKeyword);
+          } else {
+            skippedCount++;
+            completedCount++;
+            await updateJobProgress(supabase, job_id, { completedCount, successCount, failedCount, skippedCount });
+            await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Keyword exists: ${primaryKeyword}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
+            continue;
+          }
         }
 
         // Research phase: gather real-time data
