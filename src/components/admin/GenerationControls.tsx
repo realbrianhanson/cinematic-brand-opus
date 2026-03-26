@@ -523,11 +523,20 @@ const GenerationControls = () => {
             </p>
             <input
               className="admin-input font-body"
-              type="number" min={1} max={5} value={pagesPerCombo}
-              onChange={(e) => setPagesPerCombo(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
+              type="number" min={1} max={50} value={pagesPerCombo}
+              onChange={(e) => setPagesPerCombo(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
               style={{ width: 100 }}
             />
           </div>
+
+          {/* Large batch warning */}
+          {estimatedPages > 20 && (
+            <div style={{ padding: "10px 14px", borderRadius: 6, backgroundColor: "hsl(var(--admin-warning, 45 93% 47%) / 0.08)", border: "1px solid hsl(var(--admin-warning, 45 93% 47%) / 0.2)" }}>
+              <p className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5, margin: 0 }}>
+                <strong>⏳ Large batch ({estimatedPages} pages):</strong> This will run in the background and may take a while (~1-2 min per page). You can close this page — generation continues on the server.
+              </p>
+            </div>
+          )}
 
           {/* Dry run */}
           <div className="flex items-center gap-3">
