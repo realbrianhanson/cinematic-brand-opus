@@ -40,7 +40,6 @@ const GenerationControls = () => {
   const [nicheSearch, setNicheSearch] = useState("");
   const [pagesPerCombo, setPagesPerCombo] = useState(1);
   const [dryRun, setDryRun] = useState(false);
-  const [forceRegenerate, setForceRegenerate] = useState(true);
 
   // Progress state
   const [generating, setGenerating] = useState(false);
