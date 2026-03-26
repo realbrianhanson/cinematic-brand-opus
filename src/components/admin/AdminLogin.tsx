@@ -69,7 +69,7 @@ const AdminLogin = () => {
             className="font-heading italic block"
             style={{ fontSize: 22, color: "hsl(var(--admin-text))" }}
           >
-            Courtney Hanson
+            Brian Hanson
           </span>
           <div
             className="mx-auto"

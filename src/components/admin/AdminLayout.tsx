@@ -98,7 +98,7 @@ const AdminLayout = () => {
                 textDecorationColor: "hsl(var(--admin-accent))",
               }}
             >
-              Courtney Hanson
+              Brian Hanson
             </span>
           ) : (
             <span
