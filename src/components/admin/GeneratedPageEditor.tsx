@@ -192,7 +192,7 @@ const GeneratedPageEditor = () => {
 
     const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
     if (error) throw error;
-  };
+  });
 
   const saveMutation = useMutation({
     mutationFn: doSave,

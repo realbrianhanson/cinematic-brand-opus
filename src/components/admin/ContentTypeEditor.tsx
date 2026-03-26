@@ -171,7 +171,7 @@ const ContentTypeEditor = () => {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       let parsed: any;
       try {
         parsed = JSON.parse(schemaJson);
@@ -198,7 +198,7 @@ const ContentTypeEditor = () => {
         const { error } = await supabase.from("content_schemas").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
       toast({ title: isNew ? "Content type created" : "Content type updated" });

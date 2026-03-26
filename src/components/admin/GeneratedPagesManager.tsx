@@ -227,7 +227,7 @@ const GeneratedPagesManager = () => {
         })
         .eq("id", pageItem.id);
       if (updateErr) throw updateErr;
-    },
+    }, 60000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       toast({ title: "Regenerated!" });

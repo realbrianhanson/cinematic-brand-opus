@@ -97,7 +97,7 @@ const SiteSettingsManager = () => {
         const { error } = await supabase.from("site_settings").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
       toast({ title: "Settings saved", description: "Your site settings have been updated." });

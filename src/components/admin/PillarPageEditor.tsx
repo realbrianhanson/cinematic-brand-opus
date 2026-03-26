@@ -114,7 +114,7 @@ const PillarPageEditor = () => {
         const { error } = await supabase.from("pillar_pages").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
       toast({ title: "Pillar page saved" });

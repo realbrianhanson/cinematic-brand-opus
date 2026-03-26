@@ -145,10 +145,10 @@ const NichesManager = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: (id: string) => safeMutation(async () => {
       const { error } = await supabase.from("niches").delete().eq("id", id);
       if (error) throw error;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
       toast({ title: "Niche deleted" });

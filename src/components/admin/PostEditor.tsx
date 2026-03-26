@@ -311,7 +311,7 @@ const PostEditor = () => {
         await supabase.from("seo_metadata").insert(seoData);
       }
       return postId;
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       navigate("/admin/posts");
