@@ -1,59 +1,79 @@
 
 
-## Problem: Admin actions hang with infinite spinner
+## Scalable Content Engine — Angle-Based Unique Generation
 
-Multiple admin operations (creating content types, saving settings, etc.) get stuck showing a spinning loader that never stops. The save mutations call Supabase but the response never comes back — no error toast appears either, meaning the request itself hangs rather than failing.
+### Problem
 
-## Root Cause
+The current system uses a fixed title template (`"{{count}} Best {{content_type}} for {{niche_name}} in {{year}}"`), which produces the exact same title and slug every time you generate for the same niche + content type. This makes it impossible to scale to thousands of pages — you'd just keep creating duplicates.
 
-The Supabase client calls have **no timeout**. If the network request stalls (due to token refresh issues, network hiccups, or Supabase connection problems), the `mutationFn` promise never resolves or rejects, leaving `isPending` as `true` forever.
+### Solution: AI-Generated Unique Angles
 
-Additionally, there's no **error boundary or timeout logic** in any mutation — if the Supabase SDK silently fails to return, the UI is stuck.
+Replace the deterministic title system with an intelligent angle generator that creates unique subtopics before generating content. Each generation run produces pages that are different from everything already in the database.
 
-## Plan
+### How It Works
 
-### 1. Add a global request timeout wrapper
-
-Create a utility function that wraps any async operation with a timeout (e.g., 15 seconds). If the operation doesn't complete in time, it rejects with a clear error message.
-
-**File:** `src/lib/withTimeout.ts` (new)
-
-```typescript
-export async function withTimeout<T>(promise: Promise<T>, ms = 15000): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms)
-  );
-  return Promise.race([promise, timeout]);
-}
+```text
+┌──────────────────────────────────┐
+│  1. USER: "AI for Business" +    │
+│     "Tool Roundups" × 5 pages    │
+└──────────────┬───────────────────┘
+               ▼
+┌──────────────────────────────────┐
+│  2. FETCH existing titles for    │
+│     this niche+schema from DB    │
+│     e.g. "AI Writing Tools..."   │
+│         "AI Analytics Tools..."  │
+└──────────────┬───────────────────┘
+               ▼
+┌──────────────────────────────────┐
+│  3. LIGHTWEIGHT AI CALL:         │
+│     "Generate 5 unique subtopic  │
+│     angles. Do NOT repeat these  │
+│     existing titles: [...]"      │
+│                                  │
+│     Returns:                     │
+│     - "AI Sales Automation Tools"│
+│     - "AI HR & Recruiting Tools" │
+│     - "AI Financial Planning..." │
+│     - "AI Supply Chain Tools"    │
+│     - "AI Legal & Compliance..." │
+└──────────────┬───────────────────┘
+               ▼
+┌──────────────────────────────────┐
+│  4. FOR EACH ANGLE:              │
+│     - Research (Perplexity)      │
+│     - Scrape (Firecrawl)         │
+│     - Generate full content      │
+│     - Unique slug from angle     │
+└──────────────────────────────────┘
 ```
 
-### 2. Apply timeout to ContentTypeEditor save mutation
+Every run produces entirely new topics. Run it 10 times, get 50 unique pages covering different facets of the niche.
 
-Wrap the Supabase insert/update call in `withTimeout()` so the Create button stops spinning after 15 seconds with an error toast instead of spinning forever.
+### Changes
 
-**File:** `src/components/admin/ContentTypeEditor.tsx` (lines 172-207)
+**1. Edge function: `supabase/functions/generate-content/index.ts`**
 
-### 3. Apply timeout to other hanging mutations
+- Add `generateUniqueAngles()` function — a fast AI call that returns N unique subtopic angles as a JSON array, explicitly excluding existing titles from the DB
+- Replace the `for (let i = 0; i < count; i++)` loop with iteration over these angles
+- Title and slug derive from the angle (e.g., "15 Best AI Sales Automation Tools for Business in 2026") instead of the static template
+- Keyword assignment uses the angle-specific keyword instead of the generic "tools for AI for Business"
+- Research query is tailored to each angle for more targeted results
 
-Apply the same `withTimeout` wrapper to save mutations in:
-- `SiteSettingsManager.tsx`
-- `NichesManager.tsx`
-- `PillarPageEditor.tsx`
-- `PostEditor.tsx`
-- `GeneratedPagesManager.tsx` (OG image generation, link building, etc.)
+**2. UI: `src/components/admin/GenerationControls.tsx`**
 
-### 4. Add auth session refresh before mutations
+- Remove the `forceRegenerate` toggle (no longer needed — every run is inherently unique)
+- Add a small info note explaining that each run auto-generates unique subtopics
 
-Add a proactive `supabase.auth.getSession()` call before critical mutations to ensure the auth token is fresh, preventing silent auth-related hangs.
+**3. Edge function: `supabase/functions/refresh-stale-content/index.ts`**
 
-### 5. Fix the forwardRef console warning
+- No structural changes needed — refresh operates on existing pages by ID, not templates
 
-The `Field` component in `ContentTypeEditor.tsx` (line ~1656) is a function component receiving a ref. Wrap it with `React.forwardRef` to eliminate the console warning.
+### Why This Scales to Thousands
 
-## Technical Details
-
-- The `withTimeout` wrapper uses `Promise.race` — standard pattern for adding timeouts to promises
-- 15-second timeout is generous enough for normal DB operations but catches true hangs
-- The error will flow through `onError` in the mutation, showing a toast automatically
-- Auth session refresh adds ~50ms but prevents the most common cause of silent hangs
+- Each generation run queries the DB for what already exists and tells the AI "don't repeat these"
+- The angle generator can produce unlimited subtopic variations within any niche
+- Keywords, slugs, and titles are all unique by construction
+- Research is tailored per-angle, so each page gets relevant, specific data
+- No manual intervention needed — just keep hitting "Generate" for more pages
 
