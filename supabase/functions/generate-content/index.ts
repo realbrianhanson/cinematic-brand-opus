@@ -431,8 +431,8 @@ async function handleBackgroundProcessing(req: Request, supabase: any, LOVABLE_A
           continue;
         }
 
-        slugSet.add(pageSlug);
-        kwSet.add(primaryKeyword);
+        slugMap.set(pageSlug, savedPage.id);
+        kwMap.set(primaryKeyword, savedPage.id);
 
         await supabase.from("keyword_assignments").insert({ page_id: savedPage.id, primary_keyword: primaryKeyword, secondary_keywords: seedKeywords.slice(0, 5) });
         await logGeneration(supabase, { batch_id, generated_page_id: savedPage.id, status: "success", error_message: null, tokens_used: tokensUsed, cost: 0, duration_ms: Date.now() - startTime });
