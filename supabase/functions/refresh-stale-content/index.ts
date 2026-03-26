@@ -186,6 +186,9 @@ Deno.serve(async (req) => {
         title = title.replace(yearRegex, String(currentYear));
       }
 
+      // Research phase: gather real-time data
+      const researchContext = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+
       const systemMessage =
         "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
 
@@ -197,6 +200,7 @@ Monetization: ${ctx.monetization || "N/A"}
 Content That Works: ${ctx.content_that_works || "N/A"}
 Subtopics: ${Array.isArray(ctx.subtopics) ? ctx.subtopics.join(", ") : ctx.subtopics || "N/A"}
 AI Opportunities: ${ctx.ai_opportunities || "N/A"}
+${researchContext}
 
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
@@ -211,6 +215,8 @@ CONSTRAINTS:
 - The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
 - Include specific numbers, percentages, or timeframes where possible
 - Do NOT produce generic content that could apply to any niche
+- CRITICAL: Only mention tools, platforms, and companies that are VERIFIED to exist in ${currentYear}. If the research data above mentions specific tools, prefer those over your training data.
+- Do NOT reference defunct companies or outdated tools
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 - This is a REFRESH of existing content — make it fresh with updated information for ${currentYear}
 
