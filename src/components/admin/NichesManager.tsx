@@ -118,7 +118,7 @@ const NichesManager = () => {
   const inactiveCount = (niches?.length ?? 0) - activeCount;
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => safeMutation(async () => {
       const payload = {
         name: form.name,
         slug: form.slug,
@@ -133,7 +133,7 @@ const NichesManager = () => {
         const { error } = await supabase.from("niches").insert(payload);
         if (error) throw error;
       }
-    },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
       toast({ title: editingId ? "Niche updated" : "Niche created" });
