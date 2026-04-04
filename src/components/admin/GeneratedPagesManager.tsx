@@ -164,8 +164,8 @@ const GeneratedPagesManager = () => {
           // Fire and forget — don't block on these
           supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
           supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
-          if (niche?.slug && schema?.slug) {
-            publishedUrls.push(`/resources/${schema.slug}/${niche.slug}`);
+          if (schema?.slug && pg.slug) {
+            publishedUrls.push(`/resources/${schema.slug}/${pg.slug}`);
           }
         }
         // Submit all published URLs at once via IndexNow
