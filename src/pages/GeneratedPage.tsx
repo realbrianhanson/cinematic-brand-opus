@@ -131,7 +131,7 @@ const GeneratedPage = () => {
           pageType="generated"
           title={page.title}
           description={((page.seo_meta as any)?.description) || content?.intro || ""}
-          url={`${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`}
+          url={`${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`}
           publishedAt={page.published_at || page.created_at || ""}
           updatedAt={page.updated_at || ""}
           breadcrumbs={[
