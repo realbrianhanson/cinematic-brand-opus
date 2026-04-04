@@ -58,16 +58,15 @@ const HTMLSitemap = () => {
   const siteUrl = siteSettings?.site_url || "";
 
   // Group generated pages by content type
-  const groupedByType: Record<string, { name: string; slug: string; pages: { title: string; nicheSlug: string }[] }> = {};
+  const groupedByType: Record<string, { name: string; slug: string; pages: { title: string; pageSlug: string }[] }> = {};
   for (const page of generatedPages || []) {
     const schema = page.content_schemas as any;
-    const niche = page.niches as any;
-    if (!schema?.slug || !niche?.slug) continue;
+    if (!schema?.slug) continue;
     const key = schema.slug;
     if (!groupedByType[key]) {
       groupedByType[key] = { name: schema.name, slug: schema.slug, pages: [] };
     }
-    groupedByType[key].pages.push({ title: page.title, nicheSlug: niche.slug });
+    groupedByType[key].pages.push({ title: page.title, pageSlug: page.slug });
   }
 
   return (
@@ -129,7 +128,7 @@ const HTMLSitemap = () => {
                   {group.pages.map((page, i) => (
                     <li key={i}>
                       <Link
-                        to={`/resources/${group.slug}/${page.nicheSlug}`}
+                        to={`/resources/${group.slug}/${page.pageSlug}`}
                         className="font-body hover:text-[#D4AF55] transition-colors"
                         style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}
                       >

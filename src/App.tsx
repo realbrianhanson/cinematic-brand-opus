@@ -56,7 +56,7 @@ const App = () => (
             <Route path="/guides/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><PillarPage /></Suspense>} />
             <Route path="/resources" element={<Suspense fallback={<PublicPageSkeleton />}><ResourcesIndex /></Suspense>} />
             <Route path="/resources/:contentType" element={<Suspense fallback={<PublicPageSkeleton />}><ContentTypeList /></Suspense>} />
-            <Route path="/resources/:contentType/:nicheSlug" element={<Suspense fallback={<PublicPageSkeleton />}><GeneratedPage /></Suspense>} />
+            <Route path="/resources/:contentType/:pageSlug" element={<Suspense fallback={<PublicPageSkeleton />}><GeneratedPage /></Suspense>} />
             <Route path="/sitemap" element={<Suspense fallback={<PublicPageSkeleton />}><HTMLSitemap /></Suspense>} />
             <Route path="/admin/login" element={<Suspense fallback={<PublicPageSkeleton />}><AdminLogin /></Suspense>} />
             <Route

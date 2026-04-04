@@ -88,11 +88,10 @@ const SiloSidebar = ({ nicheId, nicheName, currentPageId, contentSchemaId }: Sil
           {(siloPages ?? []).map((pg: any) => {
             const isActive = pg.id === currentPageId;
             const ctSlug = pg.content_schemas?.slug || "";
-            const nSlug = pg.niches?.slug || "";
             return (
               <Link
                 key={pg.id}
-                to={`/resources/${ctSlug}/${nSlug}`}
+                to={`/resources/${ctSlug}/${pg.slug}`}
                 className="font-body flex items-start gap-2 py-1.5"
                 style={{
                   fontSize: 11,

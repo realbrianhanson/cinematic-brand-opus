@@ -55,7 +55,7 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
           </h3>
           <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
             {group.pages.map((pg: any) => {
-              const nSlug = pg.niches?.slug || pg.slug;
+              const nSlug = pg.slug;
               return (
                 <li key={pg.id}>
                   <a

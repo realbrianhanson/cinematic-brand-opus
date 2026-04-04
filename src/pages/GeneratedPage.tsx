@@ -38,25 +38,24 @@ function readingTime(json: any): number {
 }
 
 const GeneratedPage = () => {
-  const { contentType, nicheSlug } = useParams<{ contentType: string; nicheSlug: string }>();
+  const { contentType, pageSlug } = useParams<{ contentType: string; pageSlug: string }>();
   const viewCounted = useRef(false);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
   const { data: page, isLoading } = useQuery({
-    queryKey: ["public-gen-page", contentType, nicheSlug],
+    queryKey: ["public-gen-page", contentType, pageSlug],
     queryFn: async () => {
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
       if (!schema) return null;
-      const { data: niche } = await supabase.from("niches").select("id, name, slug, context").eq("slug", nicheSlug!).maybeSingle();
-      if (!niche) return null;
       const { data: pg } = await supabase
-        .from("generated_pages").select("*")
-        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).maybeSingle();
+        .from("generated_pages").select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context)")
+        .eq("content_schema_id", schema.id).eq("slug", pageSlug!).maybeSingle();
       if (!pg) return null;
+      const niche = (pg as any).niches || { id: null, name: "", slug: "", context: {} };
       return { ...pg, schema, niche };
     },
-    enabled: !!contentType && !!nicheSlug,
+    enabled: !!contentType && !!pageSlug,
   });
 
   const { data: settings } = useQuery({
@@ -75,7 +74,7 @@ const GeneratedPage = () => {
   }, [page?.id]);
 
   const seo = (page?.seo_meta as any) || {};
-  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
+  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`;
 
   const content = page?.content_json as any;
   const Renderer = page?.schema?.renderer_component ? renderers[page.schema.renderer_component] : null;
@@ -132,14 +131,14 @@ const GeneratedPage = () => {
           pageType="generated"
           title={page.title}
           description={((page.seo_meta as any)?.description) || content?.intro || ""}
-          url={`${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`}
+          url={`${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`}
           publishedAt={page.published_at || page.created_at || ""}
           updatedAt={page.updated_at || ""}
           breadcrumbs={[
             { name: "Home", url: settings?.site_url || "/" },
             { name: "Resources", url: `${settings?.site_url || ""}/resources` },
             { name: page.schema.name, url: `${settings?.site_url || ""}/resources/${contentType}` },
-            { name: page.niche.name, url: `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}` },
+            { name: page.title, url: `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}` },
           ]}
           faqs={faqs}
           siteSettings={settings}
@@ -194,7 +193,7 @@ const GeneratedPage = () => {
 
         {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}
 
-        <PublicCTA variant="inline" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+        <PublicCTA variant="inline" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
 
         {faqs && Array.isArray(faqs) && faqs.length > 0 && (
           <div className="mt-16">
@@ -227,12 +226,12 @@ const GeneratedPage = () => {
           contentTypeName={page.schema.name}
         />
 
-        <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+        <PublicCTA variant="end" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
       </div>
 
       <Footer />
-      <PublicCTA variant="sticky" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+      <PublicCTA variant="sticky" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );
 };
