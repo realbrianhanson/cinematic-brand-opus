@@ -138,7 +138,7 @@ const GeneratedPage = () => {
             { name: "Home", url: settings?.site_url || "/" },
             { name: "Resources", url: `${settings?.site_url || ""}/resources` },
             { name: page.schema.name, url: `${settings?.site_url || ""}/resources/${contentType}` },
-            { name: page.niche.name, url: `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}` },
+            { name: page.title, url: `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}` },
           ]}
           faqs={faqs}
           siteSettings={settings}
