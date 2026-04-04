@@ -74,7 +74,7 @@ const GeneratedPage = () => {
   }, [page?.id]);
 
   const seo = (page?.seo_meta as any) || {};
-  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${nicheSlug}`;
+  const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`;
 
   const content = page?.content_json as any;
   const Renderer = page?.schema?.renderer_component ? renderers[page.schema.renderer_component] : null;
