@@ -127,15 +127,14 @@ async function generateResourcesSitemap(
   // Individual pages
   for (const page of pages || []) {
     const contentTypeSlug = schemaMap.get(page.content_schema_id);
-    const nicheSlug = nicheMap.get(page.niche_id);
-    if (!contentTypeSlug || !nicheSlug) continue;
+    if (!contentTypeSlug) continue;
 
     const lastmod = page.updated_at
       ? new Date(page.updated_at).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0];
 
     urls += `  <url>
-    <loc>${siteUrl}/resources/${contentTypeSlug}/${nicheSlug}</loc>
+    <loc>${siteUrl}/resources/${contentTypeSlug}/${page.slug}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

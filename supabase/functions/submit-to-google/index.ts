@@ -199,9 +199,8 @@ Deno.serve(async (req) => {
       for (const pg of pages || []) {
         if (submittedIds.has(pg.id)) continue;
         const contentSlug = (pg as any).content_schemas?.slug;
-        const nicheSlug = (pg as any).niches?.slug;
-        if (!contentSlug || !nicheSlug) continue;
-        urlList.push({ id: pg.id, url: `${siteUrl}/resources/${contentSlug}/${nicheSlug}` });
+        if (!contentSlug) continue;
+        urlList.push({ id: pg.id, url: `${siteUrl}/resources/${contentSlug}/${pg.slug}` });
       }
 
       if (method === "indexing_api" && urlList.length > DAILY_INDEXING_API_LIMIT) {
