@@ -38,25 +38,24 @@ function readingTime(json: any): number {
 }
 
 const GeneratedPage = () => {
-  const { contentType, nicheSlug } = useParams<{ contentType: string; nicheSlug: string }>();
+  const { contentType, pageSlug } = useParams<{ contentType: string; pageSlug: string }>();
   const viewCounted = useRef(false);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
   const { data: page, isLoading } = useQuery({
-    queryKey: ["public-gen-page", contentType, nicheSlug],
+    queryKey: ["public-gen-page", contentType, pageSlug],
     queryFn: async () => {
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
       if (!schema) return null;
-      const { data: niche } = await supabase.from("niches").select("id, name, slug, context").eq("slug", nicheSlug!).maybeSingle();
-      if (!niche) return null;
       const { data: pg } = await supabase
-        .from("generated_pages").select("*")
-        .eq("content_schema_id", schema.id).eq("niche_id", niche.id).maybeSingle();
+        .from("generated_pages").select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context)")
+        .eq("content_schema_id", schema.id).eq("slug", pageSlug!).maybeSingle();
       if (!pg) return null;
+      const niche = (pg as any).niches || { id: null, name: "", slug: "", context: {} };
       return { ...pg, schema, niche };
     },
-    enabled: !!contentType && !!nicheSlug,
+    enabled: !!contentType && !!pageSlug,
   });
 
   const { data: settings } = useQuery({
