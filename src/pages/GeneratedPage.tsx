@@ -226,7 +226,7 @@ const GeneratedPage = () => {
           contentTypeName={page.schema.name}
         />
 
-        <PublicCTA variant="end" nicheSlug={nicheSlug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+        <PublicCTA variant="end" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
       </div>
 
