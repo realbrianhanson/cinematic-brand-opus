@@ -128,7 +128,7 @@ const HTMLSitemap = () => {
                   {group.pages.map((page, i) => (
                     <li key={i}>
                       <Link
-                        to={`/resources/${group.slug}/${page.nicheSlug}`}
+                        to={`/resources/${group.slug}/${page.pageSlug}`}
                         className="font-body hover:text-[#D4AF55] transition-colors"
                         style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}
                       >

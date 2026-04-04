@@ -111,11 +111,10 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {siblings.map((pg: any) => {
               const ctSlug = pg.content_schemas?.slug || "";
-              const nSlug = pg.niches?.slug || "";
               return (
                 <a
                   key={pg.id}
-                  href={`/resources/${ctSlug}/${nSlug}`}
+                  href={`/resources/${ctSlug}/${pg.slug}`}
                   className="group block p-5"
                   style={{
                     border: "1px solid rgba(255,255,255,0.06)",

@@ -383,7 +383,7 @@ const BlogPost = () => {
                 {crossLinkData.pages.slice(0, 3).map((pg: any) => (
                   <a
                     key={pg.id}
-                    href={`/resources/${pg.content_schemas?.slug}/${pg.niches?.slug}`}
+                    href={`/resources/${pg.content_schemas?.slug}/${pg.slug}`}
                     className="group block p-4"
                     style={{ border: "1px solid rgba(255,255,255,0.06)", textDecoration: "none", transition: "border-color 0.3s" }}
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(212,175,85,0.2)")}

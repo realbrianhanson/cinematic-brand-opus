@@ -489,7 +489,7 @@ const GeneratedPagesManager = () => {
                 <DropdownMenuContent align="end" style={{ minWidth: 160 }}>
                   <DropdownMenuItem
                     onClick={() => {
-                      const url = `/resources/${schema?.slug || "page"}/${niche?.slug || "general"}`;
+                      const url = `/resources/${schema?.slug || "page"}/${pg.slug}`;
                       window.open(url, "_blank");
                     }}
                   >

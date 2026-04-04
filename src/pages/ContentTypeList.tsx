@@ -125,7 +125,7 @@ const ContentTypeList = () => {
         <div className="grid md:grid-cols-2 gap-8">
           {filtered.map((p: any) => (
             <Link
-              to={`/resources/${contentType}/${p.niches?.slug || p.slug}`}
+              to={`/resources/${contentType}/${p.slug}`}
               key={p.id}
               className="group block p-7"
               style={{ border: "1px solid rgba(255,255,255,0.06)", transition: "border-color 0.3s, transform 0.3s" }}
