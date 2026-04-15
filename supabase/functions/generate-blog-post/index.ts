@@ -209,7 +209,7 @@ Return valid JSON ONLY with these fields:
           { role: "user", content: userMessage },
         ],
         temperature: 0.8,
-        max_tokens: 16000,
+        max_tokens: 32000,
       }),
     });
 
@@ -233,17 +233,39 @@ Return valid JSON ONLY with these fields:
     }
 
     const aiData = await aiResponse.json();
+
+    // Check for truncation
+    const finishReason = aiData.choices?.[0]?.finish_reason;
+    if (finishReason === "length" || finishReason === "max_tokens") {
+      console.error("AI response truncated (finish_reason:", finishReason, ")");
+      return new Response(JSON.stringify({ error: "AI response was truncated. Please try a shorter topic." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const raw = aiData.choices?.[0]?.message?.content || "";
 
-    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
-    const jsonStr = (jsonMatch[1] || raw).trim();
-
+    // Robust JSON extraction
     let result;
     try {
-      result = JSON.parse(jsonStr);
+      let cleaned = raw
+        .replace(/^```json\s*/im, "")
+        .replace(/^```\s*/im, "")
+        .replace(/```\s*$/im, "")
+        .trim();
+
+      if (!cleaned.startsWith("{")) {
+        const start = cleaned.indexOf("{");
+        const end = cleaned.lastIndexOf("}");
+        if (start !== -1 && end > start) {
+          cleaned = cleaned.slice(start, end + 1);
+        }
+      }
+
+      result = JSON.parse(cleaned);
     } catch {
-      console.error("Failed to parse AI response:", jsonStr.slice(0, 500));
-      return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
+      console.error("Failed to parse AI response:", raw.slice(0, 500));
+      return new Response(JSON.stringify({ error: "Failed to parse AI response. Please try again." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
