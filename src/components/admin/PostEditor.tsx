@@ -302,6 +302,7 @@ const PostEditor = () => {
       if (data.meta_title) setMetaTitle(data.meta_title);
       if (data.meta_description) setMetaDesc(data.meta_description);
       if (data.keywords) setKeywords(data.keywords);
+      if (data.featured_image) setFeaturedImage(data.featured_image);
 
       setAeoOpen(true);
       setSeoOpen(true);
