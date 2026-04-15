@@ -1,31 +1,32 @@
 
 
-## Scale Generation Controls for 20+ and 500+ Page Runs
+## Problem
 
-### What works already
-- The recursive self-invocation pattern processes one page per edge function call, so there's no timeout limit regardless of batch size
-- Once you click "Generate," the entire job runs server-side — you can close your browser, turn off your computer, go to sleep. The edge functions keep chaining themselves
-- Progress is stored in the `generation_jobs` table. When you come back to the admin panel, it picks up where it left off via Realtime
+The A.I. Helper sidebar shows two buttons that are confusing:
+1. **"Generate SEO & AEO/GEO"** — fills in meta title, description, keywords, FAQ, TLDR, takeaways
+2. **"Increase Score"** — re-runs generation trying to improve incomplete fields
 
-### What needs to change
+Users don't understand the difference or which to click. The two-step flow (generate then enhance) should be unified.
 
-**1. `src/components/admin/GenerationControls.tsx`**
-- Raise the max "Pages Per Industry" from 5 to 50
-- Add a warning when the total estimated pages exceeds 20 (e.g., "Large batch — this will run in the background and may take a while")
-- Add a note: "You can close this page. Generation continues on the server."
+## Plan
 
-**2. No backend changes needed**
-- The `generate-content` edge function already handles any queue size
-- The setup phase generates all angles, builds the full work queue, then processes them one at a time via self-invocation
-- The stale-job recovery (10-minute timeout) is already in the UI
+### Merge into a single smart button
 
-### How to test 20 pages
-After this change: select 1 niche, 1 content type, set pages to 20, hit Generate. The system will:
-1. Generate 20 unique angles via a lightweight AI call
-2. For each angle: research via Perplexity → scrape via Firecrawl → generate content → save as draft
-3. Progress bar updates in real-time
-4. You can navigate away — come back later to see results
+**File: `src/components/admin/PostEditorAiHelper.tsx`**
 
-### How 500 pages would work
-Select 10 niches × 1 content type × 50 pages = 500 pages. Or 5 niches × 2 content types × 50 = 500. The math is flexible. Each page takes ~1-2 minutes, so 500 pages ≈ 8-16 hours of background processing. No human intervention needed.
+Replace the two buttons with one that adapts its label based on state:
+- **Before any generation**: "Generate SEO & AEO/GEO" (primary action)
+- **After generation, score < 100**: "Improve Score → {score}%" (same button, re-runs with enhancement logic)
+- **Score = 100**: Button disabled, shows "Score Maximized ✓"
+
+This removes all ambiguity — there's always exactly one button to click, and it does the right thing automatically.
+
+### Changes
+
+1. **`PostEditorAiHelper.tsx`**: Remove the second `onEnhance` button. Update the primary button label/onClick to call `onEnhance` when `hasGenerated && overall < 100`, otherwise call `onGenerate`. Remove `onEnhance` from props (merge into `onGenerate` logic at the parent level, or keep both callbacks but switch internally).
+
+2. **`PostEditor.tsx`** (parent): No changes needed if the helper component handles the button logic switch internally using the existing `hasGenerated` and score props.
+
+### Result
+One clear button that always tells the user exactly what it will do. No decision paralysis.
 
