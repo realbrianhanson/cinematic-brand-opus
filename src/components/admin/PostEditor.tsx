@@ -11,7 +11,7 @@ import PostEditorSidebar from "./PostEditorSidebar";
 import PostEditorAiHelper from "./PostEditorAiHelper";
 import PostEditorAeoPanel from "./PostEditorAeoPanel";
 import PostEditorSeoPanel from "./PostEditorSeoPanel";
-import { ChevronDown, ChevronUp, Sparkles, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, Loader2, Wand2 } from "lucide-react";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const wordCount = (html: string) => {
