@@ -520,6 +520,74 @@ const PostEditor = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Write Post Modal */}
+      {showAiModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div className="admin-card" style={{ padding: 32, maxWidth: 480, width: "90%" }}>
+            <div className="flex items-center gap-2" style={{ marginBottom: 16 }}>
+              <Wand2 size={16} style={{ color: "hsl(var(--admin-accent))" }} />
+              <h2 className="font-heading" style={{ fontSize: 20, fontWeight: 500 }}>
+                A.I. Write Post
+              </h2>
+            </div>
+            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 20, lineHeight: 1.6 }}>
+              Enter a topic and A.I. will research it, then write a complete blog post with SEO metadata, FAQs, and key takeaways.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label className="admin-label">Topic / Keyword *</label>
+              <input
+                placeholder="e.g. How to use AI for content marketing in 2026"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                className="admin-input font-body w-full"
+                disabled={aiWriting}
+                autoFocus
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label className="admin-label">Additional Context (optional)</label>
+              <textarea
+                placeholder="e.g. Target audience is small business owners. Focus on practical tips."
+                value={aiContext}
+                onChange={(e) => setAiContext(e.target.value)}
+                className="admin-input font-body w-full"
+                style={{ minHeight: 80, resize: "vertical" }}
+                disabled={aiWriting}
+              />
+            </div>
+            {aiWriting && (
+              <div className="flex items-center gap-3 font-body" style={{ fontSize: 12, color: "hsl(var(--admin-accent))", marginBottom: 16 }}>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Researching &amp; writing… this takes 30-60 seconds</span>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowAiModal(false); setAiTopic(""); setAiContext(""); }}
+                className="admin-btn-ghost"
+                disabled={aiWriting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAiWritePost}
+                disabled={aiWriting || !aiTopic.trim()}
+                className="admin-btn-primary flex items-center gap-2"
+              >
+                {aiWriting ? (
+                  <><Loader2 size={14} className="animate-spin" />Generating...</>
+                ) : (
+                  <><Sparkles size={14} />Generate Post</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
