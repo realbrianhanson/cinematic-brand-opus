@@ -111,42 +111,35 @@ const PostEditorAiHelper = ({
         ))}
       </div>
 
-      {/* Buttons */}
+      {/* Smart Button */}
       <button
-        onClick={onGenerate}
-        disabled={aiGenerating || !canGenerate}
-        className="admin-btn-primary w-full flex items-center justify-center gap-2"
-        style={{ fontSize: 13 }}
+        onClick={hasGenerated && overall < 100 ? onEnhance : onGenerate}
+        disabled={aiGenerating || enhancing || (!canGenerate && !hasGenerated) || overall >= 100}
+        className={overall >= 100 ? "w-full flex items-center justify-center gap-2 font-body" : "admin-btn-primary w-full flex items-center justify-center gap-2"}
+        style={{
+          fontSize: 13,
+          ...(overall >= 100 ? {
+            background: "hsl(var(--admin-sage))",
+            color: "#fff",
+            border: "none", borderRadius: 6, padding: "10px 16px", fontWeight: 600,
+            cursor: "default", opacity: 0.8,
+          } : hasGenerated && overall < 100 ? {
+            background: "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+            color: "#fff",
+            border: "none", borderRadius: 6, padding: "10px 16px", fontWeight: 600,
+          } : {}),
+        }}
       >
-        {aiGenerating ? (
-          <><Loader2 size={14} className="animate-spin" />Generating...</>
+        {aiGenerating || enhancing ? (
+          <><Loader2 size={14} className="animate-spin" />{hasGenerated ? "Improving..." : "Generating..."}</>
+        ) : overall >= 100 ? (
+          <>✓ Score Maximized</>
+        ) : hasGenerated ? (
+          <>📈 Improve Score<span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{overall}%</span></>
         ) : (
           <><Sparkles size={14} />Generate SEO &amp; AEO/GEO</>
         )}
       </button>
-
-      {hasGenerated && (
-        <button
-          onClick={onEnhance}
-          disabled={enhancing}
-          className="w-full flex items-center justify-center gap-2 font-body"
-          style={{
-            marginTop: 8,
-            background: enhancing
-              ? "hsl(var(--admin-surface-2))"
-              : "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-            color: enhancing ? "hsl(var(--admin-text-ghost))" : "#fff",
-            border: "none", borderRadius: 6, padding: "10px 16px", fontSize: 13, fontWeight: 600,
-            cursor: enhancing ? "not-allowed" : "pointer",
-          }}
-        >
-          {enhancing ? (
-            <><Loader2 size={14} className="animate-spin" />Enhancing...</>
-          ) : (
-            <>📈 Increase Score<span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{overall}%</span></>
-          )}
-        </button>
-      )}
     </div>
   );
 };
