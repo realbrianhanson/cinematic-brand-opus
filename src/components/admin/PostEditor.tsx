@@ -280,9 +280,12 @@ const PostEditor = () => {
     }
     setAiWriting(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       const { data, error } = await supabase.functions.invoke("generate-blog-post", {
         body: { topic: aiTopic.trim(), additional_context: aiContext.trim() || undefined },
       });
+      clearTimeout(timeoutId);
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
