@@ -59,6 +59,12 @@ const PostEditor = () => {
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
 
+  // AI blog generation state
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiContext, setAiContext] = useState("");
+  const [aiWriting, setAiWriting] = useState(false);
+
   // Queries
   const { data: post, isLoading: postLoading } = useQuery({
     queryKey: ["admin-post", id],
