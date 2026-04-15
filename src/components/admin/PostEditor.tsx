@@ -272,7 +272,49 @@ const PostEditor = () => {
     }
   }, [title, editorContent, excerpt, criteria, toast]);
 
-  // Save
+  // AI Blog Post Generation
+  const handleAiWritePost = useCallback(async () => {
+    if (!aiTopic.trim()) {
+      toast({ title: "Enter a topic", description: "Provide a topic for the A.I. to write about.", variant: "destructive" });
+      return;
+    }
+    setAiWriting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-blog-post", {
+        body: { topic: aiTopic.trim(), additional_context: aiContext.trim() || undefined },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      // Populate all fields
+      if (data.title) { setTitle(data.title); setSlug(slugify(data.title)); setSlugManual(false); }
+      if (data.content && editorRef.current) {
+        editorRef.current.commands.setContent(data.content);
+        setEditorContent(data.content);
+      }
+      if (data.excerpt) setExcerpt(data.excerpt);
+      if (data.tldr) setTldr(data.tldr);
+      if (data.key_takeaways?.length) setKeyTakeaways(data.key_takeaways);
+      if (data.faq_items?.length) setFaqItems(data.faq_items);
+      if (data.meta_title) setMetaTitle(data.meta_title);
+      if (data.meta_description) setMetaDesc(data.meta_description);
+      if (data.keywords) setKeywords(data.keywords);
+
+      setAeoOpen(true);
+      setSeoOpen(true);
+      setHasGenerated(true);
+      setShowAiModal(false);
+      setAiTopic("");
+      setAiContext("");
+      toast({ title: "Blog post generated! ✨", description: "A.I. wrote your entire post. Review and edit before publishing." });
+    } catch (e: any) {
+      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAiWriting(false);
+    }
+  }, [aiTopic, aiContext, toast]);
+
+
   const saveMutation = useMutation({
     mutationFn: () => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
