@@ -387,6 +387,25 @@ const PostEditor = () => {
           {isNew ? "New Post" : "Edit Post"}
         </h1>
         <div className="flex gap-3">
+          {isNew && (
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-2 font-body"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <Wand2 size={14} />
+              A.I. Write Post
+            </button>
+          )}
           <button onClick={() => navigate("/admin/posts")} className="admin-btn-ghost">Cancel</button>
           <button
             onClick={() => saveMutation.mutate()}
