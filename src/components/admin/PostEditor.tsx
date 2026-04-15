@@ -11,7 +11,7 @@ import PostEditorSidebar from "./PostEditorSidebar";
 import PostEditorAiHelper from "./PostEditorAiHelper";
 import PostEditorAeoPanel from "./PostEditorAeoPanel";
 import PostEditorSeoPanel from "./PostEditorSeoPanel";
-import { ChevronDown, ChevronUp, Sparkles, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, Loader2, Wand2 } from "lucide-react";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const wordCount = (html: string) => {
@@ -58,6 +58,12 @@ const PostEditor = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+
+  // AI blog generation state
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiContext, setAiContext] = useState("");
+  const [aiWriting, setAiWriting] = useState(false);
 
   // Queries
   const { data: post, isLoading: postLoading } = useQuery({
@@ -266,7 +272,49 @@ const PostEditor = () => {
     }
   }, [title, editorContent, excerpt, criteria, toast]);
 
-  // Save
+  // AI Blog Post Generation
+  const handleAiWritePost = useCallback(async () => {
+    if (!aiTopic.trim()) {
+      toast({ title: "Enter a topic", description: "Provide a topic for the A.I. to write about.", variant: "destructive" });
+      return;
+    }
+    setAiWriting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-blog-post", {
+        body: { topic: aiTopic.trim(), additional_context: aiContext.trim() || undefined },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      // Populate all fields
+      if (data.title) { setTitle(data.title); setSlug(slugify(data.title)); setSlugManual(false); }
+      if (data.content && editorRef.current) {
+        editorRef.current.commands.setContent(data.content);
+        setEditorContent(data.content);
+      }
+      if (data.excerpt) setExcerpt(data.excerpt);
+      if (data.tldr) setTldr(data.tldr);
+      if (data.key_takeaways?.length) setKeyTakeaways(data.key_takeaways);
+      if (data.faq_items?.length) setFaqItems(data.faq_items);
+      if (data.meta_title) setMetaTitle(data.meta_title);
+      if (data.meta_description) setMetaDesc(data.meta_description);
+      if (data.keywords) setKeywords(data.keywords);
+
+      setAeoOpen(true);
+      setSeoOpen(true);
+      setHasGenerated(true);
+      setShowAiModal(false);
+      setAiTopic("");
+      setAiContext("");
+      toast({ title: "Blog post generated! ✨", description: "A.I. wrote your entire post. Review and edit before publishing." });
+    } catch (e: any) {
+      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAiWriting(false);
+    }
+  }, [aiTopic, aiContext, toast]);
+
+
   const saveMutation = useMutation({
     mutationFn: () => safeMutation(async () => {
       const content = editorRef.current?.getHTML() ?? editorContent;
@@ -339,6 +387,25 @@ const PostEditor = () => {
           {isNew ? "New Post" : "Edit Post"}
         </h1>
         <div className="flex gap-3">
+          {isNew && (
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-2 font-body"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <Wand2 size={14} />
+              A.I. Write Post
+            </button>
+          )}
           <button onClick={() => navigate("/admin/posts")} className="admin-btn-ghost">Cancel</button>
           <button
             onClick={() => saveMutation.mutate()}
@@ -453,6 +520,74 @@ const PostEditor = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Write Post Modal */}
+      {showAiModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div className="admin-card" style={{ padding: 32, maxWidth: 480, width: "90%" }}>
+            <div className="flex items-center gap-2" style={{ marginBottom: 16 }}>
+              <Wand2 size={16} style={{ color: "hsl(var(--admin-accent))" }} />
+              <h2 className="font-heading" style={{ fontSize: 20, fontWeight: 500 }}>
+                A.I. Write Post
+              </h2>
+            </div>
+            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 20, lineHeight: 1.6 }}>
+              Enter a topic and A.I. will research it, then write a complete blog post with SEO metadata, FAQs, and key takeaways.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label className="admin-label">Topic / Keyword *</label>
+              <input
+                placeholder="e.g. How to use AI for content marketing in 2026"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                className="admin-input font-body w-full"
+                disabled={aiWriting}
+                autoFocus
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label className="admin-label">Additional Context (optional)</label>
+              <textarea
+                placeholder="e.g. Target audience is small business owners. Focus on practical tips."
+                value={aiContext}
+                onChange={(e) => setAiContext(e.target.value)}
+                className="admin-input font-body w-full"
+                style={{ minHeight: 80, resize: "vertical" }}
+                disabled={aiWriting}
+              />
+            </div>
+            {aiWriting && (
+              <div className="flex items-center gap-3 font-body" style={{ fontSize: 12, color: "hsl(var(--admin-accent))", marginBottom: 16 }}>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Researching &amp; writing… this takes 30-60 seconds</span>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowAiModal(false); setAiTopic(""); setAiContext(""); }}
+                className="admin-btn-ghost"
+                disabled={aiWriting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAiWritePost}
+                disabled={aiWriting || !aiTopic.trim()}
+                className="admin-btn-primary flex items-center gap-2"
+              >
+                {aiWriting ? (
+                  <><Loader2 size={14} className="animate-spin" />Generating...</>
+                ) : (
+                  <><Sparkles size={14} />Generate Post</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
