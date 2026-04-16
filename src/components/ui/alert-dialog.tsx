@@ -4,11 +4,26 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
+const resolvePortaledContainer = () => {
+  if (typeof document === "undefined") return undefined;
+
+  const adminShell = document.querySelector("[data-admin-shell]");
+  return adminShell instanceof HTMLElement ? adminShell : undefined;
+};
+
 const AlertDialog = AlertDialogPrimitive.Root;
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 
-const AlertDialogPortal = AlertDialogPrimitive.Portal;
+const AlertDialogPortal = ({
+  children,
+  container,
+  ...props
+}: AlertDialogPrimitive.AlertDialogPortalProps) => (
+  <AlertDialogPrimitive.Portal container={container ?? resolvePortaledContainer()} {...props}>
+    {children}
+  </AlertDialogPrimitive.Portal>
+);
 
 const AlertDialogOverlay = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
