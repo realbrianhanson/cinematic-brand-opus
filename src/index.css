@@ -201,16 +201,16 @@
 
 /* ── Admin Panel Theme ── */
 .admin-shell {
-  --admin-bg: 230 25% 6%;
-  --admin-surface: 230 20% 12%;
-  --admin-surface-2: 230 16% 16%;
-  --admin-border: 230 15% 18%;
-  --admin-border-hover: 230 12% 28%;
-  --admin-text: 0 0% 95%;
-  --admin-text-soft: 0 0% 65%;
-  --admin-text-ghost: 0 0% 40%;
-  --admin-accent: 43 60% 55%;
-  --admin-accent-soft: 43 60% 55% / 0.1;
+  --admin-bg: 25 20% 7%;
+  --admin-surface: 25 18% 12%;
+  --admin-surface-2: 25 15% 16%;
+  --admin-border: 30 20% 22%;
+  --admin-border-hover: 35 18% 32%;
+  --admin-text: 30 10% 92%;
+  --admin-text-soft: 30 8% 62%;
+  --admin-text-ghost: 30 6% 42%;
+  --admin-accent: 40 55% 55%;
+  --admin-accent-soft: 40 55% 55% / 0.1;
   --admin-sage: 145 40% 50%;
   --admin-sage-soft: 145 40% 50% / 0.1;
   --admin-danger: 0 72% 55%;
