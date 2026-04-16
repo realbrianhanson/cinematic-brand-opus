@@ -416,7 +416,10 @@ const NichesManager = () => {
         <DialogContent
           className="admin-card"
           style={{
-            maxWidth: 560, maxHeight: "85vh", overflowY: "auto",
+            width: "min(560px, calc(100vw - 32px))",
+            maxWidth: 560,
+            maxHeight: "85vh",
+            overflowY: "auto",
             backgroundColor: "hsl(var(--admin-surface))",
             border: "1px solid hsl(var(--admin-border))",
             color: "hsl(var(--admin-text))",

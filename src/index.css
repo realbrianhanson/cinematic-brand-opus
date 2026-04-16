@@ -240,9 +240,12 @@
   background-color: hsl(var(--admin-surface));
   border: 1px solid hsl(var(--admin-border));
   border-radius: 8px;
+  box-shadow: 0 24px 80px -32px hsl(var(--admin-bg) / 0.75);
 }
 
 .admin-input {
+  display: block;
+  width: 100%;
   background-color: hsl(var(--admin-surface-2));
   border: 1px solid hsl(var(--admin-border));
   border-radius: 6px;
@@ -250,10 +253,11 @@
   font-size: 13px;
   color: hsl(var(--admin-text));
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 .admin-input:focus {
   border-color: hsl(var(--admin-accent));
+  background-color: hsl(var(--admin-surface));
 }
 .admin-input::placeholder {
   color: hsl(var(--admin-text-ghost));
