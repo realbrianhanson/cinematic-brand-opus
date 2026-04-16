@@ -4,11 +4,26 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+const resolvePortaledContainer = () => {
+  if (typeof document === "undefined") return undefined;
+
+  const adminShell = document.querySelector("[data-admin-shell]");
+  return adminShell instanceof HTMLElement ? adminShell : undefined;
+};
+
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
-const DialogPortal = DialogPrimitive.Portal;
+const DialogPortal = ({
+  children,
+  container,
+  ...props
+}: DialogPrimitive.DialogPortalProps) => (
+  <DialogPrimitive.Portal container={container ?? resolvePortaledContainer()} {...props}>
+    {children}
+  </DialogPrimitive.Portal>
+);
 
 const DialogClose = DialogPrimitive.Close;
 

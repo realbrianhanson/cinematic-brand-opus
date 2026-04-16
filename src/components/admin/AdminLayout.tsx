@@ -57,7 +57,7 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className={`admin-shell flex min-h-screen ${lightMode ? "admin-light" : ""}`}>
+    <div data-admin-shell className={`admin-shell flex min-h-screen ${lightMode ? "admin-light" : ""}`}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
