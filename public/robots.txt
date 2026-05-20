@@ -28,5 +28,4 @@ Allow: /
 User-agent: Bytespider
 Disallow: /
 
-# UPDATE: Replace with your actual site URL or Supabase project URL
-# Sitemap: https://YOUR-PROJECT-REF.supabase.co/functions/v1/generate-sitemap?type=main
+Sitemap: https://brianhanson.com/sitemap.xml
