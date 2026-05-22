@@ -1,140 +1,130 @@
 import { useEffect, useRef, useState } from "react";
-import { Flame, Zap, Award, Sparkles, Quote } from "lucide-react";
-import { useReveal, revealStyle } from "@/hooks/useReveal";
-import DrawLine from "./DrawLine";
 
-const timelineData = [
+const chapters = [
   {
-    icon: Flame,
-    tag: "The Beginning",
-    time: "Small-Town Iowa",
-    accent: false,
-    text: "No money. No connections. No degree. Just necessity and an obsession with figuring out what actually works.",
+    tag: "Origins",
+    era: "Small-Town Iowa",
+    title: "Started With Nothing.",
+    body: "No money. No connections. No degree. Just necessity and an obsession with figuring out what actually works.",
   },
   {
-    icon: Zap,
     tag: "First Bet",
-    time: "Mid-20s",
-    accent: false,
-    text: "Built one of the largest engine and transmission companies in the US — without knowing how to change my own oil. Systems and selling beat credentials every time.",
+    era: "Mid-20s",
+    title: "Built an Engine.",
+    body: "Grew one of the largest engine and transmission companies in the country — without knowing how to change my own oil. Systems and selling beat credentials.",
   },
   {
-    icon: Award,
     tag: "The Scale",
-    time: "Real Advisors",
-    accent: true,
-    text: "Earned 4× Inc. 5000 recognition, highest ranking #80 in the nation. Mastered direct response marketing from the legends: Halbert, Schwartz, Kennedy, Cialdini.",
+    era: "2010s",
+    title: "4× Inc. 5000.",
+    body: "Earned Inc. 5000 four times, peaking at #80 in the nation. Studied the legends of direct response — Halbert, Schwartz, Kennedy, Cialdini — and applied them to real businesses.",
   },
   {
-    icon: Flame,
     tag: "The Fire",
-    time: "2020",
-    accent: false,
-    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn — then build something better from the ashes.",
+    era: "2020",
+    title: "Lost It All.",
+    body: "COVID destroyed my live events business. Over $1 million in debt. I could have filed bankruptcy. Instead I chose to rebuild from the ashes.",
   },
   {
-    icon: Sparkles,
     tag: "The Rebuild",
-    time: "Now · Age 46",
-    accent: true,
-    text: "Built AI For Business — 150,000+ members. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
+    era: "Now",
+    title: "A.I. For Business.",
+    body: "Built A.I. For Business — 150,000+ members. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
   },
 ];
 
-const TimelineEntry = ({
-  entry,
-  index,
-}: {
-  entry: (typeof timelineData)[0];
-  index: number;
-}) => {
+const Chapter = ({ c, i }: { c: typeof chapters[number]; i: number }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
+  const [vis, setVis] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.15 }
+      ([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect(); } },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  const Icon = entry.icon;
-
+  const left = i % 2 === 0;
   return (
-    <div
-      ref={ref}
-      className="relative pl-10 md:pl-20 pb-16 last:pb-0 cursor-default"
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(50px)",
-        transition: `all 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
-        background: entry.accent ? "rgba(212,175,85,0.025)" : "transparent",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = visible ? "translateX(2px)" : "translateY(50px)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = visible ? "translateX(0)" : "translateY(50px)"; }}
-    >
-      <div
-        className="absolute left-0 md:left-8 top-1 flex items-center justify-center group transition-shadow duration-300 hover:shadow-[0_0_20px_rgba(212,175,85,0.2)]"
-        style={{
-          width: 32,
-          height: 32,
-          border: "1px solid rgba(212,175,85,0.3)",
-          background: "#07070E",
-        }}
-      >
-        <Icon size={14} color="#D4AF55" />
+    <div ref={ref} className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 lg:mb-24">
+      {/* spine node */}
+      <div className="hidden lg:block absolute left-1/2 top-6 -translate-x-1/2 z-10">
+        <div
+          style={{
+            width: 14, height: 14,
+            background: vis ? "var(--gold)" : "var(--bg-deep)",
+            border: "1.5px solid var(--gold)",
+            transform: "rotate(45deg)",
+            boxShadow: vis ? "0 0 24px rgba(216,180,106,0.45)" : "none",
+            transition: "background 400ms ease, box-shadow 400ms ease",
+          }}
+        />
       </div>
 
-      <div className="grid lg:grid-cols-12 gap-4 lg:gap-8">
-        <div className="lg:col-span-3 flex flex-col gap-2">
+      <div
+        className={`${left ? "lg:pr-16 lg:text-right" : "lg:col-start-2 lg:pl-16"} relative`}
+        style={{
+          opacity: vis ? 1 : 0,
+          transform: vis ? "translateY(0)" : "translateY(20px)",
+          transition: `opacity 400ms ease-out ${i * 70}ms, transform 400ms ease-out ${i * 70}ms`,
+        }}
+      >
+        <div
+          className={`relative p-7 lg:p-9 ${left ? "lg:ml-auto" : ""}`}
+          style={{
+            background: "var(--bg-section)",
+            border: "1px solid var(--hairline)",
+            maxWidth: 520,
+          }}
+        >
+          {/* Faint number */}
+          <div
+            className="absolute font-display select-none pointer-events-none"
+            style={{
+              top: -10,
+              [left ? "right" : "left"]: -8,
+              fontSize: 120,
+              lineHeight: 1,
+              fontWeight: 600,
+              color: "transparent",
+              WebkitTextStroke: "1px rgba(216,180,106,0.18)",
+            } as React.CSSProperties}
+          >
+            {String(i + 1).padStart(2, "0")}
+          </div>
           <span
-            className="inline-block self-start font-body font-bold uppercase"
+            className="inline-block font-body font-bold uppercase mb-3"
             style={{
               fontSize: 10,
-              letterSpacing: "0.12em",
-              color: "#D4AF55",
-              background: "rgba(212,175,85,0.08)",
+              letterSpacing: "0.22em",
+              color: "var(--gold)",
+              background: "rgba(216,180,106,0.1)",
               padding: "4px 10px",
             }}
           >
-            {entry.tag}
+            {c.tag}
           </span>
-          <span
-            className="font-body uppercase"
+          <div
+            className="font-body uppercase mb-2"
+            style={{ fontSize: 11, letterSpacing: "0.25em", color: "var(--label-muted)" }}
+          >
+            {c.era}
+          </div>
+          <h3
+            className="font-display mb-3"
             style={{
-              fontSize: 11,
-              letterSpacing: "0.25em",
-              color: "rgba(255,255,255,0.2)",
+              fontSize: "clamp(1.5rem, 2.6vw, 2rem)",
+              lineHeight: 1.15,
+              color: "var(--warm-white)",
+              fontWeight: 600,
             }}
           >
-            {entry.time}
-          </span>
-        </div>
-
-        <div
-          className="lg:col-span-9"
-          style={{
-            borderLeft: entry.accent ? "1px solid rgba(212,175,85,0.35)" : "none",
-            paddingLeft: entry.accent ? 20 : 0,
-          }}
-        >
-          <p
-            className="font-body"
-            style={{
-              fontSize: "1.15rem",
-              lineHeight: 1.8,
-              maxWidth: 600,
-              color: entry.accent
-                ? "rgba(255,255,255,0.55)"
-                : "rgba(255,255,255,0.45)",
-            }}
-          >
-            {entry.text}
-          </p>
+            {c.title}
+          </h3>
+          <p style={{ fontSize: 15.5, lineHeight: 1.75, color: "var(--warm-body)" }}>{c.body}</p>
         </div>
       </div>
     </div>
@@ -142,134 +132,97 @@ const TimelineEntry = ({
 };
 
 const Story = () => {
-  const { ref: headerRef, visible: headerVisible } = useReveal();
-  const { ref: quoteRef, visible: quoteVisible } = useReveal();
+  const sectionRef = useRef<HTMLElement>(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setProgress(1); return; }
+    const onScroll = () => {
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const total = rect.height + vh * 0.4;
+      const seen = Math.min(total, Math.max(0, vh - rect.top));
+      setProgress(Math.min(1, seen / total));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <section
       id="story"
-      className="relative py-36 lg:py-44"
-      style={{ background: "#07070E" }}
+      ref={sectionRef}
+      className="relative py-28 lg:py-40"
+      style={{ background: "var(--bg-deep)" }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 50% 50% at 85% 10%, rgba(212,175,85,0.04), transparent)",
-        }}
-      />
-
-      {/* Decorative S-curve */}
-      <DrawLine
-        visible={headerVisible}
-        d="M200,0 Q250,200 200,400"
-        className="absolute top-0 right-[10%] w-[200px] h-full pointer-events-none opacity-30"
-      />
-
-      <div
-        className="relative mx-auto px-6 lg:px-14"
-        style={{ maxWidth: 1440 }}
-      >
+      <div className="mx-auto px-6 lg:px-14" style={{ maxWidth: 1240 }}>
         {/* Header */}
-        <div ref={headerRef} className="grid lg:grid-cols-12 gap-8 mb-24">
-          <div className="lg:col-span-7">
-            <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
-              <div
-                style={{
-                  width: 60,
-                  height: 2,
-                  background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
-                }}
-              />
-              <span
-                className="font-body font-bold uppercase"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.3em",
-                  color: "#D4AF55",
-                }}
-              >
-                The Story
-              </span>
-            </div>
-            <h2
-              className="font-display"
-              style={{
-                fontSize: "clamp(2.5rem, 5vw, 4.2rem)",
-                lineHeight: 1.05,
-                color: "#fff",
-                ...revealStyle(headerVisible, 0.1),
-              }}
+        <div className="text-center mb-20">
+          <div className="inline-flex items-center gap-3 mb-6">
+            <div style={{ width: 40, height: 1, background: "var(--gold)" }} />
+            <span
+              className="font-body font-semibold uppercase"
+              style={{ fontSize: 10, letterSpacing: "0.3em", color: "var(--gold)" }}
             >
-              From Nothing to{" "}
-              <em
-                style={{
-                  fontStyle: "italic",
-                  background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                150,000 Strong
-              </em>
-            </h2>
+              The Story
+            </span>
+            <div style={{ width: 40, height: 1, background: "var(--gold)" }} />
           </div>
-
-          <div className="lg:col-span-5 flex items-end" style={revealStyle(headerVisible, 0.2)}>
-            <p
-              className="font-body"
-              style={{
-                fontSize: "0.95rem",
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.35)",
-              }}
-            >
-              Every chapter taught me one thing: the rules only apply if you
-              accept them. I never did.
-            </p>
-          </div>
+          <h2
+            className="font-display"
+            style={{
+              fontSize: "clamp(2.25rem, 5vw, 4rem)",
+              lineHeight: 1.08,
+              fontWeight: 500,
+            }}
+          >
+            From Nothing to <span className="gold-italic" style={{ fontWeight: 600 }}>150,000 Strong</span>
+          </h2>
         </div>
 
         {/* Timeline */}
-        <div className="relative pl-6 md:pl-16">
+        <div className="relative">
+          {/* Spine */}
           <div
-            className="absolute top-0 left-3.5 md:left-[2.35rem] w-px"
+            className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px"
+            style={{ background: "rgba(216,180,106,0.15)" }}
+          />
+          {/* Progress fill */}
+          <div
+            className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-0 w-px origin-top"
             style={{
-              height: "100%",
-              background:
-                "linear-gradient(180deg, rgba(212,175,85,0.25), rgba(212,175,85,0.05))",
+              height: `${progress * 100}%`,
+              background: "linear-gradient(180deg, var(--gold-light), var(--gold), var(--gold-deep))",
+              boxShadow: "0 0 12px rgba(216,180,106,0.45)",
+              transition: "height 0.1s linear",
             }}
           />
-
-          {timelineData.map((entry, i) => (
-            <TimelineEntry key={i} entry={entry} index={i} />
+          {chapters.map((c, i) => (
+            <Chapter key={i} c={c} i={i} />
           ))}
         </div>
 
         {/* Pull quote */}
-        <div ref={quoteRef} className="mt-24 flex flex-col items-center text-center max-w-2xl mx-auto">
-          <div
-            style={{
-              width: 48,
-              height: 1,
-              background: "linear-gradient(90deg, transparent, #D4AF55, transparent)",
-              marginBottom: 24,
-              ...revealStyle(quoteVisible, 0),
-            }}
-          />
-          <Quote size={28} color="rgba(212,175,85,0.4)" className="mb-5" style={revealStyle(quoteVisible, 0.1)} />
-          <blockquote
+        <div className="text-center mt-16 lg:mt-24 max-w-3xl mx-auto">
+          <p
             className="font-display italic"
             style={{
-              fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
-              ...revealStyle(quoteVisible, 0.2),
+              fontSize: "clamp(1.35rem, 2.5vw, 1.9rem)",
+              lineHeight: 1.45,
+              color: "var(--warm-white)",
+              fontWeight: 400,
             }}
           >
-            "I didn't come from money, connections, or a degree. I came from
-            necessity and a refusal to stay stuck."
-          </blockquote>
+            “I didn't come from money, connections, or a degree.
+            I came from necessity and a refusal to stay stuck.”
+          </p>
+          <div className="mt-6 flex justify-center">
+            <div style={{ width: 40, height: 1, background: "var(--gold)" }} />
+          </div>
         </div>
       </div>
     </section>

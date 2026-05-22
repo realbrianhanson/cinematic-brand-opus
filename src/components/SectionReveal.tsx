@@ -4,32 +4,39 @@ interface SectionRevealProps {
   children: ReactNode;
 }
 
+// Fast, lightweight reveal: fade + slight rise, 400ms, triggers at 15% in view.
 const SectionReveal = ({ children }: SectionRevealProps) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState({ clipPath: "inset(8% 0 0 0)", opacity: 0.3 });
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => {
-      if (!ref.current) return;
-      const rect = ref.current.getBoundingClientRect();
-      const vh = window.innerHeight;
-      const progress = Math.max(0, Math.min(1, 1 - (rect.top - vh * 0.8) / (vh * 0.3)));
-      setStyle({
-        clipPath: `inset(${(1 - progress) * 8}% 0 0 0)`,
-        opacity: 0.3 + progress * 0.7,
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setVisible(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   return (
     <div
       ref={ref}
       style={{
-        ...style,
-        transition: "clip-path 0.05s linear, opacity 0.05s linear",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(20px)",
+        transition: "opacity 400ms ease-out, transform 400ms ease-out",
       }}
     >
       {children}
