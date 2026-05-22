@@ -79,7 +79,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
                     <span
                       className={`word-rise ${isGold ? "gold-italic" : ""}`}
                       style={{
-                        animationDelay: loaded ? `${i * 70}ms` : "9999s",
+                        animationDelay: `${i * 70}ms`,
                         fontWeight: isGold ? 600 : 500,
                       }}
                     >
@@ -98,7 +98,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
                 fontSize: "1.125rem",
                 lineHeight: 1.7,
                 color: "var(--warm-body)",
-                animation: loaded ? "wordRise 600ms ease-out 600ms both" : undefined,
+                animation: "wordRise 600ms ease-out 600ms both",
               }}
             >
               Multi-million dollar companies built. 4× Inc. 5000 earned. Now I help 150,000+
@@ -108,7 +108,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             {/* CTAs */}
             <div
               className="flex flex-wrap items-center gap-6 mt-10"
-              style={{ animation: loaded ? "wordRise 600ms ease-out 750ms both" : undefined }}
+              style={{ animation: "wordRise 600ms ease-out 750ms both" }}
             >
               <MagneticButton
                 href="https://aiforbeginners.com"
@@ -146,7 +146,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             {/* Trust chip */}
             <div
               className="flex items-center gap-4 mt-12"
-              style={{ animation: loaded ? "wordRise 600ms ease-out 900ms both" : undefined }}
+              style={{ animation: "wordRise 600ms ease-out 900ms both" }}
             >
               <div className="flex -space-x-2">
                 {[
