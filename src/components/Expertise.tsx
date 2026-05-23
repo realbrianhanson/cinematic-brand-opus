@@ -1,132 +1,228 @@
-import { useRef, useState } from "react";
-import { Cpu, Megaphone, Wrench, Users } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Brain, Target, Code2, Users } from "lucide-react";
+import { useReveal, revealStyle } from "@/hooks/useReveal";
 
 const cards = [
   {
-    icon: Cpu,
-    title: "A.I. Implementation",
-    body: "Practical A.I. that fits real businesses — operations, marketing, content, and customer experience that compound week over week.",
+    icon: Brain,
+    num: "01",
+    title: "AI Implementation",
+    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD — just results.",
   },
   {
-    icon: Megaphone,
+    icon: Target,
+    num: "02",
     title: "Direct Response Marketing",
-    body: "Twenty years of campaigns that move money. Hooks, offers, and funnels grounded in the original direct response legends.",
+    text: "20+ years of frameworks that convert strangers into customers. The psychology behind $50M+ in revenue influenced.",
   },
   {
-    icon: Wrench,
+    icon: Code2,
+    num: "03",
     title: "No-Code Building",
-    body: "Ship SaaS, internal tools, and automations without a dev team. Built Revven with 3,000+ users and zero lines of code.",
+    text: "I built Revven — a full SaaS platform with 3,000+ users — without writing a single line of code. I teach others to do the same.",
   },
   {
     icon: Users,
+    num: "04",
     title: "Community & Education",
-    body: "Built a 150,000+ community of operators who learn by doing. Teach the system that works, not the trend of the week.",
+    text: "150,000+ business owners trained through live events, workshops, and virtual summits. Real education that creates immediate ROI.",
   },
 ];
 
-const Card = ({ c, i }: { c: typeof cards[number]; i: number }) => {
-  const [hover, setHover] = useState(false);
-  const Icon = c.icon;
+const TiltCard = ({
+  card,
+  index,
+}: {
+  card: (typeof cards)[0];
+  index: number;
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [glow, setGlow] = useState({ x: 50, y: 50 });
+  const [hovered, setHovered] = useState(false);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.12 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const onMove = useCallback((e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setGlow({ x, y });
+    const rx = ((y - 50) / 50) * -8;
+    const ry = ((x - 50) / 50) * 8;
+    setTilt({ rx, ry });
+  }, []);
+
+  const onLeave = useCallback(() => {
+    setHovered(false);
+    setTilt({ rx: 0, ry: 0 });
+  }, []);
+
+  const Icon = card.icon;
+
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="relative p-8 lg:p-10 overflow-hidden group"
+      ref={ref}
+      className="relative overflow-hidden"
       style={{
-        background: "var(--bg-section)",
-        border: `1px solid ${hover ? "var(--card-border-hover)" : "var(--hairline)"}`,
-        transform: hover ? "translateY(-6px)" : "translateY(0)",
-        boxShadow: hover
-          ? "0 30px 60px -30px rgba(216,180,106,0.35), 0 0 0 1px rgba(216,180,106,0.15) inset"
-          : "0 0 0 transparent",
-        transition: "all 300ms cubic-bezier(0.22,1,0.36,1)",
+        padding: 0,
+        border: `1px solid ${hovered ? "rgba(212,175,85,0.25)" : "rgba(255,255,255,0.06)"}`,
+        opacity: visible ? 1 : 0,
+        transform: visible
+          ? `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`
+          : "translateY(50px)",
+        transition: hovered
+          ? "border-color 0.5s, transform 0.1s"
+          : `border-color 0.5s, opacity 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s, transform 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
+        willChange: "transform",
       }}
+      onMouseMove={onMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={onLeave}
       data-hover
     >
-      {/* faint corner number */}
-      <div
-        className="absolute font-display select-none pointer-events-none"
-        style={{
-          top: -12, right: -8,
-          fontSize: 110, lineHeight: 1, fontWeight: 600,
-          color: "transparent",
-          WebkitTextStroke: hover ? "1px rgba(216,180,106,0.55)" : "1px rgba(216,180,106,0.18)",
-          transition: "all 300ms ease",
-        }}
-      >
-        {String(i + 1).padStart(2, "0")}
-      </div>
-
-      <div
-        className="inline-flex items-center justify-center mb-7"
-        style={{
-          width: 48, height: 48,
-          border: "1px solid var(--hairline)",
-          background: hover ? "rgba(216,180,106,0.08)" : "transparent",
-          transition: "background 300ms",
-        }}
-      >
-        <Icon size={20} color="var(--gold)" strokeWidth={1.5} />
-      </div>
-
-      <h3
-        className="font-display relative inline-block pb-1.5"
-        style={{
-          fontSize: "clamp(1.4rem, 2vw, 1.65rem)",
-          color: "var(--warm-white)",
-          fontWeight: 600,
-          lineHeight: 1.2,
-        }}
-      >
-        {c.title}
-        <span
-          className="absolute left-0 bottom-0 h-px"
+      {hovered && (
+        <div
+          className="absolute inset-0 pointer-events-none"
           style={{
-            width: hover ? "100%" : "0%",
-            background: "var(--gold)",
-            transition: "width 400ms cubic-bezier(0.22,1,0.36,1)",
+            background: `radial-gradient(400px circle at ${glow.x}% ${glow.y}%, rgba(212,175,85,0.1), transparent 60%)`,
           }}
         />
-      </h3>
-      <p className="mt-4" style={{ fontSize: 15.5, lineHeight: 1.7, color: "var(--warm-body)" }}>
-        {c.body}
-      </p>
+      )}
+
+      <div className="relative p-8 lg:p-10">
+        <span
+          className="absolute top-4 right-6 font-display italic select-none"
+          style={{ fontSize: 70, color: "rgba(212,175,85,0.04)", lineHeight: 1 }}
+        >
+          {card.num}
+        </span>
+
+        <Icon
+          size={24}
+          strokeWidth={1.5}
+          color="#D4AF55"
+          className="mb-6"
+        />
+
+        <h3
+          className="font-display text-foreground mb-3"
+          style={{ fontSize: "1.35rem", fontWeight: 500 }}
+        >
+          {card.title}
+        </h3>
+
+        <p
+          className="font-body"
+          style={{
+            fontSize: "0.9rem",
+            lineHeight: 1.75,
+            color: "rgba(255,255,255,0.45)",
+          }}
+        >
+          {card.text}
+        </p>
+      </div>
     </div>
   );
 };
 
 const Expertise = () => {
+  const { ref: headerRef, visible: headerVisible } = useReveal();
+
   return (
     <section
       id="expertise"
-      className="relative py-28 lg:py-36"
-      style={{ background: "var(--bg-section)" }}
+      className="relative py-36 lg:py-44"
+      style={{ background: "#0A0B12" }}
     >
-      <div className="mx-auto px-6 lg:px-14" style={{ maxWidth: 1240 }}>
-        <div className="max-w-3xl mb-16">
-          <div className="flex items-center gap-3 mb-6">
-            <div style={{ width: 40, height: 1, background: "var(--gold)" }} />
-            <span
-              className="font-body font-semibold uppercase"
-              style={{ fontSize: 10, letterSpacing: "0.3em", color: "var(--gold)" }}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(212,175,85,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,85,0.02) 1px, transparent 1px)",
+          backgroundSize: "80px 80px",
+        }}
+      />
+
+      <div className="relative mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
+        {/* Header */}
+        <div ref={headerRef} className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8">
+          <div>
+            <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
+              <div
+                style={{
+                  width: 60,
+                  height: 2,
+                  background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
+                }}
+              />
+              <span
+                className="font-body font-bold uppercase"
+                style={{ fontSize: 10, letterSpacing: "0.3em", color: "#D4AF55" }}
+              >
+                Core Expertise
+              </span>
+            </div>
+            <h2
+              className="font-display"
+              style={{
+                fontSize: "clamp(2.5rem, 5vw, 4.2rem)",
+                lineHeight: 1.05,
+                color: "#fff",
+                ...revealStyle(headerVisible, 0.1),
+              }}
             >
-              Expertise
-            </span>
+              Where AI Meets{" "}
+              <em
+                style={{
+                  fontStyle: "italic",
+                  background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Real Results
+              </em>
+            </h2>
           </div>
-          <h2
-            className="font-display"
+
+          <p
+            className="font-body lg:text-right"
             style={{
-              fontSize: "clamp(2.25rem, 5vw, 3.75rem)",
-              lineHeight: 1.08,
-              fontWeight: 500,
+              fontSize: "0.95rem",
+              lineHeight: 1.7,
+              color: "rgba(255,255,255,0.4)",
+              maxWidth: 380,
+              ...revealStyle(headerVisible, 0.2),
             }}
           >
-            Where A.I. Meets <span className="gold-italic" style={{ fontWeight: 600 }}>Real Results</span>
-          </h2>
+            Four disciplines. One unfair advantage. The intersection most
+            &lsquo;experts&rsquo; can&rsquo;t touch.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 lg:gap-7">
-          {cards.map((c, i) => <Card key={i} c={c} i={i} />)}
+        {/* Card grid */}
+        <div className="grid md:grid-cols-2 gap-5">
+          {cards.map((card, i) => (
+            <TiltCard key={i} card={card} index={i} />
+          ))}
         </div>
       </div>
     </section>

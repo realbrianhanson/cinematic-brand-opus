@@ -1,120 +1,120 @@
-import { ArrowRight } from "lucide-react";
-import brianPortrait from "@/assets/brian-headshot.jpeg";
+import { useState } from "react";
+import { Lock, Mail, Sparkles, ArrowUpRight } from "lucide-react";
+import { useReveal, revealStyle } from "@/hooks/useReveal";
 
 const FinalCTA = () => {
-  return (
-    <section
-      id="final-cta"
-      className="relative py-28 lg:py-36"
-      style={{ background: "var(--bg-warm)" }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 60% at 20% 50%, rgba(241,216,155,0.10), transparent 60%)",
-        }}
-      />
-      <div className="relative mx-auto px-6 lg:px-14" style={{ maxWidth: 1240 }}>
-        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-          {/* Portrait */}
-          <div className="lg:col-span-5 flex justify-center lg:justify-start">
-            <div className="relative" style={{ width: "min(380px, 100%)", aspectRatio: "4/5" }}>
-              <div
-                className="relative w-full h-full overflow-hidden"
-                style={{ background: "var(--bg-section)", border: "1px solid var(--hairline)" }}
-              >
-                <img src={brianPortrait} alt="Brian Hanson" className="w-full h-full object-cover" />
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse 60% 50% at 50% 25%, rgba(241,216,155,0.2), transparent 65%), linear-gradient(180deg, transparent 55%, rgba(9,9,11,0.65) 100%)",
-                  }}
-                />
-              </div>
-              {/* Brackets */}
-              {[
-                { top: -1, left: -1, v: "top", h: "left" },
-                { top: -1, right: -1, v: "top", h: "right" },
-                { bottom: -1, left: -1, v: "bottom", h: "left" },
-                { bottom: -1, right: -1, v: "bottom", h: "right" },
-              ].map((c, i) => (
-                <div
-                  key={i}
-                  className="absolute pointer-events-none"
-                  style={{
-                    width: 26, height: 26,
-                    top: (c as any).top, left: (c as any).left,
-                    right: (c as any).right, bottom: (c as any).bottom,
-                    borderTop: c.v === "top" ? "1.5px solid var(--gold)" : undefined,
-                    borderBottom: c.v === "bottom" ? "1.5px solid var(--gold)" : undefined,
-                    borderLeft: c.h === "left" ? "1.5px solid var(--gold)" : undefined,
-                    borderRight: c.h === "right" ? "1.5px solid var(--gold)" : undefined,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+  const [email, setEmail] = useState("");
+  const { ref: headerRef, visible: headerVisible } = useReveal();
+  const { ref: formRef, visible: formVisible } = useReveal();
 
-          {/* Copy */}
-          <div className="lg:col-span-7">
-            <div className="flex items-center gap-4 mb-7">
-              <div style={{ width: 50, height: 2, background: "var(--gold-gradient)" }} />
-              <span
-                className="font-body font-semibold uppercase"
-                style={{ fontSize: 11, letterSpacing: "0.22em", color: "var(--gold)" }}
-              >
-                A Personal Invitation
-              </span>
-            </div>
-            <h2
-              className="font-display"
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmail("");
+  };
+
+  return (
+    <section id="contact" className="relative py-32 lg:py-40" style={{ background: "#07070E" }}>
+      <div className="absolute top-0 left-0 w-full h-px" style={{
+        background: "linear-gradient(90deg, transparent 15%, rgba(212,175,85,0.2) 50%, transparent 85%)",
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at center, rgba(212,175,85,0.04), transparent 65%)",
+      }} />
+
+      <div className="relative mx-auto px-6 lg:px-14 max-w-2xl text-center">
+        <div ref={headerRef}>
+          <h2 className="font-display mb-5" style={{ fontSize: "clamp(2rem, 4.5vw, 3.5rem)", lineHeight: 1.1, color: "#fff", ...revealStyle(headerVisible, 0) }}>
+            Ready for Your{" "}
+            <em style={{
+              fontStyle: "italic",
+              background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>
+              Unfair Advantage?
+            </em>
+          </h2>
+
+          <p className="font-body mb-10" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "rgba(255,255,255,0.45)", ...revealStyle(headerVisible, 0.1) }}>
+            Weekly AI strategies, tools, and frameworks from the front lines. No spam. No fluff. Just what moves the needle.
+          </p>
+        </div>
+
+        <div ref={formRef} style={revealStyle(formVisible, 0)}>
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-6">
+            <input
+              type="email"
+              required
+              maxLength={255}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="flex-1 font-body outline-none transition-colors duration-300"
               style={{
-                fontSize: "clamp(2.25rem, 5.5vw, 4.2rem)",
-                lineHeight: 1.05,
-                fontWeight: 500,
+                fontSize: 14,
+                padding: "16px 20px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#fff",
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = "rgba(212,175,85,0.4)"}
+              onBlur={(e) => e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"}
+            />
+            <button
+              type="submit"
+              data-hover
+              className="font-body font-bold uppercase shrink-0 transition-opacity duration-300 hover:opacity-90"
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.08em",
+                padding: "16px 32px",
+                background: "linear-gradient(135deg, #D4AF55, #B8962E)",
+                color: "#07070E",
               }}
             >
-              The Tools Caught Up.{" "}
-              <span className="gold-italic" style={{ fontWeight: 600 }}>Your Turn.</span>
-            </h2>
-            <p
-              className="mt-7 max-w-xl"
-              style={{ fontSize: "1.1rem", lineHeight: 1.75, color: "var(--warm-body)" }}
+              Subscribe
+            </button>
+          </form>
+
+          <div className="flex justify-center gap-6 flex-wrap">
+            {[
+              { icon: Lock, text: "No spam" },
+              { icon: Mail, text: "Weekly" },
+              { icon: Sparkles, text: "Unsubscribe anytime" },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-1.5">
+                <Icon size={12} color="rgba(212,175,85,0.5)" />
+                <span className="font-body" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-14">
+            <div
+              className="inline-block font-body font-semibold uppercase mb-3"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.15em",
+                color: "rgba(255,255,255,0.3)",
+                background: "rgba(212,175,85,0.06)",
+                border: "1px solid rgba(212,175,85,0.1)",
+                padding: "5px 14px",
+              }}
             >
-              For most of my career, the people with vision didn't have the tools — and the people
-              with the tools didn't have the vision. That equation just flipped. If you've been
-              waiting for the right moment, it's now. Come spend three days with me. I'll show you
-              exactly what to do next.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-6">
+              Or skip ahead
+            </div>
+            <div>
               <a
                 href="https://aiforbeginners.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 data-hover
-                className="inline-flex items-center gap-2 font-body font-bold uppercase rounded-sm"
-                style={{
-                  fontSize: 13,
-                  letterSpacing: "0.12em",
-                  background: "linear-gradient(135deg, #f1d89b, #d8b46a 60%, #9c7c3c)",
-                  color: "#0b0a09",
-                  padding: "20px 38px",
-                  boxShadow: "0 18px 48px -18px rgba(216,180,106,0.55)",
-                }}
+                className="inline-flex items-center gap-1.5 font-display italic group"
+                style={{ fontSize: "1rem", color: "#D4AF55" }}
               >
-                Claim Your Free Seat
-                <ArrowRight size={15} strokeWidth={2.5} />
+                Join the Free 3-Day AI Event
+                <ArrowUpRight size={15} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
-            </div>
-            <div className="mt-10">
-              <div
-                className="font-display italic"
-                style={{ fontSize: "1.5rem", color: "var(--gold)", fontWeight: 500 }}
-              >
-                — Brian
-              </div>
             </div>
           </div>
         </div>
