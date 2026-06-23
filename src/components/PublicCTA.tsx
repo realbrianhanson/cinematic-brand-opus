@@ -16,7 +16,7 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
   const { data: settings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
+      const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
       return data;
     },
     staleTime: 60000,
