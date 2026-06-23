@@ -198,8 +198,27 @@ Deno.serve(async (req) => {
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // ─── STEP PROCESSOR: handles ONE page then self-invokes for next ───
+  // ─── AUTHENTICATION (must run BEFORE branching on any header flags) ───
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const bearer = authHeader.slice("Bearer ".length).trim();
+  const isInternalInvocation = bearer === SUPABASE_SERVICE_ROLE_KEY;
+
   const isStepProcess = req.headers.get("x-job-step") === "true";
+  const isSetupProcess = req.headers.get("x-job-setup") === "true";
+
+  // Step/setup branches are ONLY for trusted self-invocations using the service role key.
+  if ((isStepProcess || isSetupProcess) && !isInternalInvocation) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // ─── STEP PROCESSOR: handles ONE page then self-invokes for next ───
   if (isStepProcess) {
     try {
       await handleStepProcessing(req, supabase, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -215,7 +234,6 @@ Deno.serve(async (req) => {
   }
 
   // ─── SETUP PROCESSOR: generates angles then kicks off step-by-step ───
-  const isSetupProcess = req.headers.get("x-job-setup") === "true";
   if (isSetupProcess) {
     try {
       await handleSetupProcessing(req, supabase, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -224,7 +242,6 @@ Deno.serve(async (req) => {
       });
     } catch (err: any) {
       console.error("Setup processing error:", err);
-      // Mark job as failed
       try {
         const body = await req.clone().json().catch(() => ({}));
         if (body.job_id) {
@@ -240,13 +257,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ─── NORMAL REQUEST: verify user auth, create job, kick off setup ───
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  // ─── NORMAL REQUEST: verify admin user, create job, kick off setup ───
   const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -254,6 +265,17 @@ Deno.serve(async (req) => {
   if (userErr || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: roleRow } = await anonClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (!roleRow) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
