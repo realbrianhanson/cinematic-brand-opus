@@ -1,3 +1,4 @@
+import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { useState, useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ProTips } from "./IdeaListRenderer";
@@ -61,7 +62,7 @@ const GuideRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; n
                   <div key={ti} className="p-4 flex items-start gap-3" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
                     <div>
                       <h4 className="font-body font-semibold" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{tool.name}</h4>
-                      {tool.description && <p className="font-body mt-1" style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{tool.description}</p>}
+                      {tool.description && <p className="font-body mt-1" style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{renderInlineMarkdown(tool.description)}</p>}
                       {tool.link && <a href={tool.link} target="_blank" rel="noopener noreferrer" className="font-body mt-1 inline-block hover:text-[#D4AF55] transition-colors" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Visit →</a>}
                     </div>
                   </div>

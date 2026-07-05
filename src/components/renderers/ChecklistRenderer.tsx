@@ -1,3 +1,4 @@
+import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { useState, useMemo } from "react";
 import { RotateCcw, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,7 +52,7 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
       {phases.map((phase, pi) => (
         <div key={pi} className="mb-10">
           <h2 className="font-display italic mb-2" style={{ fontSize: 20, color: "#fff" }}>{phase.title || phase.name || `Phase ${pi + 1}`}</h2>
-          {phase.description && <p className="font-body mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{phase.description}</p>}
+          {phase.description && <p className="font-body mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{renderInlineMarkdown(phase.description)}</p>}
           <div className="flex flex-col gap-3">
             {(phase.items || phase.steps || []).map((step: any, si: number) => {
               const key = `${pi}-${si}`;
@@ -79,7 +80,7 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
                     <h3 className="font-body font-semibold mb-1" style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textDecoration: isChecked ? "line-through" : "none" }}>
                       {step.title || step.name}
                     </h3>
-                    {step.description && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{step.description}</p>}
+                    {step.description && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(step.description)}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {step.priority && (
                         <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 9, letterSpacing: "0.1em", background: pc.bg, color: pc.color }}>

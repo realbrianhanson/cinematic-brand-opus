@@ -1,3 +1,4 @@
+import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { useState, useMemo } from "react";
 import { Search, Copy, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";

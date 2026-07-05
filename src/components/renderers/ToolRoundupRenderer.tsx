@@ -1,3 +1,4 @@
+import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { useState, useMemo } from "react";
 import { Check, X, LayoutGrid, Table } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +54,7 @@ const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: 
                   </span>
                 )}
                 <h3 className="font-body font-semibold mb-2" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)" }}>{tool.name || tool.title}</h3>
-                <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{tool.description}</p>
+                <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(tool.description)}</p>
                 {tool.pricing && <p className="font-body mb-2" style={{ fontSize: 12, color: "#D4AF55" }}>{tool.pricing}</p>}
                 {tool.best_for && <p className="font-body mb-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>Best for: {tool.best_for}</p>}
                 <div className="grid grid-cols-2 gap-3 mt-3">
