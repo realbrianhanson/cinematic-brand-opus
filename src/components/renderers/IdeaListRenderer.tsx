@@ -98,7 +98,7 @@ const IdeaListRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
                 </button>
               </div>
               <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                {item.description}
+                {renderInlineMarkdown(item.description)}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {item.difficulty && (
