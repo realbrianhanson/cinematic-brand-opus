@@ -4,6 +4,7 @@ import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
+import brianHeadshot from "@/assets/brian-headshot.jpeg";
 
 const headlineLines = [
   { text: "A.I. Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
@@ -20,8 +21,30 @@ const Hero = ({ loaded = true }: HeroProps) => {
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
   const visible = loaded;
 
+  // Lazy-load hero video: only kick in after the page's initial load event.
+  useEffect(() => {
+    const start = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (!v.src) {
+        v.src = "/videos/hero-bg.mp4";
+        v.load();
+        v.play().catch(() => {});
+      }
+      setVideoReady(true);
+    };
+    if (document.readyState === "complete") {
+      // Delay slightly so it never fights first paint.
+      const t = window.setTimeout(start, 400);
+      return () => window.clearTimeout(t);
+    }
+    window.addEventListener("load", start, { once: true });
+    return () => window.removeEventListener("load", start);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -45,68 +68,97 @@ const Hero = ({ loaded = true }: HeroProps) => {
       ref={sectionRef}
       className="relative min-h-screen flex items-center overflow-hidden"
     >
-      {/* BG Layer 1: Video */}
+      {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
+        <img
+          src="/og-default.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: videoReady ? 0 : 0.55, transition: "opacity 0.6s ease" }}
+        />
         <video
-          autoPlay
+          ref={videoRef}
           muted
           loop
           playsInline
+          preload="none"
+          poster="/og-default.png"
           className="absolute w-full h-full object-cover"
-          style={{ opacity: 0.35 }}
-          src="/videos/hero-bg.mp4"
+          style={{ opacity: videoReady ? 0.55 : 0, transition: "opacity 0.8s ease" }}
         />
         <div className="absolute inset-0" style={{
-          background: "linear-gradient(180deg, rgba(7,7,14,0.6) 0%, rgba(7,7,14,0.85) 100%)",
+          background: "linear-gradient(180deg, rgba(7,7,14,0.45) 0%, rgba(7,7,14,0.78) 100%)",
         }} />
       </div>
 
-    {/* BG Layer 2: Rotating gradient mesh (hidden on mobile) */}
+      {/* Headshot on right side (desktop absolute; mobile behind text) */}
       <div
-        className="absolute inset-0 pointer-events-none hero-rotate hidden md:block"
+        aria-hidden="true"
+        className="absolute inset-y-0 right-0 pointer-events-none z-[1]"
         style={{
-          width: "140%",
-          height: "140%",
-          top: "-20%",
-          left: "-20%",
-          background: "conic-gradient(from 0deg, rgba(212,175,85,0.04), rgba(184,150,46,0.03), rgba(232,201,106,0.05), rgba(212,175,85,0.04))",
-          opacity: 0.04,
+          width: "min(52%, 780px)",
         }}
-      />
+      >
+        <div className="relative w-full h-full">
+          <img
+            src={brianHeadshot}
+            alt=""
+            fetchPriority="high"
+            className="absolute inset-0 w-full h-full object-cover object-top hidden md:block"
+            style={{
+              filter: "grayscale(0.35) contrast(1.05) brightness(0.95)",
+              maskImage:
+                "linear-gradient(90deg, transparent 0%, black 22%, black 100%)",
+              WebkitMaskImage:
+                "linear-gradient(90deg, transparent 0%, black 22%, black 100%)",
+              opacity: visible ? 0.85 : 0,
+              transition: "opacity 1.2s ease 0.4s",
+            }}
+          />
+          {/* Mobile: subtle backdrop behind headline */}
+          <img
+            src={brianHeadshot}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-top md:hidden"
+            style={{
+              filter: "grayscale(0.5) contrast(1.05) brightness(0.75)",
+              opacity: visible ? 0.28 : 0,
+              transition: "opacity 1s ease 0.3s",
+            }}
+          />
+          {/* Gold tint overlay */}
+          <div
+            className="absolute inset-0 hidden md:block"
+            style={{
+              background:
+                "radial-gradient(ellipse at 70% 40%, rgba(212,175,85,0.14), transparent 60%)",
+              mixBlendMode: "screen",
+            }}
+          />
+          {/* Left-side dark gradient to protect text on desktop */}
+          <div
+            className="absolute inset-0 hidden md:block"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(7,7,14,1) 0%, rgba(7,7,14,0.85) 30%, rgba(7,7,14,0.25) 60%, transparent 100%)",
+            }}
+          />
+          {/* Mobile: full dark gradient */}
+          <div
+            className="absolute inset-0 md:hidden"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(7,7,14,0.65) 0%, rgba(7,7,14,0.92) 100%)",
+            }}
+          />
+        </div>
+      </div>
 
-      {/* BG Layer 3: Radial gradients */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 60% 50% at 70% 25%, rgba(212,175,85,0.06), transparent), radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.04), transparent)",
+      {/* BG Layer 3: Radial accent */}
+      <div className="absolute inset-0 pointer-events-none z-[2]" style={{
+        background: "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.05), transparent)",
       }} />
-
-      {/* BG Layer 4: Film grain (hidden on mobile) */}
-      <div className="absolute inset-0 pointer-events-none hidden md:block" style={{ opacity: 0.35 }}>
-        <svg className="w-full h-full">
-          <filter id="grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-            <feColorMatrix type="saturate" values="0" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#grain)" opacity="0.5" />
-        </svg>
-      </div>
-
-      {/* BG Layer 5: Decorative lines (hidden on mobile) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
-        <div className="absolute" style={{
-          width: 1, height: "35%", top: 0, left: "18%",
-          background: "linear-gradient(180deg, rgba(212,175,85,0.12), transparent)",
-        }} />
-        <div className="absolute" style={{
-          width: "200%", height: 1, top: "40%", left: "-50%",
-          background: "linear-gradient(90deg, transparent, rgba(212,175,85,0.04), transparent)",
-          transform: "rotate(-28deg)",
-        }} />
-        <div className="absolute" style={{
-          width: "200%", height: 1, top: "65%", left: "-50%",
-          background: "linear-gradient(90deg, transparent, rgba(212,175,85,0.03), transparent)",
-          transform: "rotate(18deg)",
-        }} />
-      </div>
 
       {/* Corner accent lines */}
       <DrawLine
@@ -140,7 +192,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
           }} />
           <span className="font-body font-bold uppercase" style={{
-            fontSize: 11, letterSpacing: "0.25em", color: "#D4AF55",
+            fontSize: 12, letterSpacing: "0.25em", color: "#D4AF55",
           }}>
             4× Inc. 5000 · AI Educator · Keynote Speaker
           </span>
@@ -154,7 +206,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
                 style={{
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateY(0)" : "translateY(115%)",
-                  transition: `all 0.8s cubic-bezier(0.22,1,0.36,1) ${0.55 + i * 0.1}s`,
+                  transition: `all 0.8s cubic-bezier(0.22,1,0.36,1) ${0.35 + i * 0.08}s`,
                 }}
               >
                 <h1
@@ -189,16 +241,16 @@ const Hero = ({ loaded = true }: HeroProps) => {
         <p
           className="font-body mt-10"
           style={{
-            maxWidth: 520,
-            fontSize: "1.1rem",
-            lineHeight: 1.8,
-            color: "rgba(255,255,255,0.4)",
+            maxWidth: 560,
+            fontSize: "1.15rem",
+            lineHeight: 1.7,
+            color: "rgba(255,255,255,0.85)",
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.7s cubic-bezier(0.22,1,0.36,1) 1s",
+            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s",
           }}
         >
-          Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to scale — no coding required.
+          Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to scale. No coding required.
         </p>
 
         {/* CTA Buttons */}
@@ -207,13 +259,13 @@ const Hero = ({ loaded = true }: HeroProps) => {
           style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.7s cubic-bezier(0.22,1,0.36,1) 1.1s",
+            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.85s",
           }}
         >
           <MagneticButton
             href="https://aiforbeginners.com"
             target="_blank"
-            className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase"
+            className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
             style={{
               fontSize: 13,
               letterSpacing: "0.08em",
@@ -230,17 +282,17 @@ const Hero = ({ loaded = true }: HeroProps) => {
 
           <MagneticButton
             href="#speaking"
-            className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-300 hover:border-gold/50 hover:bg-gold/5"
+            className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(212,175,85,0.08)]"
             style={{
               fontSize: 13,
               letterSpacing: "0.08em",
-              border: "1px solid rgba(212,175,85,0.2)",
-              color: "rgba(212,175,85,0.8)",
-              padding: "20px 40px",
+              border: "1.5px solid #D4AF55",
+              color: "#ffffff",
+              padding: "18.5px 38.5px",
               background: "transparent",
             }}
           >
-            <Mic size={15} strokeWidth={2.5} />
+            <Mic size={15} strokeWidth={2.5} color="#D4AF55" />
             Book Brian to Speak
           </MagneticButton>
         </div>
@@ -251,7 +303,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
           style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.7s cubic-bezier(0.22,1,0.36,1) 1.3s",
+            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 1s",
           }}
         >
           <div className="flex -space-x-2">
@@ -274,7 +326,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
               />
             ))}
           </div>
-          <span className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+          <span className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>
             150,000+ business owners in the community
           </span>
         </div>
@@ -292,7 +344,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             width: 16,
             height: 26,
             borderRadius: 9999,
-            border: "1.5px solid rgba(255,255,255,0.12)",
+            border: "1.5px solid rgba(255,255,255,0.25)",
           }}
         >
           <div
@@ -300,7 +352,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             style={{
               width: 2,
               height: 6,
-              background: "rgba(255,255,255,0.3)",
+              background: "rgba(255,255,255,0.7)",
               top: 5,
               borderRadius: 9999,
             }}
