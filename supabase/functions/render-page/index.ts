@@ -697,10 +697,12 @@ async function renderGeneratedPage(
 
   const pubDate = page.published_at || page.created_at;
 
+  const lastVerified = (page as any).last_refreshed || pubDate;
   const body = `
 <article>
   <h1>${esc(page.title)}</h1>
-  <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}</p>
+  <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
+  ${editorialNote()}
   ${content.intro ? `<p>${esc(String(content.intro))}</p>` : ""}
   ${sections
     .map((s: any) => {
@@ -732,6 +734,7 @@ async function renderGeneratedPage(
       ? `<section><h2>Pro tips</h2>${content.pro_tips.map((t: any) => renderItem(t)).join("")}</section>`
       : ""
   }
+  ${sourcesHtml((content as any).sources)}
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
@@ -739,6 +742,7 @@ async function renderGeneratedPage(
           .join("")}</section>`
       : ""
   }
+  ${authorBoxHtml(settings)}
 </article>
 ${
   pillar
