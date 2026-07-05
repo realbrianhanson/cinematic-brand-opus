@@ -92,7 +92,7 @@ const Speaking = () => {
                 </em>
               </h2>
 
-              <p className="font-body mb-12" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "rgba(255,255,255,0.45)", maxWidth: 520, ...revealStyle(headerVisible, 0.2) }}>
+              <p className="font-body mb-12" style={{ fontSize: "1.1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.85)", maxWidth: 540, ...revealStyle(headerVisible, 0.2) }}>
                 On stage, I make complex AI simple. I blend hard-won lessons with humor and deliver frameworks audiences use immediately. No recycled TED talks.
               </p>
             </div>
