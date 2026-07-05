@@ -397,7 +397,90 @@ const SiteSettingsManager = () => {
             </div>
           </div>
 
-          {/* Section 4: Weekly Reports */}
+          {/* Section 4: Content Voice */}
+          <div className="admin-card" style={{ padding: 24 }}>
+            <h2
+              className="font-body"
+              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}
+            >
+              Content Voice
+            </h2>
+            <p
+              className="font-body"
+              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 20, lineHeight: 1.5 }}
+            >
+              Applied to every AI generation and revision pass. Voice profile shapes tone;
+              banned phrases are hard failures that trigger a rewrite.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Field label="Voice Profile">
+                <textarea
+                  className="admin-input font-body"
+                  rows={10}
+                  value={form.voice_profile ?? ""}
+                  onChange={(e) => updateField("voice_profile", e.target.value)}
+                  placeholder="Describe the voice: tone, sentence rhythm, vocabulary rules, structural quirks…"
+                  style={{ resize: "vertical", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6 }}
+                />
+              </Field>
+              <Field label={`Banned Phrases (${form.banned_phrases.length})`}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                  {form.banned_phrases.map((phrase, i) => (
+                    <span
+                      key={i}
+                      className="font-body"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        padding: "3px 8px",
+                        borderRadius: 999,
+                        backgroundColor: "hsl(0 70% 50% / 0.1)",
+                        color: "hsl(0 70% 45%)",
+                        border: "1px solid hsl(0 70% 50% / 0.25)",
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                      }}
+                    >
+                      {phrase}
+                      <button
+                        onClick={() => removeBannedPhrase(i)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
+                      >
+                        <X size={11} style={{ color: "hsl(0 70% 45%)" }} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <textarea
+                  className="admin-input font-body"
+                  rows={4}
+                  placeholder="One phrase per line. Paste a whole list — it will be split and deduplicated on save."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      const v = (e.target as HTMLTextAreaElement).value;
+                      v.split(/[\n,]/).forEach(addBannedPhrase);
+                      (e.target as HTMLTextAreaElement).value = "";
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v.trim()) {
+                      v.split(/[\n,]/).forEach(addBannedPhrase);
+                      e.target.value = "";
+                    }
+                  }}
+                  style={{ resize: "vertical", fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                />
+                <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 6 }}>
+                  Case-insensitive substring match. Press Enter or click away to add. Matched phrases block publishing until fixed.
+                </p>
+              </Field>
+            </div>
+          </div>
+
+          {/* Section 5: Weekly Reports */}
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
