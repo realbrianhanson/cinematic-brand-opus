@@ -444,6 +444,44 @@ const PseoDashboard = () => {
           />
         )}
       </div>
+
+      {/* Row 6: GSC Opportunities */}
+      {opportunities && opportunities.length > 0 && (
+        <div className="admin-card" style={{ padding: 20, marginTop: 24 }}>
+          <h3 className="font-body" style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+            Search Opportunities
+          </h3>
+          <p className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 16 }}>
+            Queries where you rank on page 1-3 (positions 8-25) with impressions but under 2% CTR. Refreshing or expanding these pages usually recovers clicks fast.
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="font-body" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid hsl(var(--admin-border))", color: "hsl(var(--admin-text-ghost))" }}>
+                  <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 500 }}>Query</th>
+                  <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 500 }}>Page</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", fontWeight: 500 }}>Pos.</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", fontWeight: 500 }}>Impr.</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", fontWeight: 500 }}>CTR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opportunities.map((o: any, i: number) => (
+                  <tr key={i} style={{ borderBottom: "1px solid hsl(var(--admin-border) / 0.5)", color: "hsl(var(--admin-text-soft))" }}>
+                    <td style={{ padding: "8px 12px" }}>{o.query}</td>
+                    <td style={{ padding: "8px 12px", maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <a href={o.page_url} target="_blank" rel="noopener" style={{ color: "hsl(var(--admin-accent))" }}>{o.page_url}</a>
+                    </td>
+                    <td style={{ padding: "8px 12px", textAlign: "right" }}>{Number(o.position).toFixed(1)}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right" }}>{o.impressions}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right" }}>{(Number(o.ctr) * 100).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
