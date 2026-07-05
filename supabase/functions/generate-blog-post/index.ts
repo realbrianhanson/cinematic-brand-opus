@@ -184,18 +184,22 @@ Deno.serve(async (req) => {
       console.log("No PERPLEXITY_API_KEY — skipping research phase");
     }
 
+    // Load per-site voice config
+    const voice = await loadVoiceConfig(supabaseAdmin);
+    const voiceBlock = formatVoiceBlock(voice);
+
     // Step 2: Generate the full blog post via Lovable AI
-    const systemPrompt = `You are an expert blog writer and SEO specialist. Write a comprehensive, engaging, well-structured blog post.
+    const systemPrompt = `You are a blog writer and SEO specialist. Write a comprehensive, well-structured blog post.
+
+${voiceBlock}
 
 Requirements:
-- Write in a conversational yet authoritative tone
 - Use question-format H2 and H3 headings where appropriate (great for AEO/GEO)
 - Include bulleted or numbered lists for actionable content
 - Target 1200-2000 words
-- Make the content practical and actionable
-- Include specific examples, data points, and expert insights when possible
+- Include specific examples, data points, and expert insights from the research
 - Structure with clear sections using H2 headings
-- Use short paragraphs (2-3 sentences max)
+- Use short paragraphs (1-3 sentences max)
 
 Return valid JSON ONLY with these fields:
 {
