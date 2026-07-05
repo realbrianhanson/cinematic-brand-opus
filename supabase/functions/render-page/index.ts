@@ -229,9 +229,10 @@ ${social ? `<p>${social}</p>` : ""}
 }
 
 // One-line editorial note under the byline.
-function editorialNote(currentDate = new Date()): string {
-  const month = currentDate.toLocaleString("en-US", { month: "long" });
-  const year = currentDate.getFullYear();
+function editorialNote(verifiedAt?: string | Date | null): string {
+  const d = verifiedAt ? new Date(verifiedAt) : new Date();
+  const month = d.toLocaleString("en-US", { month: "long" });
+  const year = d.getFullYear();
   return `<p class="editorial-note" style="color:#555;font-size:.85rem;margin:-.5rem 0 1.5rem">Researched with live web data, reviewed against ${esc(month)} ${year} sources.</p>`;
 }
 
