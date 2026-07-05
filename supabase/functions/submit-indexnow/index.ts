@@ -150,18 +150,10 @@ Deno.serve(async (req) => {
       console.warn("INDEXNOW_KEY not set — skipping IndexNow submission");
     }
 
-    let googlePingStatus = "skipped";
-    try {
-      const sitemapUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-sitemap?type=main`;
-      const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-      const resp = await fetch(pingUrl);
-      await resp.text();
-      googlePingStatus = resp.ok ? "ok" : `error_${resp.status}`;
-      console.log(`Google ping response: ${resp.status}`);
-    } catch (e: any) {
-      console.error("Google ping error:", e);
-      googlePingStatus = `error: ${e.message}`;
-    }
+    // Google shut down google.com/ping?sitemap= in 2023 (now 404s). Discovery
+    // now happens through the sitemap referenced in robots.txt + IndexNow
+    // (Bing/Yandex/others). Google reads the sitemap on its own schedule.
+
 
     const logEntries = urlList.map((url) => ({
       page_id: pageIdMap[url] || null,
