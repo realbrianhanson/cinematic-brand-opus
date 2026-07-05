@@ -77,18 +77,18 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
                     style={{ width: 16, height: 16 }}
                   />
                   <div className="flex-1">
-                    <h3 className="font-body font-semibold mb-1" style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textDecoration: isChecked ? "line-through" : "none" }}>
+                    <h3 className="font-body font-semibold mb-1" style={{ fontSize: 18, color: "rgba(255,255,255,0.95)", textDecoration: isChecked ? "line-through" : "none", lineHeight: 1.4 }}>
                       {step.title || step.name}
                     </h3>
-                    {step.description && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(step.description)}</p>}
+                    {step.description && <p className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(step.description)}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {step.priority && (
-                        <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 9, letterSpacing: "0.1em", background: pc.bg, color: pc.color }}>
+                        <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: pc.bg, color: pc.color, border: `1px solid ${pc.border}` }}>
                           {step.priority}
                         </span>
                       )}
                       {step.estimated_time && (
-                        <span className="font-body" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{step.estimated_time}</span>
+                        <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{step.estimated_time}</span>
                       )}
                     </div>
                   </div>
