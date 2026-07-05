@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       .update({ quality_score: score })
       .eq("id", page_id);
 
-    return new Response(JSON.stringify({ page_id, score, issues, publishable: score >= 60 }), {
+    return new Response(JSON.stringify({ page_id, score, issues, publishable: score >= 75 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
