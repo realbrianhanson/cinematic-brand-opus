@@ -23,6 +23,8 @@ const defaultSettings = {
   cta_social_proof: "",
   report_email: "",
   report_enabled: false,
+  voice_profile: "",
+  banned_phrases: [] as string[],
 };
 
 type Settings = typeof defaultSettings & { id?: string };
