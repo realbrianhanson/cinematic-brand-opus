@@ -677,12 +677,12 @@ async function renderGeneratedPage(
     .join("")}
   ${
     Array.isArray(content.common_mistakes) && content.common_mistakes.length
-      ? `<section><h2>Common mistakes</h2>${content.common_mistakes.map((m: any) => renderNode(m, 3)).join("")}</section>`
+      ? `<section><h2>Common mistakes</h2>${content.common_mistakes.map((m: any) => renderItem(m)).join("")}</section>`
       : ""
   }
   ${
     Array.isArray(content.pro_tips) && content.pro_tips.length
-      ? `<section><h2>Pro tips</h2>${content.pro_tips.map((t: any) => renderNode(t, 3)).join("")}</section>`
+      ? `<section><h2>Pro tips</h2>${content.pro_tips.map((t: any) => renderItem(t)).join("")}</section>`
       : ""
   }
   ${
