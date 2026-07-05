@@ -4,6 +4,10 @@ import {
   formatVoiceBlock,
   refineWithVoice,
   scoreContent,
+  composeTitle,
+  composePageTitle,
+  countContentItems,
+  writeMetaDescription,
   type VoiceConfig,
 } from "../_shared/voice.ts";
 
@@ -116,10 +120,11 @@ function generateFallbackAngles(nicheName: string, schemaName: string, count: nu
 
 // ─── Real-time research via Perplexity + Firecrawl ───
 
-async function researchTopic(angle: string, nicheName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean }> {
+async function researchTopic(angle: string, nicheName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean; sources: { url: string; title?: string }[] }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
+  const sources: { url: string; title?: string }[] = [];
 
   if (PERPLEXITY_API_KEY) {
     try {
@@ -143,6 +148,10 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
         if (content) {
           researchParts.push(`LIVE RESEARCH (sourced ${currentYear}, grounded in web search):\n${content}`);
           if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 8).join(", ")}`);
+        }
+        for (const c of citations.slice(0, 8)) {
+          if (typeof c === "string" && c.startsWith("http")) sources.push({ url: c });
+          else if (c && typeof c === "object" && typeof c.url === "string") sources.push({ url: c.url, title: c.title });
         }
       } else {
         console.error("Perplexity research failed:", resp.status);
@@ -169,6 +178,9 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
         if (results.length > 0) {
           const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 600).trim()}`).join("\n\n");
           researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+          for (const r of results) {
+            if (r?.url) sources.push({ url: r.url, title: r.title || undefined });
+          }
         }
       } else {
         console.error("Firecrawl search failed:", searchResp.status);
@@ -178,13 +190,22 @@ async function researchTopic(angle: string, nicheName: string, audience: string,
     }
   }
 
+  // De-dupe sources by URL, cap at 8
+  const seen = new Set<string>();
+  const dedupedSources = sources.filter((s) => {
+    if (!s.url || seen.has(s.url)) return false;
+    seen.add(s.url);
+    return true;
+  }).slice(0, 8);
+
   if (researchParts.length === 0) {
     console.warn(`⚠️ No research data available for "${angle}" in "${nicheName}" — content will be conservative`);
-    return { context: "", hasResearch: false };
+    return { context: "", hasResearch: false, sources: dedupedSources };
   }
   return {
     context: `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\nThe following is CURRENT, VERIFIED information from live web sources. This is your ONLY source of truth for tool/platform/company names.\nYou MUST ONLY reference tools, platforms, and companies that appear in this research data.\nDo NOT add any tools from your own training data. If a tool is not listed below, do NOT include it.\n\n${researchParts.join("\n\n")}\n\n═══ END OF RESEARCH DATA ═══`,
     hasResearch: true,
+    sources: dedupedSources,
   };
 }
 
@@ -481,32 +502,14 @@ async function handleStepProcessing(
 
   const ctx = (niche.context || {}) as Record<string, any>;
   const currentYear = new Date().getFullYear();
-  const estimatedCount = (schema.items_per_section || 15) * 3;
-  const title = `${estimatedCount} Best ${item.angle} in ${currentYear}`;
-  const pageSlug = slugify(title);
+  // Provisional working title used only inside the AI prompt to anchor the topic.
+  // The real title (and slug) are composed AFTER generation from the actual item count.
+  const workingTitle = `${item.angle} for ${niche.name} (${currentYear})`;
 
-  // Check for duplicate slug
-  const { data: existingSlug } = await supabase
-    .from("generated_pages")
-    .select("id")
-    .eq("slug", pageSlug)
-    .limit(1);
-
-  if (existingSlug && existingSlug.length > 0) {
-    skippedCount++;
-    await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
-    await logGeneration(supabase, { batch_id, generated_page_id: null, status: "duplicate_skipped", error_message: `Slug exists: ${pageSlug}`, tokens_used: 0, cost: 0, duration_ms: Date.now() - startTime });
-    triggerNextStep(supabaseUrl, serviceRoleKey, {
-      job_id, batch_id, work_queue, current_index: current_index + 1,
-      success_count: successCount, failed_count: failedCount, skipped_count: skippedCount, pages,
-    });
-    return;
-  }
-
-  console.log(`[${current_index + 1}/${work_queue.length}] Generating: ${title}`);
+  console.log(`[${current_index + 1}/${work_queue.length}] Generating: ${workingTitle}`);
 
   // Research phase
-  const { context: researchContext, hasResearch } = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
+  const { context: researchContext, hasResearch, sources } = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
 
   // Load voice config (per-site, from site_settings)
   const voice = await loadVoiceConfig(supabase);
@@ -516,7 +519,7 @@ async function handleStepProcessing(
   const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
 
 ${voiceBlock}`;
-  const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext, hasResearch);
+  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -579,14 +582,53 @@ ${voiceBlock}`;
     contentJson = refined.refined;
     lintFlags = refined.remainingViolations;
     if (refined.errors.length) {
-      console.warn(`Refine pass warnings for "${title}":`, refined.errors.join(" | "));
+      console.warn(`Refine pass warnings:`, refined.errors.join(" | "));
     }
     if (lintFlags.length) {
-      console.warn(`${lintFlags.length} lint violations remain in "${title}" (stored as lint_flags)`);
+      console.warn(`${lintFlags.length} lint violations remain (stored as lint_flags)`);
     }
   } catch (e: any) {
-    console.error(`Refine pass threw for "${title}":`, e.message);
+    console.error(`Refine pass threw:`, e.message);
   }
+
+  // Attach citations to content_json for the frontend + crawler renderer.
+  if (sources.length) {
+    contentJson.sources = sources;
+  }
+
+  // ─── Compose final title from ACTUAL item count (not the estimate) ───
+  const actualCount = countContentItems(contentJson);
+  const overridePatterns: string[] = Array.isArray((schema as any).title_patterns)
+    ? (schema as any).title_patterns
+    : [];
+  const title = composePageTitle({
+    schemaSlug: schema.slug,
+    angle: item.angle,
+    niche: niche.name,
+    audience: ctx.audience || "creators",
+    year: currentYear,
+    actualCount,
+    overridePatterns,
+  });
+
+  // Make slug unique by suffixing if needed.
+  let pageSlug = slugify(title);
+  {
+    let suffix = 1;
+    let candidate = pageSlug;
+    while (true) {
+      const { data: existingSlug } = await supabase
+        .from("generated_pages").select("id").eq("slug", candidate).limit(1);
+      if (!existingSlug || existingSlug.length === 0) break;
+      suffix += 1;
+      candidate = `${pageSlug}-${suffix}`;
+      if (suffix > 20) break;
+    }
+    pageSlug = candidate;
+  }
+
+  // Ensure title in content_json matches
+  contentJson.title = title;
 
   // Auto-score the final content
   const { score: qualityScore, issues: qualityIssues } = scoreContent(contentJson, title);
@@ -594,11 +636,15 @@ ${voiceBlock}`;
     console.log(`Quality score for "${title}": ${qualityScore}/100 — issues:`, qualityIssues);
   }
 
-  // Build SEO meta and save (title composed safely — never mid-word cut)
+  // Build SEO meta — title via composeTitle (never mid-word cut), description AI-written
   const siteName = siteSettings?.publisher_name || siteSettings?.site_name || "";
-  const fullMetaTitle = siteName ? `${title} | ${siteName}` : title;
-  const metaTitle = fullMetaTitle.length <= 65 ? fullMetaTitle : title;
-  const metaDesc = `Discover the best ${item.angle.toLowerCase()} curated for ${niche.name}. Updated ${currentYear} with real-time research.`.slice(0, 160);
+  const metaTitle = composeTitle(title, siteName);
+  const fallbackDesc = `${item.angle} for ${niche.name}: ${actualCount || "a curated set of"} options, verified against ${currentYear} sources.`;
+  const metaDesc = await writeMetaDescription({
+    apiKey, model: AI_MODEL, voice, contentJson,
+    primaryKeyword: item.keyword, angle: item.angle, niche: niche.name,
+    fallback: fallbackDesc,
+  });
   const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
   const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, item.keyword, niche.name.toLowerCase()], og_image: null };
 
@@ -632,6 +678,7 @@ ${voiceBlock}`;
     pages.push(savedPage);
     await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
   }
+
 
   // Check if this was the last item
   if (current_index + 1 >= work_queue.length) {
@@ -722,7 +769,7 @@ ${researchConstraints}
 ${blocklist}
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 
-TITLE (pre-generated, include in output as-is):
+WORKING TITLE (for internal reference — the final title will be composed post-generation, DO NOT pre-invent an item count):
 ${title}
 
 Generate the content now. Return ONLY the JSON object.`;
@@ -743,13 +790,12 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
 
   const angles = await generateUniqueAngles(niche.name, schema.name, 1, existingTitles, ctx.audience || "general", apiKey);
   const { angle, keyword } = angles[0];
-  const estimatedCount = (schema.items_per_section || 15) * 3;
-  const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
+  const workingTitle = `${angle} for ${niche.name} (${currentYear})`;
 
   const { context: researchContext, hasResearch } = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
   const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
-  const userMessage = buildUserMessage(niche, schema, ctx, title, angle, currentYear, researchContext, hasResearch);
+  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -786,6 +832,15 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
     }
   }
 
+  const actualCount = contentJson ? countContentItems(contentJson) : 0;
+  const title = composePageTitle({
+    schemaSlug: schema.slug,
+    angle,
+    niche: niche.name,
+    audience: ctx.audience || "creators",
+    year: currentYear,
+    actualCount,
+  });
   return new Response(
     JSON.stringify({
       dry_run: true,

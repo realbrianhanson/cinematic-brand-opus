@@ -160,15 +160,18 @@ const GeneratedPage = () => {
 
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
-        <div className="flex items-center gap-4 flex-wrap mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
           {settings?.author_name && <span className="font-body">By {settings.author_name}</span>}
           <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
           {page.last_refreshed && (
             <span className="font-body flex items-center gap-1">
-              <Calendar size={11} /> Updated {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <Calendar size={11} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </span>
           )}
         </div>
+        <p className="font-body mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+          Researched with live web data, reviewed against {new Date().toLocaleString("en-US", { month: "long" })} {new Date().getFullYear()} sources.
+        </p>
 
         <div className="flex items-center gap-3 mb-10">
           {[
@@ -195,12 +198,16 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="inline" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
 
+        <SourcesSection sources={content?.sources} />
+
         {faqs && Array.isArray(faqs) && faqs.length > 0 && (
           <div className="mt-16">
             <h2 className="font-display italic mb-8" style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
             <FAQAccordion faqs={faqs} pageId={page.id} />
           </div>
         )}
+
+        <AuthorBox settings={settings} lastVerified={page.last_refreshed || page.created_at} />
 
         <div className="mt-16 p-8 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="font-body mb-4" style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>Was this helpful?</p>
@@ -256,6 +263,73 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
         </div>
       ))}
     </div>
+  );
+};
+
+const SourcesSection = ({ sources }: { sources: any }) => {
+  if (!Array.isArray(sources) || sources.length === 0) return null;
+  const items = sources
+    .filter((s) => s && typeof s.url === "string" && /^https?:\/\//i.test(s.url))
+    .slice(0, 8);
+  if (!items.length) return null;
+  return (
+    <div className="mt-16">
+      <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Sources</h2>
+      <ul className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.8, listStyle: "disc", paddingLeft: "1.25rem" }}>
+        {items.map((s, i) => (
+          <li key={i}>
+            <a href={s.url} target="_blank" rel="noopener" style={{ color: "#D4AF55", wordBreak: "break-word" }}>
+              {s.title || s.url}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const AuthorBox = ({ settings, lastVerified }: { settings: any; lastVerified?: string | null }) => {
+  if (!settings?.author_name && !settings?.author_bio) return null;
+  const social = Object.entries(settings.author_social_links ?? {}).filter(
+    ([, v]) => typeof v === "string" && v,
+  ) as [string, string][];
+  const creds: string[] = Array.isArray(settings.author_credentials) ? settings.author_credentials : [];
+  return (
+    <aside className="mt-16 p-6" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(212,175,85,0.02)" }}>
+      <h2 className="font-display italic mb-4" style={{ fontSize: 20 }}>About the author</h2>
+      <p className="font-body mb-2" style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}>
+        <strong>{settings.author_name}</strong>
+        {settings.author_title ? `, ${settings.author_title}` : ""}
+      </p>
+      {settings.author_bio && (
+        <p className="font-body mb-3" style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}>
+          {settings.author_bio}
+        </p>
+      )}
+      {creds.length > 0 && (
+        <p className="font-body mb-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+          <strong style={{ color: "rgba(255,255,255,0.65)" }}>Credentials:</strong> {creds.join(", ")}
+        </p>
+      )}
+      {social.length > 0 && (
+        <p className="font-body" style={{ fontSize: 12 }}>
+          {social.map(([k, v], i) => (
+            <span key={k}>
+              {i > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · </span>}
+              <a href={v} target="_blank" rel="noopener" style={{ color: "#D4AF55" }}>
+                {k}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      {lastVerified && (
+        <p className="font-body mt-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+          Last verified{" "}
+          {new Date(lastVerified).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        </p>
+      )}
+    </aside>
   );
 };
 

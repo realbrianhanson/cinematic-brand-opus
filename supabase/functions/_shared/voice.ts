@@ -472,3 +472,229 @@ export async function refineWithVoice(params: {
     errors,
   };
 }
+
+// ─────────────────────────── TITLE / META HELPERS ───────────────────────────
+
+/**
+ * Compose "Page Title | Site Name" but drop the suffix entirely if it would
+ * push past ~65 chars. Never cut mid-word.
+ */
+export function composeTitle(pageTitle: string, siteName: string, maxLen = 65): string {
+  const t = (pageTitle || "").trim();
+  const s = (siteName || "").trim();
+  if (!t) return s;
+  const full = s ? `${t} | ${s}` : t;
+  return full.length <= maxLen ? full : t;
+}
+
+/**
+ * Count list-item children across sections in a generated content_json.
+ * Handles all known schema variants (items/tools/steps/checklist_items/templates/faqs).
+ */
+export function countContentItems(contentJson: any): number {
+  const sections =
+    (Array.isArray(contentJson?.sections) && contentJson.sections) ||
+    (Array.isArray(contentJson?.categories) && contentJson.categories) ||
+    [];
+  let n = 0;
+  for (const s of sections) {
+    const kids =
+      (Array.isArray(s?.items) && s.items) ||
+      (Array.isArray(s?.tools) && s.tools) ||
+      (Array.isArray(s?.templates) && s.templates) ||
+      (Array.isArray(s?.checklist_items) && s.checklist_items) ||
+      (Array.isArray(s?.steps) && s.steps) ||
+      (Array.isArray(s?.faqs) && s.faqs) ||
+      [];
+    n += kids.length;
+  }
+  return n;
+}
+
+/**
+ * Cheap deterministic hash for stable pattern selection across regenerations.
+ */
+function hash(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+const TITLE_PATTERNS: Record<string, string[]> = {
+  "tool-roundups": [
+    "{n} Best {angle} in {year}",
+    "{angle}: {n} Tools Worth Paying For in {year}",
+    "The {n} Top {angle} for {audience} ({year})",
+  ],
+  "checklists": [
+    "The {angle} Checklist: {n} Steps",
+    "{angle}: A {n}-Point Checklist for {audience}",
+    "{angle} Checklist for {year}",
+  ],
+  "strategy-guides": [
+    "How to {angle}: A Practical Guide",
+    "{angle} Strategy Guide for {audience}",
+    "The {audience} Guide to {angle} in {year}",
+  ],
+  "ideas-use-cases": [
+    "{n} {angle} Ideas That Actually Work",
+    "{n} Ways to Use {angle}",
+    "{angle}: {n} Real Use Cases for {audience}",
+  ],
+  "guides": [
+    "How to {angle}: A Practical Guide",
+    "{angle}: The {audience} Guide",
+  ],
+  "templates": [
+    "{n} {angle} Templates for {audience}",
+    "{angle}: {n} Ready-to-Use Templates",
+  ],
+  "faqs": [
+    "{angle}: FAQ for {audience}",
+    "Common Questions About {angle}",
+  ],
+};
+
+const FALLBACK_PATTERNS_WITH_N = [
+  "{n} Best {angle} in {year}",
+  "{n} {angle} Ideas That Actually Work",
+];
+const FALLBACK_PATTERNS_NO_N = [
+  "{angle}: A Practical Guide for {audience}",
+  "How to {angle} in {year}",
+];
+
+/**
+ * Deterministically pick a title pattern (same inputs → same output on regen)
+ * and fill in slots. If actualCount < 10, avoids "{n}" patterns entirely.
+ */
+export function composePageTitle(params: {
+  schemaSlug: string;
+  angle: string;
+  niche: string;
+  audience: string;
+  year: number;
+  actualCount: number;
+  overridePatterns?: string[];
+}): string {
+  const { schemaSlug, angle, niche, audience, year, actualCount, overridePatterns } = params;
+  const hasCount = actualCount >= 10;
+  const rawPatterns =
+    overridePatterns && overridePatterns.length
+      ? overridePatterns
+      : TITLE_PATTERNS[schemaSlug] || (hasCount ? FALLBACK_PATTERNS_WITH_N : FALLBACK_PATTERNS_NO_N);
+  const pool = hasCount ? rawPatterns : rawPatterns.filter((p) => !p.includes("{n}"));
+  const patterns = pool.length ? pool : FALLBACK_PATTERNS_NO_N;
+  const idx = hash(`${niche}|${schemaSlug}|${angle}`) % patterns.length;
+  const tpl = patterns[idx];
+  return tpl
+    .replace(/\{n\}/g, String(actualCount))
+    .replace(/\{angle\}/g, angle)
+    .replace(/\{niche\}/g, niche)
+    .replace(/\{audience\}/g, audience || "creators")
+    .replace(/\{year\}/g, String(year))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ─────────────────────────── META DESCRIPTION ───────────────────────────
+
+/**
+ * Ask the model to write a unique 140-160 char meta description grounded in the
+ * finished content. Must include the primary keyword and one concrete specific
+ * (number, tool name, or outcome) from the page. Never starts with "Discover".
+ */
+export async function writeMetaDescription(params: {
+  apiKey: string;
+  model: string;
+  voice: VoiceConfig;
+  contentJson: any;
+  primaryKeyword: string;
+  angle: string;
+  niche: string;
+  fallback: string;
+}): Promise<string> {
+  const { apiKey, model, voice, contentJson, primaryKeyword, angle, niche, fallback } = params;
+
+  // Compact content sample for the prompt: intro + first section headings + first few item names
+  const sample: any = { intro: contentJson?.intro || "" };
+  const sections =
+    (Array.isArray(contentJson?.sections) && contentJson.sections) ||
+    (Array.isArray(contentJson?.categories) && contentJson.categories) ||
+    [];
+  sample.sections = sections.slice(0, 3).map((s: any) => {
+    const kids =
+      (Array.isArray(s?.items) && s.items) ||
+      (Array.isArray(s?.tools) && s.tools) ||
+      (Array.isArray(s?.templates) && s.templates) ||
+      (Array.isArray(s?.checklist_items) && s.checklist_items) ||
+      (Array.isArray(s?.steps) && s.steps) ||
+      [];
+    return {
+      title: s?.title || s?.heading || s?.name,
+      items: kids.slice(0, 4).map((k: any) => k?.name || k?.title || k?.tool_name || k?.idea || k?.step || k?.task).filter(Boolean),
+    };
+  });
+
+  const bannedList = voice.banned_phrases.length
+    ? `\nBanned phrases (never use): ${JSON.stringify(voice.banned_phrases)}`
+    : "";
+
+  const prompt = `Write ONE meta description for a page about "${angle}" in the "${niche}" niche.
+
+REQUIREMENTS (all hard constraints):
+- 140-160 characters, single line, plain text
+- Must contain the primary keyword: "${primaryKeyword}"
+- Must include one concrete specific (a number, a tool name, or an outcome) drawn from the CONTENT SAMPLE below
+- MUST NOT start with the word "Discover"
+- MUST NOT use em dash (—) or en dash (–)
+- No emojis, no quotes, no markdown${bannedList}
+
+CONTENT SAMPLE (draw your specific from here):
+${JSON.stringify(sample).slice(0, 2500)}
+
+Return ONLY the meta description text. No JSON, no quotes, no preamble.`;
+
+  try {
+    const resp = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "You write tight, honest meta descriptions. Return only the description text." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 200,
+      }),
+    });
+    if (!resp.ok) return fallback.slice(0, 160);
+    const data = await resp.json();
+    let text = (data.choices?.[0]?.message?.content || "").trim();
+    text = text.replace(/^["'`\s]+|["'`\s]+$/g, "");
+    text = text.replace(/[—–]/g, ", ");
+    // Strip a leading "Discover " if the model ignored the rule.
+    text = text.replace(/^discover\s+/i, "");
+    // Enforce banned phrases: if any slipped in, fall back.
+    const lower = text.toLowerCase();
+    for (const p of voice.banned_phrases) {
+      if (p && lower.includes(p.toLowerCase())) return fallback.slice(0, 160);
+    }
+    if (text.length < 80 || text.length > 200) {
+      // Trim to 160 without cutting a word.
+      if (text.length > 160) {
+        const cut = text.slice(0, 160);
+        const sp = cut.lastIndexOf(" ");
+        text = (sp > 100 ? cut.slice(0, sp) : cut).trimEnd();
+      }
+      if (text.length < 80) return fallback.slice(0, 160);
+    }
+    return text;
+  } catch {
+    return fallback.slice(0, 160);
+  }
+}
