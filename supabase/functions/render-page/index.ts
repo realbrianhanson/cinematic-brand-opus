@@ -628,8 +628,14 @@ async function renderGeneratedPage(
       (Array.isArray(s?.faqs) && s.faqs) ||
       [];
     for (const k of kids) {
-      const name = k?.name || k?.title || k?.task || k?.question;
-      if (name) listItems.push(String(name));
+      if (!k || typeof k !== "object") continue;
+      const o = k as Record<string, unknown>;
+      let name: string | null = null;
+      for (const nk of ITEM_NAME_KEYS) {
+        const v = o[nk];
+        if (typeof v === "string" && v.trim()) { name = v; break; }
+      }
+      if (name) listItems.push(name);
     }
   }
 
