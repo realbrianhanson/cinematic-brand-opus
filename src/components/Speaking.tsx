@@ -52,10 +52,10 @@ const TopicCard = ({ topic, index }: { topic: (typeof topics)[0]; index: number 
       onMouseLeave={() => setHovered(false)}
       data-hover
     >
-      <h4 className="font-display text-foreground" style={{ fontSize: "1.15rem" }}>
+      <h4 className="font-display text-foreground" style={{ fontSize: "1.25rem" }}>
         {topic.title}
       </h4>
-      <p className="font-body mt-2" style={{ fontSize: "0.88rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)" }}>
+      <p className="font-body mt-2" style={{ fontSize: "1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.85)" }}>
         {topic.desc}
       </p>
     </div>
