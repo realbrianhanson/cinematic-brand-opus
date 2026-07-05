@@ -249,8 +249,8 @@ const GeneratedPage = () => {
         </div>
 
         {content?.intro && (
-          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
-            <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>{content.intro}</p>
+          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.06)" }}>
+            <p className="font-body" style={{ fontSize: 18, color: "rgba(255,255,255,0.92)", lineHeight: 1.75 }}>{content.intro}</p>
           </div>
         )}
 
