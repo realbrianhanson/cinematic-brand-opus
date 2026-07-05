@@ -127,28 +127,41 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { page_ids, all_stale = false } = body;
+    const { page_ids, page_id, all_stale = false, max_pages } = body;
     const batch_id = crypto.randomUUID();
+    const explicitIds: string[] | null = Array.isArray(page_ids)
+      ? page_ids
+      : (typeof page_id === "string" ? [page_id] : null);
 
     let pagesToRefresh: any[] = [];
+    let skippedHumanEdited: { id: string; slug: string; title: string }[] = [];
+
     if (all_stale) {
-      const { data, error } = await supabase
+      let q = supabase
         .from("generated_pages")
         .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
         .eq("performance_trend", "needs_refresh")
-        .eq("status", "published");
+        .eq("status", "published")
+        .order("last_refreshed", { ascending: true, nullsFirst: true });
+      if (typeof max_pages === "number" && max_pages > 0) q = q.limit(max_pages);
+      const { data, error } = await q;
       if (error) throw new Error(`Query failed: ${error.message}`);
-      pagesToRefresh = data || [];
-    } else if (Array.isArray(page_ids) && page_ids.length > 0) {
+      const all = data || [];
+      // Skip human-edited pages in all_stale (they require explicit page_id override)
+      for (const p of all) {
+        if ((p as any).human_edited) skippedHumanEdited.push({ id: p.id, slug: p.slug, title: p.title });
+        else pagesToRefresh.push(p);
+      }
+    } else if (explicitIds && explicitIds.length > 0) {
       const { data, error } = await supabase
         .from("generated_pages")
         .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
-        .in("id", page_ids);
+        .in("id", explicitIds);
       if (error) throw new Error(`Query failed: ${error.message}`);
       pagesToRefresh = data || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Provide page_ids array or all_stale: true" }),
+        JSON.stringify({ error: "Provide page_ids array, page_id, or all_stale: true" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
