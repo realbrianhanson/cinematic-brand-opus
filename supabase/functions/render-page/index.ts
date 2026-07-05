@@ -588,34 +588,70 @@ async function renderGeneratedPage(
   const ogImage = seo.og_image || seo.image || undefined;
 
 
-  // niche + pillar + siblings
+  // niche + pillar + siblings.
+  // Prefer stored internal_links (built at publish time) so anchor text + link set
+  // stays consistent with the silo model. Falls back to a live niche query.
   let niche: any = null;
   let pillar: any = null;
-  let siblings: any[] = [];
+  let siblings: { slug: string; title: string; content_schema_id?: string; content_schema_slug?: string; anchor_text?: string }[] = [];
   if (page.niche_id) {
     const { data: n } = await supabase
-      .from("niches")
-      .select("id, slug, name")
-      .eq("id", page.niche_id)
-      .maybeSingle();
+      .from("niches").select("id, slug, name").eq("id", page.niche_id).maybeSingle();
     niche = n;
-    const [{ data: pil }, { data: sibs }] = await Promise.all([
-      supabase
-        .from("pillar_pages")
-        .select("slug, title, status")
-        .eq("niche_id", page.niche_id)
-        .eq("status", "published")
-        .maybeSingle(),
-      supabase
+
+    // Try stored internal_links first
+    const { data: storedLinks } = await supabase
+      .from("internal_links")
+      .select("target_page_id, target_page_type, link_type, anchor_text")
+      .eq("source_page_id", page.id)
+      .in("link_type", ["silo_up", "silo_sibling"]);
+
+    const siblingTargetIds = (storedLinks ?? [])
+      .filter((l: any) => l.link_type === "silo_sibling" && l.target_page_type === "generated")
+      .map((l: any) => l.target_page_id);
+    const pillarLink = (storedLinks ?? []).find((l: any) => l.link_type === "silo_up" && l.target_page_type === "pillar");
+
+    if (siblingTargetIds.length > 0) {
+      const { data: sibs } = await supabase
         .from("generated_pages")
-        .select("slug, title, content_schema_id")
-        .eq("niche_id", page.niche_id)
-        .eq("status", "published")
-        .neq("id", page.id)
-        .limit(8),
-    ]);
-    pillar = pil;
-    siblings = sibs ?? [];
+        .select("id, slug, title, content_schema_id, content_schemas(slug)")
+        .in("id", siblingTargetIds);
+      const anchorById: Record<string, string> = {};
+      for (const l of storedLinks ?? []) if (l.link_type === "silo_sibling") anchorById[l.target_page_id] = l.anchor_text;
+      siblings = (sibs ?? []).map((s: any) => ({
+        slug: s.slug,
+        title: s.title,
+        content_schema_id: s.content_schema_id,
+        content_schema_slug: s.content_schemas?.slug,
+        anchor_text: anchorById[s.id] || s.title,
+      }));
+    }
+    if (pillarLink) {
+      const { data: pil } = await supabase
+        .from("pillar_pages").select("slug, title").eq("id", pillarLink.target_page_id).maybeSingle();
+      if (pil) pillar = pil;
+    }
+
+    // Fallback if nothing stored yet
+    if (siblings.length === 0 || !pillar) {
+      const [{ data: pil }, { data: sibs }] = await Promise.all([
+        pillar ? Promise.resolve({ data: pillar }) : supabase
+          .from("pillar_pages").select("slug, title, status")
+          .eq("niche_id", page.niche_id).eq("status", "published").maybeSingle(),
+        siblings.length > 0 ? Promise.resolve({ data: null }) : supabase
+          .from("generated_pages")
+          .select("slug, title, content_schema_id, content_schemas(slug)")
+          .eq("niche_id", page.niche_id).eq("status", "published").neq("id", page.id).limit(10),
+      ]);
+      if (!pillar && pil) pillar = pil;
+      if (siblings.length === 0 && sibs) {
+        siblings = (sibs as any[]).map((s: any) => ({
+          slug: s.slug, title: s.title,
+          content_schema_id: s.content_schema_id,
+          content_schema_slug: s.content_schemas?.slug,
+        }));
+      }
+    }
   }
 
   // Related blog posts (recent, no strict topical join available)
