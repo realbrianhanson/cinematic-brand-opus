@@ -58,7 +58,7 @@ const truncate = (s: string, n = 160) =>
 function renderNode(node: unknown, depth = 3): string {
   if (node === null || node === undefined) return "";
   if (typeof node === "string") {
-    return node.trim() ? `<p>${esc(node)}</p>` : "";
+    return node.trim() ? `<p>${escWithLinks(node)}</p>` : "";
   }
   if (typeof node === "number" || typeof node === "boolean") {
     return `<p>${esc(String(node))}</p>`;
@@ -78,7 +78,7 @@ function renderNode(node: unknown, depth = 3): string {
       if (v === null || v === undefined || v === "") continue;
       const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-        out += `<p><strong>${esc(label)}:</strong> ${esc(String(v))}</p>`;
+        out += `<p><strong>${esc(label)}:</strong> ${escWithLinks(v)}</p>`;
       } else if (Array.isArray(v)) {
         if (v.every((x) => typeof x === "string")) {
           out += `<p><strong>${esc(label)}:</strong></p><ul>${v.map((x) => `<li>${esc(String(x))}</li>`).join("")}</ul>`;
@@ -124,7 +124,7 @@ function renderItem(item: unknown): string {
     if (v === null || v === undefined || v === "") continue;
     const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-      out += `<p><strong>${esc(label)}:</strong> ${esc(String(v))}</p>`;
+      out += `<p><strong>${esc(label)}:</strong> ${escWithLinks(v)}</p>`;
     } else if (Array.isArray(v)) {
       if (v.every((x) => typeof x === "string")) {
         out += `<p><strong>${esc(label)}:</strong></p><ul>${v.map((x) => `<li>${esc(String(x))}</li>`).join("")}</ul>`;
