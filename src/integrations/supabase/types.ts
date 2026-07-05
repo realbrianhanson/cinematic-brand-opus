@@ -153,8 +153,13 @@ export type Database = {
           id: string
           keyword_difficulty: string | null
           last_refreshed: string | null
+          lint_flags: Json | null
           niche_id: string | null
           performance_trend: string | null
+          publish_override: boolean
+          publish_override_at: string | null
+          publish_override_by: string | null
+          publish_override_reason: string | null
           published_at: string | null
           quality_score: number | null
           refresh_count: number | null
@@ -177,8 +182,13 @@ export type Database = {
           id?: string
           keyword_difficulty?: string | null
           last_refreshed?: string | null
+          lint_flags?: Json | null
           niche_id?: string | null
           performance_trend?: string | null
+          publish_override?: boolean
+          publish_override_at?: string | null
+          publish_override_by?: string | null
+          publish_override_reason?: string | null
           published_at?: string | null
           quality_score?: number | null
           refresh_count?: number | null
@@ -201,8 +211,13 @@ export type Database = {
           id?: string
           keyword_difficulty?: string | null
           last_refreshed?: string | null
+          lint_flags?: Json | null
           niche_id?: string | null
           performance_trend?: string | null
+          publish_override?: boolean
+          publish_override_at?: string | null
+          publish_override_by?: string | null
+          publish_override_reason?: string | null
           published_at?: string | null
           quality_score?: number | null
           refresh_count?: number | null
@@ -630,6 +645,12 @@ export type Database = {
           featured_image: string | null
           id: string
           key_takeaways: Json | null
+          lint_flags: Json | null
+          publish_override: boolean
+          publish_override_at: string | null
+          publish_override_by: string | null
+          publish_override_reason: string | null
+          quality_score: number | null
           reading_time: number | null
           scheduled_at: string | null
           slug: string
@@ -647,6 +668,12 @@ export type Database = {
           featured_image?: string | null
           id?: string
           key_takeaways?: Json | null
+          lint_flags?: Json | null
+          publish_override?: boolean
+          publish_override_at?: string | null
+          publish_override_by?: string | null
+          publish_override_reason?: string | null
+          quality_score?: number | null
           reading_time?: number | null
           scheduled_at?: string | null
           slug: string
@@ -664,6 +691,12 @@ export type Database = {
           featured_image?: string | null
           id?: string
           key_takeaways?: Json | null
+          lint_flags?: Json | null
+          publish_override?: boolean
+          publish_override_at?: string | null
+          publish_override_by?: string | null
+          publish_override_reason?: string | null
+          quality_score?: number | null
           reading_time?: number | null
           scheduled_at?: string | null
           slug?: string
@@ -730,6 +763,7 @@ export type Database = {
           author_name: string
           author_social_links: Json | null
           author_title: string | null
+          banned_phrases: string[] | null
           cta_button_text: string | null
           cta_headline: string | null
           cta_social_proof: string | null
@@ -743,6 +777,7 @@ export type Database = {
           site_name: string
           site_url: string
           updated_at: string | null
+          voice_profile: string | null
         }
         Insert: {
           author_bio?: string | null
@@ -750,6 +785,7 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
+          banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null
           cta_social_proof?: string | null
@@ -763,6 +799,7 @@ export type Database = {
           site_name?: string
           site_url?: string
           updated_at?: string | null
+          voice_profile?: string | null
         }
         Update: {
           author_bio?: string | null
@@ -770,6 +807,7 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
+          banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null
           cta_social_proof?: string | null
@@ -783,6 +821,7 @@ export type Database = {
           site_name?: string
           site_url?: string
           updated_at?: string | null
+          voice_profile?: string | null
         }
         Relationships: []
       }
