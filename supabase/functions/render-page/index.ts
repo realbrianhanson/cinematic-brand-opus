@@ -74,6 +74,61 @@ function renderNode(node: unknown, depth = 3): string {
   return "";
 }
 
+// Render a single list item with an <h3> for its name field and paragraphs
+// for every other scalar field. Used for listicle sections (ideas, tools,
+// strategies, checklist steps, templates, etc.) so crawlers see proper
+// heading hierarchy instead of flat <p><strong>Idea:</strong> ...</p>.
+const ITEM_NAME_KEYS = [
+  "name", "title", "tool_name", "idea", "strategy", "step", "task",
+  "question", "mistake", "heading", "template_name", "tactic",
+];
+
+function renderItem(item: unknown): string {
+  if (item === null || item === undefined) return "";
+  if (typeof item !== "object" || Array.isArray(item)) {
+    return renderNode(item, 3);
+  }
+  const o = item as Record<string, unknown>;
+  let nameKey: string | null = null;
+  for (const k of ITEM_NAME_KEYS) {
+    const v = o[k];
+    if (typeof v === "string" && v.trim()) {
+      nameKey = k;
+      break;
+    }
+  }
+  let out = "";
+  if (nameKey) out += `<h3>${esc(String(o[nameKey]))}</h3>`;
+  for (const [k, v] of Object.entries(o)) {
+    if (k === nameKey) continue;
+    if (v === null || v === undefined || v === "") continue;
+    const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+      out += `<p><strong>${esc(label)}:</strong> ${esc(String(v))}</p>`;
+    } else if (Array.isArray(v)) {
+      if (v.every((x) => typeof x === "string")) {
+        out += `<p><strong>${esc(label)}:</strong></p><ul>${v.map((x) => `<li>${esc(String(x))}</li>`).join("")}</ul>`;
+      } else {
+        out += `<p><strong>${esc(label)}:</strong></p>${renderNode(v, 4)}`;
+      }
+    } else {
+      out += `<p><strong>${esc(label)}:</strong></p>${renderNode(v, 4)}`;
+    }
+  }
+  return out;
+}
+
+// Compose a <title> as "Page Title | Site Name". If that exceeds ~65 chars,
+// drop the site suffix rather than mid-word truncating. Never trust a stored
+// meta title blindly — those can be pre-chopped at 60 chars.
+function composeTitle(pageTitle: string, siteName: string): string {
+  const t = (pageTitle || "").trim();
+  const s = (siteName || "").trim();
+  if (!t) return s;
+  const full = s ? `${t} | ${s}` : t;
+  return full.length <= 65 ? full : t;
+}
+
 // ---------- shell ----------
 
 interface Settings {
@@ -488,8 +543,9 @@ async function renderGeneratedPage(
     seo.meta_description ||
     seo.description ||
     (typeof content.intro === "string" ? truncate(content.intro) : `Read: ${page.title}`);
-  const title = seo.meta_title || seo.title || `${page.title} — ${settings.publisher_name || ""}`.trim();
+  const title = composeTitle(page.title, settings.site_name || settings.publisher_name || "");
   const ogImage = seo.og_image || seo.image || undefined;
+
 
   // niche + pillar + siblings
   let niche: any = null;
@@ -572,8 +628,14 @@ async function renderGeneratedPage(
       (Array.isArray(s?.faqs) && s.faqs) ||
       [];
     for (const k of kids) {
-      const name = k?.name || k?.title || k?.task || k?.question;
-      if (name) listItems.push(String(name));
+      if (!k || typeof k !== "object") continue;
+      const o = k as Record<string, unknown>;
+      let name: string | null = null;
+      for (const nk of ITEM_NAME_KEYS) {
+        const v = o[nk];
+        if (typeof v === "string" && v.trim()) { name = v; break; }
+      }
+      if (name) listItems.push(name);
     }
   }
 
@@ -582,6 +644,7 @@ async function renderGeneratedPage(
     extraLd.push({
       "@context": "https://schema.org",
       "@type": "ItemList",
+      numberOfItems: listItems.length,
       itemListElement: listItems.map((n, i) => ({
         "@type": "ListItem",
         position: i + 1,
@@ -614,18 +677,18 @@ async function renderGeneratedPage(
       if (Array.isArray(s?.key_points)) {
         out += `<ul>${s.key_points.map((k: string) => `<li>${esc(k)}</li>`).join("")}</ul>`;
       }
-      for (const k of kids) out += renderNode(k, 3);
+      for (const k of kids) out += renderItem(k);
       return out;
     })
     .join("")}
   ${
     Array.isArray(content.common_mistakes) && content.common_mistakes.length
-      ? `<section><h2>Common mistakes</h2>${content.common_mistakes.map((m: any) => renderNode(m, 3)).join("")}</section>`
+      ? `<section><h2>Common mistakes</h2>${content.common_mistakes.map((m: any) => renderItem(m)).join("")}</section>`
       : ""
   }
   ${
     Array.isArray(content.pro_tips) && content.pro_tips.length
-      ? `<section><h2>Pro tips</h2>${content.pro_tips.map((t: any) => renderNode(t, 3)).join("")}</section>`
+      ? `<section><h2>Pro tips</h2>${content.pro_tips.map((t: any) => renderItem(t)).join("")}</section>`
       : ""
   }
   ${
