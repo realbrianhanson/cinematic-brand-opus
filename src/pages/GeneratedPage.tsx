@@ -168,6 +168,7 @@ const GeneratedPage = () => {
             { name: page.title, url: `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}` },
           ]}
           faqs={faqs}
+          itemListNames={itemListNames}
           siteSettings={settings}
         />
         <Breadcrumbs items={[
