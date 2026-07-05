@@ -198,7 +198,10 @@ const GeneratedPage = () => {
           )}
         </div>
         <p className="font-body mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
-          Researched with live web data, reviewed against {new Date().toLocaleString("en-US", { month: "long" })} {new Date().getFullYear()} sources.
+          {(() => {
+            const d = new Date(page.last_refreshed || page.created_at || Date.now());
+            return `Researched with live web data, reviewed against ${d.toLocaleString("en-US", { month: "long" })} ${d.getFullYear()} sources.`;
+          })()}
         </p>
 
         <div className="flex items-center gap-3 mb-10">
