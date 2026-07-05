@@ -159,6 +159,23 @@ const NichesManager = () => {
     },
   });
 
+  const bulkActiveMutation = useMutation({
+    mutationFn: ({ ids, is_active }: { ids: string[]; is_active: boolean }) =>
+      safeMutation(async () => {
+        if (!ids.length) return;
+        const { error } = await supabase.from("niches").update({ is_active }).in("id", ids);
+        if (error) throw error;
+      }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["admin-niches"] });
+      toast({
+        title: `${vars.is_active ? "Activated" : "Deactivated"} ${vars.ids.length} niche${vars.ids.length === 1 ? "" : "s"}`,
+      });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const openNew = () => {
     setEditingId(null);
     setForm({ ...emptyForm, context: { ...emptyForm.context, subtopics: [], keywords_seed: [] } });
