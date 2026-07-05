@@ -1,0 +1,1 @@
+ALTER FUNCTION public.validate_generated_pages_status() SECURITY INVOKER;
