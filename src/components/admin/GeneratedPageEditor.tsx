@@ -343,7 +343,14 @@ const GeneratedPageEditor = () => {
                 Go Back to Draft
               </button>
               <button
-                onClick={() => { setQualityWarning(null); saveMutation.mutate(); }}
+                onClick={() => {
+                  const reason = window.prompt(
+                    `This page scored ${qualityWarning.score}/100 (threshold: 75). Type a reason to publish anyway — this is logged to publish_override_reason.`,
+                  );
+                  if (!reason || !reason.trim()) return;
+                  setQualityWarning(null);
+                  saveMutation.mutate(reason.trim());
+                }}
                 className="admin-btn-primary"
                 style={{ background: "hsl(var(--admin-warning, 40 90% 50%))" }}
               >
