@@ -4,10 +4,10 @@ import { RotateCcw, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProTips } from "./IdeaListRenderer";
 
-const priorityColors: Record<string, { bg: string; color: string }> = {
-  high: { bg: "rgba(248,113,113,0.12)", color: "#F87171" },
-  medium: { bg: "rgba(251,191,36,0.12)", color: "#FBBF24" },
-  low: { bg: "rgba(74,222,128,0.12)", color: "#4ADE80" },
+const priorityColors: Record<string, { bg: string; color: string; border: string }> = {
+  high: { bg: "rgba(184,150,46,0.18)", color: "#B8962E", border: "rgba(184,150,46,0.45)" },
+  medium: { bg: "rgba(212,175,85,0.14)", color: "#D4AF55", border: "rgba(212,175,85,0.4)" },
+  low: { bg: "rgba(232,201,106,0.10)", color: "#E8C96A", border: "rgba(232,201,106,0.35)" },
 };
 
 const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; nicheName: string; pageId: string }) => {
