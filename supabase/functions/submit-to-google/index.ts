@@ -1,8 +1,9 @@
-// To use Google Indexing API:
-// 1. Create a Google Cloud service account
-// 2. Add it as a verified owner in Google Search Console
-// 3. Set GOOGLE_SERVICE_ACCOUNT_JSON secret with the JSON key contents
-// Falls back to sitemap ping if not configured
+// Google Indexing API submission. Requires:
+// 1. Google Cloud service account
+// 2. Service account added as a verified owner in Google Search Console
+// 3. GOOGLE_SERVICE_ACCOUNT_JSON secret set with the JSON key
+// When the secret is missing, this function returns a clear status —
+// google.com/ping?sitemap= was retired in 2023 and can no longer be used.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
