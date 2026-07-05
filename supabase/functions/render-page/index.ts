@@ -671,7 +671,7 @@ async function renderGeneratedPage(
       if (Array.isArray(s?.key_points)) {
         out += `<ul>${s.key_points.map((k: string) => `<li>${esc(k)}</li>`).join("")}</ul>`;
       }
-      for (const k of kids) out += renderNode(k, 3);
+      for (const k of kids) out += renderItem(k);
       return out;
     })
     .join("")}
