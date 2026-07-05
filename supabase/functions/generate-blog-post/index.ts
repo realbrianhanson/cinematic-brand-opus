@@ -212,7 +212,8 @@ Return valid JSON ONLY with these fields:
   "faq_items": [{"question": "Q1?", "answer": "A1"}, {"question": "Q2?", "answer": "A2"}, {"question": "Q3?", "answer": "A3"}],
   "meta_title": "SEO meta title under 60 characters",
   "meta_description": "SEO meta description under 160 characters",
-  "keywords": "keyword1, keyword2, keyword3, keyword4, keyword5"
+  "keywords": "keyword1, keyword2, keyword3, keyword4, keyword5",
+  "featured_image_alt": "Descriptive alt text for the featured image, 6-14 words, includes the article topic, no 'image of' or 'picture of' prefix"
 }`;
 
     const userMessage = researchContext
