@@ -4,6 +4,10 @@ import {
   formatVoiceBlock,
   refineWithVoice,
   scoreContent,
+  composeTitle,
+  composePageTitle,
+  countContentItems,
+  writeMetaDescription,
   type VoiceConfig,
 } from "../_shared/voice.ts";
 
