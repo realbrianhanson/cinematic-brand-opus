@@ -9,7 +9,10 @@ interface StructuredDataProps {
   updatedAt: string;
   breadcrumbs: Array<{ name: string; url: string }>;
   faqs?: Array<{ question: string; answer: string }>;
+  /** Flat item names for ItemList (used on generated pages so client HTML matches render-page). */
+  itemListNames?: string[];
   siteSettings: {
+    site_name?: string;
     author_name?: string;
     author_title?: string;
     author_bio?: string;
@@ -30,6 +33,7 @@ const StructuredData = ({
   updatedAt,
   breadcrumbs,
   faqs,
+  itemListNames,
   siteSettings,
 }: StructuredDataProps) => {
   const instanceId = useId().replace(/:/g, "-");
@@ -51,6 +55,16 @@ const StructuredData = ({
       document.head.appendChild(el);
       scripts.push(el);
     };
+
+    // 0. WebSite (sitewide identity) — matches what render-page serves to crawlers.
+    if (siteSettings?.site_url) {
+      inject("website", {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: siteSettings.site_name || siteSettings.publisher_name || "",
+        url: siteSettings.site_url,
+      });
+    }
 
     // 1. Person
     if (siteSettings?.author_name) {
@@ -83,6 +97,20 @@ const StructuredData = ({
       dateModified: updatedAt,
       mainEntityOfPage: canonicalUrl,
     });
+
+    // 2b. ItemList — parity with render-page for generated pages.
+    if (pageType === "generated" && itemListNames && itemListNames.length > 0) {
+      inject("itemlist", {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        numberOfItems: itemListNames.length,
+        itemListElement: itemListNames.map((n, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: n,
+        })),
+      });
+    }
 
     // 3. FAQPage
     if (faqs && faqs.length > 0) {
@@ -124,9 +152,10 @@ const StructuredData = ({
     return () => {
       scripts.forEach((s) => s.remove());
     };
-  }, [instanceId, title, description, canonicalUrl, publishedAt, updatedAt, breadcrumbs, faqs, siteSettings]);
+  }, [instanceId, pageType, title, description, canonicalUrl, publishedAt, updatedAt, breadcrumbs, faqs, itemListNames, siteSettings]);
 
   return null;
 };
 
 export default StructuredData;
+

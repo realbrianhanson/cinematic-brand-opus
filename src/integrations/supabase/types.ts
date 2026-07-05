@@ -646,6 +646,7 @@ export type Database = {
           excerpt: string | null
           faq_items: Json | null
           featured_image: string | null
+          featured_image_alt: string | null
           id: string
           key_takeaways: Json | null
           lint_flags: Json | null
@@ -669,6 +670,7 @@ export type Database = {
           excerpt?: string | null
           faq_items?: Json | null
           featured_image?: string | null
+          featured_image_alt?: string | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null
@@ -692,6 +694,7 @@ export type Database = {
           excerpt?: string | null
           faq_items?: Json | null
           featured_image?: string | null
+          featured_image_alt?: string | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null

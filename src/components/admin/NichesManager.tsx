@@ -159,6 +159,23 @@ const NichesManager = () => {
     },
   });
 
+  const bulkActiveMutation = useMutation({
+    mutationFn: ({ ids, is_active }: { ids: string[]; is_active: boolean }) =>
+      safeMutation(async () => {
+        if (!ids.length) return;
+        const { error } = await supabase.from("niches").update({ is_active }).in("id", ids);
+        if (error) throw error;
+      }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["admin-niches"] });
+      toast({
+        title: `${vars.is_active ? "Activated" : "Deactivated"} ${vars.ids.length} niche${vars.ids.length === 1 ? "" : "s"}`,
+      });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const openNew = () => {
     setEditingId(null);
     setForm({ ...emptyForm, context: { ...emptyForm.context, subtopics: [], keywords_seed: [] } });
@@ -281,8 +298,44 @@ const NichesManager = () => {
         <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
           Niche Taxonomy
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <input type="file" ref={fileRef} accept=".csv" onChange={handleCsvFile} className="hidden" />
+          <button
+            onClick={() => {
+              const ids = filtered.filter((n) => !n.is_active).map((n) => n.id);
+              if (!ids.length) { toast({ title: "Nothing to activate", description: "All filtered niches are already active." }); return; }
+              if (!confirm(`Activate ${ids.length} niche${ids.length === 1 ? "" : "s"}?`)) return;
+              bulkActiveMutation.mutate({ ids, is_active: true });
+            }}
+            className="font-body"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", fontSize: 12, borderRadius: 6,
+              border: "1px solid hsl(var(--admin-border))", background: "none",
+              color: "hsl(var(--admin-sage))", cursor: "pointer",
+            }}
+            disabled={bulkActiveMutation.isPending}
+          >
+            Activate All ({filtered.filter((n) => !n.is_active).length})
+          </button>
+          <button
+            onClick={() => {
+              const ids = filtered.filter((n) => n.is_active).map((n) => n.id);
+              if (!ids.length) { toast({ title: "Nothing to deactivate", description: "All filtered niches are already inactive." }); return; }
+              if (!confirm(`Deactivate ${ids.length} niche${ids.length === 1 ? "" : "s"}?`)) return;
+              bulkActiveMutation.mutate({ ids, is_active: false });
+            }}
+            className="font-body"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", fontSize: 12, borderRadius: 6,
+              border: "1px solid hsl(var(--admin-border))", background: "none",
+              color: "hsl(var(--admin-text-ghost))", cursor: "pointer",
+            }}
+            disabled={bulkActiveMutation.isPending}
+          >
+            Deactivate All ({filtered.filter((n) => n.is_active).length})
+          </button>
           <button
             onClick={() => fileRef.current?.click()}
             className="font-body"

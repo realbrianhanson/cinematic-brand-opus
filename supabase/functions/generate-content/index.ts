@@ -18,7 +18,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-3-flash-preview";
+import { MAIN_MODEL as AI_MODEL, ANGLE_MODEL, IMAGE_MODEL } from "../_shared/models.ts";
 const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
 const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
@@ -76,7 +76,7 @@ Return ONLY the JSON array. No other text.`;
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: ANGLE_MODEL,
         messages: [
           { role: "system", content: "Return ONLY valid JSON. No markdown, no explanation." },
           { role: "user", content: prompt },

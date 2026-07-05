@@ -1,4 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resvg, initWasm } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
+
+// Initialize resvg wasm once per isolate.
+let resvgReady: Promise<void> | null = null;
+function ensureResvg(): Promise<void> {
+  if (!resvgReady) {
+    resvgReady = (async () => {
+      const wasmRes = await fetch(
+        "https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
+      );
+      const wasm = await wasmRes.arrayBuffer();
+      await initWasm(wasm);
+    })();
+  }
+  return resvgReady;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,7 +159,9 @@ Deno.serve(async (req) => {
 
       const toProcess = (pages || []).filter((p: any) => {
         const meta = p.seo_meta as any;
-        return !meta?.og_image;
+        const url: string = meta?.og_image || "";
+        // Regenerate if missing OR if we still have a legacy SVG entry.
+        return !url || /\.svg(\?|$)/i.test(url);
       });
 
       for (const pg of toProcess) {
@@ -194,22 +212,31 @@ async function processPage(
   supabase: any,
   pg: any,
   authorName: string,
-  siteUrl: string
+  siteUrl: string,
 ) {
   const contentTypeName = pg.content_schemas?.name || "Resource";
   const svg = generateSvg(pg.title, authorName, contentTypeName, siteUrl);
 
-  const fileName = `og-${pg.slug}.svg`;
-  const uploadBlob = new Blob([svg], { type: "image/svg+xml" });
+  // Rasterize SVG -> PNG (1200x630). Social platforms don't render SVG og:images.
+  await ensureResvg();
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: "width", value: 1200 },
+    font: { loadSystemFonts: false, defaultFontFamily: "Arial" },
+  });
+  const pngBytes = resvg.render().asPng();
 
+  const fileName = `og-${pg.slug}.png`;
   const { error: uploadError } = await supabase.storage
     .from("og-images")
-    .upload(fileName, uploadBlob, {
-      contentType: "image/svg+xml",
+    .upload(fileName, pngBytes, {
+      contentType: "image/png",
       upsert: true,
     });
 
   if (uploadError) throw uploadError;
+
+  // Best-effort cleanup of any legacy SVG at the same slug.
+  await supabase.storage.from("og-images").remove([`og-${pg.slug}.svg`]).catch(() => {});
 
   const { data: urlData } = supabase.storage
     .from("og-images")

@@ -7,6 +7,7 @@ import {
   lintJson,
   scorePost,
 } from "../_shared/voice.ts";
+import { MAIN_MODEL, IMAGE_MODEL } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ async function generateFeaturedImage(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-flash-image-preview",
+        model: IMAGE_MODEL,
         messages: [{ role: "user", content: imagePrompt }],
         modalities: ["image", "text"],
       }),
@@ -211,7 +212,8 @@ Return valid JSON ONLY with these fields:
   "faq_items": [{"question": "Q1?", "answer": "A1"}, {"question": "Q2?", "answer": "A2"}, {"question": "Q3?", "answer": "A3"}],
   "meta_title": "SEO meta title under 60 characters",
   "meta_description": "SEO meta description under 160 characters",
-  "keywords": "keyword1, keyword2, keyword3, keyword4, keyword5"
+  "keywords": "keyword1, keyword2, keyword3, keyword4, keyword5",
+  "featured_image_alt": "Descriptive alt text for the featured image, 6-14 words, includes the article topic, no 'image of' or 'picture of' prefix"
 }`;
 
     const userMessage = researchContext
@@ -226,7 +228,7 @@ Return valid JSON ONLY with these fields:
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: MAIN_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
@@ -299,7 +301,7 @@ Return valid JSON ONLY with these fields:
     try {
       const revised = await critiqueAndRevise({
         apiKey: LOVABLE_API_KEY,
-        model: "google/gemini-2.5-flash",
+        model: MAIN_MODEL,
         voiceBlock,
         researchContext,
         draftJson: result,
@@ -316,7 +318,7 @@ Return valid JSON ONLY with these fields:
       if (violations.length > 0) {
         const fixed = await mechanicalFixViolations({
           apiKey: LOVABLE_API_KEY,
-          model: "google/gemini-2.5-flash",
+          model: MAIN_MODEL,
           draftJson: result,
           violations,
           bannedPhrases: voice.banned_phrases,

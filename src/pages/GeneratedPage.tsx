@@ -82,6 +82,33 @@ const GeneratedPage = () => {
   const rt = content ? readingTime(content) : 1;
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
+  // Flatten section items → names, mirroring the server-side ItemList in render-page.
+  const itemListNames = useMemo<string[]>(() => {
+    const out: string[] = [];
+    const sections: any[] =
+      (Array.isArray(content?.sections) && content.sections) ||
+      (Array.isArray(content?.categories) && content.categories) ||
+      [];
+    const nameKeys = ["name", "title", "idea", "tool_name", "strategy", "step", "template_name", "heading"];
+    for (const s of sections) {
+      const kids: any[] =
+        (Array.isArray(s?.items) && s.items) ||
+        (Array.isArray(s?.tools) && s.tools) ||
+        (Array.isArray(s?.templates) && s.templates) ||
+        (Array.isArray(s?.checklist_items) && s.checklist_items) ||
+        (Array.isArray(s?.faqs) && s.faqs) ||
+        [];
+      for (const k of kids) {
+        if (!k || typeof k !== "object") continue;
+        for (const nk of nameKeys) {
+          const v = k[nk];
+          if (typeof v === "string" && v.trim()) { out.push(v); break; }
+        }
+      }
+    }
+    return out;
+  }, [content]);
+
   const logEngagement = async (eventType: string, metadata: any = {}) => {
     if (!page?.id) return;
     await supabase.from("page_engagement").insert({ page_id: page.id, event_type: eventType, metadata });
@@ -141,6 +168,7 @@ const GeneratedPage = () => {
             { name: page.title, url: `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}` },
           ]}
           faqs={faqs}
+          itemListNames={itemListNames}
           siteSettings={settings}
         />
         <Breadcrumbs items={[
@@ -247,21 +275,40 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
   const [open, setOpen] = useState<number | null>(null);
   return (
     <div className="flex flex-col">
-      {faqs.map((faq, i) => (
-        <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <button
-            onClick={() => { const newOpen = open === i ? null : i; setOpen(newOpen); if (newOpen !== null) { supabase.from("page_engagement").insert({ page_id: pageId, event_type: "faq_click", metadata: { index: i } }).then(() => {}, () => {}); } }}
-            className="w-full text-left py-5 font-body flex items-center justify-between"
-            style={{ background: "none", border: "none", cursor: "pointer", color: open === i ? "#D4AF55" : "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: 500 }}
-          >
-            {faq.question}
-            <span style={{ fontSize: 18, marginLeft: 12 }}>{open === i ? "−" : "+"}</span>
-          </button>
-          {open === i && (
-            <p className="faq-answer font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
-          )}
-        </div>
-      ))}
+      {faqs.map((faq, i) => {
+        const isOpen = open === i;
+        return (
+          <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <button
+              onClick={() => { const newOpen = isOpen ? null : i; setOpen(newOpen); if (newOpen !== null) { supabase.from("page_engagement").insert({ page_id: pageId, event_type: "faq_click", metadata: { index: i } }).then(() => {}, () => {}); } }}
+              className="w-full text-left py-5 font-body flex items-center justify-between"
+              aria-expanded={isOpen}
+              style={{ background: "none", border: "none", cursor: "pointer", color: isOpen ? "#D4AF55" : "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: 500 }}
+            >
+              {faq.question}
+              <span style={{ fontSize: 18, marginLeft: 12 }}>{isOpen ? "−" : "+"}</span>
+            </button>
+            {/*
+              Always render the answer in the DOM so crawlers see the text that
+              FAQPage JSON-LD claims. Collapse visually when closed.
+            */}
+            <div
+              hidden={!isOpen}
+              style={
+                isOpen
+                  ? undefined
+                  : {
+                      // hidden attribute already sets display:none; belt-and-braces
+                      // in case a global style overrides it.
+                      display: "none",
+                    }
+              }
+            >
+              <p className="faq-answer font-body pb-5" style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{faq.answer}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

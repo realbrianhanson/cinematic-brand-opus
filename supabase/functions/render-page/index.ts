@@ -288,6 +288,10 @@ interface ShellArgs {
 function renderShell(a: ShellArgs): Response {
   const base = siteBase(a.settings);
   const canonical = `${base}${a.path}`;
+  // Fall back to the site-wide brand OG so social cards never render without an image.
+  const ogImageAbs = a.ogImage
+    ? (/^https?:\/\//i.test(a.ogImage) ? a.ogImage : `${base}${a.ogImage.startsWith("/") ? "" : "/"}${a.ogImage}`)
+    : `${base}/og-default.png`;
   const ld: object[] = [
     websiteLd(a.settings, base),
     personLd(a.settings, base),
@@ -307,14 +311,14 @@ function renderShell(a: ShellArgs): Response {
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:type" content="${esc(a.type ?? "website")}">
 <meta property="og:site_name" content="${esc(a.settings.site_name || a.settings.publisher_name || "")}">
-${a.ogImage ? `<meta property="og:image" content="${esc(a.ogImage)}">` : ""}
+<meta property="og:image" content="${esc(ogImageAbs)}">
 ${a.publishedAt ? `<meta property="article:published_time" content="${esc(a.publishedAt)}">` : ""}
 ${a.updatedAt ? `<meta property="article:modified_time" content="${esc(a.updatedAt)}">` : ""}
 ${a.settings.author_name ? `<meta property="article:author" content="${esc(a.settings.author_name)}">` : ""}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(a.title)}">
 <meta name="twitter:description" content="${esc(a.description)}">
-${a.ogImage ? `<meta name="twitter:image" content="${esc(a.ogImage)}">` : ""}
+<meta name="twitter:image" content="${esc(ogImageAbs)}">
 ${ld.map(jsonLd).join("\n")}
 <style>body{font-family:system-ui,sans-serif;max-width:820px;margin:2rem auto;padding:0 1rem;line-height:1.6;color:#111}nav.crumbs{font-size:.85rem;color:#555;margin-bottom:1rem}nav.crumbs a{color:#555}h1{font-size:2rem;margin:.5rem 0}h2{margin-top:2rem}h3{margin-top:1.25rem}.byline{color:#555;font-size:.9rem;margin-bottom:1.5rem}ul{padding-left:1.25rem}a{color:#0645ad}</style>
 </head>
@@ -403,7 +407,7 @@ ${items
 async function renderBlogPost(settings: Settings, path: string, slug: string): Promise<Response> {
   const { data: post } = await supabase
     .from("posts")
-    .select("id, title, slug, content, excerpt, featured_image, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status")
+    .select("id, title, slug, content, excerpt, featured_image, featured_image_alt, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
@@ -459,7 +463,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
 <article>
   <h1>${esc(post.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${post.created_at ? ` · Published ${esc(new Date(post.created_at).toISOString().slice(0, 10))}` : ""}${post.updated_at ? ` · Updated ${esc(new Date(post.updated_at).toISOString().slice(0, 10))}` : ""}${post.reading_time ? ` · ${esc(post.reading_time)} min read` : ""}</p>
-  ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc(post.title)}" style="max-width:100%;height:auto"></p>` : ""}
+  ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc((post as any).featured_image_alt || post.title)}" style="max-width:100%;height:auto"></p>` : ""}
   ${post.tldr ? `<aside><h2>TL;DR</h2><p>${esc(post.tldr)}</p></aside>` : ""}
   ${takeaways.length ? `<section><h2>Key takeaways</h2><ul>${takeaways.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></section>` : ""}
   <section>${post.content || ""}</section>

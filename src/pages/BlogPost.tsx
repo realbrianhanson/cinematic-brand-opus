@@ -244,7 +244,7 @@ const BlogPost = () => {
         {post.featured_image && (
           <img
             src={post.featured_image}
-            alt={post.title}
+            alt={(post as any).featured_image_alt || post.title}
             className="w-full mb-10"
             style={{ maxHeight: 450, objectFit: "cover" }}
           />
