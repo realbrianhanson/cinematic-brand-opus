@@ -127,7 +127,7 @@ const BlogPost = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
       <PageHead
         title={post.title}
@@ -138,7 +138,11 @@ const BlogPost = () => {
         updatedAt={post.updated_at}
         authorName={siteSettings?.author_name}
       />
-      <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
+      <article
+        id="main-content"
+        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
+        style={{ maxWidth: 820 }}
+      >
         <StructuredData
           pageType="blog"
           title={post.title}
