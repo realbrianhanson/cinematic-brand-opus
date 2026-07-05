@@ -515,11 +515,34 @@ async function handleStepProcessing(
   const voice = await loadVoiceConfig(supabase);
   const voiceBlock = formatVoiceBlock(voice);
 
+  // Fetch up to 10 published siblings + the niche's pillar for in-body contextual links
+  const [{ data: siblingLinks }, { data: pillarLink }] = await Promise.all([
+    supabase
+      .from("generated_pages")
+      .select("title, slug, content_schemas(slug)")
+      .eq("niche_id", niche.id)
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .limit(10),
+    supabase
+      .from("pillar_pages")
+      .select("title, slug")
+      .eq("niche_id", niche.id)
+      .eq("status", "published")
+      .maybeSingle(),
+  ]);
+  const internalLinkOptions: { title: string; url: string }[] = [];
+  for (const s of (siblingLinks ?? []) as any[]) {
+    const sSlug = s.content_schemas?.slug;
+    if (sSlug && s.slug) internalLinkOptions.push({ title: s.title, url: `/resources/${sSlug}/${s.slug}` });
+  }
+  if (pillarLink) internalLinkOptions.push({ title: pillarLink.title, url: `/guides/${pillarLink.slug}` });
+
   // AI generation
   const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
 
 ${voiceBlock}`;
-  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch);
+  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch, internalLinkOptions);
 
   let contentJson: any = null;
   let tokensUsed = 0;
