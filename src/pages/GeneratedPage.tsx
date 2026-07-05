@@ -160,15 +160,18 @@ const GeneratedPage = () => {
 
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
-        <div className="flex items-center gap-4 flex-wrap mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
           {settings?.author_name && <span className="font-body">By {settings.author_name}</span>}
           <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
           {page.last_refreshed && (
             <span className="font-body flex items-center gap-1">
-              <Calendar size={11} /> Updated {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <Calendar size={11} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </span>
           )}
         </div>
+        <p className="font-body mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+          Researched with live web data, reviewed against {new Date().toLocaleString("en-US", { month: "long" })} {new Date().getFullYear()} sources.
+        </p>
 
         <div className="flex items-center gap-3 mb-10">
           {[
