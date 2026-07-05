@@ -123,7 +123,7 @@ const TiltCard = ({
 
         <h3
           className="font-display text-foreground mb-3"
-          style={{ fontSize: "1.35rem", fontWeight: 500 }}
+          style={{ fontSize: "1.4rem", fontWeight: 500 }}
         >
           {card.title}
         </h3>
@@ -131,9 +131,9 @@ const TiltCard = ({
         <p
           className="font-body"
           style={{
-            fontSize: "0.9rem",
-            lineHeight: 1.75,
-            color: "rgba(255,255,255,0.45)",
+            fontSize: "1rem",
+            lineHeight: 1.7,
+            color: "rgba(255,255,255,0.85)",
           }}
         >
           {card.text}
