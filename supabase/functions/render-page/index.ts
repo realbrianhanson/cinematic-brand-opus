@@ -763,7 +763,7 @@ async function renderGeneratedPage(
 <article>
   <h1>${esc(page.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
-  ${editorialNote()}
+  ${editorialNote(lastVerified)}
   ${content.intro ? `<p>${escWithLinks(String(content.intro))}</p>` : ""}
   ${sections
     .map((s: any) => {
