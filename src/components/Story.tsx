@@ -16,7 +16,7 @@ const timelineData = [
     tag: "First Bet",
     time: "Mid-20s",
     accent: false,
-    text: "Built one of the largest engine and transmission companies in the US — without knowing how to change my own oil. Systems and selling beat credentials every time.",
+    text: "Built one of the largest engine and transmission companies in the US, without knowing how to change my own oil. Systems and selling beat credentials every time.",
   },
   {
     icon: Award,
@@ -30,14 +30,14 @@ const timelineData = [
     tag: "The Fire",
     time: "2020",
     accent: false,
-    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn — then build something better from the ashes.",
+    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn, then build something better from the ashes.",
   },
   {
     icon: Sparkles,
     tag: "The Rebuild",
     time: "Now · Age 46",
     accent: true,
-    text: "Built AI For Business — 150,000+ members. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
+    text: "Built AI For Business, 150,000+ members strong. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
   },
 ];
 
