@@ -85,29 +85,29 @@ const IdeaListRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
         {filtered.map((item, i) => {
           const dc = diffColors[item.difficulty?.toLowerCase()] || diffColors.beginner;
           return (
-            <div key={i} className="p-6" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+            <div key={i} className="p-6" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#181820" }}>
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="font-body font-semibold" style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", lineHeight: 1.4 }}>{item.title}</h3>
+                <h3 className="font-body font-semibold" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{item.title}</h3>
                 <button
                   onClick={() => handleCopy(item.title, i)}
                   className="shrink-0 p-1.5 transition-colors"
-                  style={{ color: copiedIdx === i ? "#D4AF55" : "rgba(255,255,255,0.2)", background: "none", border: "none", cursor: "pointer" }}
+                  style={{ color: copiedIdx === i ? "#D4AF55" : "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer" }}
                   aria-label={`Copy title: ${item.title}`}
                 >
                   {copiedIdx === i ? <Check size={14} /> : <Copy size={14} />}
                 </button>
               </div>
-              <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              <p className="font-body mb-3" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {renderInlineMarkdown(item.description)}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {item.difficulty && (
-                  <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 9, letterSpacing: "0.1em", background: dc.bg, color: dc.color }}>
+                  <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: dc.bg, color: dc.color, border: `1px solid ${dc.border}` }}>
                     {item.difficulty}
                   </span>
                 )}
                 {item.category && (
-                  <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>
+                  <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: "rgba(212,175,85,0.08)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.1)" }}>
                     {item.category}
                   </span>
                 )}
