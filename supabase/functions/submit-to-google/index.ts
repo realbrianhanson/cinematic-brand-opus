@@ -1,8 +1,9 @@
-// To use Google Indexing API:
-// 1. Create a Google Cloud service account
-// 2. Add it as a verified owner in Google Search Console
-// 3. Set GOOGLE_SERVICE_ACCOUNT_JSON secret with the JSON key contents
-// Falls back to sitemap ping if not configured
+// Google Indexing API submission. Requires:
+// 1. Google Cloud service account
+// 2. Service account added as a verified owner in Google Search Console
+// 3. GOOGLE_SERVICE_ACCOUNT_JSON secret set with the JSON key
+// When the secret is missing, this function returns a clear status —
+// google.com/ping?sitemap= was retired in 2023 and can no longer be used.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -169,28 +170,48 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
-    const sitemapUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-sitemap?type=main`;
 
     const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
-    let accessToken: string | null = null;
-    let method: "indexing_api" | "sitemap_ping" = "sitemap_ping";
 
-    if (serviceAccountJson) {
-      try {
-        accessToken = await getGoogleAccessToken(serviceAccountJson);
-        method = "indexing_api";
-        console.log("Using Google Indexing API");
-      } catch (e: any) {
-        console.warn("Failed to get Indexing API token, falling back to sitemap ping:", e.message);
-      }
-    } else {
-      console.log("GOOGLE_SERVICE_ACCOUNT_JSON not set, using sitemap ping");
+    // Google retired google.com/ping?sitemap= in 2023. Without a service
+    // account there is no way to actively notify Google — discovery falls
+    // back to the sitemap (referenced in robots.txt) + IndexNow submissions
+    // (which reach Bing, Yandex, and others). Return early with a clear
+    // status so the caller doesn't think a submission happened.
+    if (!serviceAccountJson) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          submitted: 0,
+          method: "none",
+          message:
+            "Google Indexing API is not configured (GOOGLE_SERVICE_ACCOUNT_JSON secret is missing). " +
+            "Google discovery is handled passively via the sitemap listed in robots.txt. " +
+            "Active submission is running through IndexNow (Bing, Yandex, and other participating engines).",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let accessToken: string;
+    try {
+      accessToken = await getGoogleAccessToken(serviceAccountJson);
+    } catch (e: any) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          submitted: 0,
+          method: "indexing_api",
+          error: `Failed to authenticate with Google: ${e.message}`,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const results: { submitted: number; errors: string[]; method: string; warnings: string[] } = {
       submitted: 0,
       errors: [],
-      method,
+      method: "indexing_api",
       warnings: [],
     };
 
@@ -214,7 +235,7 @@ Deno.serve(async (req) => {
         urlList.push({ id: pg.id, url: `${siteUrl}/resources/${contentSlug}/${pg.slug}` });
       }
 
-      if (method === "indexing_api" && urlList.length > DAILY_INDEXING_API_LIMIT) {
+      if (urlList.length > DAILY_INDEXING_API_LIMIT) {
         results.warnings.push(
           `${urlList.length} URLs queued but Indexing API limit is ${DAILY_INDEXING_API_LIMIT}/day. Only first ${DAILY_INDEXING_API_LIMIT} will be submitted.`
         );
@@ -223,14 +244,14 @@ Deno.serve(async (req) => {
 
       for (const item of urlList) {
         try {
-          await submitPage(supabase, item.id, item.url, sitemapUrl, method, accessToken);
+          await submitPage(supabase, item.id, item.url, accessToken);
           results.submitted++;
         } catch (e: any) {
           results.errors.push(`${item.id}: ${e.message}`);
         }
       }
     } else if (page_id && page_url) {
-      await submitPage(supabase, page_id, page_url, sitemapUrl, method, accessToken);
+      await submitPage(supabase, page_id, page_url, accessToken);
       results.submitted = 1;
     } else {
       return new Response(
@@ -256,22 +277,10 @@ async function submitPage(
   supabase: any,
   pageId: string,
   pageUrl: string,
-  sitemapUrl: string,
-  method: "indexing_api" | "sitemap_ping",
-  accessToken: string | null
+  accessToken: string
 ) {
   try {
-    if (method === "indexing_api") {
-      await submitToIndexingApi(accessToken!, pageUrl);
-    } else {
-      const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-      const resp = await fetch(pingUrl);
-      await resp.text();
-      if (!resp.ok) {
-        throw new Error(`Sitemap ping failed: ${resp.status}`);
-      }
-      console.log("Sitemap ping successful");
-    }
+    await submitToIndexingApi(accessToken, pageUrl);
 
     await supabase.from("indexing_log").insert({
       page_id: pageId,
