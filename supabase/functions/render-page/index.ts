@@ -459,7 +459,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
 <article>
   <h1>${esc(post.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${post.created_at ? ` · Published ${esc(new Date(post.created_at).toISOString().slice(0, 10))}` : ""}${post.updated_at ? ` · Updated ${esc(new Date(post.updated_at).toISOString().slice(0, 10))}` : ""}${post.reading_time ? ` · ${esc(post.reading_time)} min read` : ""}</p>
-  ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc(post.title)}" style="max-width:100%;height:auto"></p>` : ""}
+  ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc((post as any).featured_image_alt || post.title)}" style="max-width:100%;height:auto"></p>` : ""}
   ${post.tldr ? `<aside><h2>TL;DR</h2><p>${esc(post.tldr)}</p></aside>` : ""}
   ${takeaways.length ? `<section><h2>Key takeaways</h2><ul>${takeaways.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></section>` : ""}
   <section>${post.content || ""}</section>
