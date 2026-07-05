@@ -195,12 +195,16 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="inline" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
 
+        <SourcesSection sources={content?.sources} />
+
         {faqs && Array.isArray(faqs) && faqs.length > 0 && (
           <div className="mt-16">
             <h2 className="font-display italic mb-8" style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
             <FAQAccordion faqs={faqs} pageId={page.id} />
           </div>
         )}
+
+        <AuthorBox settings={settings} lastVerified={page.last_refreshed || page.created_at} />
 
         <div className="mt-16 p-8 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="font-body mb-4" style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>Was this helpful?</p>
