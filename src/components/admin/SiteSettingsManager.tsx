@@ -88,6 +88,8 @@ const SiteSettingsManager = () => {
         cta_social_proof: form.cta_social_proof,
         report_email: (form as any).report_email || "",
         report_enabled: (form as any).report_enabled || false,
+        voice_profile: form.voice_profile || null,
+        banned_phrases: form.banned_phrases,
         updated_at: new Date().toISOString(),
       };
 
