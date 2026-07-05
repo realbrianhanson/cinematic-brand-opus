@@ -789,8 +789,8 @@ ${
   siblings.length
     ? `<section><h2>More in ${esc(niche?.name ?? "this topic")}</h2><ul>${siblings
         .map(
-          (s: any) =>
-            `<li><a href="/resources/${esc(schema.slug)}/${esc(s.slug)}">${esc(s.title)}</a></li>`,
+          (s) =>
+            `<li><a href="/resources/${esc(s.content_schema_slug || schema.slug)}/${esc(s.slug)}">${esc(s.anchor_text || s.title)}</a></li>`,
         )
         .join("")}</ul></section>`
     : ""
