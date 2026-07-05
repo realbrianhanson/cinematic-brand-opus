@@ -263,7 +263,7 @@ const Story = () => {
             style={{
               fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
               lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
+              color: "rgba(255,255,255,0.92)",
               ...revealStyle(quoteVisible, 0.2),
             }}
           >
