@@ -144,11 +144,11 @@ const FilterBtn = ({ active, onClick, children }: { active: boolean; onClick: ()
 const ProTips = ({ tips }: { tips?: any[] | string[] }) => {
   if (!tips || !Array.isArray(tips) || tips.length === 0) return null;
   return (
-    <div className="p-6 mt-2" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
-      <h3 className="font-display italic mb-4" style={{ fontSize: 18, color: "#D4AF55" }}>Pro Tips</h3>
+    <div className="p-6 mt-2" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.08)", border: "1px solid rgba(212,175,85,0.2)", borderLeftWidth: 3 }}>
+      <h3 className="font-display italic mb-4" style={{ fontSize: 20, color: "#E8C96A" }}>Pro Tips</h3>
       <ol className="flex flex-col gap-3 list-decimal list-inside">
         {tips.map((tip, i) => (
-          <li key={i} className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>
+          <li key={i} className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.9)", lineHeight: 1.65 }}>
             {typeof tip === "string" ? tip : tip.tip || tip.text || JSON.stringify(tip)}
           </li>
         ))}
