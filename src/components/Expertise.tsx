@@ -206,10 +206,10 @@ const Expertise = () => {
           <p
             className="font-body lg:text-right"
             style={{
-              fontSize: "0.95rem",
+              fontSize: "1rem",
               lineHeight: 1.7,
-              color: "rgba(255,255,255,0.4)",
-              maxWidth: 380,
+              color: "rgba(255,255,255,0.85)",
+              maxWidth: 400,
               ...revealStyle(headerVisible, 0.2),
             }}
           >
