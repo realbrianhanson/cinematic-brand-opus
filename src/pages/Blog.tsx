@@ -7,6 +7,56 @@ import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import CustomCursor from "@/components/CustomCursor";
 
+// Simple hash to pick a stable gradient direction per post
+const hashSeed = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
+  return Math.abs(h);
+};
+
+const TypographicCover = ({ title }: { title: string }) => {
+  const seed = hashSeed(title);
+  const angle = 100 + (seed % 80); // 100-180deg
+  const initial = (title || "•").trim().charAt(0).toUpperCase();
+  return (
+    <div
+      aria-hidden="true"
+      className="relative w-full flex items-end p-6"
+      style={{
+        height: 200,
+        background: `linear-gradient(${angle}deg, #D4AF55 0%, #8B7023 55%, #14141b 100%)`,
+        overflow: "hidden",
+      }}
+    >
+      <span
+        className="font-display italic select-none"
+        style={{
+          position: "absolute",
+          top: -20,
+          right: 8,
+          fontSize: 220,
+          lineHeight: 1,
+          color: "rgba(7,7,14,0.35)",
+        }}
+      >
+        {initial}
+      </span>
+      <span
+        className="font-display italic relative"
+        style={{
+          fontSize: 24,
+          lineHeight: 1.15,
+          color: "rgba(7,7,14,0.9)",
+          maxWidth: "80%",
+          textShadow: "0 1px 0 rgba(255,255,255,0.08)",
+        }}
+      >
+        {title.length > 60 ? title.slice(0, 60) + "…" : title}
+      </span>
+    </div>
+  );
+};
+
 const Blog = () => {
   const { data: posts, isLoading, isError } = useQuery({
     queryKey: ["public-posts"],
@@ -28,7 +78,7 @@ const Blog = () => {
       className="public-site min-h-screen"
       style={{ background: "#07070E", color: "#fff" }}
     >
-      <PageHead title="Blog | Brian Hanson" description="Insights, frameworks, and strategy from Brian Hanson on applied A.I., leadership, marketing, and building businesses that actually grow." url="https://brianhanson.com/blog" type="website" />
+      <PageHead title="Articles & Playbooks | Brian Hanson" description="AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from Brian Hanson." url="https://brianhanson.com/blog" type="website" />
       <CustomCursor />
       <Nav />
       {/* Header */}
@@ -40,13 +90,13 @@ const Blog = () => {
           to="/"
           className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
           style={{
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.75)",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
           onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
+            (e.currentTarget.style.color = "rgba(255,255,255,0.75)")
           }
         >
           <ArrowLeft size={14} />
@@ -60,17 +110,18 @@ const Blog = () => {
             color: "#fff",
           }}
         >
-          Insights & Ideas
+          Articles &amp; Playbooks
         </h1>
         <p
           className="font-body mt-4"
           style={{
-            fontSize: 16,
-            color: "rgba(255,255,255,0.4)",
-            maxWidth: 520,
+            fontSize: 17,
+            color: "rgba(255,255,255,0.85)",
+            maxWidth: 560,
+            lineHeight: 1.6,
           }}
         >
-          Thoughts on AI, marketing, and building businesses that matter.
+          AI, marketing, and building businesses that matter.
         </p>
       </header>
 
@@ -82,7 +133,7 @@ const Blog = () => {
         {isLoading && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             Loading...
           </p>
@@ -91,7 +142,7 @@ const Blog = () => {
         {isError && !isLoading && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             Failed to load posts. Please refresh the page.
           </p>
@@ -100,7 +151,7 @@ const Blog = () => {
         {!isLoading && !isError && posts?.length === 0 && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             No posts published yet. Check back soon.
           </p>
@@ -111,43 +162,49 @@ const Blog = () => {
             <Link
               to={`/blog/${post.slug}`}
               key={post.id}
-              className="group block"
+              className="group block h-full"
               style={{
-                border: "1px solid rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "#14141b",
                 transition: "border-color 0.3s, transform 0.3s",
+                display: "flex",
+                flexDirection: "column",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(212,175,85,0.25)";
+                e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)";
                 e.currentTarget.style.transform = "translateY(-4px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              {post.featured_image && (
+              {post.featured_image ? (
                 <div
                   style={{
                     height: 200,
                     overflow: "hidden",
                     background: "#0a0a14",
+                    flexShrink: 0,
                   }}
                 >
                   <img
                     src={post.featured_image}
-                    alt={post.title}
+                    alt={(post as any).featured_image_alt || post.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
                 </div>
+              ) : (
+                <TypographicCover title={post.title} />
               )}
-              <div className="p-6">
+              <div className="p-6 flex flex-col flex-1">
                 <div className="flex items-center gap-3 mb-4">
                   {(post as any).categories?.name && (
                     <span
                       className="font-body uppercase"
                       style={{
-                        fontSize: 9,
+                        fontSize: 11,
                         letterSpacing: "0.15em",
                         color: "#D4AF55",
                       }}
@@ -158,11 +215,11 @@ const Blog = () => {
                   <span
                     className="font-body flex items-center gap-1"
                     style={{
-                      fontSize: 10,
-                      color: "rgba(255,255,255,0.25)",
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.7)",
                     }}
                   >
-                    <Clock size={10} />
+                    <Clock size={11} />
                     {post.reading_time ?? 1} min
                   </span>
                 </div>
@@ -180,8 +237,8 @@ const Blog = () => {
                   <p
                     className="font-body"
                     style={{
-                      fontSize: 13,
-                      color: "rgba(255,255,255,0.35)",
+                      fontSize: 15,
+                      color: "rgba(255,255,255,0.85)",
                       lineHeight: 1.6,
                       display: "-webkit-box",
                       WebkitLineClamp: 3,
@@ -193,11 +250,11 @@ const Blog = () => {
                   </p>
                 )}
                 <div
-                  className="flex items-center gap-1 mt-5 font-body uppercase transition-colors duration-300 group-hover:text-[#D4AF55]"
+                  className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[#D4AF55]"
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     letterSpacing: "0.15em",
-                    color: "rgba(255,255,255,0.3)",
+                    color: "rgba(255,255,255,0.75)",
                   }}
                 >
                   Read article <ArrowRight size={12} />
