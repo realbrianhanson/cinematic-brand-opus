@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.render-page]
 verify_jwt = false
+
+[functions.llms-txt]
+verify_jwt = false
+
+[functions.rss]
+verify_jwt = false
