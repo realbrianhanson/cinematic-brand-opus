@@ -4,11 +4,11 @@ import { Check, X, LayoutGrid, Table } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProTips } from "./IdeaListRenderer";
 
-const verdictColors: Record<string, { bg: string; color: string }> = {
-  "top-pick": { bg: "rgba(251,191,36,0.15)", color: "#FBBF24" },
-  "great-value": { bg: "rgba(74,222,128,0.12)", color: "#4ADE80" },
-  "best-for-beginners": { bg: "rgba(96,165,250,0.12)", color: "#60A5FA" },
-  "honorable-mention": { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" },
+const verdictColors: Record<string, { bg: string; color: string; border: string }> = {
+  "top-pick": { bg: "rgba(232,201,106,0.18)", color: "#E8C96A", border: "rgba(232,201,106,0.45)" },
+  "great-value": { bg: "rgba(212,175,85,0.14)", color: "#D4AF55", border: "rgba(212,175,85,0.4)" },
+  "best-for-beginners": { bg: "rgba(184,150,46,0.15)", color: "#B8962E", border: "rgba(184,150,46,0.4)" },
+  "honorable-mention": { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "rgba(255,255,255,0.15)" },
 };
 
 const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; nicheName: string; pageId: string }) => {
