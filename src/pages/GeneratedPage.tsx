@@ -295,11 +295,70 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="end" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
+
+      {showToc && <StickyTOC items={tocItems} />}
       </div>
 
       <Footer />
       <PublicCTA variant="sticky" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
+  );
+};
+
+const StickyTOC = ({ items }: { items: { id: string; label: string }[] }) => {
+  const scrollToLabel = (label: string) => {
+    if (typeof document === "undefined") return;
+    // Find first h2/h3 whose text matches label
+    const headings = Array.from(document.querySelectorAll<HTMLElement>("article h2, article h3"));
+    const target = headings.find(
+      (h) => h.textContent?.trim().toLowerCase() === label.toLowerCase()
+    );
+    if (target) {
+      const y = target.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  };
+  return (
+    <aside
+      className="hidden xl:block"
+      style={{
+        position: "sticky",
+        top: 100,
+        width: 200,
+        flexShrink: 0,
+        alignSelf: "flex-start",
+      }}
+    >
+      <span
+        className="font-body uppercase block"
+        style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55", marginBottom: 14 }}
+      >
+        On this page
+      </span>
+      <ul style={{ display: "flex", flexDirection: "column", gap: 8, borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: 12 }}>
+        {items.map((it) => (
+          <li key={it.id}>
+            <button
+              onClick={() => scrollToLabel(it.label)}
+              className="font-body text-left transition-colors"
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: "rgba(255,255,255,0.75)",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+            >
+              {it.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 };
 
