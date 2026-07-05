@@ -543,8 +543,9 @@ async function renderGeneratedPage(
     seo.meta_description ||
     seo.description ||
     (typeof content.intro === "string" ? truncate(content.intro) : `Read: ${page.title}`);
-  const title = seo.meta_title || seo.title || `${page.title} — ${settings.publisher_name || ""}`.trim();
+  const title = composeTitle(page.title, settings.site_name || settings.publisher_name || "");
   const ogImage = seo.og_image || seo.image || undefined;
+
 
   // niche + pillar + siblings
   let niche: any = null;
