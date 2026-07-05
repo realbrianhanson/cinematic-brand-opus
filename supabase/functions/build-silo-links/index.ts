@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
       const { data: publishedPages } = await supabase
         .from("generated_pages")
-        .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
+        .select("id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
         .eq("status", "published");
 
       const { data: pillarPages } = await supabase
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
 
     const { data: currentPage } = await supabase
       .from("generated_pages")
-      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
+      .select("id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
       .eq("id", page_id)
       .maybeSingle();
 
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
     const { data: siblingPages } = await supabase
       .from("generated_pages")
-      .select("id, niche_id, content_schema_id, slug, title, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
+      .select("id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)")
       .eq("niche_id", currentPage.niche_id!)
       .eq("status", "published")
       .neq("id", page_id);
