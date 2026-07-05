@@ -174,6 +174,47 @@ function personLd(s: Settings, base: string) {
   };
 }
 
+// Sources / citations block. Real outbound links, capped at 8.
+function sourcesHtml(sources: any): string {
+  if (!Array.isArray(sources) || sources.length === 0) return "";
+  const items = sources
+    .filter((s: any) => s && typeof s.url === "string" && /^https?:\/\//i.test(s.url))
+    .slice(0, 8)
+    .map((s: any) => {
+      const label = s.title ? esc(String(s.title)) : esc(String(s.url));
+      return `<li><a href="${esc(s.url)}" rel="noopener" target="_blank">${label}</a></li>`;
+    })
+    .join("");
+  if (!items) return "";
+  return `<section><h2>Sources</h2><ul>${items}</ul></section>`;
+}
+
+// Author E-E-A-T box. Photo (if any), name, title, bio, credentials, social links.
+function authorBoxHtml(s: Settings): string {
+  if (!s.author_name && !s.author_bio) return "";
+  const social = Object.entries(s.author_social_links ?? {})
+    .filter(([_, v]) => typeof v === "string" && v)
+    .map(([k, v]) => `<a href="${esc(v as string)}" rel="noopener" target="_blank">${esc(k)}</a>`)
+    .join(" · ");
+  const creds = Array.isArray(s.author_credentials) && s.author_credentials.length
+    ? `<p><strong>Credentials:</strong> ${s.author_credentials.map((c: string) => esc(c)).join(", ")}</p>`
+    : "";
+  return `<aside class="author-box" style="margin-top:2rem;padding:1rem;border:1px solid #eee;border-radius:6px">
+<h2 style="margin-top:0">About the author</h2>
+<p><strong>${esc(s.author_name || "")}</strong>${s.author_title ? `, ${esc(s.author_title)}` : ""}</p>
+${s.author_bio ? `<p>${esc(s.author_bio)}</p>` : ""}
+${creds}
+${social ? `<p>${social}</p>` : ""}
+</aside>`;
+}
+
+// One-line editorial note under the byline.
+function editorialNote(currentDate = new Date()): string {
+  const month = currentDate.toLocaleString("en-US", { month: "long" });
+  const year = currentDate.getFullYear();
+  return `<p class="editorial-note" style="color:#555;font-size:.85rem;margin:-.5rem 0 1.5rem">Researched with live web data, reviewed against ${esc(month)} ${year} sources.</p>`;
+}
+
 function websiteLd(s: Settings, base: string) {
   return {
     "@context": "https://schema.org",
