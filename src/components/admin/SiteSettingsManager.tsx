@@ -689,7 +689,7 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
       if (error) throw error;
       toast({
         title: "Test submitted",
-        description: `IndexNow: ${data?.indexnow_status || "unknown"} · Google: ${data?.google_ping_status || "unknown"}`,
+        description: `IndexNow: ${data?.indexnow_status || "unknown"} · ${data?.submitted_count ?? 0} URLs submitted`,
       });
     } catch (e: any) {
       toast({ title: "Test failed", description: e.message, variant: "destructive" });
