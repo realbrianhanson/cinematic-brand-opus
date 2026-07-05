@@ -1,4 +1,5 @@
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
+import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useMemo } from "react";
 import { Check, X, LayoutGrid, Table } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +54,7 @@ const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: 
                     {tool.verdict.replace(/-/g, " ")}
                   </span>
                 )}
-                <h3 className="font-body font-semibold mb-2" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{tool.name || tool.title}</h3>
+                <h3 className="font-body font-semibold mb-2" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{getItemTitle(tool)}</h3>
                 <p className="font-body mb-3" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(tool.description)}</p>
                 {tool.pricing && <p className="font-body mb-2" style={{ fontSize: 14, color: "#E8C96A" }}>{tool.pricing}</p>}
                 {tool.best_for && <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>Best for: {tool.best_for}</p>}
@@ -94,7 +95,7 @@ const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: 
             <tbody>
               {filtered.map((tool, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <td className="font-body px-4 py-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{tool.name || tool.title}</td>
+                  <td className="font-body px-4 py-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{getItemTitle(tool)}</td>
                   <td className="font-body px-4 py-3" style={{ fontSize: 12, color: "#D4AF55" }}>{tool.pricing || "—"}</td>
                   <td className="font-body px-4 py-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{tool.best_for || "—"}</td>
                   <td className="font-body px-4 py-3"><span className="uppercase" style={{ fontSize: 9, letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)" }}>{tool.verdict?.replace(/-/g, " ") || "—"}</span></td>

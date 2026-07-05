@@ -249,9 +249,39 @@ const GeneratedPage = () => {
         </div>
 
         {content?.intro && (
-          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.06)" }}>
+          <div className="answer-block mb-8 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.06)" }}>
             <p className="font-body" style={{ fontSize: 18, color: "rgba(255,255,255,0.92)", lineHeight: 1.75 }}>{content.intro}</p>
           </div>
+        )}
+
+        {content?.hero_image && typeof content.hero_image === "string" && (
+          <figure className="mb-10" style={{ margin: "0 0 40px" }}>
+            <img
+              src={content.hero_image}
+              alt={typeof content.hero_image_alt === "string" ? content.hero_image_alt : page.title}
+              loading="lazy"
+              style={{ width: "100%", height: "auto", display: "block", border: "1px solid rgba(255,255,255,0.06)" }}
+            />
+          </figure>
+        )}
+
+        {content?.expert_callout?.quote && (
+          <aside
+            className="mb-10 p-6"
+            style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.05)" }}
+          >
+            <p className="font-body uppercase" style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55", marginBottom: 10 }}>
+              From the trenches
+            </p>
+            <p className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.9)", lineHeight: 1.7, fontStyle: "italic" }}>
+              {content.expert_callout.quote}
+            </p>
+            {settings?.author_name && (
+              <p className="font-body mt-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                — {settings.author_name}
+              </p>
+            )}
+          </aside>
         )}
 
         {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}

@@ -41,6 +41,7 @@ interface NicheForm {
   slug: string;
   parent_niche_id: string;
   is_active: boolean;
+  expert_pov: string;
   context: NicheContext;
 }
 
@@ -49,6 +50,7 @@ const emptyForm: NicheForm = {
   slug: "",
   parent_niche_id: "",
   is_active: true,
+  expert_pov: "",
   context: {
     audience: "",
     pain_points: "",
@@ -124,6 +126,7 @@ const NichesManager = () => {
         slug: form.slug,
         parent_niche_id: form.parent_niche_id || null,
         is_active: form.is_active,
+        expert_pov: form.expert_pov || null,
         context: form.context as any,
       };
       if (editingId) {
@@ -193,6 +196,7 @@ const NichesManager = () => {
       slug: niche.slug,
       parent_niche_id: niche.parent_niche_id ?? "",
       is_active: niche.is_active ?? true,
+      expert_pov: (niche as any).expert_pov ?? "",
       context: {
         audience: ctx.audience ?? "",
         pain_points: ctx.pain_points ?? "",
@@ -553,6 +557,16 @@ const NichesManager = () => {
                 onAdd={() => addTag("keywords_seed", keywordInput, setKeywordInput)}
                 onRemove={(i) => removeTag("keywords_seed", i)}
                 placeholder="keyword1, keyword2..."
+              />
+            </ModalField>
+            <ModalField label="Expert POV (used for 'From the trenches' callouts — only claims from this text are allowed)">
+              <textarea
+                className="admin-input font-body"
+                rows={5}
+                placeholder="First-person experience relevant to this niche. E.g. 'I ran a 12-store retail chain for 8 years and rolled out AI inventory forecasting across 3 of them...'"
+                value={form.expert_pov}
+                onChange={(e) => setForm((p) => ({ ...p, expert_pov: e.target.value }))}
+                style={{ resize: "vertical" }}
               />
             </ModalField>
           </div>

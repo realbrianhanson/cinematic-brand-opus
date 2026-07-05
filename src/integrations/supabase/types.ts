@@ -268,6 +268,7 @@ export type Database = {
           id: string
           request_payload: Json
           result_summary: Json | null
+          serp_snapshot: Json | null
           skipped_count: number
           status: string
           success_count: number
@@ -283,6 +284,7 @@ export type Database = {
           id?: string
           request_payload?: Json
           result_summary?: Json | null
+          serp_snapshot?: Json | null
           skipped_count?: number
           status?: string
           success_count?: number
@@ -298,6 +300,7 @@ export type Database = {
           id?: string
           request_payload?: Json
           result_summary?: Json | null
+          serp_snapshot?: Json | null
           skipped_count?: number
           status?: string
           success_count?: number
@@ -349,6 +352,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gsc_performance: {
+        Row: {
+          clicks: number
+          ctr: number
+          fetched_at: string
+          id: string
+          impressions: number
+          page_url: string
+          period_end: string
+          period_start: string
+          position: number
+          query: string
+        }
+        Insert: {
+          clicks?: number
+          ctr?: number
+          fetched_at?: string
+          id?: string
+          impressions?: number
+          page_url: string
+          period_end: string
+          period_start: string
+          position?: number
+          query: string
+        }
+        Update: {
+          clicks?: number
+          ctr?: number
+          fetched_at?: string
+          id?: string
+          impressions?: number
+          page_url?: string
+          period_end?: string
+          period_start?: string
+          position?: number
+          query?: string
+        }
+        Relationships: []
       }
       indexing_log: {
         Row: {
@@ -522,6 +564,7 @@ export type Database = {
         Row: {
           context: Json
           created_at: string | null
+          expert_pov: string | null
           id: string
           is_active: boolean | null
           name: string
@@ -532,6 +575,7 @@ export type Database = {
         Insert: {
           context?: Json
           created_at?: string | null
+          expert_pov?: string | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -542,6 +586,7 @@ export type Database = {
         Update: {
           context?: Json
           created_at?: string | null
+          expert_pov?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
@@ -775,7 +820,9 @@ export type Database = {
           cta_social_proof: string | null
           cta_subtext: string | null
           cta_url: string | null
+          default_expert_pov: string | null
           id: string
+          image_generation_enabled: boolean
           publisher_name: string | null
           publisher_url: string | null
           report_email: string | null
@@ -797,7 +844,9 @@ export type Database = {
           cta_social_proof?: string | null
           cta_subtext?: string | null
           cta_url?: string | null
+          default_expert_pov?: string | null
           id?: string
+          image_generation_enabled?: boolean
           publisher_name?: string | null
           publisher_url?: string | null
           report_email?: string | null
@@ -819,7 +868,9 @@ export type Database = {
           cta_social_proof?: string | null
           cta_subtext?: string | null
           cta_url?: string | null
+          default_expert_pov?: string | null
           id?: string
+          image_generation_enabled?: boolean
           publisher_name?: string | null
           publisher_url?: string | null
           report_email?: string | null

@@ -1,4 +1,5 @@
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
+import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useMemo } from "react";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,13 +56,13 @@ const TemplateRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
             <div key={i} style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
               <div className="p-6">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <h3 className="font-body font-semibold" style={{ fontSize: 15, color: "rgba(255,255,255,0.85)" }}>{tmpl.name || tmpl.title}</h3>
+                  <h3 className="font-body font-semibold" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{getItemTitle(tmpl)}</h3>
                   <button onClick={() => toggleExpand(i)} className="shrink-0 p-1" style={{ color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer" }}>
                     {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
                 </div>
-                {tmpl.use_case && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{tmpl.use_case}</p>}
-                {tmpl.description && !tmpl.use_case && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(tmpl.description)}</p>}
+                {tmpl.use_case && <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{tmpl.use_case}</p>}
+                {tmpl.description && !tmpl.use_case && <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{renderInlineMarkdown(tmpl.description)}</p>}
               </div>
 
               {isOpen && templateText && (

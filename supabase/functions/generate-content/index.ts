@@ -36,6 +36,52 @@ function extractJson(raw: string): string {
   return (fenced ? fenced[1] : raw).trim();
 }
 
+// ─── Firecrawl SERP fetch: top-10 titles + PAA ───
+
+interface SerpSnapshot {
+  head_term: string;
+  top_titles: string[];
+  paa_questions: string[];
+  fetched_at: string;
+}
+
+async function fetchSerpSnapshot(headTerm: string): Promise<SerpSnapshot | null> {
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!FIRECRAWL_API_KEY) return null;
+  try {
+    const resp = await fetch(`${FIRECRAWL_API}/search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: headTerm, limit: 10 }),
+    });
+    if (!resp.ok) {
+      console.warn("Firecrawl SERP failed:", resp.status);
+      return null;
+    }
+    const data = await resp.json();
+    // Firecrawl v1 /search returns { data: [{ title, url, description }], relatedQuestions?: [...] }
+    const results = data.data || data.web || [];
+    const top_titles = results.slice(0, 10).map((r: any) => String(r.title || "").trim()).filter(Boolean);
+    const paaRaw = data.paa || data.peopleAlsoAsk || data.relatedQuestions || data.related_questions || [];
+    const paa_questions: string[] = Array.isArray(paaRaw)
+      ? paaRaw.map((q: any) => (typeof q === "string" ? q : q?.question || q?.text || "")).filter(Boolean).slice(0, 10)
+      : [];
+    return { head_term: headTerm, top_titles, paa_questions, fetched_at: new Date().toISOString() };
+  } catch (e: any) {
+    console.warn("Firecrawl SERP error:", e.message);
+    return null;
+  }
+}
+
+async function appendSerpToJob(supabase: any, jobId: string, snapshot: SerpSnapshot) {
+  try {
+    const { data: cur } = await supabase.from("generation_jobs").select("serp_snapshot").eq("id", jobId).maybeSingle();
+    const arr = Array.isArray(cur?.serp_snapshot) ? cur.serp_snapshot : [];
+    arr.push(snapshot);
+    await supabase.from("generation_jobs").update({ serp_snapshot: arr }).eq("id", jobId);
+  } catch (_) {}
+}
+
 // ─── Generate unique content angles via AI ───
 
 async function generateUniqueAngles(
@@ -45,9 +91,23 @@ async function generateUniqueAngles(
   existingTitles: string[],
   audience: string,
   apiKey: string,
+  serp: SerpSnapshot | null = null,
 ): Promise<{ angle: string; keyword: string }[]> {
   const existingList = existingTitles.length > 0
-    ? `\n\nEXISTING CONTENT (DO NOT REPEAT ANY OF THESE TOPICS):\n${existingTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+    ? `\n\nEXISTING CONTENT ON THIS SITE (DO NOT REPEAT ANY OF THESE TOPICS):\n${existingTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+    : "";
+
+  const serpBlock = serp && (serp.top_titles.length || serp.paa_questions.length)
+    ? `\n\nGOOGLE SERP FOR "${serp.head_term}" (avoid duplicating these framings — go for gaps and long-tail):
+TOP 10 RESULTS:
+${serp.top_titles.map((t, i) => `${i + 1}. ${t}`).join("\n") || "(none)"}
+PEOPLE ALSO ASK:
+${serp.paa_questions.map((q) => `- ${q}`).join("\n") || "(none)"}
+
+ANGLE RULES:
+- Prefer angles and long-tail framings NOT already covered by the top 10 titles above.
+- Do NOT reuse the framing of any existing top-10 title (same subject + same modifier + same year).
+- Target under-covered subtopics, audience segments, or use-cases implied by PAA questions when possible.`
     : "";
 
   const prompt = `You are a content strategist. Generate exactly ${count} unique subtopic angles for "${schemaName}" content in the "${nicheName}" niche, targeting ${audience}.
@@ -64,7 +124,7 @@ Examples of good angles for "Tool Roundups" + "AI for Business":
 BAD angles (too generic or overlapping):
 - "Best AI Tools" (too broad)
 - "Top AI Software" (same as above, just reworded)
-${existingList}
+${existingList}${serpBlock}
 
 Return a JSON array of objects with "angle" (the subtopic title phrase, 3-8 words) and "keyword" (the target SEO keyword, lowercase). Example:
 [{"angle": "AI Sales Automation Tools", "keyword": "ai sales automation tools for business"}]
@@ -415,7 +475,7 @@ async function handleSetupProcessing(
   const { data: contentSchemas } = await supabase.from("content_schemas").select("*").in("id", schema_ids);
 
   // Build the full work queue: list of { niche, schema, angle, keyword } items
-  const workQueue: { niche_id: string; schema_id: string; angle: string; keyword: string }[] = [];
+  const workQueue: { niche_id: string; schema_id: string; angle: string; keyword: string; paa: string[] }[] = [];
 
   for (const niche of (niches || [])) {
     for (const schema of (contentSchemas || [])) {
@@ -429,14 +489,21 @@ async function handleSetupProcessing(
         .eq("content_schema_id", schema.id);
       const existingTitles = (existingPages || []).map((p: any) => p.title);
 
-      // Generate unique angles
+      // SERP snapshot once per (niche, schema) combo — feed into angle generation and audit log.
+      const headTerm = `best ${schema.name.toLowerCase()} for ${niche.name.toLowerCase()}`;
+      const serp = await fetchSerpSnapshot(headTerm);
+      if (serp) {
+        await appendSerpToJob(supabase, job_id, serp);
+      }
+
       const angles = await generateUniqueAngles(
         niche.name, schema.name, count_per_combination,
-        existingTitles, ctx.audience || "general", apiKey,
+        existingTitles, ctx.audience || "general", apiKey, serp,
       );
 
+      const paa = serp?.paa_questions || [];
       for (const { angle, keyword } of angles) {
-        workQueue.push({ niche_id: niche.id, schema_id: schema.id, angle, keyword });
+        workQueue.push({ niche_id: niche.id, schema_id: schema.id, angle, keyword, paa });
       }
     }
   }
@@ -538,11 +605,20 @@ async function handleStepProcessing(
   }
   if (pillarLink) internalLinkOptions.push({ title: pillarLink.title, url: `/guides/${pillarLink.slug}` });
 
+  // Expert POV (per-niche override, otherwise site-wide default). Used ONLY to seed
+  // the "From the trenches" callout — the model may not invent experiences.
+  const expertPov: string =
+    (typeof niche.expert_pov === "string" && niche.expert_pov.trim())
+      ? niche.expert_pov.trim()
+      : (typeof siteSettings?.default_expert_pov === "string" ? siteSettings.default_expert_pov.trim() : "");
+
+  const paa: string[] = Array.isArray(item.paa) ? item.paa : [];
+
   // AI generation
   const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
 
 ${voiceBlock}`;
-  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch, internalLinkOptions);
+  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch, internalLinkOptions, paa, expertPov);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -653,10 +729,73 @@ ${voiceBlock}`;
   // Ensure title in content_json matches
   contentJson.title = title;
 
+  // Validate expert_callout — must be a subset of expertPov (defensive check;
+  // the critique pass verifies the callout only contains claims from the POV text).
+  if (contentJson.expert_callout) {
+    if (!expertPov) {
+      delete contentJson.expert_callout;
+    } else {
+      const quote = String(contentJson.expert_callout?.quote || "").trim();
+      if (!quote) {
+        delete contentJson.expert_callout;
+      } else {
+        // Cheap grounding check: every content word in the quote (>=5 chars) should
+        // appear somewhere in the POV text (case-insensitive). If <60% match, drop.
+        const povLower = expertPov.toLowerCase();
+        const words = quote.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 5);
+        const hit = words.filter((w) => povLower.includes(w)).length;
+        const ratio = words.length ? hit / words.length : 0;
+        if (ratio < 0.4) {
+          console.warn(`Dropping ungrounded expert_callout (grounding ratio ${ratio.toFixed(2)})`);
+          delete contentJson.expert_callout;
+        }
+      }
+    }
+  }
+
   // Auto-score the final content
   const { score: qualityScore, issues: qualityIssues } = scoreContent(contentJson, title);
   if (qualityIssues.length) {
     console.log(`Quality score for "${title}": ${qualityScore}/100 — issues:`, qualityIssues);
+  }
+
+  // In-body editorial image — gated behind site_settings.image_generation_enabled.
+  // Only generate for pages that pass the quality gate (score >= 75), to avoid burning
+  // image credits on drafts that won't publish.
+  const imageEnabled = siteSettings?.image_generation_enabled !== false;
+  if (imageEnabled && qualityScore >= 75) {
+    try {
+      const heroPrompt = `Create a professional, 16:9 editorial photograph or illustration for a resource page titled "${title}". Theme: ${item.angle} for ${niche.name}. Style: cinematic lighting, rich colors, modern editorial photography, no text overlays, no watermarks, no logos. High quality.`;
+      const imgRes = await fetch(AI_GATEWAY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: IMAGE_MODEL,
+          messages: [{ role: "user", content: heroPrompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+      if (imgRes.ok) {
+        const imgData = await imgRes.json();
+        const imageUrl = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        const m = typeof imageUrl === "string" && imageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (m) {
+          const ext = m[1] === "jpeg" ? "jpg" : m[1];
+          const raw = atob(m[2]);
+          const bytes = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          const filePath = `pseo/${pageSlug}-${Date.now()}.${ext}`;
+          const { error: upErr } = await supabase.storage.from("blog-images").upload(filePath, bytes, { contentType: `image/${m[1]}`, upsert: false });
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(filePath);
+            contentJson.hero_image = urlData.publicUrl;
+            contentJson.hero_image_alt = `Editorial illustration for ${item.angle} for ${niche.name}`;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn("Hero image generation skipped:", e.message);
+    }
   }
 
   // Build SEO meta — title via composeTitle (never mid-word cut), description AI-written
@@ -754,6 +893,8 @@ function buildUserMessage(
   niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string,
   currentYear: number, researchContext: string = "", hasResearch: boolean = true,
   internalLinkOptions: { title: string; url: string }[] = [],
+  paaQuestions: string[] = [],
+  expertPov: string = "",
 ): string {
   const researchConstraints = hasResearch
     ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
@@ -777,6 +918,27 @@ INTERNAL LINK RULES:
 - Never place a link in the title, faq questions, or section headings — only inside prose descriptions.
 - Do not link to a URL not listed above.` : "";
 
+  const paaBlock = paaQuestions.length > 0 ? `
+PEOPLE ALSO ASK (real Google PAA questions for this topic):
+${paaQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+FAQ RULES:
+- The frequently_asked_questions array MUST contain 3–5 items that answer these PAA questions FIRST (light rephrasing is allowed to match voice, but the underlying question must be the same). Fill the remaining slots (up to 5 total) with your own genuinely useful questions.
+- Answers must be specific, factual, and grounded in the research data.
+- Do NOT reword answers into "It depends" filler.` : `
+FAQ RULES:
+- Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields.`;
+
+  const povBlock = expertPov ? `
+FIRST-PERSON EXPERT POV (from the site owner — this is the ONLY source of first-person experience):
+"""
+${expertPov}
+"""
+POV RULES:
+- Add exactly one field on the content_json root called "expert_callout" with { "quote": string }. The quote is a 2–4 sentence first-person perspective callout drawn ONLY from the POV text above (paraphrasing is fine).
+- The quote MUST NOT invent experiences, numbers, clients, or dates that don't appear in the POV text above.
+- If nothing in the POV text can be honestly said about "${angle}", OMIT the expert_callout field entirely rather than fabricating.` : "";
+
   return `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -790,6 +952,8 @@ SPECIFIC ANGLE/FOCUS: ${angle}
 This page must focus SPECIFICALLY on "${angle}" — not the general "${schema.name}" topic. All items, examples, and recommendations should relate to this specific subtopic.
 ${researchContext}
 ${linkBlock}
+${paaBlock}
+${povBlock}
 
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
@@ -806,7 +970,6 @@ CONSTRAINTS:
 - Do NOT produce generic content that could apply to any niche or angle
 ${researchConstraints}
 ${blocklist}
-- Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 
 WORKING TITLE (for internal reference — the final title will be composed post-generation, DO NOT pre-invent an item count):
 ${title}
