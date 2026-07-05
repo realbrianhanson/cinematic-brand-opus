@@ -28,7 +28,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (!settings?.report_enabled && !(await req.json().catch(() => ({})))?.manual) {
+    const reqBody = await req.json().catch(() => ({} as any));
+    if (!settings?.report_enabled && !reqBody?.manual && !reqBody?.cron) {
       return new Response(
         JSON.stringify({ message: "Reports are disabled" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
