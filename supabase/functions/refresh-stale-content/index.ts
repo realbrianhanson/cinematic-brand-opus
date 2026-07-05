@@ -168,7 +168,13 @@ Deno.serve(async (req) => {
 
     if (pagesToRefresh.length === 0) {
       return new Response(
-        JSON.stringify({ refreshed: 0, message: "No pages to refresh." }),
+        JSON.stringify({
+          refreshed: 0,
+          message: skippedHumanEdited.length
+            ? "All eligible stale pages were skipped as human-edited."
+            : "No pages to refresh.",
+          skipped_human_edited: skippedHumanEdited,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -190,6 +196,7 @@ Deno.serve(async (req) => {
       refreshed: 0,
       failed: 0,
       pages: [] as { id: string; title: string; slug: string }[],
+      skipped_human_edited: skippedHumanEdited,
     };
 
     for (const page of pagesToRefresh) {
