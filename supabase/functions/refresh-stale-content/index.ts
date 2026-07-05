@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
       }
 
       // Research phase: gather real-time data
-      const { context: researchContext, hasResearch } = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+      const { context: researchContext, hasResearch, sources } = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
 
       const researchConstraints = hasResearch
         ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
