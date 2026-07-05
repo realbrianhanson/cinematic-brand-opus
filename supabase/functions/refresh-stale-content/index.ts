@@ -28,10 +28,11 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean }> {
+async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean; sources: { url: string; title?: string }[] }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
+  const sources: { url: string; title?: string }[] = [];
 
   if (PERPLEXITY_API_KEY) {
     try {
@@ -56,6 +57,10 @@ async function researchTopic(nicheName: string, schemaName: string, audience: st
           researchParts.push(`LIVE RESEARCH (sourced ${currentYear}):\n${content}`);
           if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 8).join(", ")}`);
         }
+        for (const c of citations.slice(0, 8)) {
+          if (typeof c === "string" && c.startsWith("http")) sources.push({ url: c });
+          else if (c && typeof c === "object" && typeof c.url === "string") sources.push({ url: c.url, title: c.title });
+        }
       } else { console.error("Perplexity failed:", resp.status); }
     } catch (e: any) { console.error("Perplexity error:", e.message); }
   }
@@ -73,18 +78,29 @@ async function researchTopic(nicheName: string, schemaName: string, audience: st
         if (results.length > 0) {
           const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 600).trim()}`).join("\n\n");
           researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+          for (const r of results) {
+            if (r?.url) sources.push({ url: r.url, title: r.title || undefined });
+          }
         }
       } else { console.error("Firecrawl failed:", searchResp.status); }
     } catch (e: any) { console.error("Firecrawl error:", e.message); }
   }
 
+  const seen = new Set<string>();
+  const dedupedSources = sources.filter((s) => {
+    if (!s.url || seen.has(s.url)) return false;
+    seen.add(s.url);
+    return true;
+  }).slice(0, 8);
+
   if (researchParts.length === 0) {
     console.warn(`⚠️ No research data available for "${schemaName}" in "${nicheName}" — content will be conservative`);
-    return { context: "", hasResearch: false };
+    return { context: "", hasResearch: false, sources: dedupedSources };
   }
   return {
     context: `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\nThe following is CURRENT, VERIFIED information from live web sources. This is your ONLY source of truth for tool/platform/company names.\nYou MUST ONLY reference tools, platforms, and companies that appear in this research data.\nDo NOT add any tools from your own training data. If a tool is not listed below, do NOT include it.\n\n${researchParts.join("\n\n")}\n\n═══ END OF RESEARCH DATA ═══`,
     hasResearch: true,
+    sources: dedupedSources,
   };
 }
 
