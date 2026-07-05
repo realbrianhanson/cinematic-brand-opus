@@ -403,7 +403,7 @@ ${items
 async function renderBlogPost(settings: Settings, path: string, slug: string): Promise<Response> {
   const { data: post } = await supabase
     .from("posts")
-    .select("id, title, slug, content, excerpt, featured_image, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status")
+    .select("id, title, slug, content, excerpt, featured_image, featured_image_alt, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
