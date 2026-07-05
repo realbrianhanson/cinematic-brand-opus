@@ -638,6 +638,7 @@ async function renderGeneratedPage(
     extraLd.push({
       "@context": "https://schema.org",
       "@type": "ItemList",
+      numberOfItems: listItems.length,
       itemListElement: listItems.map((n, i) => ({
         "@type": "ListItem",
         position: i + 1,
