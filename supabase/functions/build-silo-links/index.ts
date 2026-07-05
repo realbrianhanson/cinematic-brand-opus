@@ -219,12 +219,21 @@ async function buildSiloLinks(
   }
 
   // 2. Link to SIBLINGS (same niche, different content type) — silo_sibling
-  const siblings = allPublished.filter(
-    (p: any) =>
-      p.id !== page.id &&
-      p.niche_id === nicheId &&
-      p.content_schema_id !== page.content_schema_id
-  );
+  // Cap at 10 most recent siblings so early pages don't accumulate hundreds
+  // of outbound sibling links as the silo grows.
+  const siblings = allPublished
+    .filter(
+      (p: any) =>
+        p.id !== page.id &&
+        p.niche_id === nicheId &&
+        p.content_schema_id !== page.content_schema_id,
+    )
+    .sort((a: any, b: any) => {
+      const ta = new Date(a.published_at || a.created_at || 0).getTime();
+      const tb = new Date(b.published_at || b.created_at || 0).getTime();
+      return tb - ta;
+    })
+    .slice(0, 10);
 
   for (const sibling of siblings) {
     const { data: existing } = await supabase
