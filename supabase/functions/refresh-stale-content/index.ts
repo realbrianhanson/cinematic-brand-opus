@@ -245,6 +245,8 @@ Deno.serve(async (req) => {
 
 ${voiceBlock}`;
 
+      const existingJson = JSON.stringify(page.content_json ?? {}, null, 2);
+
       const userMessage = `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -258,25 +260,26 @@ ${researchContext}
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
 
-CONSTRAINTS:
-- Each section MUST contain exactly ${schema.items_per_section || 15} items (or fewer if research data doesn't support that many verified items)
-- Difficulty/priority enums must match the schema exactly
-- All descriptions must be specific to the ${niche.name} niche
-- Reference specific tools, platforms, and strategies used by ${ctx.audience || "the target audience"}
-- Use the language and terminology this audience actually uses
-- Pro tips must be non-obvious and actionable
-- The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
-- Include specific numbers, percentages, or timeframes where possible
-- Do NOT produce generic content that could apply to any niche
+EXISTING CONTENT TO REFRESH (this is the current, live JSON — you MUST preserve its overall shape):
+${existingJson}
+
+REFRESH RULES (this is a targeted update, NOT a regeneration):
+- Preserve the top-level structure: same sections in the same order, same item order within each section, same field keys.
+- Preserve any markdown links [text](/resources/...) embedded in item descriptions verbatim — do NOT drop or rewrite them.
+- Update stale facts: pricing, feature availability, tool names that have been renamed or retired, statistics, dates, and year references (use ${currentYear}).
+- If a tool listed in the existing content is defunct or no longer relevant per the research data, replace it with a comparable verified alternative in the SAME slot (keep the surrounding item shape).
+- Keep the same section titles unless a factual correction is required.
+- Refresh the intro's numbers/timeframes; keep its structure.
+- Keep the frequently_asked_questions array with exactly 5 items; you may rewrite answers with fresher info but keep questions where they still make sense.
+- Difficulty/priority enums must still match the schema exactly.
 ${researchConstraints}
 ${blocklist}
-- Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
-- This is a REFRESH of existing content — make it fresh with updated information for ${currentYear}
+- This is a REFRESH of existing content — target fact updates, do not rewrite from scratch.
 
-TITLE (pre-generated, include in output as-is):
+TITLE (pre-updated for ${currentYear}, include in output as-is):
 ${title}
 
-Generate the content now. Return ONLY the JSON object.`;
+Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
 
       let contentJson: any = null;
       let tokensUsed = 0;
