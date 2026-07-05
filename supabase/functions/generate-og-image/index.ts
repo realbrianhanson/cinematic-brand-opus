@@ -159,7 +159,9 @@ Deno.serve(async (req) => {
 
       const toProcess = (pages || []).filter((p: any) => {
         const meta = p.seo_meta as any;
-        return !meta?.og_image;
+        const url: string = meta?.og_image || "";
+        // Regenerate if missing OR if we still have a legacy SVG entry.
+        return !url || /\.svg(\?|$)/i.test(url);
       });
 
       for (const pg of toProcess) {
