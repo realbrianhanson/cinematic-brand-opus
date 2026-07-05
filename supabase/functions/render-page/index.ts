@@ -466,7 +466,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
-          .map((f) => `<h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p>`)
+          .map((f) => `<h3>${esc(f.question)}</h3><p>${escWithLinks(f.answer)}</p>`)
           .join("")}</section>`
       : ""
   }
@@ -759,7 +759,7 @@ async function renderGeneratedPage(
   <h1>${esc(page.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
   ${editorialNote()}
-  ${content.intro ? `<p>${esc(String(content.intro))}</p>` : ""}
+  ${content.intro ? `<p>${escWithLinks(String(content.intro))}</p>` : ""}
   ${sections
     .map((s: any) => {
       const kids: any[] =
@@ -771,10 +771,10 @@ async function renderGeneratedPage(
         [];
       const header = s?.title || s?.heading || s?.name || "";
       let out = header ? `<h2>${esc(header)}</h2>` : "";
-      if (s?.description) out += `<p>${esc(s.description)}</p>`;
-      if (s?.content) out += `<p>${esc(s.content)}</p>`;
+      if (s?.description) out += `<p>${escWithLinks(s.description)}</p>`;
+      if (s?.content) out += `<p>${escWithLinks(s.content)}</p>`;
       if (Array.isArray(s?.key_points)) {
-        out += `<ul>${s.key_points.map((k: string) => `<li>${esc(k)}</li>`).join("")}</ul>`;
+        out += `<ul>${s.key_points.map((k: string) => `<li>${escWithLinks(k)}</li>`).join("")}</ul>`;
       }
       for (const k of kids) out += renderItem(k);
       return out;
@@ -794,7 +794,7 @@ async function renderGeneratedPage(
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
-          .map((f) => `<h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p>`)
+          .map((f) => `<h3>${esc(f.question)}</h3><p>${escWithLinks(f.answer)}</p>`)
           .join("")}</section>`
       : ""
   }
