@@ -63,6 +63,8 @@ const SiteSettingsManager = () => {
         ...settings,
         author_credentials: (settings.author_credentials as string[]) ?? [],
         author_social_links: (settings.author_social_links as Record<string, string>) ?? {},
+        banned_phrases: ((settings as any).banned_phrases as string[]) ?? [],
+        voice_profile: ((settings as any).voice_profile as string) ?? "",
       });
     }
   }, [settings]);
