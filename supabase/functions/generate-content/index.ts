@@ -832,6 +832,15 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
     }
   }
 
+  const actualCount = contentJson ? countContentItems(contentJson) : 0;
+  const title = composePageTitle({
+    schemaSlug: schema.slug,
+    angle,
+    niche: niche.name,
+    audience: ctx.audience || "creators",
+    year: currentYear,
+    actualCount,
+  });
   return new Response(
     JSON.stringify({
       dry_run: true,
