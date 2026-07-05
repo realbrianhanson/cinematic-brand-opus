@@ -769,7 +769,7 @@ ${researchConstraints}
 ${blocklist}
 - Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
 
-TITLE (pre-generated, include in output as-is):
+WORKING TITLE (for internal reference — the final title will be composed post-generation, DO NOT pre-invent an item count):
 ${title}
 
 Generate the content now. Return ONLY the JSON object.`;
