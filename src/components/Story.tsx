@@ -219,9 +219,9 @@ const Story = () => {
             <p
               className="font-body"
               style={{
-                fontSize: "0.95rem",
+                fontSize: "1rem",
                 lineHeight: 1.7,
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(255,255,255,0.85)",
               }}
             >
               Every chapter taught me one thing: the rules only apply if you
