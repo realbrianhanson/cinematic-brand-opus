@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import {
+  loadVoiceConfig,
+  formatVoiceBlock,
+  refineWithVoice,
+  scoreContent,
+  type VoiceConfig,
+} from "../_shared/voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
