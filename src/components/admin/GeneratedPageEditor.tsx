@@ -185,8 +185,10 @@ const GeneratedPageEditor = () => {
       status,
       seo_meta: seoMeta,
       quality_score: qualityScore ? Number(qualityScore) : null,
+      human_edited: true,
     };
-    if (status === "published" && page?.status !== "published") {
+    const wasPublishing = status === "published" && page?.status !== "published";
+    if (wasPublishing) {
       updateData.published_at = new Date().toISOString();
     }
     if (overrideReason) {
@@ -199,6 +201,18 @@ const GeneratedPageEditor = () => {
 
     const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
     if (error) throw error;
+
+    // On publish transition: build silo links + submit IndexNow (fire-and-forget)
+    if (wasPublishing && id) {
+      supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
+      supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
+      const schemaSlug = (page as any)?.content_schemas?.slug;
+      if (schemaSlug && page?.slug) {
+        supabase.functions
+          .invoke("submit-indexnow", { body: { urls: [`/resources/${schemaSlug}/${page.slug}`] } })
+          .catch(() => {});
+      }
+    }
   });
 
   const saveMutation = useMutation({
