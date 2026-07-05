@@ -24,6 +24,26 @@ const esc = (s: unknown): string => {
     .replace(/'/g, "&#39;");
 };
 
+// Render inline markdown links [text](url) as real <a> anchors.
+// Everything else is HTML-escaped. External URLs get target=_blank + rel.
+function escWithLinks(s: unknown): string {
+  const str = s === null || s === undefined ? "" : String(s);
+  const parts: string[] = [];
+  const re = /\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(str)) !== null) {
+    parts.push(esc(str.slice(last, m.index)));
+    const [_, text, href] = m;
+    const external = /^https?:\/\//i.test(href);
+    const attrs = external ? ` target="_blank" rel="noopener nofollow"` : "";
+    parts.push(`<a href="${esc(href)}"${attrs}>${esc(text)}</a>`);
+    last = m.index + m[0].length;
+  }
+  parts.push(esc(str.slice(last)));
+  return parts.join("");
+}
+
 const jsonLd = (obj: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, "\\u003c")}</script>`;
 
