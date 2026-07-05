@@ -50,6 +50,23 @@ const PseoDashboard = () => {
     },
   });
 
+  // GSC Opportunities: pages ranking 8-25 with impressions but CTR < 2% — refresh candidates.
+  const { data: opportunities } = useQuery({
+    queryKey: ["pseo-gsc-opportunities"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("gsc_performance")
+        .select("page_url, query, clicks, impressions, ctr, position")
+        .gte("position", 8)
+        .lte("position", 25)
+        .gte("impressions", 20)
+        .lt("ctr", 0.02)
+        .order("impressions", { ascending: false })
+        .limit(20);
+      return data ?? [];
+    },
+  });
+
   // Views over time from page_engagement
   const { data: viewsOverTime } = useQuery({
     queryKey: ["pseo-views-time", range],
