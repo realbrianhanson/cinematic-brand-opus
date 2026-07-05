@@ -790,8 +790,7 @@ async function handleDryRun(supabase: any, niches: any[], contentSchemas: any[],
 
   const angles = await generateUniqueAngles(niche.name, schema.name, 1, existingTitles, ctx.audience || "general", apiKey);
   const { angle, keyword } = angles[0];
-  const estimatedCount = (schema.items_per_section || 15) * 3;
-  const title = `${estimatedCount} Best ${angle} in ${currentYear}`;
+  const workingTitle = `${angle} for ${niche.name} (${currentYear})`;
 
   const { context: researchContext, hasResearch } = await researchTopic(angle, niche.name, ctx.audience || "general", currentYear);
 
