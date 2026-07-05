@@ -24,6 +24,26 @@ const esc = (s: unknown): string => {
     .replace(/'/g, "&#39;");
 };
 
+// Render inline markdown links [text](url) as real <a> anchors.
+// Everything else is HTML-escaped. External URLs get target=_blank + rel.
+function escWithLinks(s: unknown): string {
+  const str = s === null || s === undefined ? "" : String(s);
+  const parts: string[] = [];
+  const re = /\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(str)) !== null) {
+    parts.push(esc(str.slice(last, m.index)));
+    const [_, text, href] = m;
+    const external = /^https?:\/\//i.test(href);
+    const attrs = external ? ` target="_blank" rel="noopener nofollow"` : "";
+    parts.push(`<a href="${esc(href)}"${attrs}>${esc(text)}</a>`);
+    last = m.index + m[0].length;
+  }
+  parts.push(esc(str.slice(last)));
+  return parts.join("");
+}
+
 const jsonLd = (obj: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, "\\u003c")}</script>`;
 
@@ -38,7 +58,7 @@ const truncate = (s: string, n = 160) =>
 function renderNode(node: unknown, depth = 3): string {
   if (node === null || node === undefined) return "";
   if (typeof node === "string") {
-    return node.trim() ? `<p>${esc(node)}</p>` : "";
+    return node.trim() ? `<p>${escWithLinks(node)}</p>` : "";
   }
   if (typeof node === "number" || typeof node === "boolean") {
     return `<p>${esc(String(node))}</p>`;
@@ -58,7 +78,7 @@ function renderNode(node: unknown, depth = 3): string {
       if (v === null || v === undefined || v === "") continue;
       const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-        out += `<p><strong>${esc(label)}:</strong> ${esc(String(v))}</p>`;
+        out += `<p><strong>${esc(label)}:</strong> ${escWithLinks(v)}</p>`;
       } else if (Array.isArray(v)) {
         if (v.every((x) => typeof x === "string")) {
           out += `<p><strong>${esc(label)}:</strong></p><ul>${v.map((x) => `<li>${esc(String(x))}</li>`).join("")}</ul>`;
@@ -104,7 +124,7 @@ function renderItem(item: unknown): string {
     if (v === null || v === undefined || v === "") continue;
     const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-      out += `<p><strong>${esc(label)}:</strong> ${esc(String(v))}</p>`;
+      out += `<p><strong>${esc(label)}:</strong> ${escWithLinks(v)}</p>`;
     } else if (Array.isArray(v)) {
       if (v.every((x) => typeof x === "string")) {
         out += `<p><strong>${esc(label)}:</strong></p><ul>${v.map((x) => `<li>${esc(String(x))}</li>`).join("")}</ul>`;
@@ -446,7 +466,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
-          .map((f) => `<h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p>`)
+          .map((f) => `<h3>${esc(f.question)}</h3><p>${escWithLinks(f.answer)}</p>`)
           .join("")}</section>`
       : ""
   }
@@ -588,34 +608,70 @@ async function renderGeneratedPage(
   const ogImage = seo.og_image || seo.image || undefined;
 
 
-  // niche + pillar + siblings
+  // niche + pillar + siblings.
+  // Prefer stored internal_links (built at publish time) so anchor text + link set
+  // stays consistent with the silo model. Falls back to a live niche query.
   let niche: any = null;
   let pillar: any = null;
-  let siblings: any[] = [];
+  let siblings: { slug: string; title: string; content_schema_id?: string; content_schema_slug?: string; anchor_text?: string }[] = [];
   if (page.niche_id) {
     const { data: n } = await supabase
-      .from("niches")
-      .select("id, slug, name")
-      .eq("id", page.niche_id)
-      .maybeSingle();
+      .from("niches").select("id, slug, name").eq("id", page.niche_id).maybeSingle();
     niche = n;
-    const [{ data: pil }, { data: sibs }] = await Promise.all([
-      supabase
-        .from("pillar_pages")
-        .select("slug, title, status")
-        .eq("niche_id", page.niche_id)
-        .eq("status", "published")
-        .maybeSingle(),
-      supabase
+
+    // Try stored internal_links first
+    const { data: storedLinks } = await supabase
+      .from("internal_links")
+      .select("target_page_id, target_page_type, link_type, anchor_text")
+      .eq("source_page_id", page.id)
+      .in("link_type", ["silo_up", "silo_sibling"]);
+
+    const siblingTargetIds = (storedLinks ?? [])
+      .filter((l: any) => l.link_type === "silo_sibling" && l.target_page_type === "generated")
+      .map((l: any) => l.target_page_id);
+    const pillarLink = (storedLinks ?? []).find((l: any) => l.link_type === "silo_up" && l.target_page_type === "pillar");
+
+    if (siblingTargetIds.length > 0) {
+      const { data: sibs } = await supabase
         .from("generated_pages")
-        .select("slug, title, content_schema_id")
-        .eq("niche_id", page.niche_id)
-        .eq("status", "published")
-        .neq("id", page.id)
-        .limit(8),
-    ]);
-    pillar = pil;
-    siblings = sibs ?? [];
+        .select("id, slug, title, content_schema_id, content_schemas(slug)")
+        .in("id", siblingTargetIds);
+      const anchorById: Record<string, string> = {};
+      for (const l of storedLinks ?? []) if (l.link_type === "silo_sibling") anchorById[l.target_page_id] = l.anchor_text;
+      siblings = (sibs ?? []).map((s: any) => ({
+        slug: s.slug,
+        title: s.title,
+        content_schema_id: s.content_schema_id,
+        content_schema_slug: s.content_schemas?.slug,
+        anchor_text: anchorById[s.id] || s.title,
+      }));
+    }
+    if (pillarLink) {
+      const { data: pil } = await supabase
+        .from("pillar_pages").select("slug, title").eq("id", pillarLink.target_page_id).maybeSingle();
+      if (pil) pillar = pil;
+    }
+
+    // Fallback if nothing stored yet
+    if (siblings.length === 0 || !pillar) {
+      const [{ data: pil }, { data: sibs }] = await Promise.all([
+        pillar ? Promise.resolve({ data: pillar }) : supabase
+          .from("pillar_pages").select("slug, title, status")
+          .eq("niche_id", page.niche_id).eq("status", "published").maybeSingle(),
+        siblings.length > 0 ? Promise.resolve({ data: null }) : supabase
+          .from("generated_pages")
+          .select("slug, title, content_schema_id, content_schemas(slug)")
+          .eq("niche_id", page.niche_id).eq("status", "published").neq("id", page.id).limit(10),
+      ]);
+      if (!pillar && pil) pillar = pil;
+      if (siblings.length === 0 && sibs) {
+        siblings = (sibs as any[]).map((s: any) => ({
+          slug: s.slug, title: s.title,
+          content_schema_id: s.content_schema_id,
+          content_schema_slug: s.content_schemas?.slug,
+        }));
+      }
+    }
   }
 
   // Related blog posts (recent, no strict topical join available)
@@ -703,7 +759,7 @@ async function renderGeneratedPage(
   <h1>${esc(page.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
   ${editorialNote()}
-  ${content.intro ? `<p>${esc(String(content.intro))}</p>` : ""}
+  ${content.intro ? `<p>${escWithLinks(String(content.intro))}</p>` : ""}
   ${sections
     .map((s: any) => {
       const kids: any[] =
@@ -715,10 +771,10 @@ async function renderGeneratedPage(
         [];
       const header = s?.title || s?.heading || s?.name || "";
       let out = header ? `<h2>${esc(header)}</h2>` : "";
-      if (s?.description) out += `<p>${esc(s.description)}</p>`;
-      if (s?.content) out += `<p>${esc(s.content)}</p>`;
+      if (s?.description) out += `<p>${escWithLinks(s.description)}</p>`;
+      if (s?.content) out += `<p>${escWithLinks(s.content)}</p>`;
       if (Array.isArray(s?.key_points)) {
-        out += `<ul>${s.key_points.map((k: string) => `<li>${esc(k)}</li>`).join("")}</ul>`;
+        out += `<ul>${s.key_points.map((k: string) => `<li>${escWithLinks(k)}</li>`).join("")}</ul>`;
       }
       for (const k of kids) out += renderItem(k);
       return out;
@@ -738,7 +794,7 @@ async function renderGeneratedPage(
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
-          .map((f) => `<h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p>`)
+          .map((f) => `<h3>${esc(f.question)}</h3><p>${escWithLinks(f.answer)}</p>`)
           .join("")}</section>`
       : ""
   }
@@ -753,8 +809,8 @@ ${
   siblings.length
     ? `<section><h2>More in ${esc(niche?.name ?? "this topic")}</h2><ul>${siblings
         .map(
-          (s: any) =>
-            `<li><a href="/resources/${esc(schema.slug)}/${esc(s.slug)}">${esc(s.title)}</a></li>`,
+          (s) =>
+            `<li><a href="/resources/${esc(s.content_schema_slug || schema.slug)}/${esc(s.slug)}">${esc(s.anchor_text || s.title)}</a></li>`,
         )
         .join("")}</ul></section>`
     : ""

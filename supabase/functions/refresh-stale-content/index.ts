@@ -7,11 +7,12 @@ import {
   composeTitle,
   writeMetaDescription,
 } from "../_shared/voice.ts";
+import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -109,33 +110,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: verify caller is admin
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const { data: roleRow } = await anonClient
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const authResult = await authorizeCronOrAdmin(req, corsHeaders);
+  if (authResult instanceof Response) return authResult;
 
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -151,35 +127,54 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { page_ids, all_stale = false } = body;
+    const { page_ids, page_id, all_stale = false, max_pages } = body;
     const batch_id = crypto.randomUUID();
+    const explicitIds: string[] | null = Array.isArray(page_ids)
+      ? page_ids
+      : (typeof page_id === "string" ? [page_id] : null);
 
     let pagesToRefresh: any[] = [];
+    let skippedHumanEdited: { id: string; slug: string; title: string }[] = [];
+
     if (all_stale) {
-      const { data, error } = await supabase
+      let q = supabase
         .from("generated_pages")
         .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
         .eq("performance_trend", "needs_refresh")
-        .eq("status", "published");
+        .eq("status", "published")
+        .order("last_refreshed", { ascending: true, nullsFirst: true });
+      if (typeof max_pages === "number" && max_pages > 0) q = q.limit(max_pages);
+      const { data, error } = await q;
       if (error) throw new Error(`Query failed: ${error.message}`);
-      pagesToRefresh = data || [];
-    } else if (Array.isArray(page_ids) && page_ids.length > 0) {
+      const all = data || [];
+      // Skip human-edited pages in all_stale (they require explicit page_id override)
+      for (const p of all) {
+        if ((p as any).human_edited) skippedHumanEdited.push({ id: p.id, slug: p.slug, title: p.title });
+        else pagesToRefresh.push(p);
+      }
+    } else if (explicitIds && explicitIds.length > 0) {
       const { data, error } = await supabase
         .from("generated_pages")
         .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
-        .in("id", page_ids);
+        .in("id", explicitIds);
       if (error) throw new Error(`Query failed: ${error.message}`);
       pagesToRefresh = data || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Provide page_ids array or all_stale: true" }),
+        JSON.stringify({ error: "Provide page_ids array, page_id, or all_stale: true" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (pagesToRefresh.length === 0) {
       return new Response(
-        JSON.stringify({ refreshed: 0, message: "No pages to refresh." }),
+        JSON.stringify({
+          refreshed: 0,
+          message: skippedHumanEdited.length
+            ? "All eligible stale pages were skipped as human-edited."
+            : "No pages to refresh.",
+          skipped_human_edited: skippedHumanEdited,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -201,6 +196,7 @@ Deno.serve(async (req) => {
       refreshed: 0,
       failed: 0,
       pages: [] as { id: string; title: string; slug: string }[],
+      skipped_human_edited: skippedHumanEdited,
     };
 
     for (const page of pagesToRefresh) {
@@ -249,6 +245,8 @@ Deno.serve(async (req) => {
 
 ${voiceBlock}`;
 
+      const existingJson = JSON.stringify(page.content_json ?? {}, null, 2);
+
       const userMessage = `NICHE CONTEXT:
 Name: ${niche.name}
 Audience: ${ctx.audience || "general"}
@@ -262,25 +260,26 @@ ${researchContext}
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}
 
-CONSTRAINTS:
-- Each section MUST contain exactly ${schema.items_per_section || 15} items (or fewer if research data doesn't support that many verified items)
-- Difficulty/priority enums must match the schema exactly
-- All descriptions must be specific to the ${niche.name} niche
-- Reference specific tools, platforms, and strategies used by ${ctx.audience || "the target audience"}
-- Use the language and terminology this audience actually uses
-- Pro tips must be non-obvious and actionable
-- The intro field must directly answer the implied search query in 2-3 factual, self-contained sentences
-- Include specific numbers, percentages, or timeframes where possible
-- Do NOT produce generic content that could apply to any niche
+EXISTING CONTENT TO REFRESH (this is the current, live JSON — you MUST preserve its overall shape):
+${existingJson}
+
+REFRESH RULES (this is a targeted update, NOT a regeneration):
+- Preserve the top-level structure: same sections in the same order, same item order within each section, same field keys.
+- Preserve any markdown links [text](/resources/...) embedded in item descriptions verbatim — do NOT drop or rewrite them.
+- Update stale facts: pricing, feature availability, tool names that have been renamed or retired, statistics, dates, and year references (use ${currentYear}).
+- If a tool listed in the existing content is defunct or no longer relevant per the research data, replace it with a comparable verified alternative in the SAME slot (keep the surrounding item shape).
+- Keep the same section titles unless a factual correction is required.
+- Refresh the intro's numbers/timeframes; keep its structure.
+- Keep the frequently_asked_questions array with exactly 5 items; you may rewrite answers with fresher info but keep questions where they still make sense.
+- Difficulty/priority enums must still match the schema exactly.
 ${researchConstraints}
 ${blocklist}
-- Generate a frequently_asked_questions array with exactly 5 items, each with question and answer fields
-- This is a REFRESH of existing content — make it fresh with updated information for ${currentYear}
+- This is a REFRESH of existing content — target fact updates, do not rewrite from scratch.
 
-TITLE (pre-generated, include in output as-is):
+TITLE (pre-updated for ${currentYear}, include in output as-is):
 ${title}
 
-Generate the content now. Return ONLY the JSON object.`;
+Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
 
       let contentJson: any = null;
       let tokensUsed = 0;

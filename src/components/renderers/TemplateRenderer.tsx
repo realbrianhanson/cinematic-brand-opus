@@ -1,3 +1,4 @@
+import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { useState, useMemo } from "react";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,7 +61,7 @@ const TemplateRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
                   </button>
                 </div>
                 {tmpl.use_case && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{tmpl.use_case}</p>}
-                {tmpl.description && !tmpl.use_case && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{tmpl.description}</p>}
+                {tmpl.description && !tmpl.use_case && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(tmpl.description)}</p>}
               </div>
 
               {isOpen && templateText && (

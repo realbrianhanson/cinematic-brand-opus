@@ -515,11 +515,34 @@ async function handleStepProcessing(
   const voice = await loadVoiceConfig(supabase);
   const voiceBlock = formatVoiceBlock(voice);
 
+  // Fetch up to 10 published siblings + the niche's pillar for in-body contextual links
+  const [{ data: siblingLinks }, { data: pillarLink }] = await Promise.all([
+    supabase
+      .from("generated_pages")
+      .select("title, slug, content_schemas(slug)")
+      .eq("niche_id", niche.id)
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .limit(10),
+    supabase
+      .from("pillar_pages")
+      .select("title, slug")
+      .eq("niche_id", niche.id)
+      .eq("status", "published")
+      .maybeSingle(),
+  ]);
+  const internalLinkOptions: { title: string; url: string }[] = [];
+  for (const s of (siblingLinks ?? []) as any[]) {
+    const sSlug = s.content_schemas?.slug;
+    if (sSlug && s.slug) internalLinkOptions.push({ title: s.title, url: `/resources/${sSlug}/${s.slug}` });
+  }
+  if (pillarLink) internalLinkOptions.push({ title: pillarLink.title, url: `/guides/${pillarLink.slug}` });
+
   // AI generation
   const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
 
 ${voiceBlock}`;
-  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch);
+  const userMessage = buildUserMessage(niche, schema, ctx, workingTitle, item.angle, currentYear, researchContext, hasResearch, internalLinkOptions);
 
   let contentJson: any = null;
   let tokensUsed = 0;
@@ -727,7 +750,11 @@ async function updateJobProgress(supabase: any, jobId: string, completed: number
   }).eq("id", jobId);
 }
 
-function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string, currentYear: number, researchContext: string = "", hasResearch: boolean = true): string {
+function buildUserMessage(
+  niche: any, schema: any, ctx: Record<string, any>, title: string, angle: string,
+  currentYear: number, researchContext: string = "", hasResearch: boolean = true,
+  internalLinkOptions: { title: string; url: string }[] = [],
+): string {
   const researchConstraints = hasResearch
     ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
 - If the research data doesn't provide enough items to fill a section, use FEWER items rather than inventing tools from your training data. Quality over quantity.
@@ -738,6 +765,17 @@ function buildUserMessage(niche: any, schema: any, ctx: Record<string, any>, tit
 - When in doubt about whether a tool still exists or is still relevant, LEAVE IT OUT.`;
 
   const blocklist = `- NEVER mention these known defunct/outdated/irrelevant tools: Air.ai, Jasper, Copy.ai, Writesonic, Rytr, Article Forge, WordAI, Kafkai, or any tool you are not 100% certain is actively operating in ${currentYear}. If ANY of these appear in research data, they may be included ONLY if the research explicitly confirms they are active in ${currentYear}.`;
+
+  const linkBlock = internalLinkOptions.length > 0 ? `
+INTERNAL LINK OPTIONS (existing published pages on this same site — reference where genuinely relevant):
+${internalLinkOptions.map((l) => `- [${l.title}](${l.url})`).join("\n")}
+
+INTERNAL LINK RULES:
+- Where an item's description would ALREADY naturally reference a topic covered by one of the pages above, embed a markdown link in the description using the exact format [Anchor Text](/relative-url) — never fabricate URLs.
+- Aim for 2–3 total internal links across the whole page, embedded inline in item descriptions, section content, or the intro.
+- ZERO links is acceptable when nothing above is a natural fit. Do NOT force a link into an unrelated sentence.
+- Never place a link in the title, faq questions, or section headings — only inside prose descriptions.
+- Do not link to a URL not listed above.` : "";
 
   return `NICHE CONTEXT:
 Name: ${niche.name}
@@ -751,6 +789,7 @@ AI Opportunities: ${ctx.ai_opportunities || "N/A"}
 SPECIFIC ANGLE/FOCUS: ${angle}
 This page must focus SPECIFICALLY on "${angle}" — not the general "${schema.name}" topic. All items, examples, and recommendations should relate to this specific subtopic.
 ${researchContext}
+${linkBlock}
 
 CONTENT SCHEMA:
 ${JSON.stringify(schema.schema_definition, null, 2)}

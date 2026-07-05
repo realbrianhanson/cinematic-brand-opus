@@ -150,6 +150,7 @@ export type Database = {
           created_at: string | null
           generation_cost: number | null
           generation_model: string | null
+          human_edited: boolean
           id: string
           keyword_difficulty: string | null
           last_refreshed: string | null
@@ -179,6 +180,7 @@ export type Database = {
           created_at?: string | null
           generation_cost?: number | null
           generation_model?: string | null
+          human_edited?: boolean
           id?: string
           keyword_difficulty?: string | null
           last_refreshed?: string | null
@@ -208,6 +210,7 @@ export type Database = {
           created_at?: string | null
           generation_cost?: number | null
           generation_model?: string | null
+          human_edited?: boolean
           id?: string
           keyword_difficulty?: string | null
           last_refreshed?: string | null
