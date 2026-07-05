@@ -1,4 +1,5 @@
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
+import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ProTips } from "./IdeaListRenderer";
@@ -55,15 +56,31 @@ const GuideRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; n
                 ))}
               </ul>
             )}
+            {/* Section items (e.g. strategy-guides): show each as a card with h3 name */}
+            {Array.isArray(section.items) && section.items.length > 0 && (
+              <div className="flex flex-col gap-4 mt-4">
+                {section.items.map((it: any, ii: number) => (
+                  <div key={ii} className="p-5" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#181820" }}>
+                    <h3 className="font-body font-semibold mb-2" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{getItemTitle(it)}</h3>
+                    {it.description && <p className="font-body mb-2" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(it.description)}</p>}
+                    {it.expected_impact && <p className="font-body" style={{ fontSize: 13, color: "#E8C96A" }}>{it.expected_impact}</p>}
+                    {it.pro_tip && <p className="font-body mt-2" style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontStyle: "italic" }}>Pro tip: {it.pro_tip}</p>}
+                    {it.difficulty && (
+                      <span className="font-body uppercase inline-block mt-2 px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: "rgba(212,175,85,0.14)", color: "#D4AF55", border: "1px solid rgba(212,175,85,0.4)" }}>{it.difficulty}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Tool mentions */}
             {section.tools && Array.isArray(section.tools) && (
               <div className="flex flex-col gap-3 mt-4">
                 {section.tools.map((tool: any, ti: number) => (
                   <div key={ti} className="p-4 flex items-start gap-3" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
                     <div>
-                      <h4 className="font-body font-semibold" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{tool.name}</h4>
-                      {tool.description && <p className="font-body mt-1" style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{renderInlineMarkdown(tool.description)}</p>}
-                      {tool.link && <a href={tool.link} target="_blank" rel="noopener noreferrer" className="font-body mt-1 inline-block hover:text-[#D4AF55] transition-colors" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Visit →</a>}
+                      <h4 className="font-body font-semibold" style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}>{tool.name}</h4>
+                      {tool.description && <p className="font-body mt-1" style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{renderInlineMarkdown(tool.description)}</p>}
+                      {tool.link && <a href={tool.link} target="_blank" rel="noopener noreferrer" className="font-body mt-1 inline-block hover:text-[#D4AF55] transition-colors" style={{ fontSize: 12, color: "#D4AF55" }}>Visit →</a>}
                     </div>
                   </div>
                 ))}

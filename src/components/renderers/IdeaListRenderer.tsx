@@ -1,4 +1,5 @@
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
+import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useMemo } from "react";
 import { Search, Copy, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,8 @@ const IdeaListRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
       if (diffFilter && item.difficulty?.toLowerCase() !== diffFilter) return false;
       if (search) {
         const q = search.toLowerCase();
-        return (item.title?.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q));
+        const t = getItemTitle(item);
+        return (t.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q));
       }
       return true;
     });
@@ -84,15 +86,16 @@ const IdeaListRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any
       <div className="grid md:grid-cols-2 gap-5 mb-12">
         {filtered.map((item, i) => {
           const dc = diffColors[item.difficulty?.toLowerCase()] || diffColors.beginner;
+          const itemTitle = getItemTitle(item);
           return (
             <div key={i} className="p-6" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#181820" }}>
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="font-body font-semibold" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{item.title}</h3>
+                <h3 className="font-body font-semibold" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{itemTitle}</h3>
                 <button
-                  onClick={() => handleCopy(item.title, i)}
+                  onClick={() => handleCopy(itemTitle, i)}
                   className="shrink-0 p-1.5 transition-colors"
                   style={{ color: copiedIdx === i ? "#D4AF55" : "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer" }}
-                  aria-label={`Copy title: ${item.title}`}
+                  aria-label={`Copy title: ${itemTitle}`}
                 >
                   {copiedIdx === i ? <Check size={14} /> : <Copy size={14} />}
                 </button>

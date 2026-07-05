@@ -1,4 +1,5 @@
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
+import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useMemo } from "react";
 import { RotateCcw, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,7 +79,7 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
                   />
                   <div className="flex-1">
                     <h3 className="font-body font-semibold mb-1" style={{ fontSize: 18, color: "rgba(255,255,255,0.95)", textDecoration: isChecked ? "line-through" : "none", lineHeight: 1.4 }}>
-                      {step.title || step.name}
+                      {getItemTitle(step)}
                     </h3>
                     {step.description && <p className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(step.description)}</p>}
                     <div className="flex items-center gap-2 mt-2">

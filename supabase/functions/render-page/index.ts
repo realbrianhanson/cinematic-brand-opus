@@ -759,12 +759,17 @@ async function renderGeneratedPage(
   const pubDate = page.published_at || page.created_at;
 
   const lastVerified = (page as any).last_refreshed || pubDate;
+  const heroImage = typeof content.hero_image === "string" ? content.hero_image : "";
+  const heroAlt = typeof content.hero_image_alt === "string" ? content.hero_image_alt : page.title;
+  const expertQuote = typeof content?.expert_callout?.quote === "string" ? content.expert_callout.quote : "";
   const body = `
 <article>
   <h1>${esc(page.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
   ${editorialNote(lastVerified)}
   ${content.intro ? `<p>${escWithLinks(String(content.intro))}</p>` : ""}
+  ${heroImage ? `<figure><img src="${esc(heroImage)}" alt="${esc(heroAlt)}" loading="lazy" style="max-width:100%;height:auto;display:block"></figure>` : ""}
+  ${expertQuote ? `<aside class="expert-callout" style="border-left:3px solid #D4AF55;background:#fbf6e8;padding:1rem 1.25rem;margin:1.5rem 0"><p style="font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:#8a6a1a;margin:0 0 .5rem">From the trenches</p><p style="font-style:italic;margin:0">${esc(expertQuote)}</p>${settings.author_name ? `<p style="font-size:.8rem;color:#555;margin:.5rem 0 0">— ${esc(settings.author_name)}</p>` : ""}</aside>` : ""}
   ${sections
     .map((s: any) => {
       const kids: any[] =

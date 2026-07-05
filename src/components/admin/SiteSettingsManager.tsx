@@ -25,6 +25,8 @@ const defaultSettings = {
   report_enabled: false,
   voice_profile: "",
   banned_phrases: [] as string[],
+  default_expert_pov: "",
+  image_generation_enabled: true,
 };
 
 type Settings = typeof defaultSettings & { id?: string };
@@ -65,6 +67,8 @@ const SiteSettingsManager = () => {
         author_social_links: (settings.author_social_links as Record<string, string>) ?? {},
         banned_phrases: ((settings as any).banned_phrases as string[]) ?? [],
         voice_profile: ((settings as any).voice_profile as string) ?? "",
+        default_expert_pov: ((settings as any).default_expert_pov as string) ?? "",
+        image_generation_enabled: (settings as any).image_generation_enabled !== false,
       });
     }
   }, [settings]);
@@ -90,6 +94,8 @@ const SiteSettingsManager = () => {
         report_enabled: (form as any).report_enabled || false,
         voice_profile: form.voice_profile || null,
         banned_phrases: form.banned_phrases,
+        default_expert_pov: form.default_expert_pov || null,
+        image_generation_enabled: form.image_generation_enabled,
         updated_at: new Date().toISOString(),
       };
 
@@ -477,6 +483,25 @@ const SiteSettingsManager = () => {
                   Case-insensitive substring match. Press Enter or click away to add. Matched phrases block publishing until fixed.
                 </p>
               </Field>
+              <Field label="Default Expert POV (site-wide fallback for 'From the trenches' callouts)">
+                <textarea
+                  className="admin-input font-body"
+                  rows={5}
+                  value={form.default_expert_pov ?? ""}
+                  onChange={(e) => updateField("default_expert_pov" as any, e.target.value)}
+                  placeholder="First-person background used when a niche has no expert_pov of its own. Only claims from this text will appear in callouts."
+                  style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6 }}
+                />
+              </Field>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.image_generation_enabled}
+                  onCheckedChange={(v) => updateField("image_generation_enabled" as any, v)}
+                />
+                <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                  Generate one editorial image per resource page (adds ~$0.02 per page)
+                </span>
+              </div>
             </div>
           </div>
 
