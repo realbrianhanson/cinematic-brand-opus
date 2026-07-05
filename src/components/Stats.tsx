@@ -73,7 +73,7 @@ const StatItem = ({ stat, index }: { stat: (typeof stats)[0]; index: number }) =
       </div>
       <div
         className="font-body mt-1"
-        style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}
+        style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
       >
         {stat.sub}
       </div>
