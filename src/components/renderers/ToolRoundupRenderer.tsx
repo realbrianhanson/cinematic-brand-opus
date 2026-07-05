@@ -47,22 +47,22 @@ const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: 
           {filtered.map((tool, i) => {
             const vc = verdictColors[tool.verdict] || verdictColors["honorable-mention"];
             return (
-              <div key={i} className="p-6 relative" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+              <div key={i} className="p-6 relative" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#181820" }}>
                 {tool.verdict && (
-                  <span className="font-body uppercase absolute top-4 right-4 px-2 py-0.5" style={{ fontSize: 8, letterSpacing: "0.1em", background: vc.bg, color: vc.color }}>
+                  <span className="font-body uppercase absolute top-4 right-4 px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: vc.bg, color: vc.color, border: `1px solid ${vc.border}` }}>
                     {tool.verdict.replace(/-/g, " ")}
                   </span>
                 )}
-                <h3 className="font-body font-semibold mb-2" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)" }}>{tool.name || tool.title}</h3>
-                <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(tool.description)}</p>
-                {tool.pricing && <p className="font-body mb-2" style={{ fontSize: 12, color: "#D4AF55" }}>{tool.pricing}</p>}
-                {tool.best_for && <p className="font-body mb-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>Best for: {tool.best_for}</p>}
+                <h3 className="font-body font-semibold mb-2" style={{ fontSize: 19, color: "rgba(255,255,255,0.95)", lineHeight: 1.35 }}>{tool.name || tool.title}</h3>
+                <p className="font-body mb-3" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(tool.description)}</p>
+                {tool.pricing && <p className="font-body mb-2" style={{ fontSize: 14, color: "#E8C96A" }}>{tool.pricing}</p>}
+                {tool.best_for && <p className="font-body mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>Best for: {tool.best_for}</p>}
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   {tool.pros && (
                     <div>
                       {tool.pros.map((p: string, pi: number) => (
-                        <div key={pi} className="font-body flex items-start gap-1.5 mb-1" style={{ fontSize: 12, color: "#4ADE80" }}>
-                          <Check size={12} className="shrink-0 mt-0.5" /> <span style={{ color: "rgba(255,255,255,0.45)" }}>{p}</span>
+                        <div key={pi} className="font-body flex items-start gap-1.5 mb-1" style={{ fontSize: 13, color: "#D4AF55" }}>
+                          <Check size={13} className="shrink-0 mt-0.5" /> <span style={{ color: "rgba(255,255,255,0.85)" }}>{p}</span>
                         </div>
                       ))}
                     </div>
@@ -70,8 +70,8 @@ const ToolRoundupRenderer = ({ contentJson, nicheName, pageId }: { contentJson: 
                   {tool.cons && (
                     <div>
                       {tool.cons.map((c: string, ci: number) => (
-                        <div key={ci} className="font-body flex items-start gap-1.5 mb-1" style={{ fontSize: 12, color: "#F87171" }}>
-                          <X size={12} className="shrink-0 mt-0.5" /> <span style={{ color: "rgba(255,255,255,0.45)" }}>{c}</span>
+                        <div key={ci} className="font-body flex items-start gap-1.5 mb-1" style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>
+                          <X size={13} className="shrink-0 mt-0.5" /> <span style={{ color: "rgba(255,255,255,0.85)" }}>{c}</span>
                         </div>
                       ))}
                     </div>
