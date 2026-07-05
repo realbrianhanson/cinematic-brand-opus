@@ -1,4 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resvg, initWasm } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
+
+// Initialize resvg wasm once per isolate.
+let resvgReady: Promise<void> | null = null;
+function ensureResvg(): Promise<void> {
+  if (!resvgReady) {
+    resvgReady = (async () => {
+      const wasmRes = await fetch(
+        "https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
+      );
+      const wasm = await wasmRes.arrayBuffer();
+      await initWasm(wasm);
+    })();
+  }
+  return resvgReady;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
