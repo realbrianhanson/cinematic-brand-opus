@@ -139,6 +139,17 @@ const SiteSettingsManager = () => {
     );
   };
 
+  const addBannedPhrase = (raw: string) => {
+    const trimmed = raw.trim().toLowerCase();
+    if (trimmed && !form.banned_phrases.includes(trimmed)) {
+      updateField("banned_phrases", [...form.banned_phrases, trimmed]);
+    }
+  };
+
+  const removeBannedPhrase = (idx: number) => {
+    updateField("banned_phrases", form.banned_phrases.filter((_, i) => i !== idx));
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: 300 }}>
