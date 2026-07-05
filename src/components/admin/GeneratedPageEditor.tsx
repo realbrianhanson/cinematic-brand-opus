@@ -165,7 +165,7 @@ const GeneratedPageEditor = () => {
 
 
 
-  const doSave = () => safeMutation(async () => {
+  const doSave = (overrideReason?: string) => safeMutation(async () => {
     let parsed: any;
     try {
       parsed = JSON.parse(contentStr);
@@ -189,13 +189,20 @@ const GeneratedPageEditor = () => {
     if (status === "published" && page?.status !== "published") {
       updateData.published_at = new Date().toISOString();
     }
+    if (overrideReason) {
+      const { data: authData } = await supabase.auth.getUser();
+      updateData.publish_override = true;
+      updateData.publish_override_reason = overrideReason;
+      updateData.publish_override_at = new Date().toISOString();
+      updateData.publish_override_by = authData?.user?.id ?? null;
+    }
 
     const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
     if (error) throw error;
   });
 
   const saveMutation = useMutation({
-    mutationFn: doSave,
+    mutationFn: (overrideReason?: string) => doSave(overrideReason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
@@ -222,19 +229,21 @@ const GeneratedPageEditor = () => {
         if (data?.score != null) {
           setQualityScore(String(data.score));
         }
-        if (data?.score < 60) {
+        if (data?.score < 75) {
           setQualityWarning({ score: data.score, issues: data.issues || [] });
           setScoring(false);
           return;
         }
       } catch (e: any) {
-        console.warn("Quality scoring failed, proceeding with publish:", e.message);
-        toast({ title: "Scoring skipped", description: "Could not score content — publishing anyway.", variant: "default" });
+        console.warn("Quality scoring failed:", e.message);
+        toast({ title: "Scoring failed", description: "Publish blocked until content can be scored.", variant: "destructive" });
+        setScoring(false);
+        return;
       }
       setScoring(false);
     }
     setQualityWarning(null);
-    saveMutation.mutate();
+    saveMutation.mutate(undefined);
   };
 
   const handleFormat = () => {
