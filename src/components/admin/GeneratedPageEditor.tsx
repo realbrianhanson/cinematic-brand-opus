@@ -329,7 +329,7 @@ const GeneratedPageEditor = () => {
               </h3>
             </div>
             <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 16 }}>
-              This content scored below the recommended threshold of 60. Publishing may hurt SEO performance.
+              This content scored below the publish threshold of 75. The database will reject the publish unless you override.
             </p>
             <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
               {qualityWarning.issues.map((issue, i) => (
