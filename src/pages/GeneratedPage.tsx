@@ -82,6 +82,33 @@ const GeneratedPage = () => {
   const rt = content ? readingTime(content) : 1;
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
+  // Flatten section items → names, mirroring the server-side ItemList in render-page.
+  const itemListNames = useMemo<string[]>(() => {
+    const out: string[] = [];
+    const sections: any[] =
+      (Array.isArray(content?.sections) && content.sections) ||
+      (Array.isArray(content?.categories) && content.categories) ||
+      [];
+    const nameKeys = ["name", "title", "idea", "tool_name", "strategy", "step", "template_name", "heading"];
+    for (const s of sections) {
+      const kids: any[] =
+        (Array.isArray(s?.items) && s.items) ||
+        (Array.isArray(s?.tools) && s.tools) ||
+        (Array.isArray(s?.templates) && s.templates) ||
+        (Array.isArray(s?.checklist_items) && s.checklist_items) ||
+        (Array.isArray(s?.faqs) && s.faqs) ||
+        [];
+      for (const k of kids) {
+        if (!k || typeof k !== "object") continue;
+        for (const nk of nameKeys) {
+          const v = k[nk];
+          if (typeof v === "string" && v.trim()) { out.push(v); break; }
+        }
+      }
+    }
+    return out;
+  }, [content]);
+
   const logEngagement = async (eventType: string, metadata: any = {}) => {
     if (!page?.id) return;
     await supabase.from("page_engagement").insert({ page_id: page.id, event_type: eventType, metadata });
