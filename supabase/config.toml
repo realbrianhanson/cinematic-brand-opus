@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.generate-blog-post]
 verify_jwt = false
+
+[functions.render-page]
+verify_jwt = false
