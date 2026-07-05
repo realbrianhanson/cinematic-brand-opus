@@ -4,10 +4,10 @@ import { RotateCcw, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProTips } from "./IdeaListRenderer";
 
-const priorityColors: Record<string, { bg: string; color: string }> = {
-  high: { bg: "rgba(248,113,113,0.12)", color: "#F87171" },
-  medium: { bg: "rgba(251,191,36,0.12)", color: "#FBBF24" },
-  low: { bg: "rgba(74,222,128,0.12)", color: "#4ADE80" },
+const priorityColors: Record<string, { bg: string; color: string; border: string }> = {
+  high: { bg: "rgba(184,150,46,0.18)", color: "#B8962E", border: "rgba(184,150,46,0.45)" },
+  medium: { bg: "rgba(212,175,85,0.14)", color: "#D4AF55", border: "rgba(212,175,85,0.4)" },
+  low: { bg: "rgba(232,201,106,0.10)", color: "#E8C96A", border: "rgba(232,201,106,0.35)" },
 };
 
 const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; nicheName: string; pageId: string }) => {
@@ -77,18 +77,18 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
                     style={{ width: 16, height: 16 }}
                   />
                   <div className="flex-1">
-                    <h3 className="font-body font-semibold mb-1" style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textDecoration: isChecked ? "line-through" : "none" }}>
+                    <h3 className="font-body font-semibold mb-1" style={{ fontSize: 18, color: "rgba(255,255,255,0.95)", textDecoration: isChecked ? "line-through" : "none", lineHeight: 1.4 }}>
                       {step.title || step.name}
                     </h3>
-                    {step.description && <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{renderInlineMarkdown(step.description)}</p>}
+                    {step.description && <p className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(step.description)}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {step.priority && (
-                        <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 9, letterSpacing: "0.1em", background: pc.bg, color: pc.color }}>
+                        <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: pc.bg, color: pc.color, border: `1px solid ${pc.border}` }}>
                           {step.priority}
                         </span>
                       )}
                       {step.estimated_time && (
-                        <span className="font-body" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{step.estimated_time}</span>
+                        <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{step.estimated_time}</span>
                       )}
                     </div>
                   </div>

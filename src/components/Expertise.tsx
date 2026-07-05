@@ -7,7 +7,7 @@ const cards = [
     icon: Brain,
     num: "01",
     title: "AI Implementation",
-    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD — just results.",
+    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD. Just results.",
   },
   {
     icon: Target,
@@ -19,7 +19,7 @@ const cards = [
     icon: Code2,
     num: "03",
     title: "No-Code Building",
-    text: "I built Revven — a full SaaS platform with 3,000+ users — without writing a single line of code. I teach others to do the same.",
+    text: "I built Revven, a full SaaS platform with 3,000+ users, without writing a single line of code. I teach others to do the same.",
   },
   {
     icon: Users,
@@ -123,7 +123,7 @@ const TiltCard = ({
 
         <h3
           className="font-display text-foreground mb-3"
-          style={{ fontSize: "1.35rem", fontWeight: 500 }}
+          style={{ fontSize: "1.4rem", fontWeight: 500 }}
         >
           {card.title}
         </h3>
@@ -131,9 +131,9 @@ const TiltCard = ({
         <p
           className="font-body"
           style={{
-            fontSize: "0.9rem",
-            lineHeight: 1.75,
-            color: "rgba(255,255,255,0.45)",
+            fontSize: "1rem",
+            lineHeight: 1.7,
+            color: "rgba(255,255,255,0.85)",
           }}
         >
           {card.text}
@@ -206,10 +206,10 @@ const Expertise = () => {
           <p
             className="font-body lg:text-right"
             style={{
-              fontSize: "0.95rem",
+              fontSize: "1rem",
               lineHeight: 1.7,
-              color: "rgba(255,255,255,0.4)",
-              maxWidth: 380,
+              color: "rgba(255,255,255,0.85)",
+              maxWidth: 400,
               ...revealStyle(headerVisible, 0.2),
             }}
           >

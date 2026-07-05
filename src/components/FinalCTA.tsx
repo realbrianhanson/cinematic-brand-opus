@@ -35,7 +35,7 @@ const FinalCTA = () => {
             </em>
           </h2>
 
-          <p className="font-body mb-10" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "rgba(255,255,255,0.45)", ...revealStyle(headerVisible, 0.1) }}>
+          <p className="font-body mb-10" style={{ fontSize: "1.1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.85)", ...revealStyle(headerVisible, 0.1) }}>
             Weekly AI strategies, tools, and frameworks from the front lines. No spam. No fluff. Just what moves the needle.
           </p>
         </div>
@@ -83,8 +83,8 @@ const FinalCTA = () => {
               { icon: Sparkles, text: "Unsubscribe anytime" },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-1.5">
-                <Icon size={12} color="rgba(212,175,85,0.5)" />
-                <span className="font-body" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{text}</span>
+                <Icon size={13} color="#D4AF55" />
+                <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{text}</span>
               </div>
             ))}
           </div>

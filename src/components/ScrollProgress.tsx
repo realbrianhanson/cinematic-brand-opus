@@ -1,33 +1,46 @@
 import { useEffect, useRef } from "react";
 
+// Thin 2px gold line flush to top edge. Sits above nav (z-60 > nav z-50)
+// but is only 2px tall so it never overlaps the logo box.
 const ScrollProgress = () => {
   const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => {
-      const progress = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
+      const denom = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = denom > 0 ? window.scrollY / denom : 0;
       const p = Math.min(Math.max(progress, 0), 1);
       if (barRef.current) {
         barRef.current.style.transform = `scaleX(${p})`;
-        barRef.current.style.boxShadow = `0 0 ${8 + p * 20}px rgba(212,175,85,${0.3 + p * 0.3})`;
       }
     };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <div
-      ref={barRef}
-      className="fixed top-0 left-0 w-full pointer-events-none"
+      aria-hidden="true"
+      className="fixed left-0 pointer-events-none"
       style={{
+        top: 0,
+        width: "100%",
         height: 2,
         zIndex: 60,
-        background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
-        transformOrigin: "left",
-        transform: "scaleX(0)",
       }}
-    />
+    >
+      <div
+        ref={barRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
+          transformOrigin: "left center",
+          transform: "scaleX(0)",
+        }}
+      />
+    </div>
   );
 };
 

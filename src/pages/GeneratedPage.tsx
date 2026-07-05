@@ -134,8 +134,27 @@ const GeneratedPage = () => {
     );
   }
 
+  // Extract section headings for the sticky TOC
+  const tocItems: { id: string; label: string }[] = (() => {
+    const sections: any[] =
+      (Array.isArray(content?.sections) && content.sections) ||
+      (Array.isArray(content?.categories) && content.categories) ||
+      (Array.isArray(content?.phases) && content.phases) ||
+      [];
+    const items: { id: string; label: string }[] = [];
+    sections.forEach((s, i) => {
+      const label = s?.title || s?.name || s?.heading;
+      if (typeof label === "string" && label.trim()) {
+        const id = `section-${i}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`;
+        items.push({ id, label });
+      }
+    });
+    return items;
+  })();
+  const showToc = tocItems.length >= 4;
+
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <PageHead
         title={seo.title || page.title}
         description={seo.description || content?.intro || ""}
@@ -146,14 +165,23 @@ const GeneratedPage = () => {
         authorName={settings?.author_name}
       />
       <Nav />
-      <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1140 }}>
+      <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1240 }}>
         <SiloSidebar
           nicheId={page.niche.id}
           nicheName={page.niche.name}
           currentPageId={page.id}
           contentSchemaId={page.schema.id}
         />
-      <article id="main-content" className="flex-1 min-w-0" style={{ maxWidth: 900 }}>
+      <article
+        id="main-content"
+        className="flex-1 min-w-0 mx-auto"
+        style={{
+          maxWidth: 800,
+          background: "#14141b",
+          border: "1px solid rgba(255,255,255,0.06)",
+          padding: "40px clamp(20px, 4vw, 48px)",
+        }}
+      >
         <StructuredData
           pageType="generated"
           title={page.title}
@@ -188,21 +216,22 @@ const GeneratedPage = () => {
 
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
-        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
           {settings?.author_name && <span className="font-body">By {settings.author_name}</span>}
-          <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
+          <span className="font-body flex items-center gap-1"><Clock size={12} /> {rt} min read</span>
           {page.last_refreshed && (
             <span className="font-body flex items-center gap-1">
-              <Calendar size={11} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <Calendar size={12} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </span>
           )}
         </div>
-        <p className="font-body mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+        <p className="font-body mb-6" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontStyle: "italic" }}>
           {(() => {
             const d = new Date(page.last_refreshed || page.created_at || Date.now());
             return `Researched with live web data, reviewed against ${d.toLocaleString("en-US", { month: "long" })} ${d.getFullYear()} sources.`;
           })()}
         </p>
+
 
         <div className="flex items-center gap-3 mb-10">
           {[
@@ -220,8 +249,8 @@ const GeneratedPage = () => {
         </div>
 
         {content?.intro && (
-          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.04)" }}>
-            <p className="font-body" style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>{content.intro}</p>
+          <div className="answer-block mb-12 p-6" style={{ borderLeft: "3px solid #D4AF55", background: "rgba(212,175,85,0.06)" }}>
+            <p className="font-body" style={{ fontSize: 18, color: "rgba(255,255,255,0.92)", lineHeight: 1.75 }}>{content.intro}</p>
           </div>
         )}
 
@@ -266,11 +295,70 @@ const GeneratedPage = () => {
 
         <PublicCTA variant="end" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
       </article>
+
+      {showToc && <StickyTOC items={tocItems} />}
       </div>
 
       <Footer />
       <PublicCTA variant="sticky" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
+  );
+};
+
+const StickyTOC = ({ items }: { items: { id: string; label: string }[] }) => {
+  const scrollToLabel = (label: string) => {
+    if (typeof document === "undefined") return;
+    // Find first h2/h3 whose text matches label
+    const headings = Array.from(document.querySelectorAll<HTMLElement>("article h2, article h3"));
+    const target = headings.find(
+      (h) => h.textContent?.trim().toLowerCase() === label.toLowerCase()
+    );
+    if (target) {
+      const y = target.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  };
+  return (
+    <aside
+      className="hidden xl:block"
+      style={{
+        position: "sticky",
+        top: 100,
+        width: 200,
+        flexShrink: 0,
+        alignSelf: "flex-start",
+      }}
+    >
+      <span
+        className="font-body uppercase block"
+        style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55", marginBottom: 14 }}
+      >
+        On this page
+      </span>
+      <ul style={{ display: "flex", flexDirection: "column", gap: 8, borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: 12 }}>
+        {items.map((it) => (
+          <li key={it.id}>
+            <button
+              onClick={() => scrollToLabel(it.label)}
+              className="font-body text-left transition-colors"
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: "rgba(255,255,255,0.75)",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+            >
+              {it.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 };
 

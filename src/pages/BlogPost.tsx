@@ -127,7 +127,7 @@ const BlogPost = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
       <PageHead
         title={post.title}
@@ -138,7 +138,11 @@ const BlogPost = () => {
         updatedAt={post.updated_at}
         authorName={siteSettings?.author_name}
       />
-      <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
+      <article
+        id="main-content"
+        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
+        style={{ maxWidth: 820 }}
+      >
         <StructuredData
           pageType="blog"
           title={post.title}
@@ -176,16 +180,16 @@ const BlogPost = () => {
           {(post as any).categories?.name && (
             <span
               className="font-body uppercase"
-              style={{ fontSize: 10, letterSpacing: "0.15em", color: "#D4AF55" }}
+              style={{ fontSize: 11, letterSpacing: "0.15em", color: "#D4AF55" }}
             >
               {(post as any).categories.name}
             </span>
           )}
           <span
             className="font-body flex items-center gap-1"
-            style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
           >
-            <Calendar size={11} />
+            <Calendar size={12} />
             {new Date(post.created_at).toLocaleDateString("en-US", {
               year: "numeric",
               month: "long",
@@ -194,9 +198,9 @@ const BlogPost = () => {
           </span>
           <span
             className="font-body flex items-center gap-1"
-            style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
           >
-            <Clock size={11} />
+            <Clock size={12} />
             {post.reading_time ?? 1} min read
           </span>
         </div>
@@ -212,19 +216,27 @@ const BlogPost = () => {
           {post.title}
         </h1>
 
+        {/* Reading surface wrapper */}
+        <div
+          style={{
+            background: "#14141b",
+            border: "1px solid rgba(255,255,255,0.06)",
+            padding: "clamp(24px, 4vw, 40px)",
+          }}
+        >
         {/* TL;DR */}
         {post.tldr && (
           <div
             className="answer-block mb-10 p-6"
             style={{
               borderLeft: "3px solid #D4AF55",
-              background: "rgba(212,175,85,0.04)",
+              background: "rgba(212,175,85,0.06)",
             }}
           >
             <span
               className="font-body uppercase block mb-2"
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 letterSpacing: "0.15em",
                 color: "#D4AF55",
               }}
@@ -233,7 +245,7 @@ const BlogPost = () => {
             </span>
             <p
               className="font-body"
-              style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}
+              style={{ fontSize: 17, color: "rgba(255,255,255,0.92)", lineHeight: 1.7 }}
             >
               {post.tldr}
             </p>
@@ -245,6 +257,7 @@ const BlogPost = () => {
           <img
             src={post.featured_image}
             alt={(post as any).featured_image_alt || post.title}
+            loading="lazy"
             className="w-full mb-10"
             style={{ maxHeight: 450, objectFit: "cover" }}
           />
@@ -254,12 +267,14 @@ const BlogPost = () => {
         <div
           className="blog-content font-body"
           style={{
-            fontSize: 16,
+            fontSize: 17,
             lineHeight: 1.85,
-            color: "rgba(255,255,255,0.65)",
+            color: "rgba(255,255,255,0.9)",
           }}
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content ?? "") }}
         />
+        </div>
+
 
         {/* Key Takeaways */}
         {post.key_takeaways &&

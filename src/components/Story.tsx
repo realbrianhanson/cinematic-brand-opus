@@ -16,7 +16,7 @@ const timelineData = [
     tag: "First Bet",
     time: "Mid-20s",
     accent: false,
-    text: "Built one of the largest engine and transmission companies in the US — without knowing how to change my own oil. Systems and selling beat credentials every time.",
+    text: "Built one of the largest engine and transmission companies in the US, without knowing how to change my own oil. Systems and selling beat credentials every time.",
   },
   {
     icon: Award,
@@ -30,14 +30,14 @@ const timelineData = [
     tag: "The Fire",
     time: "2020",
     accent: false,
-    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn — then build something better from the ashes.",
+    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn, then build something better from the ashes.",
   },
   {
     icon: Sparkles,
     tag: "The Rebuild",
     time: "Now · Age 46",
     accent: true,
-    text: "Built AI For Business — 150,000+ members. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
+    text: "Built AI For Business, 150,000+ members strong. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
   },
 ];
 
@@ -94,10 +94,10 @@ const TimelineEntry = ({
           <span
             className="inline-block self-start font-body font-bold uppercase"
             style={{
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: "0.12em",
               color: "#D4AF55",
-              background: "rgba(212,175,85,0.08)",
+              background: "rgba(212,175,85,0.1)",
               padding: "4px 10px",
             }}
           >
@@ -106,9 +106,9 @@ const TimelineEntry = ({
           <span
             className="font-body uppercase"
             style={{
-              fontSize: 11,
-              letterSpacing: "0.25em",
-              color: "rgba(255,255,255,0.2)",
+              fontSize: 12,
+              letterSpacing: "0.22em",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             {entry.time}
@@ -125,12 +125,12 @@ const TimelineEntry = ({
           <p
             className="font-body"
             style={{
-              fontSize: "1.15rem",
-              lineHeight: 1.8,
-              maxWidth: 600,
+              fontSize: "1.1rem",
+              lineHeight: 1.75,
+              maxWidth: 640,
               color: entry.accent
-                ? "rgba(255,255,255,0.55)"
-                : "rgba(255,255,255,0.45)",
+                ? "rgba(255,255,255,0.92)"
+                : "rgba(255,255,255,0.85)",
             }}
           >
             {entry.text}
@@ -219,9 +219,9 @@ const Story = () => {
             <p
               className="font-body"
               style={{
-                fontSize: "0.95rem",
+                fontSize: "1rem",
                 lineHeight: 1.7,
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(255,255,255,0.85)",
               }}
             >
               Every chapter taught me one thing: the rules only apply if you
@@ -263,7 +263,7 @@ const Story = () => {
             style={{
               fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
               lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
+              color: "rgba(255,255,255,0.92)",
               ...revealStyle(quoteVisible, 0.2),
             }}
           >
