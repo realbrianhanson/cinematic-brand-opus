@@ -95,7 +95,7 @@ ${voiceBlock}`;
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: MAIN_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
