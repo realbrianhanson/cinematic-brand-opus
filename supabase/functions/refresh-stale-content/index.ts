@@ -366,15 +366,29 @@ Generate the content now. Return ONLY the JSON object.`;
         console.error(`Refine threw for ${page.slug}:`, e.message);
       }
 
+      // Attach citations for the frontend + renderer.
+      if (sources.length) contentJson.sources = sources;
+
       // Auto-score final content
       const { score: qualityScore } = scoreContent(contentJson, title);
 
-      let seoMeta = page.seo_meta || {};
-      if (titleChanged && siteSettings) {
-        const siteName = siteSettings.publisher_name || siteSettings.site_name || "";
-        const fullT = siteName ? `${title} | ${siteName}` : title;
-        seoMeta = { ...seoMeta, title: fullT.length <= 65 ? fullT : title };
-      }
+      const siteName = siteSettings?.publisher_name || siteSettings?.site_name || "";
+      const existingSeo = (page.seo_meta || {}) as any;
+      const primaryKw = existingSeo.keywords?.[0] || niche.name;
+      const fallbackDesc = existingSeo.description && !existingSeo.description.startsWith("Discover")
+        ? existingSeo.description
+        : `${schema.name} for ${niche.name}, verified against ${currentYear} sources.`;
+      const newMetaDesc = await writeMetaDescription({
+        apiKey: LOVABLE_API_KEY, model: AI_MODEL, voice, contentJson,
+        primaryKeyword: primaryKw, angle: schema.name, niche: niche.name,
+        fallback: fallbackDesc,
+      });
+      const seoMeta = {
+        ...existingSeo,
+        title: composeTitle(title, siteName),
+        description: newMetaDesc,
+      };
+
 
       const { error: updateErr } = await supabase
         .from("generated_pages")
