@@ -134,8 +134,27 @@ const GeneratedPage = () => {
     );
   }
 
+  // Extract section headings for the sticky TOC
+  const tocItems: { id: string; label: string }[] = (() => {
+    const sections: any[] =
+      (Array.isArray(content?.sections) && content.sections) ||
+      (Array.isArray(content?.categories) && content.categories) ||
+      (Array.isArray(content?.phases) && content.phases) ||
+      [];
+    const items: { id: string; label: string }[] = [];
+    sections.forEach((s, i) => {
+      const label = s?.title || s?.name || s?.heading;
+      if (typeof label === "string" && label.trim()) {
+        const id = `section-${i}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`;
+        items.push({ id, label });
+      }
+    });
+    return items;
+  })();
+  const showToc = tocItems.length >= 4;
+
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <PageHead
         title={seo.title || page.title}
         description={seo.description || content?.intro || ""}
@@ -146,14 +165,23 @@ const GeneratedPage = () => {
         authorName={settings?.author_name}
       />
       <Nav />
-      <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1140 }}>
+      <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1240 }}>
         <SiloSidebar
           nicheId={page.niche.id}
           nicheName={page.niche.name}
           currentPageId={page.id}
           contentSchemaId={page.schema.id}
         />
-      <article id="main-content" className="flex-1 min-w-0" style={{ maxWidth: 900 }}>
+      <article
+        id="main-content"
+        className="flex-1 min-w-0 mx-auto"
+        style={{
+          maxWidth: 800,
+          background: "#14141b",
+          border: "1px solid rgba(255,255,255,0.06)",
+          padding: "40px clamp(20px, 4vw, 48px)",
+        }}
+      >
         <StructuredData
           pageType="generated"
           title={page.title}
@@ -188,21 +216,22 @@ const GeneratedPage = () => {
 
         <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}>{page.title}</h1>
 
-        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+        <div className="flex items-center gap-4 flex-wrap mb-2" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
           {settings?.author_name && <span className="font-body">By {settings.author_name}</span>}
-          <span className="font-body flex items-center gap-1"><Clock size={11} /> {rt} min read</span>
+          <span className="font-body flex items-center gap-1"><Clock size={12} /> {rt} min read</span>
           {page.last_refreshed && (
             <span className="font-body flex items-center gap-1">
-              <Calendar size={11} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <Calendar size={12} /> Last verified {new Date(page.last_refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </span>
           )}
         </div>
-        <p className="font-body mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+        <p className="font-body mb-6" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontStyle: "italic" }}>
           {(() => {
             const d = new Date(page.last_refreshed || page.created_at || Date.now());
             return `Researched with live web data, reviewed against ${d.toLocaleString("en-US", { month: "long" })} ${d.getFullYear()} sources.`;
           })()}
         </p>
+
 
         <div className="flex items-center gap-3 mb-10">
           {[
