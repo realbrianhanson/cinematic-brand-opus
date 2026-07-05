@@ -39,7 +39,7 @@ async function generateFeaturedImage(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-flash-image-preview",
+        model: IMAGE_MODEL,
         messages: [{ role: "user", content: imagePrompt }],
         modalities: ["image", "text"],
       }),
@@ -227,7 +227,7 @@ Return valid JSON ONLY with these fields:
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: MAIN_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
@@ -300,7 +300,7 @@ Return valid JSON ONLY with these fields:
     try {
       const revised = await critiqueAndRevise({
         apiKey: LOVABLE_API_KEY,
-        model: "google/gemini-2.5-flash",
+        model: MAIN_MODEL,
         voiceBlock,
         researchContext,
         draftJson: result,
@@ -317,7 +317,7 @@ Return valid JSON ONLY with these fields:
       if (violations.length > 0) {
         const fixed = await mechanicalFixViolations({
           apiKey: LOVABLE_API_KEY,
-          model: "google/gemini-2.5-flash",
+          model: MAIN_MODEL,
           draftJson: result,
           violations,
           bannedPhrases: voice.banned_phrases,
