@@ -172,7 +172,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         submitted_count: urlList.length,
         indexnow_status: indexnowStatus,
-        google_ping_status: googlePingStatus,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
