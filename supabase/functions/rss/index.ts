@@ -42,15 +42,19 @@ Deno.serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("site_settings")
-      .select("site_name, site_url, site_description, author_name, publisher_name")
+      .select("site_name, site_url, author_name, author_bio, author_title, publisher_name")
       .limit(1)
       .maybeSingle();
 
     const s: any = settings || {};
     const siteUrl = (s.site_url || "https://brianhanson.com").replace(/\/+$/, "");
-    const siteName = s.site_name || s.publisher_name || "Blog";
+    const brandName = s.site_name || s.publisher_name || "Blog";
+    const channelTitle = /blog$/i.test(brandName) ? brandName : `${brandName} Blog`;
     const description =
-      s.site_description || `Latest articles from ${siteName}`;
+      s.author_bio ||
+      (s.author_name
+        ? `${s.author_name}${s.author_title ? ", " + s.author_title : ""} — latest articles`
+        : `Latest articles from ${brandName}`);
     const author = s.author_name || s.publisher_name || "";
 
     const { data: posts } = await supabase
@@ -83,7 +87,7 @@ Deno.serve(async (req) => {
     const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${esc(siteName)}</title>
+    <title>${esc(channelTitle)}</title>
     <link>${esc(siteUrl)}</link>
     <atom:link href="${esc(siteUrl)}/rss.xml" rel="self" type="application/rss+xml" />
     <description>${esc(description)}</description>

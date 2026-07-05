@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("site_settings")
-      .select("site_name, site_url, site_description, author_name, author_title, author_bio, publisher_name")
+      .select("site_name, site_url, author_name, author_title, author_bio, publisher_name")
       .limit(1)
       .maybeSingle();
 
@@ -44,7 +44,6 @@ Deno.serve(async (req) => {
     const siteUrl = (s.site_url || "https://brianhanson.com").replace(/\/+$/, "");
     const siteName = s.site_name || s.publisher_name || "Website";
     const brand =
-      s.site_description ||
       s.author_bio ||
       (s.author_name
         ? `${s.author_name}${s.author_title ? ", " + s.author_title : ""}`
