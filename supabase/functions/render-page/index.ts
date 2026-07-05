@@ -288,6 +288,10 @@ interface ShellArgs {
 function renderShell(a: ShellArgs): Response {
   const base = siteBase(a.settings);
   const canonical = `${base}${a.path}`;
+  // Fall back to the site-wide brand OG so social cards never render without an image.
+  const ogImageAbs = a.ogImage
+    ? (/^https?:\/\//i.test(a.ogImage) ? a.ogImage : `${base}${a.ogImage.startsWith("/") ? "" : "/"}${a.ogImage}`)
+    : `${base}/og-default.png`;
   const ld: object[] = [
     websiteLd(a.settings, base),
     personLd(a.settings, base),
