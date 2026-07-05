@@ -4,6 +4,8 @@ import {
   formatVoiceBlock,
   refineWithVoice,
   scoreContent,
+  composeTitle,
+  writeMetaDescription,
 } from "../_shared/voice.ts";
 
 const corsHeaders = {
