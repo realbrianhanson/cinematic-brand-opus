@@ -567,7 +567,7 @@ async function renderGeneratedPage(
   const { data: page } = await supabase
     .from("generated_pages")
     .select(
-      "id, slug, title, content_json, seo_meta, status, niche_id, published_at, updated_at, created_at, content_schema_id",
+      "id, slug, title, content_json, seo_meta, status, niche_id, published_at, updated_at, created_at, last_refreshed, content_schema_id",
     )
     .eq("slug", pageSlug)
     .eq("content_schema_id", schema.id)
