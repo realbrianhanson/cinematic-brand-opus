@@ -469,8 +469,32 @@ const GeneratedPagesManager = () => {
                 const label = idxStatus === "indexed" ? "Indexed by Google" : "Submitted to Google";
                 return <span title={label}><Globe size={12} style={{ color, flexShrink: 0 }} /></span>;
               })()}
-              <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+              <span className="font-body flex items-center gap-1" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
                 {pg.quality_score != null ? Number(pg.quality_score).toFixed(1) : "—"}
+                {(() => {
+                  const flags = (pg as any).lint_flags;
+                  const count = Array.isArray(flags) ? flags.length : 0;
+                  if (!count) return null;
+                  const preview = flags
+                    .slice(0, 5)
+                    .map((f: any) => (typeof f === "string" ? f : f?.field ? `${f.field}: ${f.phrase || f.type || ""}` : JSON.stringify(f)))
+                    .join(" · ");
+                  return (
+                    <span
+                      title={`${count} lint issue${count === 1 ? "" : "s"}: ${preview}`}
+                      style={{
+                        fontSize: 10,
+                        padding: "1px 6px",
+                        borderRadius: 999,
+                        background: "hsl(40 90% 50% / 0.15)",
+                        color: "hsl(40 90% 55%)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      ⚠ {count}
+                    </span>
+                  );
+                })()}
               </span>
               <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
                 {pg.views ?? 0}
