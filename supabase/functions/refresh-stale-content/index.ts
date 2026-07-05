@@ -1,4 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import {
+  loadVoiceConfig,
+  formatVoiceBlock,
+  refineWithVoice,
+  scoreContent,
+} from "../_shared/voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -167,6 +173,11 @@ Deno.serve(async (req) => {
       .single();
 
     const currentYear = new Date().getFullYear();
+
+    // Load per-site voice once for this batch
+    const voice = await loadVoiceConfig(supabase);
+    const voiceBlock = formatVoiceBlock(voice);
+
     const summary = {
       batch_id,
       refreshed: 0,
@@ -216,8 +227,9 @@ Deno.serve(async (req) => {
 
       const blocklist = `- NEVER mention these known defunct/outdated tools: Air.ai, Jasper, Copy.ai, Writesonic, Rytr, Article Forge, WordAI, Kafkai, or any tool you are not 100% certain is actively operating in ${currentYear}.`;
 
-      const systemMessage =
-        "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+      const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
+
+${voiceBlock}`;
 
       const userMessage = `NICHE CONTEXT:
 Name: ${niche.name}
@@ -320,12 +332,30 @@ Generate the content now. Return ONLY the JSON object.`;
         continue;
       }
 
+      // Critique + revise pass + lint + mechanical fix
+      let lintFlags: any[] = [];
+      try {
+        const refined = await refineWithVoice({
+          apiKey: LOVABLE_API_KEY, model: AI_MODEL, voice, researchContext,
+          draftJson: contentJson,
+          schemaHint: `refreshed listicle content_json for ${schema.name}`,
+        });
+        tokensUsed += refined.tokensUsed;
+        contentJson = refined.refined;
+        lintFlags = refined.remainingViolations;
+        if (refined.errors.length) console.warn(`Refine warnings for ${page.slug}:`, refined.errors.join(" | "));
+      } catch (e: any) {
+        console.error(`Refine threw for ${page.slug}:`, e.message);
+      }
+
+      // Auto-score final content
+      const { score: qualityScore } = scoreContent(contentJson, title);
+
       let seoMeta = page.seo_meta || {};
       if (titleChanged && siteSettings) {
-        seoMeta = {
-          ...seoMeta,
-          title: `${title} | ${siteSettings.publisher_name || ""}`.slice(0, 60),
-        };
+        const siteName = siteSettings.publisher_name || siteSettings.site_name || "";
+        const fullT = siteName ? `${title} | ${siteName}` : title;
+        seoMeta = { ...seoMeta, title: fullT.length <= 65 ? fullT : title };
       }
 
       const { error: updateErr } = await supabase
@@ -334,6 +364,8 @@ Generate the content now. Return ONLY the JSON object.`;
           title,
           content_json: contentJson,
           seo_meta: seoMeta,
+          quality_score: qualityScore,
+          lint_flags: lintFlags,
           last_refreshed: new Date().toISOString(),
           refresh_count: (page.refresh_count || 0) + 1,
           performance_trend: "stable",

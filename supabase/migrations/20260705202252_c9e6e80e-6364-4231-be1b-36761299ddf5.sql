@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.validate_generated_pages_status() FROM PUBLIC, anon, authenticated;

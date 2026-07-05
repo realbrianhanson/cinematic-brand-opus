@@ -165,7 +165,7 @@ const GeneratedPageEditor = () => {
 
 
 
-  const doSave = () => safeMutation(async () => {
+  const doSave = (overrideReason?: string) => safeMutation(async () => {
     let parsed: any;
     try {
       parsed = JSON.parse(contentStr);
@@ -189,13 +189,20 @@ const GeneratedPageEditor = () => {
     if (status === "published" && page?.status !== "published") {
       updateData.published_at = new Date().toISOString();
     }
+    if (overrideReason) {
+      const { data: authData } = await supabase.auth.getUser();
+      updateData.publish_override = true;
+      updateData.publish_override_reason = overrideReason;
+      updateData.publish_override_at = new Date().toISOString();
+      updateData.publish_override_by = authData?.user?.id ?? null;
+    }
 
     const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
     if (error) throw error;
   });
 
   const saveMutation = useMutation({
-    mutationFn: doSave,
+    mutationFn: (overrideReason?: string) => doSave(overrideReason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
@@ -222,19 +229,21 @@ const GeneratedPageEditor = () => {
         if (data?.score != null) {
           setQualityScore(String(data.score));
         }
-        if (data?.score < 60) {
+        if (data?.score < 75) {
           setQualityWarning({ score: data.score, issues: data.issues || [] });
           setScoring(false);
           return;
         }
       } catch (e: any) {
-        console.warn("Quality scoring failed, proceeding with publish:", e.message);
-        toast({ title: "Scoring skipped", description: "Could not score content — publishing anyway.", variant: "default" });
+        console.warn("Quality scoring failed:", e.message);
+        toast({ title: "Scoring failed", description: "Publish blocked until content can be scored.", variant: "destructive" });
+        setScoring(false);
+        return;
       }
       setScoring(false);
     }
     setQualityWarning(null);
-    saveMutation.mutate();
+    saveMutation.mutate(undefined);
   };
 
   const handleFormat = () => {
@@ -320,7 +329,7 @@ const GeneratedPageEditor = () => {
               </h3>
             </div>
             <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 16 }}>
-              This content scored below the recommended threshold of 60. Publishing may hurt SEO performance.
+              This content scored below the publish threshold of 75. The database will reject the publish unless you override.
             </p>
             <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
               {qualityWarning.issues.map((issue, i) => (
@@ -334,7 +343,14 @@ const GeneratedPageEditor = () => {
                 Go Back to Draft
               </button>
               <button
-                onClick={() => { setQualityWarning(null); saveMutation.mutate(); }}
+                onClick={() => {
+                  const reason = window.prompt(
+                    `This page scored ${qualityWarning.score}/100 (threshold: 75). Type a reason to publish anyway — this is logged to publish_override_reason.`,
+                  );
+                  if (!reason || !reason.trim()) return;
+                  setQualityWarning(null);
+                  saveMutation.mutate(reason.trim());
+                }}
                 className="admin-btn-primary"
                 style={{ background: "hsl(var(--admin-warning, 40 90% 50%))" }}
               >

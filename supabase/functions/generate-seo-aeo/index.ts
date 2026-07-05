@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,7 +51,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = enhance
+    // Load per-site voice config
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const voice = await loadVoiceConfig(supabaseAdmin);
+    const voiceBlock = formatVoiceBlock(voice);
+
+    const baseSystemPrompt = enhance
       ? `You are an SEO and AEO/GEO optimization expert. The user has a blog post that needs improvement. Based on the missing criteria provided, generate or improve the fields needed. Return valid JSON only with these optional fields:
 - "tldr": A concise TL;DR summary (20-60 words)
 - "key_takeaways": Array of 3-5 actionable bullet points
@@ -69,6 +78,10 @@ Only include fields that need improvement based on the missing criteria.`
 - "meta_title": SEO title under 60 characters with main keyword
 - "meta_description": SEO description under 160 characters
 - "keywords": Comma-separated keyword string (5-8 keywords)`;
+
+    const systemPrompt = `${baseSystemPrompt}
+
+${voiceBlock}`;
 
     const userMessage = enhance
       ? `Title: ${title || 'Untitled'}\n\nContent: ${(content || '').slice(0, 4000)}\n\nExcerpt: ${excerpt || 'None'}\n\nMissing criteria to fix:\n${(missing_criteria || []).map((c: string) => `- ${c}`).join('\n')}`

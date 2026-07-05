@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import {
+  loadVoiceConfig,
+  formatVoiceBlock,
+  refineWithVoice,
+  scoreContent,
+  type VoiceConfig,
+} from "../_shared/voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -501,8 +508,14 @@ async function handleStepProcessing(
   // Research phase
   const { context: researchContext, hasResearch } = await researchTopic(item.angle, niche.name, ctx.audience || "general", currentYear);
 
+  // Load voice config (per-site, from site_settings)
+  const voice = await loadVoiceConfig(supabase);
+  const voiceBlock = formatVoiceBlock(voice);
+
   // AI generation
-  const systemMessage = "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
+  const systemMessage = `You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.
+
+${voiceBlock}`;
   const userMessage = buildUserMessage(niche, schema, ctx, title, item.angle, currentYear, researchContext, hasResearch);
 
   let contentJson: any = null;
@@ -553,15 +566,58 @@ async function handleStepProcessing(
     return;
   }
 
-  // Build SEO meta and save
-  const metaTitle = `${title} | ${siteSettings?.publisher_name || ""}`.slice(0, 60);
+  // Critique + revise pass (voice enforcement + filler removal + research grounding),
+  // then lint + mechanical fix for any residual violations.
+  let lintFlags: any[] = [];
+  try {
+    const refined = await refineWithVoice({
+      apiKey, model: AI_MODEL, voice, researchContext,
+      draftJson: contentJson,
+      schemaHint: `listicle content_json for ${schema.name}`,
+    });
+    tokensUsed += refined.tokensUsed;
+    contentJson = refined.refined;
+    lintFlags = refined.remainingViolations;
+    if (refined.errors.length) {
+      console.warn(`Refine pass warnings for "${title}":`, refined.errors.join(" | "));
+    }
+    if (lintFlags.length) {
+      console.warn(`${lintFlags.length} lint violations remain in "${title}" (stored as lint_flags)`);
+    }
+  } catch (e: any) {
+    console.error(`Refine pass threw for "${title}":`, e.message);
+  }
+
+  // Auto-score the final content
+  const { score: qualityScore, issues: qualityIssues } = scoreContent(contentJson, title);
+  if (qualityIssues.length) {
+    console.log(`Quality score for "${title}": ${qualityScore}/100 — issues:`, qualityIssues);
+  }
+
+  // Build SEO meta and save (title composed safely — never mid-word cut)
+  const siteName = siteSettings?.publisher_name || siteSettings?.site_name || "";
+  const fullMetaTitle = siteName ? `${title} | ${siteName}` : title;
+  const metaTitle = fullMetaTitle.length <= 65 ? fullMetaTitle : title;
   const metaDesc = `Discover the best ${item.angle.toLowerCase()} curated for ${niche.name}. Updated ${currentYear} with real-time research.`.slice(0, 160);
   const seedKeywords = Array.isArray(ctx.keywords_seed) ? ctx.keywords_seed : [];
   const seoMeta = { title: metaTitle, description: metaDesc, keywords: [...seedKeywords, item.keyword, niche.name.toLowerCase()], og_image: null };
 
   const { data: savedPage, error: saveErr } = await supabase
     .from("generated_pages")
-    .insert({ niche_id: niche.id, content_schema_id: schema.id, slug: pageSlug, title, content_json: contentJson, seo_meta: seoMeta, schema_markup: {}, status: "draft", quality_score: null, generation_model: AI_MODEL, generation_cost: 0 })
+    .insert({
+      niche_id: niche.id,
+      content_schema_id: schema.id,
+      slug: pageSlug,
+      title,
+      content_json: contentJson,
+      seo_meta: seoMeta,
+      schema_markup: {},
+      status: "draft",
+      quality_score: qualityScore,
+      lint_flags: lintFlags,
+      generation_model: AI_MODEL,
+      generation_cost: 0,
+    })
     .select("id, title, slug, status")
     .single();
 

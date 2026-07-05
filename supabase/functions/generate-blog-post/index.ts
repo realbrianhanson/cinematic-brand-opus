@@ -1,4 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  loadVoiceConfig,
+  formatVoiceBlock,
+  critiqueAndRevise,
+  mechanicalFixViolations,
+  lintJson,
+  scorePost,
+} from "../_shared/voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,18 +184,22 @@ Deno.serve(async (req) => {
       console.log("No PERPLEXITY_API_KEY — skipping research phase");
     }
 
+    // Load per-site voice config
+    const voice = await loadVoiceConfig(supabaseAdmin);
+    const voiceBlock = formatVoiceBlock(voice);
+
     // Step 2: Generate the full blog post via Lovable AI
-    const systemPrompt = `You are an expert blog writer and SEO specialist. Write a comprehensive, engaging, well-structured blog post.
+    const systemPrompt = `You are a blog writer and SEO specialist. Write a comprehensive, well-structured blog post.
+
+${voiceBlock}
 
 Requirements:
-- Write in a conversational yet authoritative tone
 - Use question-format H2 and H3 headings where appropriate (great for AEO/GEO)
 - Include bulleted or numbered lists for actionable content
 - Target 1200-2000 words
-- Make the content practical and actionable
-- Include specific examples, data points, and expert insights when possible
+- Include specific examples, data points, and expert insights from the research
 - Structure with clear sections using H2 headings
-- Use short paragraphs (2-3 sentences max)
+- Use short paragraphs (1-3 sentences max)
 
 Return valid JSON ONLY with these fields:
 {
@@ -280,6 +292,62 @@ Return valid JSON ONLY with these fields:
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Critique + revise pass — enforce voice, cut filler, ground in research.
+    // Then lint + mechanical fix any residual violations.
+    let lintFlags: any[] = [];
+    try {
+      const revised = await critiqueAndRevise({
+        apiKey: LOVABLE_API_KEY,
+        model: "google/gemini-2.5-flash",
+        voiceBlock,
+        researchContext,
+        draftJson: result,
+        schemaHint: "blog post fields (title, content HTML, excerpt, tldr, key_takeaways, faq_items, meta_title, meta_description, keywords)",
+        maxTokens: 16000,
+      });
+      if (!revised.error) {
+        result = { ...result, ...revised.revised };
+      } else {
+        console.warn("Revise pass:", revised.error);
+      }
+
+      const violations = lintJson(result, voice.banned_phrases);
+      if (violations.length > 0) {
+        const fixed = await mechanicalFixViolations({
+          apiKey: LOVABLE_API_KEY,
+          model: "google/gemini-2.5-flash",
+          draftJson: result,
+          violations,
+          bannedPhrases: voice.banned_phrases,
+          schemaHint: "blog post fields (same schema, keep JSON structure)",
+        });
+        if (!fixed.error) {
+          result = { ...result, ...fixed.revised };
+        } else {
+          console.warn("Mechanical fix:", fixed.error);
+        }
+        lintFlags = lintJson(result, voice.banned_phrases);
+      }
+      if (lintFlags.length) {
+        console.warn(`${lintFlags.length} lint violations remain in blog post "${result.title}"`);
+      }
+    } catch (e: any) {
+      console.error("Refine pipeline threw:", e.message);
+    }
+
+    // Compute quality score for the finalized post
+    const { score: qualityScore, issues: qualityIssues } = scorePost({
+      title: result.title,
+      content: result.content,
+      faq_items: result.faq_items,
+      key_takeaways: result.key_takeaways,
+      tldr: result.tldr,
+      excerpt: result.excerpt,
+    });
+    result.quality_score = qualityScore;
+    result.lint_flags = lintFlags;
+    if (qualityIssues.length) console.log(`Blog quality: ${qualityScore}/100 —`, qualityIssues);
 
     // Step 3: Generate featured image via Nano Banana 2
     const featuredImageUrl = await generateFeaturedImage(
