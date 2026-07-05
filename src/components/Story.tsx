@@ -94,10 +94,10 @@ const TimelineEntry = ({
           <span
             className="inline-block self-start font-body font-bold uppercase"
             style={{
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: "0.12em",
               color: "#D4AF55",
-              background: "rgba(212,175,85,0.08)",
+              background: "rgba(212,175,85,0.1)",
               padding: "4px 10px",
             }}
           >
@@ -106,9 +106,9 @@ const TimelineEntry = ({
           <span
             className="font-body uppercase"
             style={{
-              fontSize: 11,
-              letterSpacing: "0.25em",
-              color: "rgba(255,255,255,0.2)",
+              fontSize: 12,
+              letterSpacing: "0.22em",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             {entry.time}
@@ -125,12 +125,12 @@ const TimelineEntry = ({
           <p
             className="font-body"
             style={{
-              fontSize: "1.15rem",
-              lineHeight: 1.8,
-              maxWidth: 600,
+              fontSize: "1.1rem",
+              lineHeight: 1.75,
+              maxWidth: 640,
               color: entry.accent
-                ? "rgba(255,255,255,0.55)"
-                : "rgba(255,255,255,0.45)",
+                ? "rgba(255,255,255,0.92)"
+                : "rgba(255,255,255,0.85)",
             }}
           >
             {entry.text}
