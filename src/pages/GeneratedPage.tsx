@@ -266,4 +266,71 @@ const FAQAccordion = ({ faqs, pageId }: { faqs: any[]; pageId: string }) => {
   );
 };
 
+const SourcesSection = ({ sources }: { sources: any }) => {
+  if (!Array.isArray(sources) || sources.length === 0) return null;
+  const items = sources
+    .filter((s) => s && typeof s.url === "string" && /^https?:\/\//i.test(s.url))
+    .slice(0, 8);
+  if (!items.length) return null;
+  return (
+    <div className="mt-16">
+      <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Sources</h2>
+      <ul className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.8, listStyle: "disc", paddingLeft: "1.25rem" }}>
+        {items.map((s, i) => (
+          <li key={i}>
+            <a href={s.url} target="_blank" rel="noopener" style={{ color: "#D4AF55", wordBreak: "break-word" }}>
+              {s.title || s.url}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const AuthorBox = ({ settings, lastVerified }: { settings: any; lastVerified?: string | null }) => {
+  if (!settings?.author_name && !settings?.author_bio) return null;
+  const social = Object.entries(settings.author_social_links ?? {}).filter(
+    ([, v]) => typeof v === "string" && v,
+  ) as [string, string][];
+  const creds: string[] = Array.isArray(settings.author_credentials) ? settings.author_credentials : [];
+  return (
+    <aside className="mt-16 p-6" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(212,175,85,0.02)" }}>
+      <h2 className="font-display italic mb-4" style={{ fontSize: 20 }}>About the author</h2>
+      <p className="font-body mb-2" style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}>
+        <strong>{settings.author_name}</strong>
+        {settings.author_title ? `, ${settings.author_title}` : ""}
+      </p>
+      {settings.author_bio && (
+        <p className="font-body mb-3" style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}>
+          {settings.author_bio}
+        </p>
+      )}
+      {creds.length > 0 && (
+        <p className="font-body mb-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+          <strong style={{ color: "rgba(255,255,255,0.65)" }}>Credentials:</strong> {creds.join(", ")}
+        </p>
+      )}
+      {social.length > 0 && (
+        <p className="font-body" style={{ fontSize: 12 }}>
+          {social.map(([k, v], i) => (
+            <span key={k}>
+              {i > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · </span>}
+              <a href={v} target="_blank" rel="noopener" style={{ color: "#D4AF55" }}>
+                {k}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      {lastVerified && (
+        <p className="font-body mt-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+          Last verified{" "}
+          {new Date(lastVerified).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        </p>
+      )}
+    </aside>
+  );
+};
+
 export default GeneratedPage;
