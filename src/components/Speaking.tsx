@@ -133,6 +133,7 @@ const Speaking = () => {
                 <img
                   src={brianHeadshot}
                   alt="Brian Hanson"
+                  loading="lazy"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-0 right-0">
@@ -149,11 +150,11 @@ const Speaking = () => {
               <div
                 className="relative lg:absolute lg:-bottom-16 lg:-right-10 mt-6 lg:mt-0 p-6"
                 style={{
-                  maxWidth: 300,
+                  maxWidth: 320,
                   background: "rgba(10,10,18,0.95)",
                   backdropFilter: "blur(24px)",
                   WebkitBackdropFilter: "blur(24px)",
-                  border: "1px solid rgba(212,175,85,0.15)",
+                  border: "1px solid rgba(212,175,85,0.2)",
                 }}
               >
                 <div className="flex gap-0.5 mb-3">
@@ -161,11 +162,11 @@ const Speaking = () => {
                     <Star key={i} size={12} fill="#D4AF55" color="#D4AF55" />
                   ))}
                 </div>
-                <p className="font-display italic" style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.75)" }}>
+                <p className="font-display italic" style={{ fontSize: 15, lineHeight: 1.6, color: "rgba(255,255,255,0.92)" }}>
                   "Brian's keynote was the highlight of our entire conference."
                 </p>
-                <span className="font-body block mt-3" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                  — Event Director, Fortune 500 Company
+                <span className="font-body block mt-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  Event Director, Fortune 500 Company
                 </span>
               </div>
             </div>
