@@ -7,7 +7,7 @@ const cards = [
     icon: Brain,
     num: "01",
     title: "AI Implementation",
-    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD — just results.",
+    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD. Just results.",
   },
   {
     icon: Target,
@@ -19,7 +19,7 @@ const cards = [
     icon: Code2,
     num: "03",
     title: "No-Code Building",
-    text: "I built Revven — a full SaaS platform with 3,000+ users — without writing a single line of code. I teach others to do the same.",
+    text: "I built Revven, a full SaaS platform with 3,000+ users, without writing a single line of code. I teach others to do the same.",
   },
   {
     icon: Users,
