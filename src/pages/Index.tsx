@@ -30,7 +30,7 @@ const Index = () => {
 
   return (
     <>
-      <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Keynote speaker and advisor Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses through applied A.I. and modern leadership." url="https://brianhanson.com/" type="website" />
+      <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership." url="https://brianhanson.com/" type="website" />
       <Helmet>
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
