@@ -4,7 +4,7 @@ import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
-import brianHeadshot from "@/assets/brian-headshot.jpeg";
+
 
 const headlineLines = [
   { text: "A.I. Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
