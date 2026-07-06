@@ -127,10 +127,61 @@ const PillarPagesManager = () => {
         <h1 className="font-body" style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
           Pillar Pages
         </h1>
-        <Link to="/admin/pillars/new" className="admin-btn-primary font-body" style={{ textDecoration: "none" }}>
-          <Plus size={14} style={{ marginRight: 6 }} /> New Pillar
-        </Link>
+        <div className="flex items-center gap-2">
+          {nichesMissingPillar.length > 0 && (
+            <button
+              onClick={() => setConfirmAllMissing(true)}
+              disabled={!!generatingNicheId}
+              className="admin-btn-secondary font-body"
+              style={{ display: "inline-flex", alignItems: "center" }}
+            >
+              <Zap size={14} style={{ marginRight: 6 }} />
+              Generate All Missing ({nichesMissingPillar.length})
+            </button>
+          )}
+          <Link to="/admin/pillars/new" className="admin-btn-primary font-body" style={{ textDecoration: "none" }}>
+            <Plus size={14} style={{ marginRight: 6 }} /> New Pillar
+          </Link>
+        </div>
       </div>
+
+      {/* Per-niche generate buttons for niches without a pillar */}
+      {nichesMissingPillar.length > 0 && (
+        <div className="admin-card font-body" style={{ padding: 16, marginBottom: 20 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--admin-text-ghost))", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+            Niches without a pillar page
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {nichesMissingPillar.map((n: any) => {
+              const busy = generatingNicheId === n.id || generatingNicheId === "__all__";
+              const targetKw = (n.context as any)?.target_keyword;
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => generatePillar(n.id, n.name)}
+                  disabled={!!generatingNicheId}
+                  title={targetKw ? `Target: ${targetKw}` : "No target_keyword set on niche"}
+                  className="font-body"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12, padding: "6px 12px",
+                    border: "1px solid hsl(var(--admin-border))",
+                    borderRadius: 6,
+                    background: "hsl(var(--admin-surface))",
+                    color: "hsl(var(--admin-text))",
+                    cursor: busy ? "wait" : "pointer",
+                    opacity: busy ? 0.6 : 1,
+                  }}
+                >
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  Generate: {n.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       {isLoading ? (
         <div className="flex justify-center" style={{ padding: 60 }}>
