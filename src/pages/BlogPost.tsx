@@ -9,6 +9,7 @@ import WidgetRenderer from "@/components/WidgetRenderer";
 import { findRelatedNiches } from "@/lib/crossLinkMatcher";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import PublicCTA from "@/components/PublicCTA";
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -416,6 +417,8 @@ const BlogPost = () => {
             )}
           </div>
         )}
+
+        <PublicCTA variant="end" pageId={post.id} pageType="post" />
       </article>
       <Footer />
     </div>
