@@ -85,75 +85,26 @@ const Hero = ({ loaded = true }: HeroProps) => {
           preload="none"
           poster="/og-default.png"
           className="absolute w-full h-full object-cover"
-          style={{ opacity: videoReady ? 0.55 : 0, transition: "opacity 0.8s ease" }}
+          style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
         />
-        <div className="absolute inset-0" style={{
-          background: "linear-gradient(180deg, rgba(7,7,14,0.45) 0%, rgba(7,7,14,0.78) 100%)",
+        {/* Desktop horizontal scrim: heavy left → light right */}
+        <div className="absolute inset-0 hidden md:block" style={{
+          background:
+            "linear-gradient(90deg, rgba(7,7,14,0.92) 0%, rgba(7,7,14,0.88) 30%, rgba(7,7,14,0.55) 55%, rgba(7,7,14,0.28) 80%, rgba(7,7,14,0.22) 100%)",
+        }} />
+        {/* Desktop bottom scrim for CTA legibility */}
+        <div className="absolute inset-x-0 bottom-0 hidden md:block" style={{
+          height: "45%",
+          background:
+            "linear-gradient(180deg, transparent 0%, rgba(7,7,14,0.55) 100%)",
+        }} />
+        {/* Mobile: stronger uniform scrim */}
+        <div className="absolute inset-0 md:hidden" style={{
+          background:
+            "linear-gradient(180deg, rgba(7,7,14,0.82) 0%, rgba(7,7,14,0.85) 100%)",
         }} />
       </div>
 
-      {/* Headshot on right side (desktop absolute; mobile behind text) */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-y-0 right-0 pointer-events-none z-[1]"
-        style={{
-          width: "min(52%, 780px)",
-        }}
-      >
-        <div className="relative w-full h-full">
-          <img
-            src={brianHeadshot}
-            alt=""
-            fetchPriority="high"
-            className="absolute inset-0 w-full h-full object-cover object-top hidden md:block"
-            style={{
-              filter: "grayscale(0.35) contrast(1.05) brightness(0.95)",
-              maskImage:
-                "linear-gradient(90deg, transparent 0%, black 22%, black 100%)",
-              WebkitMaskImage:
-                "linear-gradient(90deg, transparent 0%, black 22%, black 100%)",
-              opacity: visible ? 0.85 : 0,
-              transition: "opacity 1.2s ease 0.4s",
-            }}
-          />
-          {/* Mobile: subtle backdrop behind headline */}
-          <img
-            src={brianHeadshot}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover object-top md:hidden"
-            style={{
-              filter: "grayscale(0.5) contrast(1.05) brightness(0.75)",
-              opacity: visible ? 0.28 : 0,
-              transition: "opacity 1s ease 0.3s",
-            }}
-          />
-          {/* Gold tint overlay */}
-          <div
-            className="absolute inset-0 hidden md:block"
-            style={{
-              background:
-                "radial-gradient(ellipse at 70% 40%, rgba(212,175,85,0.14), transparent 60%)",
-              mixBlendMode: "screen",
-            }}
-          />
-          {/* Left-side dark gradient to protect text on desktop */}
-          <div
-            className="absolute inset-0 hidden md:block"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(7,7,14,1) 0%, rgba(7,7,14,0.85) 30%, rgba(7,7,14,0.25) 60%, transparent 100%)",
-            }}
-          />
-          {/* Mobile: full dark gradient */}
-          <div
-            className="absolute inset-0 md:hidden"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(7,7,14,0.65) 0%, rgba(7,7,14,0.92) 100%)",
-            }}
-          />
-        </div>
-      </div>
 
       {/* BG Layer 3: Radial accent */}
       <div className="absolute inset-0 pointer-events-none z-[2]" style={{
