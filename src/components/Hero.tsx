@@ -71,7 +71,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
       {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
-          src="/og-default.png"
+          src="/videos/hero-poster.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
@@ -83,7 +83,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
           loop
           playsInline
           preload="none"
-          poster="/og-default.png"
+          poster="/videos/hero-poster.jpg"
           className="absolute w-full h-full object-cover"
           style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
         />
