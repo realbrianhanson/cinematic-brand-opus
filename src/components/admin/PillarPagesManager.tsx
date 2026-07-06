@@ -45,6 +45,59 @@ const PillarPagesManager = () => {
     },
   });
 
+  // Active niches for generate-pillar dropdown/action
+  const { data: activeNiches } = useQuery({
+    queryKey: ["admin-active-niches-for-pillars"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("niches")
+        .select("id, name, slug, context")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const generatePillar = async (nicheId: string, nicheName: string) => {
+    setGeneratingNicheId(nicheId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pillar", {
+        body: { niche_id: nicheId },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: "Pillar generated",
+        description: `${nicheName}: score ${data?.score ?? "?"}/100 — ${data?.score >= 75 ? "published" : "saved as draft"}.`,
+      });
+      qc.invalidateQueries({ queryKey: ["admin-pillars"] });
+    } catch (e: any) {
+      toast({ title: "Generate failed", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingNicheId(null);
+    }
+  };
+
+  const generateAllMissing = async () => {
+    setConfirmAllMissing(false);
+    setGeneratingNicheId("__all__");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pillar", {
+        body: { all_missing: true },
+      });
+      if (error) throw new Error(error.message);
+      const results = (data?.results ?? []) as any[];
+      const ok = results.filter((r) => r.success).length;
+      toast({ title: "Batch complete", description: `${ok}/${results.length} pillars generated.` });
+      qc.invalidateQueries({ queryKey: ["admin-pillars"] });
+    } catch (e: any) {
+      toast({ title: "Batch failed", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingNicheId(null);
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("pillar_pages").delete().eq("id", id);
@@ -62,6 +115,11 @@ const PillarPagesManager = () => {
     if (!d) return "—";
     return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
+
+  // Compute which active niches don't yet have a pillar
+  const nichesWithPillar = new Set((pillars ?? []).map((p: any) => p.niche_id).filter(Boolean));
+  const nichesMissingPillar = (activeNiches ?? []).filter((n: any) => !nichesWithPillar.has(n.id));
+
 
   return (
     <div>
