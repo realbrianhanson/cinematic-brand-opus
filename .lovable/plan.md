@@ -1,32 +1,56 @@
+## What's actually broken
 
+The password isn't the real problem. The network log shows you already signed in successfully at 07:16:44 and 07:16:54 (HTTP 200 on `/auth/v1/token`). The failure that follows is:
 
-## Problem
+```
+GET /rest/v1/user_roles?...role=eq.admin  → 403
+{ "code": "42501", "message": "permission denied for function is_admin" }
+```
 
-The A.I. Helper sidebar shows two buttons that are confusing:
-1. **"Generate SEO & AEO/GEO"** — fills in meta title, description, keywords, FAQ, TLDR, takeaways
-2. **"Increase Score"** — re-runs generation trying to improve incomplete fields
+The admin UI signs you in, then reads `user_roles` to confirm the `admin` role. That table's RLS policy is `is_admin(auth.uid())`. A previous security-hardening migration revoked `EXECUTE` on `public.is_admin(uuid)` from `authenticated`, so the policy check itself throws a permission error — the client sees "not admin" and bounces you back to the login screen.
 
-Users don't understand the difference or which to click. The two-step flow (generate then enhance) should be unified.
+DB state confirms it:
 
-## Plan
+```
+is_admin | anon          | can_exec = t
+is_admin | authenticated | can_exec = f   ← this is the bug
+is_admin | service_role  | can_exec = t
+```
 
-### Merge into a single smart button
+Anonymous visitors can execute it (needed for public "published OR is_admin" policies), but signed-in admins cannot — exactly backwards for the admin panel.
 
-**File: `src/components/admin/PostEditorAiHelper.tsx`**
+The later 07:17:31 `400 invalid_credentials` was you retrying with `12345678`, which isn't your real password. The two earlier 200s prove your real password still works.
 
-Replace the two buttons with one that adapts its label based on state:
-- **Before any generation**: "Generate SEO & AEO/GEO" (primary action)
-- **After generation, score < 100**: "Improve Score → {score}%" (same button, re-runs with enhancement logic)
-- **Score = 100**: Button disabled, shows "Score Maximized ✓"
+## The fix
 
-This removes all ambiguity — there's always exactly one button to click, and it does the right thing automatically.
+One migration that restores `EXECUTE` on `public.is_admin(uuid)` to `authenticated` (keeping the existing grants to `anon` and `service_role`). No app-code change.
 
-### Changes
+```sql
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
+```
 
-1. **`PostEditorAiHelper.tsx`**: Remove the second `onEnhance` button. Update the primary button label/onClick to call `onEnhance` when `hasGenerated && overall < 100`, otherwise call `onGenerate`. Remove `onEnhance` from props (merge into `onGenerate` logic at the parent level, or keep both callbacks but switch internally).
+After it runs:
 
-2. **`PostEditor.tsx`** (parent): No changes needed if the helper component handles the button logic switch internally using the existing `hasGenerated` and score props.
+1. Sign in with the password that worked at 07:16:44 (not `12345678`).
+2. `user_roles` lookup returns your `admin` row.
+3. Admin panel loads.
 
-### Result
-One clear button that always tells the user exactly what it will do. No decision paralysis.
+## About the security finding
 
+This does not reopen the finding I ignored earlier. `is_admin` is a hardened, `STABLE`, fixed-`search_path` existence check against `user_roles` — safe to expose EXECUTE to both `anon` and `authenticated`. I'll update the security memory note to say authenticated is also required, so no future scan or agent re-revokes it.
+
+## If you truly forgot the password
+
+Separate from the fix above. Two options, pick one after the admin panel loads:
+
+- Use the "Forgot password" flow on `/admin/login` (sends a reset email to `brian@aiforbusiness.com`).
+- Or, once logged in, use the existing Change Password screen in the admin.
+
+I don't have a way to set your password directly from here (the service-role admin API isn't exposed on Lovable Cloud), so it has to go through one of those flows.
+
+## Files touched
+
+- New migration: `supabase/migrations/<timestamp>_restore_is_admin_execute_authenticated.sql`
+- `security-memory` note updated so this grant isn't re-revoked.
+
+Nothing else changes.
