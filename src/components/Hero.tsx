@@ -150,21 +150,37 @@ const Hero = ({ loaded = true }: HeroProps) => {
         </div>
 
         {/* Headline */}
-        <div style={{ maxWidth: 1000 }}>
+        <h1
+          className="font-display leading-none"
+          style={{
+            maxWidth: 1000,
+            fontSize: "clamp(3rem, 8vw, 7.5rem)",
+            lineHeight: 0.95,
+            margin: 0,
+          }}
+          aria-label="A.I. Doesn't Replace People. It Replaces Inefficiency."
+        >
           {headlineLines.map((line, i) => (
-            <div key={i} style={{ overflow: line.spring ? "visible" : "hidden", paddingTop: "0.1em" }}>
-              <div
+            <span
+              key={i}
+              style={{
+                display: "block",
+                overflow: line.spring ? "visible" : "hidden",
+                paddingTop: "0.1em",
+              }}
+            >
+              <span
                 style={{
+                  display: "block",
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateY(0)" : "translateY(115%)",
                   transition: `all 0.8s cubic-bezier(0.22,1,0.36,1) ${0.35 + i * 0.08}s`,
                 }}
               >
-                <h1
-                  className={`font-display leading-none ${line.italic ? "italic" : ""}`}
+                <span
+                  className={line.italic ? "italic" : ""}
                   style={{
-                    fontSize: "clamp(3rem, 8vw, 7.5rem)",
-                    lineHeight: 0.95,
+                    display: "block",
                     ...(!line.gold ? { color: "#fff" } : {}),
                   }}
                 >
@@ -182,11 +198,11 @@ const Hero = ({ loaded = true }: HeroProps) => {
                   ) : (
                     line.text
                   )}
-                </h1>
-              </div>
-            </div>
+                </span>
+              </span>
+            </span>
           ))}
-        </div>
+        </h1>
 
         {/* Sub-copy */}
         <p
