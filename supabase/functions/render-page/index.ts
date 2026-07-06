@@ -161,17 +161,37 @@ interface Settings {
   author_social_links?: Record<string, string> | null;
   publisher_name?: string;
   publisher_url?: string;
+  cta_url?: string | null;
+  cta_headline?: string | null;
+  cta_subtext?: string | null;
+  cta_button_text?: string | null;
+  cta_social_proof?: string | null;
 }
 
 async function getSettings(): Promise<Settings> {
   const { data } = await supabase
     .from("site_settings")
     .select(
-      "site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, publisher_name, publisher_url",
+      "site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, publisher_name, publisher_url, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof",
     )
     .limit(1)
     .maybeSingle();
   return (data ?? {}) as Settings;
+}
+
+// Plain-text CTA block emitted near the end of every rendered page so crawlers
+// see the training as part of the site's offering.
+function ctaHtml(s: Settings): string {
+  if (!s.cta_url) return "";
+  const headline = s.cta_headline || "Learn A.I. in 3 Days. Free.";
+  const cta = s.cta_button_text || "Save My Free Seat";
+  const proof = s.cta_social_proof ? `<p style="font-size:.8rem;color:#555;margin:.25rem 0 0">${esc(s.cta_social_proof)}</p>` : "";
+  return `<section class="site-cta" style="margin:2.5rem 0 1rem;padding:1.25rem 1.5rem;border:1px solid #D4AF55;border-radius:6px;background:#fbf6e8">
+<h2 style="margin:0 0 .5rem">${esc(headline)}</h2>
+${s.cta_subtext ? `<p style="margin:0 0 .5rem">${esc(s.cta_subtext)}</p>` : ""}
+<p style="margin:0"><a href="${esc(s.cta_url)}" rel="noopener" target="_blank"><strong>${esc(cta)} →</strong></a></p>
+${proof}
+</section>`;
 }
 
 function siteBase(s: Settings): string {
@@ -332,6 +352,7 @@ ${ld.map(jsonLd).join("\n")}
     )
     .join(" ")}</nav>
 ${a.bodyHtml}
+${ctaHtml(a.settings)}
 </body>
 </html>`;
   return new Response(html, { status: a.status ?? 200, headers: HTML_HEADERS });
@@ -912,6 +933,12 @@ async function renderPillarPage(settings: Settings, path: string, slug: string):
     mainEntityOfPage: canonical,
   };
 
+  const pillarFaqs: Array<{ question: string; answer: string }> = Array.isArray((seo as any).faqs)
+    ? ((seo as any).faqs as any[]).filter((f) => f && typeof f.question === "string" && typeof f.answer === "string")
+    : [];
+  const extraLd: object[] = [article];
+  if (pillarFaqs.length) extraLd.push(faqLd(pillarFaqs));
+
   const pubDate = pillar.published_at || pillar.created_at;
   const body = `
 <article>
@@ -929,7 +956,7 @@ ${relatedList}`;
     type: "article",
     publishedAt: pubDate ?? undefined,
     updatedAt: pillar.updated_at ?? undefined,
-    extraLd: [article],
+    extraLd,
     breadcrumbs: [
       { name: "Home", url: "/" },
       { name: "Guides", url: "/resources" },

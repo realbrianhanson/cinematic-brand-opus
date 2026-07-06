@@ -839,6 +839,15 @@ ${voiceBlock}`;
     successCount++;
     pages.push(savedPage);
     await updateJobProgress(supabase, job_id, completedCount + 1, successCount, failedCount, skippedCount);
+
+    // Auto-generate OG image after quality gate. Fire-and-forget with service role auth.
+    if (qualityScore >= 75) {
+      fetch(`${supabaseUrl}/functions/v1/generate-og-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ page_id: savedPage.id }),
+      }).catch((e) => console.warn("OG image auto-gen failed:", e.message));
+    }
   }
 
 

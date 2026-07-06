@@ -286,7 +286,7 @@ const GeneratedPage = () => {
 
         {Renderer && <Renderer contentJson={content} nicheName={page.niche.name} pageId={page.id} />}
 
-        <PublicCTA variant="inline" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
+        
 
         <SourcesSection sources={content?.sources} />
 
@@ -330,7 +330,6 @@ const GeneratedPage = () => {
       </div>
 
       <Footer />
-      <PublicCTA variant="sticky" nicheSlug={page.niche.slug} contentTypeSlug={contentType} nicheName={page.niche.name} pageId={page.id} pageType="generated" />
     </div>
   );
 };

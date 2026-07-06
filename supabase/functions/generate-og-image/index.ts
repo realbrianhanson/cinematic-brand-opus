@@ -102,42 +102,45 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: verify caller is admin
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  // Auth: allow admin JWT, service role bearer, or cron secret.
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const cronSecret = Deno.env.get("CRON_INVOCATION_SECRET");
+  const incomingCron = req.headers.get("x-cron-secret");
+  const isInternal =
+    (bearer && bearer === srk) ||
+    (cronSecret && incomingCron && incomingCron === cronSecret);
+
+  if (!isInternal) {
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
     });
-  }
-  const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const { data: roleRow } = await anonClient
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const { data: { user }, error: userErr } = await anonClient.auth.getUser();
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: roleRow } = await anonClient
+      .from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+    if (!roleRow) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, srk);
 
-    const body = await req.json();
-    const { page_id, batch } = body;
+    const body = await req.json().catch(() => ({}));
+    const { page_id, post_id, batch, batch_posts } = body as { page_id?: string; post_id?: string; batch?: boolean; batch_posts?: boolean };
 
     const { data: settings } = await supabase
       .from("site_settings")
@@ -149,48 +152,57 @@ Deno.serve(async (req) => {
     const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
 
     let processedCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     if (batch) {
       const { data: pages } = await supabase
         .from("generated_pages")
         .select("id, title, slug, seo_meta, content_schema_id, content_schemas(name)")
         .eq("status", "published");
-
       const toProcess = (pages || []).filter((p: any) => {
-        const meta = p.seo_meta as any;
-        const url: string = meta?.og_image || "";
-        // Regenerate if missing OR if we still have a legacy SVG entry.
+        const url: string = (p.seo_meta as any)?.og_image || "";
         return !url || /\.svg(\?|$)/i.test(url);
       });
-
       for (const pg of toProcess) {
-        try {
-          await processPage(supabase, pg, authorName, siteUrl);
-          processedCount++;
-        } catch (e: any) {
-          errors.push(`${pg.id}: ${e.message}`);
-        }
+        try { await processPage(supabase, pg, authorName, siteUrl); processedCount++; }
+        catch (e: any) { errors.push(`${pg.id}: ${e.message}`); }
       }
-    } else if (page_id) {
+    }
+
+    if (batch_posts) {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published");
+      for (const p of posts || []) {
+        try { await processPost(supabase, p, authorName, siteUrl); processedCount++; }
+        catch (e: any) { errors.push(`post ${p.id}: ${e.message}`); }
+      }
+    }
+
+    if (page_id) {
       const { data: pg } = await supabase
         .from("generated_pages")
         .select("id, title, slug, seo_meta, content_schema_id, content_schemas(name)")
-        .eq("id", page_id)
-        .maybeSingle();
-
-      if (!pg) {
-        return new Response(JSON.stringify({ error: "Page not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+        .eq("id", page_id).maybeSingle();
+      if (!pg) return new Response(JSON.stringify({ error: "Page not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       await processPage(supabase, pg, authorName, siteUrl);
-      processedCount = 1;
-    } else {
+      processedCount++;
+    }
+
+    if (post_id) {
+      const { data: p } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("id", post_id).maybeSingle();
+      if (!p) return new Response(JSON.stringify({ error: "Post not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      await processPost(supabase, p, authorName, siteUrl);
+      processedCount++;
+    }
+
+    if (!batch && !batch_posts && !page_id && !post_id) {
       return new Response(
-        JSON.stringify({ error: "Provide page_id or batch: true" }),
+        JSON.stringify({ error: "Provide page_id, post_id, batch, or batch_posts" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -208,49 +220,46 @@ Deno.serve(async (req) => {
   }
 });
 
-async function processPage(
-  supabase: any,
-  pg: any,
-  authorName: string,
-  siteUrl: string,
-) {
-  const contentTypeName = pg.content_schemas?.name || "Resource";
-  const svg = generateSvg(pg.title, authorName, contentTypeName, siteUrl);
-
-  // Rasterize SVG -> PNG (1200x630). Social platforms don't render SVG og:images.
+async function rasterizeAndUpload(supabase: any, slug: string, title: string, authorName: string, contentTypeName: string, siteUrl: string): Promise<string> {
+  const svg = generateSvg(title, authorName, contentTypeName, siteUrl);
   await ensureResvg();
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width", value: 1200 },
     font: { loadSystemFonts: false, defaultFontFamily: "Arial" },
   });
   const pngBytes = resvg.render().asPng();
-
-  const fileName = `og-${pg.slug}.png`;
+  const fileName = `og-${slug}.png`;
   const { error: uploadError } = await supabase.storage
     .from("og-images")
-    .upload(fileName, pngBytes, {
-      contentType: "image/png",
-      upsert: true,
-    });
-
+    .upload(fileName, pngBytes, { contentType: "image/png", upsert: true });
   if (uploadError) throw uploadError;
+  await supabase.storage.from("og-images").remove([`og-${slug}.svg`]).catch(() => {});
+  const { data: urlData } = supabase.storage.from("og-images").getPublicUrl(fileName);
+  return urlData.publicUrl;
+}
 
-  // Best-effort cleanup of any legacy SVG at the same slug.
-  await supabase.storage.from("og-images").remove([`og-${pg.slug}.svg`]).catch(() => {});
-
-  const { data: urlData } = supabase.storage
-    .from("og-images")
-    .getPublicUrl(fileName);
-
-  const ogImageUrl = urlData.publicUrl;
-
+async function processPage(supabase: any, pg: any, authorName: string, siteUrl: string) {
+  const contentTypeName = pg.content_schemas?.name || "Resource";
+  const ogImageUrl = await rasterizeAndUpload(supabase, pg.slug, pg.title, authorName, contentTypeName, siteUrl);
   const existingMeta = (pg.seo_meta as any) || {};
   const { error: updateError } = await supabase
     .from("generated_pages")
-    .update({
-      seo_meta: { ...existingMeta, og_image: ogImageUrl },
-    })
+    .update({ seo_meta: { ...existingMeta, og_image: ogImageUrl } })
     .eq("id", pg.id);
-
   if (updateError) throw updateError;
+}
+
+async function processPost(supabase: any, post: any, authorName: string, siteUrl: string) {
+  const contentTypeName = post.categories?.name || "Article";
+  const ogImageUrl = await rasterizeAndUpload(supabase, post.slug, post.title, authorName, contentTypeName, siteUrl);
+  // Upsert into seo_metadata for the post.
+  const { data: existing } = await supabase
+    .from("seo_metadata").select("id, og_image").eq("post_id", post.id).maybeSingle();
+  if (existing) {
+    const { error } = await supabase.from("seo_metadata").update({ og_image: ogImageUrl }).eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("seo_metadata").insert({ post_id: post.id, og_image: ogImageUrl });
+    if (error) throw error;
+  }
 }
