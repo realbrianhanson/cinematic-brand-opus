@@ -272,6 +272,22 @@ const PillarPagesManager = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmAllMissing} onOpenChange={setConfirmAllMissing}>
+        <AlertDialogContent style={{ backgroundColor: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", color: "hsl(var(--admin-text))" }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-body">Generate {nichesMissingPillar.length} pillar pages?</AlertDialogTitle>
+            <AlertDialogDescription className="font-body" style={{ color: "hsl(var(--admin-text-soft))" }}>
+              Runs the full research + voice pipeline for every active niche without a pillar. This uses AI credits and takes several minutes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-body" style={{ border: "1px solid hsl(var(--admin-border))", background: "none", color: "hsl(var(--admin-text-soft))" }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="font-body" onClick={generateAllMissing} style={{ backgroundColor: "hsl(var(--admin-accent))", color: "#fff", border: "none" }}>Generate all</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
