@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2, Globe, Send } from "lucide-react";
+import BriansNotesWidget from "./BriansNotesWidget";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -202,6 +203,12 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Brian's Notes inbox */}
+      <div style={{ marginBottom: 32 }}>
+        <BriansNotesWidget />
+      </div>
+
 
       {/* Recent posts */}
       <div className="admin-card" style={{ overflow: "hidden" }}>
