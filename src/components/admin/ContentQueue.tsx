@@ -152,6 +152,37 @@ export default function ContentQueue() {
     await load();
   };
 
+  const clearAllOpps = async () => {
+    if (opps.length === 0) return;
+    if (!confirm(`Delete ALL ${opps.length} opportunities in the pipeline? This cannot be undone.`)) return;
+    const ids = opps.map((o) => o.id);
+    const { error } = await supabase.from("content_opportunities").delete().in("id", ids);
+    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: `Cleared ${ids.length} opportunities` });
+    await load();
+  };
+
+  const clearAllItems = async () => {
+    if (items.length === 0) return;
+    if (!confirm(`Delete ALL ${items.length} signals? This cannot be undone.`)) return;
+    const ids = items.map((i) => i.id);
+    const { error } = await supabase.from("source_items").delete().in("id", ids);
+    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: `Cleared ${ids.length} signals` });
+    await load();
+  };
+
+  const clearEverything = async () => {
+    if (!confirm("Delete ALL opportunities AND signals? This wipes the queue clean. Cannot be undone.")) return;
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("content_opportunities").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+      supabase.from("source_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+    ]);
+    if (e1 || e2) { toast({ title: "Clear failed", description: (e1 || e2)!.message, variant: "destructive" }); return; }
+    toast({ title: "Queue cleared" });
+    await load();
+  };
+
   const publish = async (postId: string, oppId: string | null) => {
     const { error } = await supabase.from("posts").update({ status: "published" }).eq("id", postId);
     if (error) { toast({ title: "Publish failed", description: error.message, variant: "destructive" }); return; }
