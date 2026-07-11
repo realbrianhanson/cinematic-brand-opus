@@ -60,7 +60,21 @@ Deno.serve(async (req) => {
     });
   }
 
-  await supabase.from("content_opportunities").update({ status: "drafting" }).eq("id", opportunity_id);
+  const currentAttempts = (opp.attempts ?? 0) + 1;
+  await supabase.from("content_opportunities").update({
+    status: "drafting",
+    attempts: currentAttempts,
+    last_attempt_at: new Date().toISOString(),
+  }).eq("id", opportunity_id);
+
+  const failOpp = async (reason: string, terminal: boolean) => {
+    await supabase.from("content_opportunities").update({
+      status: terminal ? "rejected" : "proposed",
+      last_error: reason.slice(0, 500),
+      reject_reason: terminal ? reason.slice(0, 500) : null,
+    }).eq("id", opportunity_id);
+  };
+  const MAX_ATTEMPTS = 3;
 
   const sources = (opp.brief?.sources || []) as Array<{ url: string; title?: string }>;
 
