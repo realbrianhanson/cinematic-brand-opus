@@ -51,3 +51,15 @@ verify_jwt = false
 [functions.generate-pillar]
 verify_jwt = false
 
+[functions.poll-sources]
+verify_jwt = false
+
+[functions.cluster-opportunities]
+verify_jwt = false
+
+[functions.draft-from-opportunity]
+verify_jwt = false
+
+[functions.daily-content-run]
+verify_jwt = false
+
