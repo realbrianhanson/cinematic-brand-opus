@@ -137,6 +137,21 @@ export default function ContentQueue() {
     await load();
   };
 
+  const deleteOpp = async (id: string) => {
+    if (!confirm("Delete this opportunity? This cannot be undone.")) return;
+    const { error } = await supabase.from("content_opportunities").delete().eq("id", id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Deleted" });
+    await load();
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm("Delete this signal?")) return;
+    const { error } = await supabase.from("source_items").delete().eq("id", id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    await load();
+  };
+
   const publish = async (postId: string, oppId: string | null) => {
     const { error } = await supabase.from("posts").update({ status: "published" }).eq("id", postId);
     if (error) { toast({ title: "Publish failed", description: error.message, variant: "destructive" }); return; }
