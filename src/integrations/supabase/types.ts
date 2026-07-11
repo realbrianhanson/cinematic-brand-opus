@@ -68,6 +68,57 @@ export type Database = {
         }
         Relationships: []
       }
+      content_opportunities: {
+        Row: {
+          angle: string
+          brief: Json | null
+          created_at: string
+          gap_reason: string | null
+          id: string
+          opportunity_score: number
+          rationale: string | null
+          reject_reason: string | null
+          serp_snapshot: Json | null
+          source_item_ids: string[]
+          status: string
+          target_keyword: string | null
+          topic_lane: string
+          updated_at: string
+        }
+        Insert: {
+          angle: string
+          brief?: Json | null
+          created_at?: string
+          gap_reason?: string | null
+          id?: string
+          opportunity_score?: number
+          rationale?: string | null
+          reject_reason?: string | null
+          serp_snapshot?: Json | null
+          source_item_ids?: string[]
+          status?: string
+          target_keyword?: string | null
+          topic_lane: string
+          updated_at?: string
+        }
+        Update: {
+          angle?: string
+          brief?: Json | null
+          created_at?: string
+          gap_reason?: string | null
+          id?: string
+          opportunity_score?: number
+          rationale?: string | null
+          reject_reason?: string | null
+          serp_snapshot?: Json | null
+          source_item_ids?: string[]
+          status?: string
+          target_keyword?: string | null
+          topic_lane?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_schemas: {
         Row: {
           created_at: string | null
@@ -110,6 +161,45 @@ export type Database = {
         }
         Relationships: []
       }
+      content_sources: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          kind: string
+          last_polled_at: string | null
+          name: string
+          topic_lane: string
+          updated_at: string
+          url: string | null
+          weight: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind: string
+          last_polled_at?: string | null
+          name: string
+          topic_lane: string
+          updated_at?: string
+          url?: string | null
+          weight?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          last_polled_at?: string | null
+          name?: string
+          topic_lane?: string
+          updated_at?: string
+          url?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
       cta_events: {
         Row: {
           content_type_slug: string | null
@@ -140,6 +230,33 @@ export type Database = {
           niche_slug?: string | null
           page_id?: string | null
           page_type?: string | null
+        }
+        Relationships: []
+      }
+      expert_notes: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          note: string
+          topic_hint: string | null
+          used_in_post_id: string | null
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          note: string
+          topic_hint?: string | null
+          used_in_post_id?: string | null
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          note?: string
+          topic_hint?: string | null
+          used_in_post_id?: string | null
         }
         Relationships: []
       }
@@ -692,9 +809,13 @@ export type Database = {
           faq_items: Json | null
           featured_image: string | null
           featured_image_alt: string | null
+          freshness_hours: number | null
           id: string
           key_takeaways: Json | null
           lint_flags: Json | null
+          opportunity_id: string | null
+          originality_score: number | null
+          performance_grade: string | null
           publish_override: boolean
           publish_override_at: string | null
           publish_override_by: string | null
@@ -703,6 +824,7 @@ export type Database = {
           reading_time: number | null
           scheduled_at: string | null
           slug: string
+          source_citations: Json | null
           status: string
           title: string
           tldr: string | null
@@ -716,9 +838,13 @@ export type Database = {
           faq_items?: Json | null
           featured_image?: string | null
           featured_image_alt?: string | null
+          freshness_hours?: number | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null
+          opportunity_id?: string | null
+          originality_score?: number | null
+          performance_grade?: string | null
           publish_override?: boolean
           publish_override_at?: string | null
           publish_override_by?: string | null
@@ -727,6 +853,7 @@ export type Database = {
           reading_time?: number | null
           scheduled_at?: string | null
           slug: string
+          source_citations?: Json | null
           status?: string
           title: string
           tldr?: string | null
@@ -740,9 +867,13 @@ export type Database = {
           faq_items?: Json | null
           featured_image?: string | null
           featured_image_alt?: string | null
+          freshness_hours?: number | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null
+          opportunity_id?: string | null
+          originality_score?: number | null
+          performance_grade?: string | null
           publish_override?: boolean
           publish_override_at?: string | null
           publish_override_by?: string | null
@@ -751,6 +882,7 @@ export type Database = {
           reading_time?: number | null
           scheduled_at?: string | null
           slug?: string
+          source_citations?: Json | null
           status?: string
           title?: string
           tldr?: string | null
@@ -762,6 +894,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "content_opportunities"
             referencedColumns: ["id"]
           },
         ]
@@ -879,6 +1018,92 @@ export type Database = {
           site_url?: string
           updated_at?: string | null
           voice_profile?: string | null
+        }
+        Relationships: []
+      }
+      source_items: {
+        Row: {
+          author: string | null
+          embedding: string | null
+          fetched_at: string
+          id: string
+          published_at: string | null
+          raw_excerpt: string | null
+          source_id: string | null
+          status: string
+          title: string | null
+          topic_lane: string | null
+          url: string
+        }
+        Insert: {
+          author?: string | null
+          embedding?: string | null
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          raw_excerpt?: string | null
+          source_id?: string | null
+          status?: string
+          title?: string | null
+          topic_lane?: string | null
+          url: string
+        }
+        Update: {
+          author?: string | null
+          embedding?: string | null
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          raw_excerpt?: string | null
+          source_id?: string | null
+          status?: string
+          title?: string | null
+          topic_lane?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "content_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_performance: {
+        Row: {
+          avg_clicks: number
+          avg_impressions: number
+          avg_position: number | null
+          format: string | null
+          id: string
+          posts_count: number
+          topic_lane: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          avg_clicks?: number
+          avg_impressions?: number
+          avg_position?: number | null
+          format?: string | null
+          id?: string
+          posts_count?: number
+          topic_lane: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          avg_clicks?: number
+          avg_impressions?: number
+          avg_position?: number | null
+          format?: string | null
+          id?: string
+          posts_count?: number
+          topic_lane?: string
+          updated_at?: string
+          weight?: number
         }
         Relationships: []
       }

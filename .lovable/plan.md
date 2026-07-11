@@ -1,56 +1,110 @@
-## What's actually broken
+## Defaults I'm locking in (you skipped the questions)
 
-The password isn't the real problem. The network log shows you already signed in successfully at 07:16:44 and 07:16:54 (HTTP 200 on `/auth/v1/token`). The failure that follows is:
+- **Cadence:** 1 candidate/day, published ~3-5/week. Every post lands in an **approval queue** — nothing auto-publishes. Score ≥85 gets a "one-click publish" badge; 75-84 goes to "needs edit"; <75 auto-rejected.
+- **Topic lanes:** AI tools & model news, AI for SMB marketing/sales, AI training/enablement, and industry AI use-cases (feeds your 12 active niches).
+- **Sources:** Perplexity (recency=day) + Firecrawl SERP/PAA (already connected) + a small curated RSS layer I'll seed with ~10 feeds.
+- **Voice grounding:** existing `expert_pov` fields + a new lightweight **"Brian's Notes" inbox** in admin (drop 1-3 sentences whenever; writer weaves the freshest matching note into the callout — nothing fabricated when the inbox is empty).
 
+## What already exists (I'm reusing, not rebuilding)
+
+`generate-blog-post`, `_shared/voice.ts` (critique/revise + lint + banned phrases), `scorePost` quality gate (≥75 DB trigger), `render-page` crawler HTML, `generate-og-image` (PNG), pg_cron scheduler, GSC feedback loop, Perplexity + Firecrawl connectors, silo linking, IndexNow. **No stack change. No new CMS.**
+
+## New pieces I'll add
+
+### 1. Data model (one migration)
+
+- `content_sources` — id, name, kind (`rss` | `perplexity_topic` | `manual`), url, topic_lane, active, last_polled_at
+- `source_items` — id, source_id, url UNIQUE, title, author, published_at, raw_excerpt, topic_lane, embedding vector(1536) nullable, status (`new` | `used` | `skipped` | `stale`), fetched_at
+- `content_opportunities` — id, cluster_of source_item_ids[], angle, target_keyword, topic_lane, opportunity_score int, rationale, serp_snapshot jsonb, gap_reason text, created_at, status (`proposed` | `drafting` | `queued` | `approved` | `rejected` | `published`)
+- `expert_notes` — id, note text, topic_hint, used_in_post_id nullable, created_at (the "Brian's Notes" inbox)
+- Add `posts.opportunity_id` FK, `posts.source_citations jsonb`, `posts.originality_score int`, `posts.freshness_hours int`
+- All tables: GRANTs, RLS (admin-only write, service_role full), triggers
+
+### 2. Seven-stage agent pipeline (edge functions)
+
+Each is a focused function, chained by a job runner. All use `MAIN_MODEL` from `_shared/models.ts` except where noted.
+
+```text
+daily-content-run (cron 05:30 ET)
+  └─► poll-sources          ── RSS + Perplexity daily digest → source_items
+  └─► cluster-opportunities ── dedupe by embedding (cosine >0.85), score by
+                                lane fit + search demand + gap vs existing
+                                posts/pages, pick top 1-2
+  └─► build-brief           ── for each opportunity: SERP + PAA via Firecrawl,
+                                internal link candidates, target keyword,
+                                angle Brian would actually take
+  └─► draft-article         ── existing generate-blog-post path, seeded with
+                                brief + freshest matching expert_note
+  └─► editor-pass           ── voice critique/revise (already built) + a new
+                                "de-slop" pass: strips hedging, generic intros,
+                                enforces first-person where a note exists
+  └─► fact-check            ── extract every numeric/named claim, verify each
+                                against cited sources via Perplexity with
+                                citations=required; flag unverified as
+                                lint_flags, drop if >2 unverified
+  └─► seo-finalize          ── metadata, internal links (existing silo
+                                builder), OG PNG, schema hints, queue
 ```
-GET /rest/v1/user_roles?...role=eq.admin  → 403
-{ "code": "42501", "message": "permission denied for function is_admin" }
-```
 
-The admin UI signs you in, then reads `user_roles` to confirm the `admin` role. That table's RLS policy is `is_admin(auth.uid())`. A previous security-hardening migration revoked `EXECUTE` on `public.is_admin(uuid)` from `authenticated`, so the policy check itself throws a permission error — the client sees "not admin" and bounces you back to the login screen.
+Failure at any stage marks the opportunity `rejected` with a reason — no silent retries.
 
-DB state confirms it:
+### 3. Anti-slop guardrails (hard gates, not soft prompts)
 
-```
-is_admin | anon          | can_exec = t
-is_admin | authenticated | can_exec = f   ← this is the bug
-is_admin | service_role  | can_exec = t
-```
+- **Originality:** embed the draft, cosine-compare against every source item and every existing post; reject if max similarity >0.82.
+- **Freshness:** reject if newest source is >72h old unless topic is flagged evergreen.
+- **Fabrication:** fact-check stage drops the post if any numeric claim lacks a citation URL that Perplexity can re-verify.
+- **AI-slop lint:** extend `voice.ts` with patterns for "In today's fast-paced world", "It's important to note", "In conclusion", "Whether you're a…", em-dashes, and negation-correction ("not just X, but Y") — already partially there, I'll harden.
+- **Perspective check:** reject if the post contains zero first-person markers AND an expert_note existed for the topic.
 
-Anonymous visitors can execute it (needed for public "published OR is_admin" policies), but signed-in admins cannot — exactly backwards for the admin panel.
+### 4. Approval queue UI
 
-The later 07:17:31 `400 invalid_credentials` was you retrying with `12345678`, which isn't your real password. The two earlier 200s prove your real password still works.
+New admin route `/admin/queue`:
+- Card per queued post: title, angle, quality score, originality score, freshness hours, source citation count, "Brian's Note used" badge
+- Actions: **Publish now** (score ≥85), **Edit** (opens existing PostEditor), **Reject with reason** (feeds back into strategy)
+- One-click **"Rewrite in my voice"** button that re-runs editor-pass with the reject reason as extra context
 
-## The fix
+### 5. Brian's Notes inbox
 
-One migration that restores `EXECUTE` on `public.is_admin(uuid)` to `authenticated` (keeping the existing grants to `anon` and `service_role`). No app-code change.
+Small admin widget on the dashboard: textarea + optional topic hint + save. That's it. Notes stay in the pool for 14 days, then archive. The drafting stage picks the freshest note whose topic_hint matches the opportunity's lane; if none, callout falls back to `niche.expert_pov` or `site_settings.default_expert_pov` (existing behavior).
 
-```sql
-GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
-```
+### 6. Automation schedule (pg_cron additions)
 
-After it runs:
+- `poll-sources` — every 4h
+- `daily-content-run` — 05:30 ET daily
+- `content-performance-scorer` — daily 22:00, updates `posts.performance_grade` from GSC + `page_engagement` to feed strategy scoring
+- Existing crons untouched
 
-1. Sign in with the password that worked at 07:16:44 (not `12345678`).
-2. `user_roles` lookup returns your `admin` row.
-3. Admin panel loads.
+### 7. Learning loop
 
-## About the security finding
+After 21 days, each published post gets a grade (A/B/C/D) from GSC impressions + clicks + `page_engagement`. Strategy scorer weights future opportunity selection toward lanes/formats grading A/B and downweights D. No ML — just weighted moving averages stored on `content_sources` and a new `topic_performance` table.
 
-This does not reopen the finding I ignored earlier. `is_admin` is a hardened, `STABLE`, fixed-`search_path` existence check against `user_roles` — safe to expose EXECUTE to both `anon` and `authenticated`. I'll update the security memory note to say authenticated is also required, so no future scan or agent re-revokes it.
+## Technical details
 
-## If you truly forgot the password
+- **Stack (unchanged):** React SPA + Supabase edge functions + pg_cron + Perplexity + Firecrawl + Lovable AI gateway. No WordPress, no external CMS.
+- **Embeddings:** `text-embedding-3-small` via Lovable AI gateway. Store in Postgres `vector` column (enable pgvector in the migration).
+- **Secrets:** everything needed is already set. No new API keys.
+- **Security:** all new tables RLS-locked to admin; cron functions use existing `cronAuth`; `is_admin` anon grant preserved.
+- **Costs:** ~1 daily run × (Perplexity ~$0.03 + Firecrawl SERP ~$0.02 + Gemini generation ~$0.05 + embeddings ~$0.01) ≈ **$0.11/day, ~$3.30/month** on top of current usage.
 
-Separate from the fix above. Two options, pick one after the admin panel loads:
+## MVP rollout (what I'll actually build, in order)
 
-- Use the "Forgot password" flow on `/admin/login` (sends a reset email to `brian@aiforbusiness.com`).
-- Or, once logged in, use the existing Change Password screen in the admin.
+1. Migration: new tables + pgvector + posts columns + GRANTs/RLS
+2. `_shared/embeddings.ts` helper + originality scorer
+3. `poll-sources` edge function + seed 10 RSS feeds + Perplexity daily digest
+4. `cluster-opportunities` + `build-brief`
+5. Extend `generate-blog-post` to accept a brief + opportunity_id (keep manual mode working)
+6. `fact-check` edge function
+7. `daily-content-run` orchestrator + pg_cron schedule
+8. Admin `/admin/queue` page + Brian's Notes widget on dashboard
+9. `content-performance-scorer` + strategy feedback
 
-I don't have a way to set your password directly from here (the service-role admin API isn't exposed on Lovable Cloud), so it has to go through one of those flows.
+Each step ships independently; you can pause after any of them and still have working value.
 
-## Files touched
+## Out of scope (explicitly not doing)
 
-- New migration: `supabase/migrations/<timestamp>_restore_is_admin_execute_authenticated.sql`
-- `security-memory` note updated so this grant isn't re-revoked.
+- No auto-publish. Everything queues for you.
+- No image AI beyond the existing featured-image + OG PNG flow.
+- No social media auto-posting.
+- No new CMS or migration off the current stack.
 
-Nothing else changes.
+Approve and I'll start with step 1 (the migration).
