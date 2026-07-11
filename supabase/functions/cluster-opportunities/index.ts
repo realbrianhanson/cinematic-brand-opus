@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
 
 Brian's brand: practical AI training for small-business owners (marketing, sales, conversions). Straight-talking. First-person. No jargon. Avoid corporate/generic AI news recap.
 
-You will receive candidate news clusters from the last 72 hours. Pick 1-2 that Brian should write about. REJECT clusters that:
+You will receive candidate news clusters from the last 72 hours. Pick UP TO 5 that Brian should write about. REJECT clusters that:
 - Duplicate a title Brian has already covered in the last 60 posts
 - Are pure model-release recaps with no small-business angle
 - Are speculation/opinion pieces without concrete news
