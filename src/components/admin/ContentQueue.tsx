@@ -290,9 +290,17 @@ export default function ContentQueue() {
       ))}
 
       {/* Opportunities pipeline */}
-      <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 12, marginTop: 32 }}>
-        Pipeline ({opps.length})
-      </h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
+        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+          Pipeline ({opps.length})
+        </h2>
+        {opps.length > 0 && (
+          <button onClick={clearAllOpps}
+            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            <Trash2 size={12} /> Clear all
+          </button>
+        )}
+      </div>
       {opps.map((o) => (
         <div key={o.id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
