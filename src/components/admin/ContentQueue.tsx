@@ -336,6 +336,10 @@ export default function ContentQueue() {
               <span style={{ marginLeft: 8, fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>· {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}</span>
             </div>
             <span style={{ fontSize: 11, color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))", textTransform: "uppercase" }}>{i.status}</span>
+            <button onClick={() => deleteItem(i.id)} title="Delete signal"
+              style={{ background: "transparent", border: "none", color: "hsl(var(--admin-text-ghost))", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+              <Trash2 size={12} />
+            </button>
           </div>
         ))}
       </div>
