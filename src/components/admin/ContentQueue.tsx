@@ -364,10 +364,17 @@ export default function ContentQueue() {
         </div>
       ))}
 
-      {/* Raw source items */}
-      <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 12, marginTop: 32 }}>
-        Latest signals ({items.length})
-      </h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
+        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+          Latest signals ({items.length})
+        </h2>
+        {items.length > 0 && (
+          <button onClick={clearAllItems}
+            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            <Trash2 size={12} /> Clear all
+          </button>
+        )}
+      </div>
       <div style={cardStyle}>
         {items.length === 0 && <div style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", textAlign: "center" }}>No news items polled yet.</div>}
         {items.map((i) => (
