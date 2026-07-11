@@ -152,6 +152,37 @@ export default function ContentQueue() {
     await load();
   };
 
+  const clearAllOpps = async () => {
+    if (opps.length === 0) return;
+    if (!confirm(`Delete ALL ${opps.length} opportunities in the pipeline? This cannot be undone.`)) return;
+    const ids = opps.map((o) => o.id);
+    const { error } = await supabase.from("content_opportunities").delete().in("id", ids);
+    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: `Cleared ${ids.length} opportunities` });
+    await load();
+  };
+
+  const clearAllItems = async () => {
+    if (items.length === 0) return;
+    if (!confirm(`Delete ALL ${items.length} signals? This cannot be undone.`)) return;
+    const ids = items.map((i) => i.id);
+    const { error } = await supabase.from("source_items").delete().in("id", ids);
+    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: `Cleared ${ids.length} signals` });
+    await load();
+  };
+
+  const clearEverything = async () => {
+    if (!confirm("Delete ALL opportunities AND signals? This wipes the queue clean. Cannot be undone.")) return;
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("content_opportunities").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+      supabase.from("source_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+    ]);
+    if (e1 || e2) { toast({ title: "Clear failed", description: (e1 || e2)!.message, variant: "destructive" }); return; }
+    toast({ title: "Queue cleared" });
+    await load();
+  };
+
   const publish = async (postId: string, oppId: string | null) => {
     const { error } = await supabase.from("posts").update({ status: "published" }).eq("id", postId);
     if (error) { toast({ title: "Publish failed", description: error.message, variant: "destructive" }); return; }
@@ -190,6 +221,10 @@ export default function ContentQueue() {
           <button onClick={load} disabled={loading}
             style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
+          <button onClick={clearEverything} disabled={opps.length === 0 && items.length === 0}
+            style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <Trash2 size={14} /> Clear all
           </button>
           <button onClick={runNow} disabled={running}
             style={{ padding: "10px 16px", background: "hsl(var(--admin-accent))", border: "none", borderRadius: 6, color: "#1a1208", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
@@ -255,9 +290,17 @@ export default function ContentQueue() {
       ))}
 
       {/* Opportunities pipeline */}
-      <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 12, marginTop: 32 }}>
-        Pipeline ({opps.length})
-      </h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
+        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+          Pipeline ({opps.length})
+        </h2>
+        {opps.length > 0 && (
+          <button onClick={clearAllOpps}
+            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            <Trash2 size={12} /> Clear all
+          </button>
+        )}
+      </div>
       {opps.map((o) => (
         <div key={o.id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -321,10 +364,17 @@ export default function ContentQueue() {
         </div>
       ))}
 
-      {/* Raw source items */}
-      <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 12, marginTop: 32 }}>
-        Latest signals ({items.length})
-      </h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
+        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+          Latest signals ({items.length})
+        </h2>
+        {items.length > 0 && (
+          <button onClick={clearAllItems}
+            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            <Trash2 size={12} /> Clear all
+          </button>
+        )}
+      </div>
       <div style={cardStyle}>
         {items.length === 0 && <div style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", textAlign: "center" }}>No news items polled yet.</div>}
         {items.map((i) => (
