@@ -312,6 +312,10 @@ export default function ContentQueue() {
                   <XCircle size={12} /> Reject
                 </button>
               )}
+              <button onClick={() => deleteOpp(o.id)}
+                style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                <Trash2 size={12} /> Delete
+              </button>
             </div>
           </div>
         </div>
