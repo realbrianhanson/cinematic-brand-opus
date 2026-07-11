@@ -71,10 +71,13 @@ export type Database = {
       content_opportunities: {
         Row: {
           angle: string
+          attempts: number
           brief: Json | null
           created_at: string
           gap_reason: string | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
           opportunity_score: number
           rationale: string | null
           reject_reason: string | null
@@ -87,10 +90,13 @@ export type Database = {
         }
         Insert: {
           angle: string
+          attempts?: number
           brief?: Json | null
           created_at?: string
           gap_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           opportunity_score?: number
           rationale?: string | null
           reject_reason?: string | null
@@ -103,10 +109,13 @@ export type Database = {
         }
         Update: {
           angle?: string
+          attempts?: number
           brief?: Json | null
           created_at?: string
           gap_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           opportunity_score?: number
           rationale?: string | null
           reject_reason?: string | null
