@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
     return { cluster: c, score: (size * 2 + recencyBoost * 3) * weight, lane, ageHours };
   }).sort((a, b) => b.score - a.score);
 
-  // Take top 3 candidates → ask the LLM to pick 1-2 Brian would write about
-  const top = scored.slice(0, 3);
+  // Take top 8 candidates → ask the LLM to pick up to 5 Brian would write about
+  const top = scored.slice(0, 8);
   const candidatePayload = top.map((s, i) => ({
     idx: i,
     topic_lane: s.lane,
