@@ -37,6 +37,7 @@ const PillarPageEditor = lazy(() => import("./components/admin/PillarPageEditor"
 const GenerationControls = lazy(() => import("./components/admin/GenerationControls"));
 const PseoDashboard = lazy(() => import("./components/admin/PseoDashboard"));
 const WidgetsManager = lazy(() => import("./components/admin/WidgetsManager"));
+const ContentQueue = lazy(() => import("./components/admin/ContentQueue"));
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="generate" element={<Suspense fallback={<AdminPageSkeleton />}><GenerationControls /></Suspense>} />
               <Route path="pseo-dashboard" element={<Suspense fallback={<AdminPageSkeleton />}><PseoDashboard /></Suspense>} />
               <Route path="widgets" element={<Suspense fallback={<AdminPageSkeleton />}><WidgetsManager /></Suspense>} />
+              <Route path="queue" element={<Suspense fallback={<AdminPageSkeleton />}><ContentQueue /></Suspense>} />
             </Route>
             <Route path="*" element={<Suspense fallback={<PublicPageSkeleton />}><NotFound /></Suspense>} />
           </Routes>
