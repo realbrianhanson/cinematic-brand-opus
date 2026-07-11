@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 type Opp = {
@@ -134,6 +134,21 @@ export default function ContentQueue() {
 
   const reject = async (id: string, reason: string) => {
     await supabase.from("content_opportunities").update({ status: "rejected", reject_reason: reason }).eq("id", id);
+    await load();
+  };
+
+  const deleteOpp = async (id: string) => {
+    if (!confirm("Delete this opportunity? This cannot be undone.")) return;
+    const { error } = await supabase.from("content_opportunities").delete().eq("id", id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Deleted" });
+    await load();
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm("Delete this signal?")) return;
+    const { error } = await supabase.from("source_items").delete().eq("id", id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
     await load();
   };
 
@@ -297,6 +312,10 @@ export default function ContentQueue() {
                   <XCircle size={12} /> Reject
                 </button>
               )}
+              <button onClick={() => deleteOpp(o.id)}
+                style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                <Trash2 size={12} /> Delete
+              </button>
             </div>
           </div>
         </div>
@@ -317,6 +336,10 @@ export default function ContentQueue() {
               <span style={{ marginLeft: 8, fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>· {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}</span>
             </div>
             <span style={{ fontSize: 11, color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))", textTransform: "uppercase" }}>{i.status}</span>
+            <button onClick={() => deleteItem(i.id)} title="Delete signal"
+              style={{ background: "transparent", border: "none", color: "hsl(var(--admin-text-ghost))", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+              <Trash2 size={12} />
+            </button>
           </div>
         ))}
       </div>
