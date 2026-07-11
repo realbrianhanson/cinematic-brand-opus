@@ -222,6 +222,10 @@ export default function ContentQueue() {
             style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
           </button>
+          <button onClick={clearEverything} disabled={opps.length === 0 && items.length === 0}
+            style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <Trash2 size={14} /> Clear all
+          </button>
           <button onClick={runNow} disabled={running}
             style={{ padding: "10px 16px", background: "hsl(var(--admin-accent))", border: "none", borderRadius: 6, color: "#1a1208", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
             {running ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
