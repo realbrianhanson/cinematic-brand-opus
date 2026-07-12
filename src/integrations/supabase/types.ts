@@ -973,8 +973,6 @@ export type Database = {
           image_generation_enabled: boolean
           publisher_name: string | null
           publisher_url: string | null
-          report_email: string | null
-          report_enabled: boolean | null
           site_name: string
           site_url: string
           updated_at: string | null
@@ -997,8 +995,6 @@ export type Database = {
           image_generation_enabled?: boolean
           publisher_name?: string | null
           publisher_url?: string | null
-          report_email?: string | null
-          report_enabled?: boolean | null
           site_name?: string
           site_url?: string
           updated_at?: string | null
@@ -1021,12 +1017,34 @@ export type Database = {
           image_generation_enabled?: boolean
           publisher_name?: string | null
           publisher_url?: string | null
-          report_email?: string | null
-          report_enabled?: boolean | null
           site_name?: string
           site_url?: string
           updated_at?: string | null
           voice_profile?: string | null
+        }
+        Relationships: []
+      }
+      site_settings_private: {
+        Row: {
+          created_at: string
+          id: string
+          report_email: string | null
+          report_enabled: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_email?: string | null
+          report_enabled?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_email?: string | null
+          report_enabled?: boolean | null
+          updated_at?: string
         }
         Relationships: []
       }

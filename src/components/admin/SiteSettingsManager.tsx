@@ -58,6 +58,19 @@ const SiteSettingsManager = () => {
     },
   });
 
+  const { data: privateSettings } = useQuery({
+    queryKey: ["admin-site-settings-private"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("site_settings_private")
+        .select("id, report_email, report_enabled")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; report_email: string | null; report_enabled: boolean | null } | null;
+    },
+  });
+
   useEffect(() => {
     if (settings) {
       setForm({
@@ -69,9 +82,11 @@ const SiteSettingsManager = () => {
         voice_profile: ((settings as any).voice_profile as string) ?? "",
         default_expert_pov: ((settings as any).default_expert_pov as string) ?? "",
         image_generation_enabled: (settings as any).image_generation_enabled !== false,
+        report_email: privateSettings?.report_email ?? "",
+        report_enabled: privateSettings?.report_enabled ?? false,
       });
     }
-  }, [settings]);
+  }, [settings, privateSettings]);
 
   const saveMutation = useMutation({
     mutationFn: () => safeMutation(async () => {
@@ -90,8 +105,6 @@ const SiteSettingsManager = () => {
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
-        report_email: (form as any).report_email || "",
-        report_enabled: (form as any).report_enabled || false,
         voice_profile: form.voice_profile || null,
         banned_phrases: form.banned_phrases,
         default_expert_pov: form.default_expert_pov || null,
@@ -109,9 +122,29 @@ const SiteSettingsManager = () => {
         const { error } = await supabase.from("site_settings").insert(payload);
         if (error) throw error;
       }
+
+      // Persist sensitive report config to admin-only table.
+      const privatePayload = {
+        report_email: (form as any).report_email || "",
+        report_enabled: (form as any).report_enabled || false,
+        updated_at: new Date().toISOString(),
+      };
+      if (privateSettings?.id) {
+        const { error } = await (supabase as any)
+          .from("site_settings_private")
+          .update(privatePayload)
+          .eq("id", privateSettings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from("site_settings_private")
+          .insert(privatePayload);
+        if (error) throw error;
+      }
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      qc.invalidateQueries({ queryKey: ["admin-site-settings-private"] });
       toast({ title: "Settings saved", description: "Your site settings have been updated." });
     },
     onError: (err: Error) => {
