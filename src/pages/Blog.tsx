@@ -307,11 +307,9 @@ const Blog = () => {
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {newsItems.map((n: any) => (
-                <a
+                <Link
                   key={n.id}
-                  href={n.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  to={`/news/${n.id}`}
                   className="group block h-full"
                   style={{
                     border: "1px solid rgba(255,255,255,0.08)",
