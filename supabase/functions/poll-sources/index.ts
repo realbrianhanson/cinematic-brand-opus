@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
         image_url: imageUrl?.slice(0, 1000),
         topic_lane: src.topic_lane,
         embedding: vec ? toPgVector(vec) : null,
-        status: "new",
+        status: "published",
       });
 
       if (!insErr) inserted++;
