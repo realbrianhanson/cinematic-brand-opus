@@ -25,7 +25,16 @@ const Index = () => {
 
   const handleLoaderComplete = () => {
     setSiteVisible(true);
-    setTimeout(() => setLoaded(true), 100);
+    setTimeout(() => {
+      setLoaded(true);
+      const hash = window.location.hash.replace("#", "");
+      if (hash) {
+        setTimeout(() => {
+          const el = document.getElementById(hash);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+      }
+    }, 100);
   };
 
   return (

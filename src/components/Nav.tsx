@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const navLinks = [
   { label: "Story", href: "#story" },
@@ -18,6 +18,33 @@ const Nav = ({ loaded = true }: NavProps) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === "/";
+
+  const handleHashClick = (e: React.MouseEvent, hash: string) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    const id = hash.replace("#", "");
+    if (isHome) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", `/#${id}`);
+    } else {
+      navigate(`/#${id}`);
+    }
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    if (isHome) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      history.replaceState(null, "", "/");
+    } else {
+      navigate("/");
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => {
@@ -64,7 +91,7 @@ const Nav = ({ loaded = true }: NavProps) => {
           style={{ maxWidth: 1440 }}
         >
           {/* Logo */}
-          <a href="#hero" className="flex items-center gap-3 group" data-hover>
+          <a href="/" onClick={handleLogoClick} className="flex items-center gap-3 group" data-hover>
             <div
               className="flex items-center justify-center transition-shadow duration-300 group-hover:shadow-[0_0_24px_rgba(212,175,85,0.25)]"
               style={{
@@ -113,7 +140,8 @@ const Nav = ({ loaded = true }: NavProps) => {
                 ) : (
                   <a
                     key={link.label}
-                    href={link.href}
+                    href={isHome ? link.href : `/${link.href}`}
+                    onClick={(e) => handleHashClick(e, link.href)}
                     data-hover
                     className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
                     style={{
@@ -218,8 +246,8 @@ const Nav = ({ loaded = true }: NavProps) => {
               ) : (
                 <a
                   key={link.label}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
+                  href={isHome ? link.href : `/${link.href}`}
+                  onClick={(e) => handleHashClick(e, link.href)}
                   className="flex items-center justify-between py-5 font-display italic text-foreground"
                   style={{
                     fontSize: "clamp(2rem, 6vw, 2.8rem)",
