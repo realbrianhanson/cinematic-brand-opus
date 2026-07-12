@@ -11,6 +11,7 @@ import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
 import Index from "./pages/Index";
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
+const News = lazy(() => import("./pages/News"));
 const NewsDetail = lazy(() => import("./pages/NewsDetail"));
 const PillarPage = lazy(() => import("./pages/PillarPage"));
 const ResourcesIndex = lazy(() => import("./pages/ResourcesIndex"));
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<Suspense fallback={<PublicPageSkeleton />}><Blog /></Suspense>} />
             <Route path="/blog/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><BlogPost /></Suspense>} />
+            <Route path="/news" element={<Suspense fallback={<PublicPageSkeleton />}><News /></Suspense>} />
             <Route path="/news/:id" element={<Suspense fallback={<PublicPageSkeleton />}><NewsDetail /></Suspense>} />
             <Route path="/guides/:slug" element={<Suspense fallback={<PublicPageSkeleton />}><PillarPage /></Suspense>} />
             <Route path="/resources" element={<Suspense fallback={<PublicPageSkeleton />}><ResourcesIndex /></Suspense>} />
