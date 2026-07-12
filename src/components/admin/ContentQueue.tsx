@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import NewsItemEditor from "./NewsItemEditor";
 
 type Opp = {
   id: string;
