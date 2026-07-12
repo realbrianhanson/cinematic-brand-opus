@@ -246,8 +246,8 @@ const Nav = ({ loaded = true }: NavProps) => {
               ) : (
                 <a
                   key={link.label}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
+                  href={isHome ? link.href : `/${link.href}`}
+                  onClick={(e) => handleHashClick(e, link.href)}
                   className="flex items-center justify-between py-5 font-display italic text-foreground"
                   style={{
                     fontSize: "clamp(2rem, 6vw, 2.8rem)",
