@@ -73,6 +73,20 @@ const Blog = () => {
     staleTime: 30_000,
   });
 
+  const { data: newsItems } = useQuery({
+    queryKey: ["public-news-signals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("source_items")
+        .select("id, title, url, author, published_at, raw_excerpt")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .limit(60);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
   return (
     <div
       className="public-site min-h-screen"
