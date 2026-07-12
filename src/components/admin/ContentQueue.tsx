@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import NewsItemEditor from "./NewsItemEditor";
 
 type Opp = {
   id: string;
@@ -71,6 +72,7 @@ export default function ContentQueue() {
   const [queued, setQueued] = useState<QueuedPost[]>([]);
   const [items, setItems] = useState<SourceItem[]>([]);
   const [live, setLive] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -378,14 +380,23 @@ export default function ContentQueue() {
       <div style={cardStyle}>
         {items.length === 0 && <div style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", textAlign: "center" }}>No news items polled yet.</div>}
         {items.map((i) => (
-          <div key={i.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid hsl(var(--admin-border))", gap: 12, fontSize: 13 }}>
+          <div key={i.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid hsl(var(--admin-border))", gap: 12, fontSize: 13, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              <a href={i.url} target="_blank" rel="noopener" style={{ color: "hsl(var(--admin-text))", textDecoration: "none" }}>
+              <button onClick={() => setEditingId(i.id)}
+                style={{ background: "transparent", border: "none", padding: 0, color: "hsl(var(--admin-text))", cursor: "pointer", fontSize: 13, textAlign: "left" }}>
                 {i.title || i.url}
-              </a>
+              </button>
               <span style={{ marginLeft: 8, fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>· {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}</span>
             </div>
             <span style={{ fontSize: 11, color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))", textTransform: "uppercase" }}>{i.status}</span>
+            <button onClick={() => setEditingId(i.id)} title="Edit news article"
+              style={{ background: "transparent", border: "1px solid hsl(var(--admin-border))", color: "hsl(var(--admin-text-soft))", cursor: "pointer", padding: "4px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+              <Edit3 size={11} /> Edit
+            </button>
+            <a href={i.url} target="_blank" rel="noopener" title="Open source"
+              style={{ color: "hsl(var(--admin-text-ghost))", padding: 2, display: "flex", alignItems: "center" }}>
+              <ExternalLink size={12} />
+            </a>
             <button onClick={() => deleteItem(i.id)} title="Delete signal"
               style={{ background: "transparent", border: "none", color: "hsl(var(--admin-text-ghost))", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
               <Trash2 size={12} />
@@ -393,6 +404,10 @@ export default function ContentQueue() {
           </div>
         ))}
       </div>
+
+      {editingId && (
+        <NewsItemEditor itemId={editingId} onClose={() => setEditingId(null)} onSaved={load} />
+      )}
     </div>
   );
 }

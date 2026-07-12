@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
         image_url: imageUrl?.slice(0, 1000),
         topic_lane: src.topic_lane,
         embedding: vec ? toPgVector(vec) : null,
-        status: "new",
+        status: "published",
       });
 
       if (!insErr) inserted++;
@@ -270,8 +270,8 @@ Deno.serve(async (req) => {
   // Mark items older than 14 days as stale
   await supabase
     .from("source_items")
-    .update({ status: "stale" })
-    .eq("status", "new")
+    .update({ status: "archived" })
+    .in("status", ["new", "published"])
     .lt("published_at", new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString());
 
   return new Response(

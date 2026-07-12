@@ -93,6 +93,7 @@ const News = () => {
       const { data, error } = await supabase
         .from("source_items")
         .select("id, title, url, author, published_at, raw_excerpt, image_url, topic_lane, ai_title, ai_summary, content_sources(name)")
+        .eq("status", "published")
         .order("published_at", { ascending: false, nullsFirst: false })
         .limit(200);
       if (error) throw error;
