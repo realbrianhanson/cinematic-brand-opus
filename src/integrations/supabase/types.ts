@@ -1036,6 +1036,7 @@ export type Database = {
           embedding: string | null
           fetched_at: string
           id: string
+          image_url: string | null
           published_at: string | null
           raw_excerpt: string | null
           source_id: string | null
@@ -1049,6 +1050,7 @@ export type Database = {
           embedding?: string | null
           fetched_at?: string
           id?: string
+          image_url?: string | null
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null
@@ -1062,6 +1064,7 @@ export type Database = {
           embedding?: string | null
           fetched_at?: string
           id?: string
+          image_url?: string | null
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null
