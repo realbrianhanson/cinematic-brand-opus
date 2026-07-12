@@ -16,7 +16,25 @@ interface Item {
   author?: string;
   published_at?: string;
   raw_excerpt?: string;
+  image_url?: string;
 }
+
+function extractImage(block: string): string | undefined {
+  // <media:content url="..."> or <media:thumbnail url="...">
+  const media = block.match(/<media:(?:content|thumbnail)[^>]*url=["']([^"']+)["']/i);
+  if (media) return media[1];
+  // <enclosure url="..." type="image/*"/>
+  const enc = block.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*type=["']image\//i);
+  if (enc) return enc[1];
+  // <image><url>...</url></image>
+  const imgUrl = block.match(/<image[^>]*>[\s\S]*?<url>([^<]+)<\/url>/i);
+  if (imgUrl) return imgUrl[1].trim();
+  // <img src="..."> inside description/content
+  const img = block.match(/<img[^>]*src=["']([^"']+)["']/i);
+  if (img) return img[1];
+  return undefined;
+}
+
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
