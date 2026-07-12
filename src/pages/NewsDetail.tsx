@@ -76,6 +76,7 @@ const NewsDetail = () => {
         .from("source_items")
         .select("id, title, image_url, topic_lane, published_at, content_sources(name), url")
         .eq("topic_lane", item!.topic_lane!)
+        .eq("status", "published")
         .neq("id", id!)
         .order("published_at", { ascending: false, nullsFirst: false })
         .limit(6);
