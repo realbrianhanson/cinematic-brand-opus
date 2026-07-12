@@ -168,6 +168,18 @@ const Nav = ({ loaded = true }: NavProps) => {
               >
                 Blog
               </Link>
+              <Link
+                to="/news"
+                data-hover
+                className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  color: "rgba(255,255,255,0.45)",
+                }}
+              >
+                News
+              </Link>
             </div>
 
             {/* Divider */}
@@ -271,6 +283,19 @@ const Nav = ({ loaded = true }: NavProps) => {
               }}
             >
               Blog
+              <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
+            </Link>
+            <Link
+              to="/news"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-between py-5 font-display italic text-foreground"
+              style={{
+                fontSize: "clamp(2rem, 6vw, 2.8rem)",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                animation: `mobileNavIn 0.4s ease-out ${(navLinks.length + 1) * 0.07}s both`,
+              }}
+            >
+              News
               <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
             </Link>
           </div>

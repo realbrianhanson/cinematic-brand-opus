@@ -29,7 +29,7 @@ import {
 
 const navItems = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/admin/queue", label: "Content Queue", icon: Inbox, end: true },
+  { to: "/admin/queue", label: "News & Queue", icon: Inbox, end: true },
   { to: "/admin/posts", label: "Posts", icon: FileText, end: true },
   { to: "/admin/posts/new", label: "New Post", icon: FilePlus },
   { to: "/admin/categories", label: "Categories", icon: FolderOpen },
