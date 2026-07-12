@@ -91,7 +91,7 @@ const Nav = ({ loaded = true }: NavProps) => {
           style={{ maxWidth: 1440 }}
         >
           {/* Logo */}
-          <a href="#hero" className="flex items-center gap-3 group" data-hover>
+          <a href="/" onClick={handleLogoClick} className="flex items-center gap-3 group" data-hover>
             <div
               className="flex items-center justify-center transition-shadow duration-300 group-hover:shadow-[0_0_24px_rgba(212,175,85,0.25)]"
               style={{
