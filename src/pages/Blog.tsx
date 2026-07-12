@@ -14,7 +14,7 @@ const hashSeed = (s: string) => {
   return Math.abs(h);
 };
 
-const TypographicCover = ({ title }: { title: string }) => {
+const TypographicCover = ({ title, label }: { title: string; label?: string }) => {
   const seed = hashSeed(title);
   const angle = 100 + (seed % 80); // 100-180deg
   const initial = (title || "•").trim().charAt(0).toUpperCase();
@@ -41,18 +41,54 @@ const TypographicCover = ({ title }: { title: string }) => {
       >
         {initial}
       </span>
+      {label && (
+        <span
+          className="font-body uppercase"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 16,
+            fontSize: 10,
+            letterSpacing: "0.2em",
+            color: "rgba(7,7,14,0.85)",
+            background: "rgba(255,255,255,0.35)",
+            padding: "4px 8px",
+            borderRadius: 2,
+          }}
+        >
+          {label}
+        </span>
+      )}
       <span
         className="font-display italic relative"
         style={{
-          fontSize: 24,
-          lineHeight: 1.15,
-          color: "rgba(7,7,14,0.9)",
-          maxWidth: "80%",
+          fontSize: 22,
+          lineHeight: 1.2,
+          color: "rgba(7,7,14,0.92)",
+          maxWidth: "88%",
           textShadow: "0 1px 0 rgba(255,255,255,0.08)",
         }}
       >
-        {title.length > 60 ? title.slice(0, 60) + "…" : title}
+        {title.length > 70 ? title.slice(0, 70) + "…" : title}
       </span>
+    </div>
+  );
+};
+
+// Image with graceful typographic fallback on error
+const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel }: { src: string; alt: string; fallbackTitle: string; fallbackLabel?: string }) => {
+  const [failed, setFailed] = (require("react") as typeof import("react")).useState(false);
+  if (failed) return <TypographicCover title={fallbackTitle} label={fallbackLabel} />;
+  return (
+    <div style={{ height: 200, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        onError={() => setFailed(true)}
+      />
     </div>
   );
 };
