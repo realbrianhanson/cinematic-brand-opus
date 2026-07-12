@@ -352,11 +352,11 @@ const Blog = () => {
                       </span>
                     </div>
                     <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 18, lineHeight: 1.35, color: "#fff" }}>
-                      {n.title}
+                      {n.ai_title || n.title}
                     </h3>
-                    {n.raw_excerpt && (
+                    {(n.ai_summary || n.raw_excerpt) && (
                       <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {n.raw_excerpt}
+                        {n.ai_summary || n.raw_excerpt}
                       </p>
                     )}
                     <div className="flex items-center justify-between gap-2 mt-auto pt-4">
