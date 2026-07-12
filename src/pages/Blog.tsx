@@ -366,17 +366,14 @@ const Blog = () => {
                   }}
                 >
                   {n.image_url ? (
-                    <div style={{ height: 180, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
-                      <img
-                        src={n.image_url}
-                        alt={n.title || "News"}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
-                      />
-                    </div>
+                    <NewsImage
+                      src={n.image_url}
+                      alt={n.ai_title || n.title || "News"}
+                      fallbackTitle={n.ai_title || n.title || sourceName(n)}
+                      fallbackLabel={laneLabel(n.topic_lane)}
+                    />
                   ) : (
-                    <TypographicCover title={n.title || sourceName(n)} />
+                    <TypographicCover title={n.ai_title || n.title || sourceName(n)} label={laneLabel(n.topic_lane)} />
                   )}
                   <div className="p-5 flex flex-col flex-1">
                     <div className="flex items-center gap-3 mb-3 flex-wrap">
