@@ -91,35 +91,8 @@ const Blog = () => {
     staleTime: 30_000,
   });
 
-  const { data: newsItems } = useQuery({
-    queryKey: ["public-news-signals"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("source_items")
-        .select("id, title, url, author, published_at, raw_excerpt, image_url, topic_lane, ai_title, ai_summary, content_sources(name)")
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(60);
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: 60_000,
-  });
 
-  const laneLabel = (lane?: string | null) => {
-    switch (lane) {
-      case "ai_tools": return "A.I. Tools";
-      case "smb_marketing": return "SMB Marketing";
-      case "ai_training": return "A.I. Training";
-      case "industry": return "Industry";
-      case "local_news": return "Jacksonville";
-      default: return lane ? lane.replace(/_/g, " ") : "News";
-    }
-  };
 
-  const sourceName = (n: any): string => {
-    if (n?.content_sources?.name) return n.content_sources.name;
-    try { return new URL(n.url).hostname.replace(/^www\./, ""); } catch { return "Source"; }
-  };
 
 
   return (
