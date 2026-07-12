@@ -77,11 +77,11 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
 };
 
 // Image with graceful typographic fallback on error
-const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel }: { src: string; alt: string; fallbackTitle: string; fallbackLabel?: string }) => {
+const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel, height = 200 }: { src: string; alt: string; fallbackTitle: string; fallbackLabel?: string; height?: number }) => {
   const [failed, setFailed] = useState(false);
   if (failed) return <TypographicCover title={fallbackTitle} label={fallbackLabel} />;
   return (
-    <div style={{ height: 200, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
+    <div style={{ height, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }} className="h-full">
       <img
         src={src}
         alt={alt}
@@ -93,6 +93,7 @@ const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel }: { src: string; al
     </div>
   );
 };
+
 
 const Blog = () => {
   const { data: posts, isLoading, isError } = useQuery({
@@ -342,70 +343,59 @@ const Blog = () => {
                 Live Signal Feed
               </span>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
               {newsItems.map((n: any) => (
                 <Link
                   key={n.id}
                   to={`/news/${n.id}`}
-                  className="group block h-full"
+                  className="group grid gap-6 py-6 md:py-8"
                   style={{
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: "#14141b",
-                    transition: "border-color 0.3s, transform 0.3s",
+                    gridTemplateColumns: "minmax(120px, 220px) 1fr",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
                     textDecoration: "none",
-                    display: "flex",
-                    flexDirection: "column",
+                    transition: "background-color 0.25s",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)";
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                 >
-                  {n.image_url ? (
-                    <NewsImage
-                      src={n.image_url}
-                      alt={n.ai_title || n.title || "News"}
-                      fallbackTitle={n.ai_title || n.title || sourceName(n)}
-                      fallbackLabel={laneLabel(n.topic_lane)}
-                    />
-                  ) : (
-                    <TypographicCover title={n.ai_title || n.title || sourceName(n)} label={laneLabel(n.topic_lane)} />
-                  )}
-                  <div className="p-5 flex flex-col flex-1">
-                    <div className="flex items-center gap-3 mb-3 flex-wrap">
-                      <span className="font-body uppercase" style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55" }}>
-                        {laneLabel(n.topic_lane)}
-                      </span>
-                      <span className="font-body flex items-center gap-1" style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>
-                        <Clock size={10} />
-                        {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
-                      </span>
-                    </div>
-                    <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 18, lineHeight: 1.35, color: "#fff" }}>
+                  <div style={{ aspectRatio: "4 / 3", overflow: "hidden", background: "#0a0a14" }}>
+                    {n.image_url ? (
+                      <NewsImage
+                        src={n.image_url}
+                        alt={n.ai_title || n.title || "News"}
+                        fallbackTitle={n.ai_title || n.title || sourceName(n)}
+                        fallbackLabel={laneLabel(n.topic_lane)}
+                        height={0}
+                      />
+                    ) : (
+                      <TypographicCover title={n.ai_title || n.title || sourceName(n)} label={laneLabel(n.topic_lane)} />
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <span className="font-body uppercase mb-2" style={{ fontSize: 11, letterSpacing: "0.18em", color: "#D4AF55" }}>
+                      {laneLabel(n.topic_lane)}
+                    </span>
+                    <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: "clamp(18px, 2.2vw, 24px)", lineHeight: 1.25, color: "#fff" }}>
                       {n.ai_title || n.title}
                     </h3>
                     {(n.ai_summary || n.raw_excerpt) && (
-                      <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      <p className="font-body mb-3" style={{ fontSize: 15, color: "rgba(255,255,255,0.75)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         {n.ai_summary || n.raw_excerpt}
                       </p>
                     )}
-                    <div className="flex items-center justify-between gap-2 mt-auto pt-4">
-                      <span className="font-body truncate" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        {sourceName(n)}
-                      </span>
-                      <span className="flex items-center gap-1 font-body uppercase transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>
-                        Read more <ArrowRight size={11} />
+                    <div className="flex items-center gap-3 flex-wrap font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      <span style={{ color: "rgba(255,255,255,0.85)" }}>{sourceName(n)}</span>
+                      <span style={{ opacity: 0.5 }}>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
                       </span>
                     </div>
                   </div>
-
                 </Link>
               ))}
             </div>
+
           </section>
         )}
       </main>
