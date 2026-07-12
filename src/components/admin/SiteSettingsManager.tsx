@@ -58,6 +58,19 @@ const SiteSettingsManager = () => {
     },
   });
 
+  const { data: privateSettings } = useQuery({
+    queryKey: ["admin-site-settings-private"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("site_settings_private")
+        .select("id, report_email, report_enabled")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; report_email: string | null; report_enabled: boolean | null } | null;
+    },
+  });
+
   useEffect(() => {
     if (settings) {
       setForm({
@@ -69,9 +82,11 @@ const SiteSettingsManager = () => {
         voice_profile: ((settings as any).voice_profile as string) ?? "",
         default_expert_pov: ((settings as any).default_expert_pov as string) ?? "",
         image_generation_enabled: (settings as any).image_generation_enabled !== false,
+        report_email: privateSettings?.report_email ?? "",
+        report_enabled: privateSettings?.report_enabled ?? false,
       });
     }
-  }, [settings]);
+  }, [settings, privateSettings]);
 
   const saveMutation = useMutation({
     mutationFn: () => safeMutation(async () => {
