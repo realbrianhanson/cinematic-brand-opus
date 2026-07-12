@@ -78,7 +78,7 @@ const Blog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("source_items")
-        .select("id, title, url, author, published_at, raw_excerpt, image_url, topic_lane, content_sources(name)")
+        .select("id, title, url, author, published_at, raw_excerpt, image_url, topic_lane, ai_title, ai_summary, content_sources(name)")
         .order("published_at", { ascending: false, nullsFirst: false })
         .limit(60);
       if (error) throw error;
