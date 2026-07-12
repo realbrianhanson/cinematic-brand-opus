@@ -5,6 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { MAIN_MODEL } from "../_shared/models.ts";
 import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
+import { fetchOgImage } from "../_shared/ogImage.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -157,14 +158,23 @@ Return STRICT JSON only, no prose, no code fences:
       });
     }
 
+    // Backfill image if the row is missing one
+    let backfilledImage: string | null = null;
+    if (!item.image_url) {
+      backfilledImage = await fetchOgImage(item.url);
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      ai_title: title,
+      ai_summary: summary,
+      full_content: content,
+      full_content_generated_at: new Date().toISOString(),
+    };
+    if (backfilledImage) updatePayload.image_url = backfilledImage.slice(0, 1000);
+
     await supabase
       .from("source_items")
-      .update({
-        ai_title: title,
-        ai_summary: summary,
-        full_content: content,
-        full_content_generated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", item.id);
 
     return new Response(JSON.stringify({
