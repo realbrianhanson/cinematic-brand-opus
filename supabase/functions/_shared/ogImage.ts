@@ -58,6 +58,30 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
   }
 }
 
+async function tryFirecrawl(pageUrl: string): Promise<string | null> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20_000);
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ url: pageUrl, formats: ["markdown"], onlyMainContent: false }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const meta = json?.data?.metadata || {};
+    const candidate =
+      meta.ogImage || meta["og:image"] || meta.twitterImage || meta["twitter:image"] || null;
+    return candidate ? toAbsolute(String(candidate), pageUrl) : null;
+  } catch {
+    return null;
+  }
+}
+
 function toAbsolute(src: string, base: string): string {
   try {
     return new URL(src, base).toString();
