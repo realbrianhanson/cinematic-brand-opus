@@ -78,7 +78,7 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
 
 // Image with graceful typographic fallback on error
 const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel }: { src: string; alt: string; fallbackTitle: string; fallbackLabel?: string }) => {
-  const [failed, setFailed] = (require("react") as typeof import("react")).useState(false);
+  const [failed, setFailed] = useState(false);
   if (failed) return <TypographicCover title={fallbackTitle} label={fallbackLabel} />;
   return (
     <div style={{ height: 200, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
