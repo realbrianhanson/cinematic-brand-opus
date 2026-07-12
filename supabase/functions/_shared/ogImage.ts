@@ -8,8 +8,12 @@ export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<s
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetch(pageUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; BrianHansonBot/1.0; +https://brianhanson.com)",
-        Accept: "text/html,application/xhtml+xml",
+        // Many news CDNs (Akamai, Cloudflare) 403 obvious bot UAs. Use a realistic
+        // desktop Chrome UA so we can read the og:image meta tag.
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       signal: ctrl.signal,
       redirect: "follow",
