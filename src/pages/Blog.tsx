@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,25 +74,6 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
     </div>
   );
 };
-
-// Image with graceful typographic fallback on error
-const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel, height = 200 }: { src: string; alt: string; fallbackTitle: string; fallbackLabel?: string; height?: number }) => {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <TypographicCover title={fallbackTitle} label={fallbackLabel} />;
-  return (
-    <div style={{ height, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }} className="h-full">
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        onError={() => setFailed(true)}
-      />
-    </div>
-  );
-};
-
 
 const Blog = () => {
   const { data: posts, isLoading, isError } = useQuery({
