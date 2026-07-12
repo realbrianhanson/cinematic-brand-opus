@@ -139,6 +139,17 @@ const NewsDetail = () => {
           <ArrowLeft size={14} /> Back to News
         </Link>
 
+        {item.image_url && (
+          <img
+            src={item.image_url}
+            alt={title || "News"}
+            loading="eager"
+            className="w-full mb-8"
+            style={{ maxHeight: 480, objectFit: "cover" }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
+
         <div className="flex items-center gap-4 mb-6 flex-wrap">
           <span className="font-body uppercase" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#D4AF55" }}>
             {laneLabel(item.topic_lane)}
@@ -155,21 +166,11 @@ const NewsDetail = () => {
         </h1>
 
         {summary && (
-          <p className="font-body mb-8" style={{ fontSize: 19, lineHeight: 1.6, color: "rgba(255,255,255,0.85)" }}>
+          <p className="font-body mb-10" style={{ fontSize: 19, lineHeight: 1.6, color: "rgba(255,255,255,0.85)" }}>
             {summary}
           </p>
         )}
 
-        {item.image_url && (
-          <img
-            src={item.image_url}
-            alt={title || "News"}
-            loading="lazy"
-            className="w-full mb-10"
-            style={{ maxHeight: 460, objectFit: "cover" }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-          />
-        )}
 
         <div style={{ background: "#14141b", border: "1px solid rgba(255,255,255,0.06)", padding: "clamp(24px, 4vw, 40px)" }}>
           {item.full_content ? (
