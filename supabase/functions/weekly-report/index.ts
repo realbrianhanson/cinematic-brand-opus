@@ -28,15 +28,22 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    // Sensitive report config lives in an admin-only table now.
+    const { data: privateSettings } = await supabase
+      .from("site_settings_private")
+      .select("report_email, report_enabled")
+      .limit(1)
+      .maybeSingle();
+
     const reqBody = await req.json().catch(() => ({} as any));
-    if (!settings?.report_enabled && !reqBody?.manual && !reqBody?.cron) {
+    if (!privateSettings?.report_enabled && !reqBody?.manual && !reqBody?.cron) {
       return new Response(
         JSON.stringify({ message: "Reports are disabled" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const reportEmail = settings?.report_email;
+    const reportEmail = privateSettings?.report_email;
     if (!reportEmail) {
       return new Response(
         JSON.stringify({ message: "No report email configured" }),
