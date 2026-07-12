@@ -72,6 +72,7 @@ export default function ContentQueue() {
   const [queued, setQueued] = useState<QueuedPost[]>([]);
   const [items, setItems] = useState<SourceItem[]>([]);
   const [live, setLive] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
