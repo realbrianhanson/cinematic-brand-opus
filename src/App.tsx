@@ -11,6 +11,7 @@ import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
 import Index from "./pages/Index";
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
+const NewsDetail = lazy(() => import("./pages/NewsDetail"));
 const PillarPage = lazy(() => import("./pages/PillarPage"));
 const ResourcesIndex = lazy(() => import("./pages/ResourcesIndex"));
 const ContentTypeList = lazy(() => import("./pages/ContentTypeList"));
