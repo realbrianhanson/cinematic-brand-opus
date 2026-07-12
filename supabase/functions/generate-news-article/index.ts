@@ -71,11 +71,24 @@ Deno.serve(async (req) => {
     }
 
     if (item.full_content && !force) {
+      // Even on the cached path, opportunistically backfill a missing image so
+      // articles that were generated before the OG fallback shipped get a picture.
+      let cachedImage = item.image_url as string | null;
+      if (!cachedImage) {
+        cachedImage = await fetchOgImage(item.url);
+        if (cachedImage) {
+          await supabase
+            .from("source_items")
+            .update({ image_url: cachedImage.slice(0, 1000) })
+            .eq("id", item.id);
+        }
+      }
       return new Response(JSON.stringify({
         id: item.id,
         title: item.ai_title || item.title,
         summary: item.ai_summary || item.raw_excerpt,
         content: item.full_content,
+        image_url: cachedImage,
         cached: true,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
