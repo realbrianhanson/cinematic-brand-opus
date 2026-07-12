@@ -286,72 +286,8 @@ const Blog = () => {
           ))}
         </div>
 
-        {newsItems && newsItems.length > 0 && (
-          <section style={{ marginTop: 96 }}>
-            <div className="flex items-baseline justify-between flex-wrap gap-3 mb-8">
-              <h2 className="font-display italic" style={{ fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)", color: "#fff" }}>
-                Latest News
-              </h2>
-              <span className="font-body uppercase" style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.6)" }}>
-                Live Signal Feed
-              </span>
-            </div>
-            <div className="flex flex-col" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              {newsItems.map((n: any) => (
-                <Link
-                  key={n.id}
-                  to={`/news/${n.id}`}
-                  className="group grid gap-6 py-6 md:py-8"
-                  style={{
-                    gridTemplateColumns: "minmax(120px, 220px) 1fr",
-                    borderBottom: "1px solid rgba(255,255,255,0.08)",
-                    textDecoration: "none",
-                    transition: "background-color 0.25s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                >
-                  <div style={{ aspectRatio: "4 / 3", overflow: "hidden", background: "#0a0a14" }}>
-                    {n.image_url ? (
-                      <NewsImage
-                        src={n.image_url}
-                        alt={n.ai_title || n.title || "News"}
-                        fallbackTitle={n.ai_title || n.title || sourceName(n)}
-                        fallbackLabel={laneLabel(n.topic_lane)}
-                        height={0}
-                      />
-                    ) : (
-                      <TypographicCover title={n.ai_title || n.title || sourceName(n)} label={laneLabel(n.topic_lane)} />
-                    )}
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <span className="font-body uppercase mb-2" style={{ fontSize: 11, letterSpacing: "0.18em", color: "#D4AF55" }}>
-                      {laneLabel(n.topic_lane)}
-                    </span>
-                    <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: "clamp(18px, 2.2vw, 24px)", lineHeight: 1.25, color: "#fff" }}>
-                      {n.ai_title || n.title}
-                    </h3>
-                    {(n.ai_summary || n.raw_excerpt) && (
-                      <p className="font-body mb-3" style={{ fontSize: 15, color: "rgba(255,255,255,0.75)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {n.ai_summary || n.raw_excerpt}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 flex-wrap font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      <span style={{ color: "rgba(255,255,255,0.85)" }}>{sourceName(n)}</span>
-                      <span style={{ opacity: 0.5 }}>•</span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-          </section>
-        )}
       </main>
+
       <Footer />
     </div>
   );
