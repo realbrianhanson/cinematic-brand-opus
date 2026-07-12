@@ -73,6 +73,20 @@ const Blog = () => {
     staleTime: 30_000,
   });
 
+  const { data: newsItems } = useQuery({
+    queryKey: ["public-news-signals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("source_items")
+        .select("id, title, url, author, published_at, raw_excerpt")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .limit(60);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
   return (
     <div
       className="public-site min-h-screen"
@@ -263,6 +277,60 @@ const Blog = () => {
             </Link>
           ))}
         </div>
+
+        {newsItems && newsItems.length > 0 && (
+          <section style={{ marginTop: 96 }}>
+            <div className="flex items-baseline justify-between flex-wrap gap-3 mb-8">
+              <h2 className="font-display italic" style={{ fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)", color: "#fff" }}>
+                Latest News
+              </h2>
+              <span className="font-body uppercase" style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.6)" }}>
+                Jacksonville Signal Feed
+              </span>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newsItems.map((n) => (
+                <a
+                  key={n.id}
+                  href={n.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group block h-full"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "#14141b",
+                    padding: 20,
+                    transition: "border-color 0.3s, transform 0.3s",
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)";
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <div className="font-body uppercase mb-3" style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55" }}>
+                    {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
+                  </div>
+                  <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 18, lineHeight: 1.35, color: "#fff" }}>
+                    {n.title}
+                  </h3>
+                  {n.raw_excerpt && (
+                    <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {n.raw_excerpt}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1 mt-4 font-body uppercase" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.65)" }}>
+                    Read source <ArrowRight size={11} />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
       <Footer />
     </div>
