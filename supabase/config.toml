@@ -63,3 +63,7 @@ verify_jwt = false
 [functions.daily-content-run]
 verify_jwt = false
 
+[functions.generate-news-article]
+verify_jwt = false
+
+
