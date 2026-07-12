@@ -104,9 +104,23 @@ const SiteSettingsManager = () => {
         cta_headline: form.cta_headline,
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
+  const saveMutation = useMutation({
+    mutationFn: () => safeMutation(async () => {
+      const payload = {
+        site_name: form.site_name,
+        site_url: form.site_url,
+        publisher_name: form.publisher_name,
+        publisher_url: form.publisher_url,
+        author_name: form.author_name,
+        author_title: form.author_title,
+        author_bio: form.author_bio,
+        author_credentials: form.author_credentials,
+        author_social_links: form.author_social_links,
+        cta_url: form.cta_url,
+        cta_headline: form.cta_headline,
+        cta_subtext: form.cta_subtext,
+        cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
-        report_email: (form as any).report_email || "",
-        report_enabled: (form as any).report_enabled || false,
         voice_profile: form.voice_profile || null,
         banned_phrases: form.banned_phrases,
         default_expert_pov: form.default_expert_pov || null,
@@ -124,17 +138,35 @@ const SiteSettingsManager = () => {
         const { error } = await supabase.from("site_settings").insert(payload);
         if (error) throw error;
       }
+
+      // Persist sensitive report config to admin-only table.
+      const privatePayload = {
+        report_email: (form as any).report_email || "",
+        report_enabled: (form as any).report_enabled || false,
+        updated_at: new Date().toISOString(),
+      };
+      if (privateSettings?.id) {
+        const { error } = await (supabase as any)
+          .from("site_settings_private")
+          .update(privatePayload)
+          .eq("id", privateSettings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from("site_settings_private")
+          .insert(privatePayload);
+        if (error) throw error;
+      }
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      qc.invalidateQueries({ queryKey: ["admin-site-settings-private"] });
       toast({ title: "Settings saved", description: "Your site settings have been updated." });
     },
     onError: (err: Error) => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
-
-  const updateField = (key: keyof Settings, value: unknown) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
