@@ -104,22 +104,6 @@ const SiteSettingsManager = () => {
         cta_headline: form.cta_headline,
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
-  const saveMutation = useMutation({
-    mutationFn: () => safeMutation(async () => {
-      const payload = {
-        site_name: form.site_name,
-        site_url: form.site_url,
-        publisher_name: form.publisher_name,
-        publisher_url: form.publisher_url,
-        author_name: form.author_name,
-        author_title: form.author_title,
-        author_bio: form.author_bio,
-        author_credentials: form.author_credentials,
-        author_social_links: form.author_social_links,
-        cta_url: form.cta_url,
-        cta_headline: form.cta_headline,
-        cta_subtext: form.cta_subtext,
-        cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
         voice_profile: form.voice_profile || null,
         banned_phrases: form.banned_phrases,
@@ -167,6 +151,8 @@ const SiteSettingsManager = () => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
+
+  const updateField = (key: keyof Settings, value: unknown) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
