@@ -90,8 +90,10 @@ async function parseRss(xml: string): Promise<Item[]> {
       title,
       author,
       published_at,
-      raw_excerpt: excerpt ? excerpt.slice(0, 800) : undefined,
+      raw_excerpt: excerpt ? stripTags(excerpt).slice(0, 800) : undefined,
+      image_url: extractImage(block),
     });
+
   }
   return items;
 }
