@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const navLinks = [
   { label: "Story", href: "#story" },
@@ -18,6 +18,33 @@ const Nav = ({ loaded = true }: NavProps) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === "/";
+
+  const handleHashClick = (e: React.MouseEvent, hash: string) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    const id = hash.replace("#", "");
+    if (isHome) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", `/#${id}`);
+    } else {
+      navigate(`/#${id}`);
+    }
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    if (isHome) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      history.replaceState(null, "", "/");
+    } else {
+      navigate("/");
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => {
