@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
         author: item.author?.slice(0, 200),
         published_at: item.published_at,
         raw_excerpt: item.raw_excerpt,
-        image_url: item.image_url?.slice(0, 1000),
+        image_url: imageUrl?.slice(0, 1000),
         topic_lane: src.topic_lane,
         embedding: vec ? toPgVector(vec) : null,
         status: "new",
