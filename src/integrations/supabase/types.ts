@@ -1032,9 +1032,13 @@ export type Database = {
       }
       source_items: {
         Row: {
+          ai_summary: string | null
+          ai_title: string | null
           author: string | null
           embedding: string | null
           fetched_at: string
+          full_content: string | null
+          full_content_generated_at: string | null
           id: string
           image_url: string | null
           published_at: string | null
@@ -1046,9 +1050,13 @@ export type Database = {
           url: string
         }
         Insert: {
+          ai_summary?: string | null
+          ai_title?: string | null
           author?: string | null
           embedding?: string | null
           fetched_at?: string
+          full_content?: string | null
+          full_content_generated_at?: string | null
           id?: string
           image_url?: string | null
           published_at?: string | null
@@ -1060,9 +1068,13 @@ export type Database = {
           url: string
         }
         Update: {
+          ai_summary?: string | null
+          ai_title?: string | null
           author?: string | null
           embedding?: string | null
           fetched_at?: string
+          full_content?: string | null
+          full_content_generated_at?: string | null
           id?: string
           image_url?: string | null
           published_at?: string | null
