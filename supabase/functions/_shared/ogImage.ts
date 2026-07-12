@@ -1,8 +1,16 @@
 // Fetches an article page and extracts the best available social image.
 // Tries og:image, twitter:image, then the first substantial <img> in the body.
+// Falls back to Firecrawl (residential proxy) when the direct fetch is blocked
+// by a CDN like Akamai or Cloudflare — common on major news sites.
 // Returns absolute URL or null. Short timeout so it never stalls polling.
 
 export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
+  const direct = await tryDirect(pageUrl, timeoutMs);
+  if (direct) return direct;
+  return await tryFirecrawl(pageUrl);
+}
+
+async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
