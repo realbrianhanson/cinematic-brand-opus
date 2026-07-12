@@ -140,7 +140,8 @@ const Nav = ({ loaded = true }: NavProps) => {
                 ) : (
                   <a
                     key={link.label}
-                    href={link.href}
+                    href={isHome ? link.href : `/${link.href}`}
+                    onClick={(e) => handleHashClick(e, link.href)}
                     data-hover
                     className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
                     style={{
