@@ -158,14 +158,23 @@ Return STRICT JSON only, no prose, no code fences:
       });
     }
 
+    // Backfill image if the row is missing one
+    let backfilledImage: string | null = null;
+    if (!item.image_url) {
+      backfilledImage = await fetchOgImage(item.url);
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      ai_title: title,
+      ai_summary: summary,
+      full_content: content,
+      full_content_generated_at: new Date().toISOString(),
+    };
+    if (backfilledImage) updatePayload.image_url = backfilledImage.slice(0, 1000);
+
     await supabase
       .from("source_items")
-      .update({
-        ai_title: title,
-        ai_summary: summary,
-        full_content: content,
-        full_content_generated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", item.id);
 
     return new Response(JSON.stringify({
