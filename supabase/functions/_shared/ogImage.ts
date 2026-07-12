@@ -1,15 +1,27 @@
 // Fetches an article page and extracts the best available social image.
 // Tries og:image, twitter:image, then the first substantial <img> in the body.
+// Falls back to Firecrawl (residential proxy) when the direct fetch is blocked
+// by a CDN like Akamai or Cloudflare — common on major news sites.
 // Returns absolute URL or null. Short timeout so it never stalls polling.
 
 export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
+  const direct = await tryDirect(pageUrl, timeoutMs);
+  if (direct) return direct;
+  return await tryFirecrawl(pageUrl);
+}
+
+async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetch(pageUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; BrianHansonBot/1.0; +https://brianhanson.com)",
-        Accept: "text/html,application/xhtml+xml",
+        // Many news CDNs (Akamai, Cloudflare) 403 obvious bot UAs. Use a realistic
+        // desktop Chrome UA so we can read the og:image meta tag.
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       signal: ctrl.signal,
       redirect: "follow",
@@ -41,6 +53,30 @@ export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<s
       return toAbsolute(src, pageUrl);
     }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+async function tryFirecrawl(pageUrl: string): Promise<string | null> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20_000);
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ url: pageUrl, formats: ["markdown"], onlyMainContent: false }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const meta = json?.data?.metadata || {};
+    const candidate =
+      meta.ogImage || meta["og:image"] || meta.twitterImage || meta["twitter:image"] || null;
+    return candidate ? toAbsolute(String(candidate), pageUrl) : null;
   } catch {
     return null;
   }
