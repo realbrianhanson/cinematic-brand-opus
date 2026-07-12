@@ -235,6 +235,13 @@ Deno.serve(async (req) => {
       const embeddingText = [item.title, item.raw_excerpt].filter(Boolean).join(" — ");
       const vec = await embedText(embeddingText, lovableKey);
 
+      // If RSS didn't include an image, try to pull og:image from the article.
+      let imageUrl = item.image_url;
+      if (!imageUrl) {
+        const og = await fetchOgImage(item.url);
+        if (og) imageUrl = og;
+      }
+
       const { error: insErr } = await supabase.from("source_items").insert({
         source_id: src.id,
         url: item.url,
