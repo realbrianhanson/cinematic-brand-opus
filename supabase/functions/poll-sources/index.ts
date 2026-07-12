@@ -16,7 +16,25 @@ interface Item {
   author?: string;
   published_at?: string;
   raw_excerpt?: string;
+  image_url?: string;
 }
+
+function extractImage(block: string): string | undefined {
+  // <media:content url="..."> or <media:thumbnail url="...">
+  const media = block.match(/<media:(?:content|thumbnail)[^>]*url=["']([^"']+)["']/i);
+  if (media) return media[1];
+  // <enclosure url="..." type="image/*"/>
+  const enc = block.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*type=["']image\//i);
+  if (enc) return enc[1];
+  // <image><url>...</url></image>
+  const imgUrl = block.match(/<image[^>]*>[\s\S]*?<url>([^<]+)<\/url>/i);
+  if (imgUrl) return imgUrl[1].trim();
+  // <img src="..."> inside description/content
+  const img = block.match(/<img[^>]*src=["']([^"']+)["']/i);
+  if (img) return img[1];
+  return undefined;
+}
+
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -72,8 +90,10 @@ async function parseRss(xml: string): Promise<Item[]> {
       title,
       author,
       published_at,
-      raw_excerpt: excerpt ? excerpt.slice(0, 800) : undefined,
+      raw_excerpt: excerpt ? stripTags(excerpt).slice(0, 800) : undefined,
+      image_url: extractImage(block),
     });
+
   }
   return items;
 }
@@ -221,10 +241,12 @@ Deno.serve(async (req) => {
         author: item.author?.slice(0, 200),
         published_at: item.published_at,
         raw_excerpt: item.raw_excerpt,
+        image_url: item.image_url?.slice(0, 1000),
         topic_lane: src.topic_lane,
         embedding: vec ? toPgVector(vec) : null,
         status: "new",
       });
+
       if (!insErr) inserted++;
       else console.warn("insert source_item failed", item.url, insErr.message);
     }

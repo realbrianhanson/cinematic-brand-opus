@@ -78,7 +78,7 @@ const Blog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("source_items")
-        .select("id, title, url, author, published_at, raw_excerpt")
+        .select("id, title, url, author, published_at, raw_excerpt, image_url, topic_lane, content_sources(name)")
         .order("published_at", { ascending: false, nullsFirst: false })
         .limit(60);
       if (error) throw error;
@@ -86,6 +86,23 @@ const Blog = () => {
     },
     staleTime: 60_000,
   });
+
+  const laneLabel = (lane?: string | null) => {
+    switch (lane) {
+      case "ai_tools": return "A.I. Tools";
+      case "smb_marketing": return "SMB Marketing";
+      case "ai_training": return "A.I. Training";
+      case "industry": return "Industry";
+      case "local_news": return "Jacksonville";
+      default: return lane ? lane.replace(/_/g, " ") : "News";
+    }
+  };
+
+  const sourceName = (n: any): string => {
+    if (n?.content_sources?.name) return n.content_sources.name;
+    try { return new URL(n.url).hostname.replace(/^www\./, ""); } catch { return "Source"; }
+  };
+
 
   return (
     <div
@@ -285,11 +302,11 @@ const Blog = () => {
                 Latest News
               </h2>
               <span className="font-body uppercase" style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.6)" }}>
-                Jacksonville Signal Feed
+                Live Signal Feed
               </span>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {newsItems.map((n) => (
+              {newsItems.map((n: any) => (
                 <a
                   key={n.id}
                   href={n.url}
@@ -299,9 +316,10 @@ const Blog = () => {
                   style={{
                     border: "1px solid rgba(255,255,255,0.08)",
                     background: "#14141b",
-                    padding: 20,
                     transition: "border-color 0.3s, transform 0.3s",
                     textDecoration: "none",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)";
@@ -312,20 +330,47 @@ const Blog = () => {
                     e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
-                  <div className="font-body uppercase mb-3" style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55" }}>
-                    {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
-                  </div>
-                  <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 18, lineHeight: 1.35, color: "#fff" }}>
-                    {n.title}
-                  </h3>
-                  {n.raw_excerpt && (
-                    <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {n.raw_excerpt}
-                    </p>
+                  {n.image_url ? (
+                    <div style={{ height: 180, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
+                      <img
+                        src={n.image_url}
+                        alt={n.title || "News"}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
+                      />
+                    </div>
+                  ) : (
+                    <TypographicCover title={n.title || sourceName(n)} />
                   )}
-                  <div className="flex items-center gap-1 mt-4 font-body uppercase" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.65)" }}>
-                    Read source <ArrowRight size={11} />
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
+                      <span className="font-body uppercase" style={{ fontSize: 10, letterSpacing: "0.18em", color: "#D4AF55" }}>
+                        {laneLabel(n.topic_lane)}
+                      </span>
+                      <span className="font-body flex items-center gap-1" style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>
+                        <Clock size={10} />
+                        {n.published_at ? new Date(n.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
+                      </span>
+                    </div>
+                    <h3 className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 18, lineHeight: 1.35, color: "#fff" }}>
+                      {n.title}
+                    </h3>
+                    {n.raw_excerpt && (
+                      <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {n.raw_excerpt}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between gap-2 mt-auto pt-4">
+                      <span className="font-body truncate" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                        {sourceName(n)}
+                      </span>
+                      <span className="flex items-center gap-1 font-body uppercase transition-colors duration-300 group-hover:text-[#D4AF55]" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>
+                        Read more <ArrowRight size={11} />
+                      </span>
+                    </div>
                   </div>
+
                 </a>
               ))}
             </div>
