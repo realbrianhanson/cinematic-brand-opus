@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Search } from "lucide-react";
@@ -87,6 +87,8 @@ const News = () => {
   const [lane, setLane] = useState<string>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
+  const queryClient = useQueryClient();
+
   const { data: newsItems, isLoading, isError } = useQuery({
     queryKey: ["public-news-page"],
     queryFn: async () => {
@@ -100,7 +102,24 @@ const News = () => {
       return data ?? [];
     },
     staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+    refetchOnWindowFocus: true,
   });
+
+  // Live updates: refetch when new news items land in the database
+  useEffect(() => {
+    const channel = supabase
+      .channel("public-news-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "source_items" },
+        () => queryClient.invalidateQueries({ queryKey: ["public-news-page"] })
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
