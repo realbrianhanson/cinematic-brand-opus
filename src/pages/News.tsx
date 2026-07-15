@@ -217,7 +217,7 @@ const News = () => {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            {LANES.map((l) => {
+            {BUCKETS.map((l) => {
               const active = lane === l.value;
               return (
                 <button
