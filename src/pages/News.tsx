@@ -167,7 +167,7 @@ const News = () => {
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <PageHead
         title="Latest News | Brian Hanson"
-        description="A.I., marketing, and Jacksonville business news — curated and rewritten daily."
+        description="Global A.I., marketing, and sales news — curated and summarized daily."
         url="https://brianhanson.com/news"
         type="website"
       />
@@ -189,7 +189,7 @@ const News = () => {
           Latest News
         </h1>
         <p className="font-body mt-4" style={{ fontSize: 17, color: "rgba(255,255,255,0.85)", maxWidth: 640, lineHeight: 1.6 }}>
-          A daily signal feed of A.I., marketing, and Jacksonville business news — rewritten and summarized in one place.
+          A daily signal feed of global A.I., marketing, and sales news — curated and summarized in one place.
         </p>
       </header>
 
