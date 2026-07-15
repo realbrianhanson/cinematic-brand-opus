@@ -26,24 +26,15 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
-        // Split heavy vendor libs so the public homepage bundle stays small.
+        // Only split libs that don't touch React at module-init time.
+        // Splitting react/react-dom or React-consuming libs into separate
+        // chunks causes TDZ ("Cannot access '_' before initialization")
+        // errors at runtime, so keep them with the main bundle.
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           if (id.includes("@tiptap") || id.includes("prosemirror")) return "editor";
-          if (id.includes("@radix-ui")) return "radix";
-          if (id.includes("@tanstack/react-query")) return "react-query";
           if (id.includes("@supabase")) return "supabase";
-          if (id.includes("react-router")) return "router";
           if (id.includes("recharts") || id.includes("d3-")) return "charts";
-          if (id.includes("lucide-react")) return "icons";
-          if (id.includes("framer-motion")) return "motion";
-          if (id.includes("react-helmet-async")) return "helmet";
-          if (
-            id.includes("/react/") ||
-            id.includes("/react-dom/") ||
-            id.includes("scheduler")
-          )
-            return "react";
         },
       },
     },
