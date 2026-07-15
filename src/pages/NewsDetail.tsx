@@ -61,11 +61,11 @@ const renderMarkdown = (md: string): string => {
 const laneLabel = (lane?: string | null) => {
   switch (lane) {
     case "ai_tools":
-      return "A.I. Tools";
+      return "AI Tools";
     case "smb_marketing":
       return "SMB Marketing";
     case "ai_training":
-      return "A.I. Training";
+      return "AI Training";
     case "industry":
       return "Industry";
     default:

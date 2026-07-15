@@ -23,7 +23,12 @@ const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
 const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
 function slugify(text: string): string {
-  return text.toLowerCase().replace(/['']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120);
+  return text
+    .toLowerCase()
+    .replace(/['']/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
 }
 
 function extractJson(raw: string): string {
@@ -90,7 +95,9 @@ function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
     parts.push(`</ul>`);
   }
   if (cj?.expert_callout?.quote) {
-    parts.push(`<aside class="expert-callout" style="border-left:3px solid #D4AF55;background:#fbf6e8;padding:1rem 1.25rem;margin:1.5rem 0"><p style="font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:#8a6a1a;margin:0 0 .5rem">From the trenches</p><p style="font-style:italic;margin:0">${esc(cj.expert_callout.quote)}</p></aside>`);
+    parts.push(
+      `<aside class="expert-callout" style="border-left:3px solid #D4AF55;background:#fbf6e8;padding:1rem 1.25rem;margin:1.5rem 0"><p style="font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:#8a6a1a;margin:0 0 .5rem">From the trenches</p><p style="font-style:italic;margin:0">${esc(cj.expert_callout.quote)}</p></aside>`,
+    );
   }
   if (Array.isArray(cj.frequently_asked_questions) && cj.frequently_asked_questions.length) {
     parts.push(`<h2>Frequently asked questions</h2>`);
@@ -118,16 +125,28 @@ async function fetchSerp(headTerm: string): Promise<{ top_titles: string[]; paa:
     if (!resp.ok) return null;
     const data = await resp.json();
     const results = data.data || [];
-    const top_titles = results.slice(0, 10).map((r: any) => String(r.title || "").trim()).filter(Boolean);
+    const top_titles = results
+      .slice(0, 10)
+      .map((r: any) => String(r.title || "").trim())
+      .filter(Boolean);
     const paaRaw = data.paa || data.peopleAlsoAsk || data.relatedQuestions || data.related_questions || [];
     const paa: string[] = Array.isArray(paaRaw)
-      ? paaRaw.map((q: any) => (typeof q === "string" ? q : q?.question || q?.text || "")).filter(Boolean).slice(0, 10)
+      ? paaRaw
+          .map((q: any) => (typeof q === "string" ? q : q?.question || q?.text || ""))
+          .filter(Boolean)
+          .slice(0, 10)
       : [];
     return { top_titles, paa };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-async function researchPillar(targetKeyword: string, nicheName: string, currentYear: number): Promise<{ context: string; sources: { url: string; title?: string }[] }> {
+async function researchPillar(
+  targetKeyword: string,
+  nicheName: string,
+  currentYear: number,
+): Promise<{ context: string; sources: { url: string; title?: string }[] }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const parts: string[] = [];
   const sources: { url: string; title?: string }[] = [];
@@ -140,7 +159,10 @@ async function researchPillar(targetKeyword: string, nicheName: string, currentY
         body: JSON.stringify({
           model: "sonar-pro",
           messages: [
-            { role: "system", content: `You are a research assistant specializing in current AI adoption. Return factual, verified information from ${currentYear} only. Include specific tool names, pricing, and dates.` },
+            {
+              role: "system",
+              content: `You are a research assistant specializing in current AI adoption. Return factual, verified information from ${currentYear} only. Include specific tool names, pricing, and dates.`,
+            },
             { role: "user", content: query },
           ],
           search_recency_filter: "week",
@@ -153,24 +175,35 @@ async function researchPillar(targetKeyword: string, nicheName: string, currentY
         if (content) parts.push(`LIVE RESEARCH (${currentYear}):\n${content}`);
         for (const c of citations.slice(0, 8)) {
           if (typeof c === "string" && c.startsWith("http")) sources.push({ url: c });
-          else if (c && typeof c === "object" && typeof c.url === "string") sources.push({ url: c.url, title: c.title });
+          else if (c && typeof c === "object" && typeof c.url === "string")
+            sources.push({ url: c.url, title: c.title });
         }
       }
-    } catch (e: any) { console.warn("Perplexity error:", e.message); }
+    } catch (e: any) {
+      console.warn("Perplexity error:", e.message);
+    }
   }
   const seen = new Set<string>();
-  const dedupedSources = sources.filter((s) => {
-    if (!s.url || seen.has(s.url)) return false;
-    seen.add(s.url);
-    return true;
-  }).slice(0, 8);
+  const dedupedSources = sources
+    .filter((s) => {
+      if (!s.url || seen.has(s.url)) return false;
+      seen.add(s.url);
+      return true;
+    })
+    .slice(0, 8);
   const context = parts.length
     ? `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\n${parts.join("\n\n")}\n═══ END OF RESEARCH ═══`
     : "";
   return { context, sources: dedupedSources };
 }
 
-async function generatePillarForNiche(supabase: any, niche: any, apiKey: string, supabaseUrl: string, serviceRoleKey: string): Promise<{ success: boolean; pillar_id?: string; error?: string; score?: number }> {
+async function generatePillarForNiche(
+  supabase: any,
+  niche: any,
+  apiKey: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<{ success: boolean; pillar_id?: string; error?: string; score?: number }> {
   const ctx = (niche.context || {}) as Record<string, any>;
   const targetKeyword: string = (ctx.target_keyword || `AI training for ${niche.name}`).toString();
   const currentYear = new Date().getFullYear();
@@ -181,7 +214,7 @@ async function generatePillarForNiche(supabase: any, niche: any, apiKey: string,
     .map((w) => (w.toLowerCase() === "ai" ? "AI" : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ")
     .replace(/\bAi\b/g, "AI")
-    .replace(/\bA\.i\.\b/gi, "A.I.");
+    .replace(/\bA\.i\.\b/gi, "AI");
   const displayTitle = `${kwCapped}: The Complete ${currentYear} Guide`;
   const pageSlug = slugify(kwCapped);
 
@@ -202,9 +235,12 @@ async function generatePillarForNiche(supabase: any, niche: any, apiKey: string,
 
   // Site settings (for expert POV fallback)
   const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
-  const expertPov: string = (typeof niche.expert_pov === "string" && niche.expert_pov.trim())
-    ? niche.expert_pov.trim()
-    : (typeof siteSettings?.default_expert_pov === "string" ? siteSettings.default_expert_pov.trim() : "");
+  const expertPov: string =
+    typeof niche.expert_pov === "string" && niche.expert_pov.trim()
+      ? niche.expert_pov.trim()
+      : typeof siteSettings?.default_expert_pov === "string"
+        ? siteSettings.default_expert_pov.trim()
+        : "";
 
   // Child pages we'll link to at close
   const { data: childPages } = await supabase
@@ -281,35 +317,54 @@ Return ONLY the JSON object.`;
           model: AI_MODEL,
           messages: [
             { role: "system", content: systemMessage },
-            { role: "user", content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Return ONLY valid JSON." },
+            {
+              role: "user",
+              content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Return ONLY valid JSON.",
+            },
           ],
           temperature: 0.7,
           max_tokens: 12000,
         }),
       });
-      if (!aiResp.ok) { console.error("AI gateway:", aiResp.status, await aiResp.text()); continue; }
+      if (!aiResp.ok) {
+        console.error("AI gateway:", aiResp.status, await aiResp.text());
+        continue;
+      }
       const aiData = await aiResp.json();
       tokensUsed += aiData.usage?.total_tokens || 0;
       const raw = aiData.choices?.[0]?.message?.content || "";
       contentJson = JSON.parse(extractJson(raw));
       break;
-    } catch (e: any) { console.warn("AI parse:", e.message); }
+    } catch (e: any) {
+      console.warn("AI parse:", e.message);
+    }
   }
   if (!contentJson) return { success: false, error: "AI generation failed" };
 
   // Voice refine + lint
   try {
     const refined = await refineWithVoice({
-      apiKey, model: AI_MODEL, voice, researchContext,
+      apiKey,
+      model: AI_MODEL,
+      voice,
+      researchContext,
       draftJson: contentJson,
       schemaHint: `pillar guide content_json for "${targetKeyword}"`,
     });
     contentJson = refined.refined;
-  } catch (e: any) { console.warn("Refine failed:", e.message); }
+  } catch (e: any) {
+    console.warn("Refine failed:", e.message);
+  }
 
   // Score
   const { score, issues } = scoreContent(
-    { ...contentJson, intro: contentJson.intro || "", sections: contentJson.sections || [], frequently_asked_questions: contentJson.frequently_asked_questions || [], pro_tips: contentJson.fastest_wins || [] },
+    {
+      ...contentJson,
+      intro: contentJson.intro || "",
+      sections: contentJson.sections || [],
+      frequently_asked_questions: contentJson.frequently_asked_questions || [],
+      pro_tips: contentJson.fastest_wins || [],
+    },
     displayTitle,
   );
   console.log(`Pillar "${displayTitle}" score: ${score}/100. Issues:`, issues);
@@ -319,8 +374,13 @@ Return ONLY the JSON object.`;
   const metaTitle = composeTitle(displayTitle, siteName);
   const fallbackDesc = `${targetKeyword}: what it means, where AI fits in ${niche.name} operations, marketing, and sales, plus a 30-day rollout, costs, and common mistakes.`;
   const metaDesc = await writeMetaDescription({
-    apiKey, model: AI_MODEL, voice, contentJson,
-    primaryKeyword: targetKeyword, angle: displayTitle, niche: niche.name,
+    apiKey,
+    model: AI_MODEL,
+    voice,
+    contentJson,
+    primaryKeyword: targetKeyword,
+    angle: displayTitle,
+    niche: niche.name,
     fallback: fallbackDesc,
   }).catch(() => fallbackDesc);
 
@@ -333,7 +393,8 @@ Return ONLY the JSON object.`;
   }
   if (sources.length) {
     html += `\n<h2>Sources</h2><ul>`;
-    for (const s of sources) html += `<li><a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.title || s.url)}</a></li>`;
+    for (const s of sources)
+      html += `<li><a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.title || s.url)}</a></li>`;
     html += `</ul>`;
   }
 
@@ -388,12 +449,19 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (!LOVABLE_API_KEY)
+    return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
   const bearer = authHeader.slice(7).trim();
   const isInternal = bearer === SUPABASE_SERVICE_ROLE_KEY;
@@ -401,10 +469,26 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: authHeader } },
   });
   if (!isInternal) {
-    const { data: { user }, error: userErr } = await anonClient.auth.getUser();
-    if (userErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { data: roleRow } = await anonClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-    if (!roleRow) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const {
+      data: { user },
+      error: userErr,
+    } = await anonClient.auth.getUser();
+    if (userErr || !user)
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    const { data: roleRow } = await anonClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!roleRow)
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -427,21 +511,40 @@ Deno.serve(async (req) => {
           results.push({ niche: n.name, success: false, error: e.message });
         }
       }
-      return new Response(JSON.stringify({ success: true, results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, results }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!niche_id) return new Response(JSON.stringify({ error: "Provide niche_id or all_missing:true" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!niche_id)
+      return new Response(JSON.stringify({ error: "Provide niche_id or all_missing:true" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
 
     const { data: niche } = await supabase.from("niches").select("*").eq("id", niche_id).maybeSingle();
-    if (!niche) return new Response(JSON.stringify({ error: "Niche not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!niche)
+      return new Response(JSON.stringify({ error: "Niche not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
 
-    const result = await generatePillarForNiche(supabase, niche, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const result = await generatePillarForNiche(
+      supabase,
+      niche,
+      LOVABLE_API_KEY,
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+    );
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("generate-pillar error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

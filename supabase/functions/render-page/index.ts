@@ -1,10 +1,7 @@
 // Server-rendered HTML for crawlers. Public, no auth.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
+const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
 const HTML_HEADERS = {
   "Content-Type": "text/html; charset=utf-8",
@@ -48,10 +45,12 @@ const jsonLd = (obj: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, "\\u003c")}</script>`;
 
 const stripHtml = (html: string) =>
-  html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-const truncate = (s: string, n = 160) =>
-  s.length <= n ? s : s.slice(0, n - 1).trimEnd() + "…";
+const truncate = (s: string, n = 160) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + "…");
 
 // Deep-walk any JSON node and render its scalar fields with sensible labels.
 // Ensures we never omit content regardless of schema variance.
@@ -99,8 +98,18 @@ function renderNode(node: unknown, depth = 3): string {
 // strategies, checklist steps, templates, etc.) so crawlers see proper
 // heading hierarchy instead of flat <p><strong>Idea:</strong> ...</p>.
 const ITEM_NAME_KEYS = [
-  "name", "title", "tool_name", "idea", "strategy", "step", "task",
-  "question", "mistake", "heading", "template_name", "tactic",
+  "name",
+  "title",
+  "tool_name",
+  "idea",
+  "strategy",
+  "step",
+  "task",
+  "question",
+  "mistake",
+  "heading",
+  "template_name",
+  "tactic",
 ];
 
 function renderItem(item: unknown): string {
@@ -183,9 +192,11 @@ async function getSettings(): Promise<Settings> {
 // see the training as part of the site's offering.
 function ctaHtml(s: Settings): string {
   if (!s.cta_url) return "";
-  const headline = s.cta_headline || "Learn A.I. in 3 Days. Free.";
+  const headline = s.cta_headline || "Learn AI in 3 Days. Free.";
   const cta = s.cta_button_text || "Save My Free Seat";
-  const proof = s.cta_social_proof ? `<p style="font-size:.8rem;color:#555;margin:.25rem 0 0">${esc(s.cta_social_proof)}</p>` : "";
+  const proof = s.cta_social_proof
+    ? `<p style="font-size:.8rem;color:#555;margin:.25rem 0 0">${esc(s.cta_social_proof)}</p>`
+    : "";
   return `<section class="site-cta" style="margin:2.5rem 0 1rem;padding:1.25rem 1.5rem;border:1px solid #D4AF55;border-radius:6px;background:#fbf6e8">
 <h2 style="margin:0 0 .5rem">${esc(headline)}</h2>
 ${s.cta_subtext ? `<p style="margin:0 0 .5rem">${esc(s.cta_subtext)}</p>` : ""}
@@ -236,9 +247,10 @@ function authorBoxHtml(s: Settings): string {
     .filter(([_, v]) => typeof v === "string" && v)
     .map(([k, v]) => `<a href="${esc(v as string)}" rel="noopener" target="_blank">${esc(k)}</a>`)
     .join(" · ");
-  const creds = Array.isArray(s.author_credentials) && s.author_credentials.length
-    ? `<p><strong>Credentials:</strong> ${s.author_credentials.map((c: string) => esc(c)).join(", ")}</p>`
-    : "";
+  const creds =
+    Array.isArray(s.author_credentials) && s.author_credentials.length
+      ? `<p><strong>Credentials:</strong> ${s.author_credentials.map((c: string) => esc(c)).join(", ")}</p>`
+      : "";
   return `<aside class="author-box" style="margin-top:2rem;padding:1rem;border:1px solid #eee;border-radius:6px">
 <h2 style="margin-top:0">About the author</h2>
 <p><strong>${esc(s.author_name || "")}</strong>${s.author_title ? `, ${esc(s.author_title)}` : ""}</p>
@@ -311,7 +323,9 @@ function renderShell(a: ShellArgs): Response {
   const canonical = `${base}${a.path}`;
   // Fall back to the site-wide brand OG so social cards never render without an image.
   const ogImageAbs = a.ogImage
-    ? (/^https?:\/\//i.test(a.ogImage) ? a.ogImage : `${base}${a.ogImage.startsWith("/") ? "" : "/"}${a.ogImage}`)
+    ? /^https?:\/\//i.test(a.ogImage)
+      ? a.ogImage
+      : `${base}${a.ogImage.startsWith("/") ? "" : "/"}${a.ogImage}`
     : `${base}/og-default.png`;
   const ld: object[] = [
     websiteLd(a.settings, base),
@@ -345,11 +359,7 @@ ${ld.map(jsonLd).join("\n")}
 </head>
 <body>
 <nav class="crumbs">${a.breadcrumbs
-    .map((b, i) =>
-      i === a.breadcrumbs.length - 1
-        ? esc(b.name)
-        : `<a href="${esc(b.url)}">${esc(b.name)}</a> ›`,
-    )
+    .map((b, i) => (i === a.breadcrumbs.length - 1 ? esc(b.name) : `<a href="${esc(b.url)}">${esc(b.name)}</a> ›`))
     .join(" ")}</nav>
 ${a.bodyHtml}
 ${ctaHtml(a.settings)}
@@ -363,7 +373,10 @@ function notFound(settings: Settings, path: string): Response {
     path,
     title: "Not found",
     description: "The page you requested does not exist.",
-    breadcrumbs: [{ name: "Home", url: "/" }, { name: "Not found", url: path }],
+    breadcrumbs: [
+      { name: "Home", url: "/" },
+      { name: "Not found", url: path },
+    ],
     settings,
     bodyHtml: `<h1>404 — Not found</h1><p>No content at <code>${esc(path)}</code>.</p><p><a href="/">Return home</a></p>`,
     status: 404,
@@ -420,7 +433,10 @@ ${items
     path,
     title: `Blog — ${settings.site_name || settings.publisher_name || ""}`.trim(),
     description: `All published articles${settings.author_name ? ` by ${settings.author_name}` : ""}.`,
-    breadcrumbs: [{ name: "Home", url: "/" }, { name: "Blog", url: "/blog" }],
+    breadcrumbs: [
+      { name: "Home", url: "/" },
+      { name: "Blog", url: "/blog" },
+    ],
     settings,
     bodyHtml: body,
   });
@@ -429,7 +445,9 @@ ${items
 async function renderBlogPost(settings: Settings, path: string, slug: string): Promise<Response> {
   const { data: post } = await supabase
     .from("posts")
-    .select("id, title, slug, content, excerpt, featured_image, featured_image_alt, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status")
+    .select(
+      "id, title, slug, content, excerpt, featured_image, featured_image_alt, tldr, key_takeaways, faq_items, category_id, created_at, updated_at, reading_time, status",
+    )
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
@@ -443,12 +461,10 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
 
   const base = siteBase(settings);
   const canonical = `${base}${path}`;
-  const description =
-    seo?.meta_description || post.excerpt || truncate(stripHtml(post.content || ""));
+  const description = seo?.meta_description || post.excerpt || truncate(stripHtml(post.content || ""));
   const title = seo?.meta_title || `${post.title} — ${settings.publisher_name || ""}`.trim();
   const ogImage = seo?.og_image || post.featured_image || undefined;
-  const faqs: Array<{ question: string; answer: string }> =
-    Array.isArray(post.faq_items) ? post.faq_items : [];
+  const faqs: Array<{ question: string; answer: string }> = Array.isArray(post.faq_items) ? post.faq_items : [];
   const takeaways: string[] = Array.isArray(post.key_takeaways)
     ? (post.key_takeaways as any[]).map((t) => (typeof t === "string" ? t : t?.text || "")).filter(Boolean)
     : [];
@@ -535,7 +551,8 @@ async function renderResourcesIndex(settings: Settings, path: string): Promise<R
 <h2>Formats</h2>
 <ul>${(types ?? [])
     .map(
-      (t: any) => `<li><a href="/resources/${esc(t.slug)}">${esc(t.name)}</a>${t.description ? ` — ${esc(t.description)}` : ""}</li>`,
+      (t: any) =>
+        `<li><a href="/resources/${esc(t.slug)}">${esc(t.name)}</a>${t.description ? ` — ${esc(t.description)}` : ""}</li>`,
     )
     .join("")}</ul>
 <h2>Topics</h2>
@@ -553,11 +570,7 @@ async function renderResourcesIndex(settings: Settings, path: string): Promise<R
   });
 }
 
-async function renderContentTypeList(
-  settings: Settings,
-  path: string,
-  typeSlug: string,
-): Promise<Response> {
+async function renderContentTypeList(settings: Settings, path: string, typeSlug: string): Promise<Response> {
   const { data: schema } = await supabase
     .from("content_schemas")
     .select("id, name, slug, description")
@@ -578,10 +591,7 @@ async function renderContentTypeList(
 ${schema.description ? `<p>${esc(schema.description)}</p>` : ""}
 <p>${items.length} published page${items.length === 1 ? "" : "s"}.</p>
 <ul>${items
-    .map(
-      (p: any) =>
-        `<li><a href="/resources/${esc(schema.slug)}/${esc(p.slug)}">${esc(p.title)}</a></li>`,
-    )
+    .map((p: any) => `<li><a href="/resources/${esc(schema.slug)}/${esc(p.slug)}">${esc(p.title)}</a></li>`)
     .join("")}</ul>`;
   return renderShell({
     path,
@@ -633,16 +643,20 @@ async function renderGeneratedPage(
   const title = composeTitle(page.title, settings.site_name || settings.publisher_name || "");
   const ogImage = seo.og_image || seo.image || undefined;
 
-
   // niche + pillar + siblings.
   // Prefer stored internal_links (built at publish time) so anchor text + link set
   // stays consistent with the silo model. Falls back to a live niche query.
   let niche: any = null;
   let pillar: any = null;
-  let siblings: { slug: string; title: string; content_schema_id?: string; content_schema_slug?: string; anchor_text?: string }[] = [];
+  let siblings: {
+    slug: string;
+    title: string;
+    content_schema_id?: string;
+    content_schema_slug?: string;
+    anchor_text?: string;
+  }[] = [];
   if (page.niche_id) {
-    const { data: n } = await supabase
-      .from("niches").select("id, slug, name").eq("id", page.niche_id).maybeSingle();
+    const { data: n } = await supabase.from("niches").select("id, slug, name").eq("id", page.niche_id).maybeSingle();
     niche = n;
 
     // Try stored internal_links first
@@ -655,7 +669,9 @@ async function renderGeneratedPage(
     const siblingTargetIds = (storedLinks ?? [])
       .filter((l: any) => l.link_type === "silo_sibling" && l.target_page_type === "generated")
       .map((l: any) => l.target_page_id);
-    const pillarLink = (storedLinks ?? []).find((l: any) => l.link_type === "silo_up" && l.target_page_type === "pillar");
+    const pillarLink = (storedLinks ?? []).find(
+      (l: any) => l.link_type === "silo_up" && l.target_page_type === "pillar",
+    );
 
     if (siblingTargetIds.length > 0) {
       const { data: sibs } = await supabase
@@ -663,7 +679,8 @@ async function renderGeneratedPage(
         .select("id, slug, title, content_schema_id, content_schemas(slug)")
         .in("id", siblingTargetIds);
       const anchorById: Record<string, string> = {};
-      for (const l of storedLinks ?? []) if (l.link_type === "silo_sibling") anchorById[l.target_page_id] = l.anchor_text;
+      for (const l of storedLinks ?? [])
+        if (l.link_type === "silo_sibling") anchorById[l.target_page_id] = l.anchor_text;
       siblings = (sibs ?? []).map((s: any) => ({
         slug: s.slug,
         title: s.title,
@@ -674,25 +691,39 @@ async function renderGeneratedPage(
     }
     if (pillarLink) {
       const { data: pil } = await supabase
-        .from("pillar_pages").select("slug, title").eq("id", pillarLink.target_page_id).maybeSingle();
+        .from("pillar_pages")
+        .select("slug, title")
+        .eq("id", pillarLink.target_page_id)
+        .maybeSingle();
       if (pil) pillar = pil;
     }
 
     // Fallback if nothing stored yet
     if (siblings.length === 0 || !pillar) {
       const [{ data: pil }, { data: sibs }] = await Promise.all([
-        pillar ? Promise.resolve({ data: pillar }) : supabase
-          .from("pillar_pages").select("slug, title, status")
-          .eq("niche_id", page.niche_id).eq("status", "published").maybeSingle(),
-        siblings.length > 0 ? Promise.resolve({ data: null }) : supabase
-          .from("generated_pages")
-          .select("slug, title, content_schema_id, content_schemas(slug)")
-          .eq("niche_id", page.niche_id).eq("status", "published").neq("id", page.id).limit(10),
+        pillar
+          ? Promise.resolve({ data: pillar })
+          : supabase
+              .from("pillar_pages")
+              .select("slug, title, status")
+              .eq("niche_id", page.niche_id)
+              .eq("status", "published")
+              .maybeSingle(),
+        siblings.length > 0
+          ? Promise.resolve({ data: null })
+          : supabase
+              .from("generated_pages")
+              .select("slug, title, content_schema_id, content_schemas(slug)")
+              .eq("niche_id", page.niche_id)
+              .eq("status", "published")
+              .neq("id", page.id)
+              .limit(10),
       ]);
       if (!pillar && pil) pillar = pil;
       if (siblings.length === 0 && sibs) {
         siblings = (sibs as any[]).map((s: any) => ({
-          slug: s.slug, title: s.title,
+          slug: s.slug,
+          title: s.title,
           content_schema_id: s.content_schema_id,
           content_schema_slug: s.content_schemas?.slug,
         }));
@@ -714,9 +745,7 @@ async function renderGeneratedPage(
     (Array.isArray(content.categories) && content.categories) ||
     [];
 
-  const faqs: Array<{ question: string; answer: string }> = Array.isArray(
-    content.frequently_asked_questions,
-  )
+  const faqs: Array<{ question: string; answer: string }> = Array.isArray(content.frequently_asked_questions)
     ? content.frequently_asked_questions
     : Array.isArray(content.faqs)
       ? content.faqs
@@ -756,7 +785,10 @@ async function renderGeneratedPage(
       let name: string | null = null;
       for (const nk of ITEM_NAME_KEYS) {
         const v = o[nk];
-        if (typeof v === "string" && v.trim()) { name = v; break; }
+        if (typeof v === "string" && v.trim()) {
+          name = v;
+          break;
+        }
       }
       if (name) listItems.push(name);
     }
@@ -886,8 +918,7 @@ async function renderPillarPage(settings: Settings, path: string, slug: string):
   const seo = (pillar.seo_meta ?? {}) as Record<string, any>;
   const base = siteBase(settings);
   const canonical = `${base}${path}`;
-  const description =
-    seo.meta_description || seo.description || truncate(stripHtml(pillar.content || ""));
+  const description = seo.meta_description || seo.description || truncate(stripHtml(pillar.content || ""));
   const title = seo.meta_title || `${pillar.title} — ${settings.publisher_name || ""}`.trim();
   const ogImage = seo.og_image || undefined;
 
@@ -970,11 +1001,7 @@ ${relatedList}`;
 async function renderSitemap(settings: Settings, path: string): Promise<Response> {
   const [{ data: posts }, { data: pages }, { data: pillars }, { data: schemas }] = await Promise.all([
     supabase.from("posts").select("slug, title").eq("status", "published").order("title"),
-    supabase
-      .from("generated_pages")
-      .select("slug, title, content_schema_id")
-      .eq("status", "published")
-      .order("title"),
+    supabase.from("generated_pages").select("slug, title, content_schema_id").eq("status", "published").order("title"),
     supabase.from("pillar_pages").select("slug, title").eq("status", "published").order("title"),
     supabase.from("content_schemas").select("id, slug, name").eq("is_active", true).order("name"),
   ]);
@@ -1005,7 +1032,10 @@ async function renderSitemap(settings: Settings, path: string): Promise<Response
     path,
     title: `Sitemap — ${settings.site_name || settings.publisher_name || ""}`.trim(),
     description: "Every published page on the site.",
-    breadcrumbs: [{ name: "Home", url: "/" }, { name: "Sitemap", url: "/sitemap" }],
+    breadcrumbs: [
+      { name: "Home", url: "/" },
+      { name: "Sitemap", url: "/sitemap" },
+    ],
     settings,
     bodyHtml: body,
   });

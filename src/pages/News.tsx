@@ -100,7 +100,7 @@ const bucketForLane = (lane?: string | null): "ai" | "marketing" | "sales" | nul
 
 const laneLabel = (lane?: string | null) => {
   const b = bucketForLane(lane);
-  if (b === "ai") return "A.I.";
+  if (b === "ai") return "AI";
   if (b === "marketing") return "Marketing";
   if (b === "sales") return "Sales";
   return "News";
@@ -199,7 +199,7 @@ const News = () => {
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <PageHead
         title="Latest News | Brian Hanson"
-        description="Global A.I., marketing, and sales news — curated and summarized daily."
+        description="Global AI, marketing, and sales news — curated and summarized daily."
         url="https://brianhanson.com/news"
         type="website"
       />
@@ -227,7 +227,7 @@ const News = () => {
           className="font-body mt-4"
           style={{ fontSize: 17, color: "rgba(255,255,255,0.85)", maxWidth: 640, lineHeight: 1.6 }}
         >
-          A daily signal feed of global A.I., marketing, and sales news — curated and summarized in one place.
+          A daily signal feed of global AI, marketing, and sales news — curated and summarized in one place.
         </p>
       </header>
 
@@ -308,7 +308,7 @@ const News = () => {
           <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
             {query || lane !== "all"
               ? "No news matches your search."
-              : "No A.I., Marketing, or Sales news is available at the moment."}
+              : "No AI, Marketing, or Sales news is available at the moment."}
           </p>
         )}
 
