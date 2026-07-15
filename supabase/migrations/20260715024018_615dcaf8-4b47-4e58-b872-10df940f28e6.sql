@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Public can read source items" ON public.source_items;
