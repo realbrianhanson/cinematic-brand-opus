@@ -60,19 +60,42 @@ const NewsImage = ({ src, alt, fallbackTitle, fallbackLabel }: { src: string; al
   );
 };
 
-const LANES: { value: string; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "local_news", label: "Jacksonville" },
-  { value: "ai_tools", label: "A.I. Tools" },
-  { value: "smb_marketing", label: "SMB Marketing" },
-  { value: "ai_training", label: "A.I. Training" },
-  { value: "industry", label: "Industry" },
+// Public news is filtered down to three on-brand buckets.
+// Each bucket maps to one or more `topic_lane` values in the database.
+const BUCKETS: { value: "all" | "ai" | "marketing" | "sales"; label: string; lanes: string[] }[] = [
+  { value: "all", label: "All", lanes: ["ai_tools", "ai_training", "smb_marketing", "sales"] },
+  { value: "ai", label: "A.I.", lanes: ["ai_tools", "ai_training"] },
+  { value: "marketing", label: "Marketing", lanes: ["smb_marketing"] },
+  { value: "sales", label: "Sales", lanes: ["sales"] },
 ];
 
+const ALLOWED_LANES = new Set(["ai_tools", "ai_training", "smb_marketing", "sales"]);
+
+const bucketForLane = (lane?: string | null): "ai" | "marketing" | "sales" | null => {
+  if (lane === "ai_tools" || lane === "ai_training") return "ai";
+  if (lane === "smb_marketing") return "marketing";
+  if (lane === "sales") return "sales";
+  return null;
+};
+
 const laneLabel = (lane?: string | null) => {
-  const found = LANES.find((l) => l.value === lane);
-  if (found) return found.label;
-  return lane ? lane.replace(/_/g, " ") : "News";
+  const b = bucketForLane(lane);
+  if (b === "ai") return "A.I.";
+  if (b === "marketing") return "Marketing";
+  if (b === "sales") return "Sales";
+  return "News";
+};
+
+// Safety net keyword filter: if a lane is missing or ambiguous we still keep the
+// feed on-brand by matching AI / marketing / sales vocabulary in title + excerpt.
+const AI_KEYWORDS = /\b(a\.?i\.?|artificial intelligence|machine learning|ml|llm|large language model|gpt|chatgpt|openai|anthropic|claude|gemini|copilot|prompt|generative|neural|deep learning|automation)\b/i;
+const MARKETING_KEYWORDS = /\b(marketing|seo|search engine|content strategy|brand(?:ing)?|advertising|ad campaign|social media|email marketing|newsletter|growth|inbound|hubspot|analytics|conversion rate|cro|paid media|ppc|funnel)\b/i;
+const SALES_KEYWORDS = /\b(sales|sell(?:ing)?|revenue|pipeline|prospect(?:ing)?|lead(?:s|gen)?|outreach|outbound|cold (?:call|email)|closing|deal(?:s)?|quota|crm|account executive|sdr|bdr|negotiat)\b/i;
+
+const isOnBrand = (n: any): boolean => {
+  if (ALLOWED_LANES.has(n.topic_lane)) return true;
+  const hay = `${n.ai_title || ""} ${n.title || ""} ${n.ai_summary || ""} ${n.raw_excerpt || ""}`;
+  return AI_KEYWORDS.test(hay) || MARKETING_KEYWORDS.test(hay) || SALES_KEYWORDS.test(hay);
 };
 
 const sourceName = (n: any): string => {
