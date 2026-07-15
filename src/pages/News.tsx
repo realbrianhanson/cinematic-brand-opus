@@ -248,7 +248,11 @@ const News = () => {
           <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>Failed to load news. Please refresh the page.</p>
         )}
         {!isLoading && !isError && filtered.length === 0 && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>No news matches your search.</p>
+          <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
+            {query || lane !== "all"
+              ? "No news matches your search."
+              : "No A.I., Marketing, or Sales news is available at the moment."}
+          </p>
         )}
 
         {/* Featured */}
