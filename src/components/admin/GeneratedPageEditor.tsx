@@ -502,7 +502,7 @@ const GeneratedPageEditor = () => {
             </select>
           </div>
 
-          {/* A.I. SEO Helper */}
+          {/* AI SEO Helper */}
           <div className="admin-card" style={{ padding: 20 }}>
             <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
               <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
