@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Search } from "lucide-react";
@@ -80,8 +80,6 @@ const NewsImage = ({
   );
 };
 
-// Public news is filtered down to three on-brand buckets.
-// Each bucket maps to one or more `topic_lane` values in the database.
 const BUCKETS: { value: "all" | "ai" | "marketing" | "sales"; label: string; lanes: string[] }[] = [
   { value: "all", label: "All", lanes: ["ai_tools", "ai_training", "smb_marketing", "sales"] },
   { value: "ai", label: "AI", lanes: ["ai_tools", "ai_training"] },
@@ -106,8 +104,6 @@ const laneLabel = (lane?: string | null) => {
   return "News";
 };
 
-// Safety net keyword filter: if a lane is missing or ambiguous we still keep the
-// feed on-brand by matching AI / marketing / sales vocabulary in title + excerpt.
 const AI_KEYWORDS =
   /\b(a\.?i\.?|artificial intelligence|machine learning|ml|llm|large language model|gpt|chatgpt|openai|anthropic|claude|gemini|copilot|prompt|generative|neural|deep learning|automation)\b/i;
 const MARKETING_KEYWORDS =
@@ -130,22 +126,42 @@ const sourceName = (n: any): string => {
   }
 };
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 18;
+
+const NewsCardSkeleton = () => (
+  <div
+    className="grid gap-6 py-6 md:py-8 animate-pulse"
+    style={{ gridTemplateColumns: "minmax(120px, 220px) 1fr", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+  >
+    <div style={{ aspectRatio: "4 / 3", background: "rgba(255,255,255,0.04)" }} />
+    <div className="flex flex-col justify-center gap-3">
+      <div style={{ height: 10, width: 80, background: "rgba(255,255,255,0.06)" }} />
+      <div style={{ height: 22, width: "80%", background: "rgba(255,255,255,0.08)" }} />
+      <div style={{ height: 14, width: "95%", background: "rgba(255,255,255,0.05)" }} />
+      <div style={{ height: 14, width: "60%", background: "rgba(255,255,255,0.05)" }} />
+    </div>
+  </div>
+);
 
 const News = () => {
   const [query, setQuery] = useState("");
   const [lane, setLane] = useState<string>("all");
-  const [visible, setVisible] = useState(PAGE_SIZE);
-
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
 
   const {
-    data: newsItems,
+    data,
     isLoading,
     isError,
-  } = useQuery({
-    queryKey: ["public-news-page"],
-    queryFn: async () => {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["public-news-infinite"],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const from = (pageParam as number) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       const { data, error } = await supabase
         .from("source_items")
         .select(
@@ -153,21 +169,21 @@ const News = () => {
         )
         .eq("status", "published")
         .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(200);
+        .range(from, to);
       if (error) throw error;
-      return data ?? [];
+      return { items: data ?? [], nextPage: (data?.length ?? 0) === PAGE_SIZE ? (pageParam as number) + 1 : null };
     },
+    getNextPageParam: (last) => last.nextPage,
     staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
-  // Live updates: refetch when new news items land in the database
+  // Live updates: refetch when new news items land
   useEffect(() => {
     const channel = supabase
       .channel("public-news-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "source_items" }, () =>
-        queryClient.invalidateQueries({ queryKey: ["public-news-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["public-news-infinite"] }),
       )
       .subscribe();
     return () => {
@@ -175,25 +191,51 @@ const News = () => {
     };
   }, [queryClient]);
 
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const allItems = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const page of data?.pages ?? []) {
+      for (const it of page.items) {
+        if (seen.has(it.id)) continue;
+        seen.add(it.id);
+        out.push(it);
+      }
+    }
+    return out;
+  }, [data]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const bucket = BUCKETS.find((b) => b.value === lane) ?? BUCKETS[0];
     const allowedLanes = new Set(bucket.lanes);
-    return (newsItems || []).filter((n: any) => {
-      // Global on-brand gate: AI / Marketing / Sales only
+    return allItems.filter((n: any) => {
       if (!isOnBrand(n)) return false;
-      // Bucket filter
       if (lane !== "all" && !allowedLanes.has(n.topic_lane)) return false;
       if (!q) return true;
       const hay =
         `${n.ai_title || ""} ${n.title || ""} ${n.ai_summary || ""} ${n.raw_excerpt || ""} ${sourceName(n)}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [newsItems, query, lane]);
+  }, [allItems, query, lane]);
 
-  const items = filtered.slice(0, visible);
-  const featured = filtered[0];
-  const rest = items.slice(featured ? 1 : 0);
+  const featured = !query && lane === "all" ? filtered[0] : undefined;
+  const rest = featured ? filtered.slice(1) : filtered;
 
   return (
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
@@ -232,7 +274,6 @@ const News = () => {
       </header>
 
       <main id="main-content" className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
-        {/* Search + filters */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-10">
           <div className="relative flex-1 max-w-xl">
             <Search
@@ -249,10 +290,7 @@ const News = () => {
               type="search"
               placeholder="Search news…"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setVisible(PAGE_SIZE);
-              }}
+              onChange={(e) => setQuery(e.target.value)}
               className="w-full font-body"
               style={{
                 background: "#14141b",
@@ -272,10 +310,7 @@ const News = () => {
               return (
                 <button
                   key={l.value}
-                  onClick={() => {
-                    setLane(l.value);
-                    setVisible(PAGE_SIZE);
-                  }}
+                  onClick={() => setLane(l.value)}
                   className="font-body uppercase transition-colors"
                   style={{
                     fontSize: 11,
@@ -295,9 +330,11 @@ const News = () => {
         </div>
 
         {isLoading && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
-            Loading…
-          </p>
+          <div className="flex flex-col" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <NewsCardSkeleton key={i} />
+            ))}
+          </div>
         )}
         {isError && (
           <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
@@ -312,8 +349,7 @@ const News = () => {
           </p>
         )}
 
-        {/* Featured */}
-        {featured && !query && lane === "all" && (
+        {featured && (
           <Link
             to={`/news/${featured.id}`}
             className="group grid gap-8 mb-16"
@@ -386,7 +422,6 @@ const News = () => {
           </Link>
         )}
 
-        {/* List */}
         <div className="flex flex-col" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           {rest.map((n: any) => (
             <Link
@@ -467,32 +502,21 @@ const News = () => {
               </div>
             </Link>
           ))}
+
+          {isFetchingNextPage &&
+            Array.from({ length: 3 }).map((_, i) => <NewsCardSkeleton key={`sk-${i}`} />)}
         </div>
 
-        {visible < filtered.length && (
-          <div className="flex justify-center mt-10">
-            <button
-              onClick={() => setVisible((v) => v + PAGE_SIZE)}
-              className="font-body uppercase transition-colors"
-              style={{
-                fontSize: 12,
-                letterSpacing: "0.18em",
-                padding: "14px 28px",
-                border: "1px solid #D4AF55",
-                color: "#D4AF55",
-                background: "transparent",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(212,175,85,0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              Load more
-            </button>
-          </div>
+        {/* Sentinel */}
+        <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+
+        {!hasNextPage && !isLoading && filtered.length > 0 && (
+          <p
+            className="text-center font-body uppercase mt-10"
+            style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(255,255,255,0.4)" }}
+          >
+            — No more news —
+          </p>
         )}
       </main>
       <Footer />
