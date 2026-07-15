@@ -5,9 +5,8 @@ import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
 
-
 const headlineLines = [
-  { text: "A.I. Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
+  { text: "AI Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
   { text: "Replace People.", gold: false, italic: false, spring: false, springDelay: 0 },
   { text: "It Replaces", gold: true, italic: true, spring: true, springDelay: 0.9 },
   { text: "Inefficiency.", gold: true, italic: true, spring: true, springDelay: 1.1 },
@@ -63,11 +62,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
   }, []);
 
   return (
-    <section
-      id="hero"
-      ref={sectionRef}
-      className="relative min-h-screen flex items-center overflow-hidden"
-    >
+    <section id="hero" ref={sectionRef} className="relative min-h-screen flex items-center overflow-hidden">
       {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
@@ -88,28 +83,37 @@ const Hero = ({ loaded = true }: HeroProps) => {
           style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
         />
         {/* Desktop horizontal scrim: heavy left → light right */}
-        <div className="absolute inset-0 hidden md:block" style={{
-          background:
-            "linear-gradient(90deg, rgba(7,7,14,0.92) 0%, rgba(7,7,14,0.88) 30%, rgba(7,7,14,0.55) 55%, rgba(7,7,14,0.28) 80%, rgba(7,7,14,0.22) 100%)",
-        }} />
+        <div
+          className="absolute inset-0 hidden md:block"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(7,7,14,0.92) 0%, rgba(7,7,14,0.88) 30%, rgba(7,7,14,0.55) 55%, rgba(7,7,14,0.28) 80%, rgba(7,7,14,0.22) 100%)",
+          }}
+        />
         {/* Desktop bottom scrim for CTA legibility */}
-        <div className="absolute inset-x-0 bottom-0 hidden md:block" style={{
-          height: "45%",
-          background:
-            "linear-gradient(180deg, transparent 0%, rgba(7,7,14,0.55) 100%)",
-        }} />
+        <div
+          className="absolute inset-x-0 bottom-0 hidden md:block"
+          style={{
+            height: "45%",
+            background: "linear-gradient(180deg, transparent 0%, rgba(7,7,14,0.55) 100%)",
+          }}
+        />
         {/* Mobile: stronger uniform scrim */}
-        <div className="absolute inset-0 md:hidden" style={{
-          background:
-            "linear-gradient(180deg, rgba(7,7,14,0.82) 0%, rgba(7,7,14,0.85) 100%)",
-        }} />
+        <div
+          className="absolute inset-0 md:hidden"
+          style={{
+            background: "linear-gradient(180deg, rgba(7,7,14,0.82) 0%, rgba(7,7,14,0.85) 100%)",
+          }}
+        />
       </div>
 
-
       {/* BG Layer 3: Radial accent */}
-      <div className="absolute inset-0 pointer-events-none z-[2]" style={{
-        background: "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.05), transparent)",
-      }} />
+      <div
+        className="absolute inset-0 pointer-events-none z-[2]"
+        style={{
+          background: "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.05), transparent)",
+        }}
+      />
 
       {/* Corner accent lines */}
       <DrawLine
@@ -138,13 +142,21 @@ const Hero = ({ loaded = true }: HeroProps) => {
             transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.4s",
           }}
         >
-          <div style={{
-            width: 60, height: 2,
-            background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
-          }} />
-          <span className="font-body font-bold uppercase" style={{
-            fontSize: 12, letterSpacing: "0.25em", color: "#D4AF55",
-          }}>
+          <div
+            style={{
+              width: 60,
+              height: 2,
+              background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
+            }}
+          />
+          <span
+            className="font-body font-bold uppercase"
+            style={{
+              fontSize: 12,
+              letterSpacing: "0.25em",
+              color: "#D4AF55",
+            }}
+          >
             4× Inc. 5000 · AI Educator · Keynote Speaker
           </span>
         </div>
@@ -189,11 +201,15 @@ const Hero = ({ loaded = true }: HeroProps) => {
                       text={line.text}
                       visible={visible}
                       delay={line.springDelay}
-                      charStyle={line.gold ? {
-                        background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      } : undefined}
+                      charStyle={
+                        line.gold
+                          ? {
+                              background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+                              WebkitBackgroundClip: "text",
+                              WebkitTextFillColor: "transparent",
+                            }
+                          : undefined
+                      }
                     />
                   ) : (
                     line.text
@@ -217,7 +233,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
             transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s",
           }}
         >
-          Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to scale. No coding required.
+          Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to
+          scale. No coding required.
         </p>
 
         {/* CTA Buttons */}
