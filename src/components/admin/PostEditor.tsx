@@ -13,13 +13,23 @@ import PostEditorAeoPanel from "./PostEditorAeoPanel";
 import PostEditorSeoPanel from "./PostEditorSeoPanel";
 import { ChevronDown, ChevronUp, Sparkles, Loader2, Wand2 } from "lucide-react";
 
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 const wordCount = (html: string) => {
-  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return text ? text.split(" ").length : 0;
 };
 
-interface FaqItem { question: string; answer: string; }
+interface FaqItem {
+  question: string;
+  answer: string;
+}
 
 const PostEditor = () => {
   const { id } = useParams();
@@ -128,29 +138,44 @@ const PostEditor = () => {
   }, [title, slugManual]);
 
   // Handlers
-  const handleFeaturedUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("blog-images").upload(path, file);
-    if (error) { toast({ title: "Upload failed", description: error.message, variant: "destructive" }); setUploading(false); return; }
-    const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(path);
-    setFeaturedImage(urlData.publicUrl);
-    setUploading(false);
-  }, [toast]);
+  const handleFeaturedUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      const ext = file.name.split(".").pop();
+      const path = `${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("blog-images").upload(path, file);
+      if (error) {
+        toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+        setUploading(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(path);
+      setFeaturedImage(urlData.publicUrl);
+      setUploading(false);
+    },
+    [toast],
+  );
 
   // FAQ & takeaway helpers
-  const addFaq = useCallback(() => setFaqItems(prev => [...prev, { question: "", answer: "" }]), []);
-  const removeFaq = useCallback((i: number) => setFaqItems(prev => prev.filter((_, idx) => idx !== i)), []);
+  const addFaq = useCallback(() => setFaqItems((prev) => [...prev, { question: "", answer: "" }]), []);
+  const removeFaq = useCallback((i: number) => setFaqItems((prev) => prev.filter((_, idx) => idx !== i)), []);
   const updateFaq = useCallback((i: number, field: keyof FaqItem, val: string) => {
-    setFaqItems(prev => { const u = [...prev]; u[i] = { ...u[i], [field]: val }; return u; });
+    setFaqItems((prev) => {
+      const u = [...prev];
+      u[i] = { ...u[i], [field]: val };
+      return u;
+    });
   }, []);
-  const addTakeaway = useCallback(() => setKeyTakeaways(prev => [...prev, ""]), []);
-  const removeTakeaway = useCallback((i: number) => setKeyTakeaways(prev => prev.filter((_, idx) => idx !== i)), []);
+  const addTakeaway = useCallback(() => setKeyTakeaways((prev) => [...prev, ""]), []);
+  const removeTakeaway = useCallback((i: number) => setKeyTakeaways((prev) => prev.filter((_, idx) => idx !== i)), []);
   const updateTakeaway = useCallback((i: number, val: string) => {
-    setKeyTakeaways(prev => { const u = [...prev]; u[i] = val; return u; });
+    setKeyTakeaways((prev) => {
+      const u = [...prev];
+      u[i] = val;
+      return u;
+    });
   }, []);
 
   // Scoring
@@ -168,8 +193,8 @@ const PostEditor = () => {
   const aeoScore = useMemo(() => {
     let s = 0;
     if (tldr && tldr.length >= 20) s++;
-    if (faqItems.filter(f => f.question.trim() && f.answer.trim()).length >= 2) s++;
-    if (keyTakeaways.filter(t => t.trim()).length >= 3) s++;
+    if (faqItems.filter((f) => f.question.trim() && f.answer.trim()).length >= 2) s++;
+    if (keyTakeaways.filter((t) => t.trim()).length >= 3) s++;
     if (/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent)) s++;
     if (/<(ul|ol)[^>]*>/i.test(currentContent)) s++;
     if (wordCount(currentContent) >= 800) s++;
@@ -177,17 +202,37 @@ const PostEditor = () => {
   }, [tldr, faqItems, keyTakeaways, currentContent]);
 
   const criteria = useMemo(() => {
-    const validFaq = faqItems.filter(f => f.question.trim() && f.answer.trim());
-    const validTakeaways = keyTakeaways.filter(t => t.trim());
+    const validFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
+    const validTakeaways = keyTakeaways.filter((t) => t.trim());
     return [
       { label: "TL;DR summary (20+ chars)", done: !!(tldr && tldr.length >= 20), points: "+8", category: "AEO" },
       { label: "2+ FAQ items", done: validFaq.length >= 2, points: "+8", category: "AEO" },
       { label: "3+ key takeaways", done: validTakeaways.length >= 3, points: "+8", category: "AEO" },
-      { label: "Question headings (H2/H3 with ?)", done: /<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent), points: "+8", category: "AEO" },
-      { label: "Lists in content (ul/ol)", done: /<(ul|ol)[^>]*>/i.test(currentContent), points: "+8", category: "AEO" },
+      {
+        label: "Question headings (H2/H3 with ?)",
+        done: /<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent),
+        points: "+8",
+        category: "AEO",
+      },
+      {
+        label: "Lists in content (ul/ol)",
+        done: /<(ul|ol)[^>]*>/i.test(currentContent),
+        points: "+8",
+        category: "AEO",
+      },
       { label: "800+ words", done: wordCount(currentContent) >= 800, points: "+8", category: "AEO" },
-      { label: "Meta title (≤60 chars)", done: !!(metaTitle && metaTitle.length <= 60), points: "+13", category: "SEO" },
-      { label: "Meta description (≤160 chars)", done: !!(metaDesc && metaDesc.length <= 160), points: "+13", category: "SEO" },
+      {
+        label: "Meta title (≤60 chars)",
+        done: !!(metaTitle && metaTitle.length <= 60),
+        points: "+13",
+        category: "SEO",
+      },
+      {
+        label: "Meta description (≤160 chars)",
+        done: !!(metaDesc && metaDesc.length <= 160),
+        points: "+13",
+        category: "SEO",
+      },
       { label: "Keywords added", done: !!keywords, points: "+12", category: "SEO" },
       { label: "Featured or OG image", done: !!(featuredImage || ogImage), points: "+12", category: "SEO" },
     ];
@@ -196,16 +241,19 @@ const PostEditor = () => {
   const aeoTips = useMemo(() => {
     const tips: string[] = [];
     if (!tldr || tldr.length < 20) tips.push("Add a TL;DR summary (20+ chars) — LLMs often pull this as the answer");
-    if (faqItems.filter(f => f.question.trim() && f.answer.trim()).length < 2) tips.push("Add 2+ FAQ items — these generate FAQ schema for AI search");
-    if (keyTakeaways.filter(t => t.trim()).length < 3) tips.push("Add 3+ key takeaways — bullet-point answers rank in AI overviews");
-    if (!/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent)) tips.push("Use question-format headings (H2/H3 with ?) — LLMs match these to queries");
-    if (!/<(ul|ol)[^>]*>/i.test(currentContent)) tips.push("Add lists to your content — structured data is easier for LLMs to cite");
+    if (faqItems.filter((f) => f.question.trim() && f.answer.trim()).length < 2)
+      tips.push("Add 2+ FAQ items — these generate FAQ schema for AI search");
+    if (keyTakeaways.filter((t) => t.trim()).length < 3)
+      tips.push("Add 3+ key takeaways — bullet-point answers rank in AI overviews");
+    if (!/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent))
+      tips.push("Use question-format headings (H2/H3 with ?) — LLMs match these to queries");
+    if (!/<(ul|ol)[^>]*>/i.test(currentContent))
+      tips.push("Add lists to your content — structured data is easier for LLMs to cite");
     if (wordCount(currentContent) < 800) tips.push("Write 800+ words — comprehensive content is cited more by AI");
     return tips;
   }, [tldr, faqItems, keyTakeaways, currentContent]);
 
-  const scoreColor = (score: number, max: number) =>
-    score >= max * 0.66 ? "admin-sage" : "admin-accent";
+  const scoreColor = (score: number, max: number) => (score >= max * 0.66 ? "admin-sage" : "admin-accent");
 
   // AI generation
   const handleAiGenerate = useCallback(async () => {
@@ -216,7 +264,9 @@ const PostEditor = () => {
     }
     setAiGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", { body: { title, content, excerpt } });
+      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
+        body: { title, content, excerpt },
+      });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.tldr) setTldr(data.tldr);
@@ -239,7 +289,7 @@ const PostEditor = () => {
 
   const handleEnhance = useCallback(async () => {
     const content = editorRef.current?.getHTML() ?? editorContent;
-    const missing = criteria.filter(c => !c.done).map(c => c.label);
+    const missing = criteria.filter((c) => !c.done).map((c) => c.label);
     if (missing.length === 0) {
       toast({ title: "Perfect score! 🎉", description: "All criteria are already met." });
       return;
@@ -275,7 +325,11 @@ const PostEditor = () => {
   // AI Blog Post Generation
   const handleAiWritePost = useCallback(async () => {
     if (!aiTopic.trim()) {
-      toast({ title: "Enter a topic", description: "Provide a topic for the A.I. to write about.", variant: "destructive" });
+      toast({
+        title: "Enter a topic",
+        description: "Provide a topic for the AI to write about.",
+        variant: "destructive",
+      });
       return;
     }
     setAiWriting(true);
@@ -290,7 +344,11 @@ const PostEditor = () => {
       if (data.error) throw new Error(data.error);
 
       // Populate all fields
-      if (data.title) { setTitle(data.title); setSlug(slugify(data.title)); setSlugManual(false); }
+      if (data.title) {
+        setTitle(data.title);
+        setSlug(slugify(data.title));
+        setSlugManual(false);
+      }
       if (data.content && editorRef.current) {
         editorRef.current.commands.setContent(data.content);
         setEditorContent(data.content);
@@ -310,7 +368,10 @@ const PostEditor = () => {
       setShowAiModal(false);
       setAiTopic("");
       setAiContext("");
-      toast({ title: "Blog post generated! ✨", description: "A.I. wrote your entire post. Review and edit before publishing." });
+      toast({
+        title: "Blog post generated! ✨",
+        description: "AI wrote your entire post. Review and edit before publishing.",
+      });
     } catch (e: any) {
       toast({ title: "Generation failed", description: e.message, variant: "destructive" });
     } finally {
@@ -318,62 +379,79 @@ const PostEditor = () => {
     }
   }, [aiTopic, aiContext, toast]);
 
-
   const saveMutation = useMutation({
-    mutationFn: () => safeMutation(async () => {
-      const content = editorRef.current?.getHTML() ?? editorContent;
-      const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
-      const cleanFaq = faqItems.filter(f => f.question.trim() && f.answer.trim());
-      const cleanTakeaways = keyTakeaways.filter(t => t.trim());
+    mutationFn: () =>
+      safeMutation(async () => {
+        const content = editorRef.current?.getHTML() ?? editorContent;
+        const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
+        const cleanFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
+        const cleanTakeaways = keyTakeaways.filter((t) => t.trim());
 
-      const postData: Record<string, any> = {
-        title, slug, content,
-        excerpt: excerpt || null,
-        category_id: categoryId || null,
-        status,
-        scheduled_at: status === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
-        featured_image: featuredImage || null,
-        reading_time,
-        faq_items: cleanFaq.length ? cleanFaq : [],
-        key_takeaways: cleanTakeaways.length ? cleanTakeaways : [],
-        tldr: tldr || null,
-      };
+        const postData: Record<string, any> = {
+          title,
+          slug,
+          content,
+          excerpt: excerpt || null,
+          category_id: categoryId || null,
+          status,
+          scheduled_at: status === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          featured_image: featuredImage || null,
+          reading_time,
+          faq_items: cleanFaq.length ? cleanFaq : [],
+          key_takeaways: cleanTakeaways.length ? cleanTakeaways : [],
+          tldr: tldr || null,
+        };
 
-      let postId = id;
-      if (isNew) {
-        const { data, error } = await supabase.from("posts").insert(postData as any).select("id").single();
-        if (error) throw error;
-        postId = data.id;
-      } else {
-        const { error } = await supabase.from("posts").update(postData as any).eq("id", id!);
-        if (error) throw error;
-      }
+        let postId = id;
+        if (isNew) {
+          const { data, error } = await supabase
+            .from("posts")
+            .insert(postData as any)
+            .select("id")
+            .single();
+          if (error) throw error;
+          postId = data.id;
+        } else {
+          const { error } = await supabase
+            .from("posts")
+            .update(postData as any)
+            .eq("id", id!);
+          if (error) throw error;
+        }
 
-      const seoData = {
-        post_id: postId!,
-        meta_title: metaTitle || null,
-        meta_description: metaDesc || null,
-        keywords: keywords ? keywords.split(",").map(k => k.trim()).filter(Boolean) : null,
-        og_image: ogImage || null,
-      };
+        const seoData = {
+          post_id: postId!,
+          meta_title: metaTitle || null,
+          meta_description: metaDesc || null,
+          keywords: keywords
+            ? keywords
+                .split(",")
+                .map((k) => k.trim())
+                .filter(Boolean)
+            : null,
+          og_image: ogImage || null,
+        };
 
-      if (seo?.id) {
-        await supabase.from("seo_metadata").update(seoData).eq("id", seo.id);
-      } else {
-        await supabase.from("seo_metadata").insert(seoData);
-      }
-      return postId;
-    }),
+        if (seo?.id) {
+          await supabase.from("seo_metadata").update(seoData).eq("id", seo.id);
+        } else {
+          await supabase.from("seo_metadata").insert(seoData);
+        }
+        return postId;
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       navigate("/admin/posts");
     },
   });
 
-  const handleEditorReady = useCallback((editor: Editor) => {
-    editorRef.current = editor;
-    if (post?.content) editor.commands.setContent(post.content);
-  }, [post]);
+  const handleEditorReady = useCallback(
+    (editor: Editor) => {
+      editorRef.current = editor;
+      if (post?.content) editor.commands.setContent(post.content);
+    },
+    [post],
+  );
 
   if (!isNew && postLoading) {
     return (
@@ -407,10 +485,12 @@ const PostEditor = () => {
               }}
             >
               <Wand2 size={14} />
-              A.I. Write Post
+              AI Write Post
             </button>
           )}
-          <button onClick={() => navigate("/admin/posts")} className="admin-btn-ghost">Cancel</button>
+          <button onClick={() => navigate("/admin/posts")} className="admin-btn-ghost">
+            Cancel
+          </button>
           <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !title || !slug}
@@ -432,10 +512,15 @@ const PostEditor = () => {
             style={{ fontSize: 26, fontWeight: 400, padding: "16px 20px", borderRadius: 6 }}
           />
           <div className="flex items-center gap-2">
-            <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>/blog/</span>
+            <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+              /blog/
+            </span>
             <input
               value={slug}
-              onChange={(e) => { setSlug(e.target.value); setSlugManual(true); }}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                setSlugManual(true);
+              }}
               className="admin-input font-body flex-1"
             />
           </div>
@@ -449,14 +534,24 @@ const PostEditor = () => {
         {/* Sidebar */}
         <div className="flex flex-col gap-5">
           <PostEditorSidebar
-            status={status} setStatus={setStatus}
-            timezone={timezone} setTimezone={(v: string) => { setTimezone(v); updatePref("timezone", v); }}
-            scheduledAt={scheduledAt} setScheduledAt={setScheduledAt}
-            categoryId={categoryId} setCategoryId={setCategoryId}
+            status={status}
+            setStatus={setStatus}
+            timezone={timezone}
+            setTimezone={(v: string) => {
+              setTimezone(v);
+              updatePref("timezone", v);
+            }}
+            scheduledAt={scheduledAt}
+            setScheduledAt={setScheduledAt}
+            categoryId={categoryId}
+            setCategoryId={setCategoryId}
             categories={categories ?? []}
-            featuredImage={featuredImage} setFeaturedImage={setFeaturedImage}
-            uploading={uploading} onFeaturedUpload={handleFeaturedUpload}
-            excerpt={excerpt} setExcerpt={setExcerpt}
+            featuredImage={featuredImage}
+            setFeaturedImage={setFeaturedImage}
+            uploading={uploading}
+            onFeaturedUpload={handleFeaturedUpload}
+            excerpt={excerpt}
+            setExcerpt={setExcerpt}
           />
 
           <PostEditorAiHelper
@@ -476,12 +571,26 @@ const PostEditor = () => {
             <button
               onClick={() => setAeoOpen(!aeoOpen)}
               className="font-body w-full flex items-center justify-between"
-              style={{ padding: 20, background: "none", border: "none", cursor: "pointer", color: "hsl(var(--admin-text-soft))" }}
+              style={{
+                padding: 20,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "hsl(var(--admin-text-soft))",
+              }}
             >
               <span className="flex items-center gap-2">
                 <Sparkles size={14} style={{ color: "hsl(var(--admin-accent))" }} />
-                <span className="admin-label" style={{ marginBottom: 0 }}>AEO / GEO</span>
-                <span className="admin-badge" style={{ background: `hsl(var(--${scoreColor(aeoScore, 6)}-soft))`, color: `hsl(var(--${scoreColor(aeoScore, 6)}))` }}>
+                <span className="admin-label" style={{ marginBottom: 0 }}>
+                  AEO / GEO
+                </span>
+                <span
+                  className="admin-badge"
+                  style={{
+                    background: `hsl(var(--${scoreColor(aeoScore, 6)}-soft))`,
+                    color: `hsl(var(--${scoreColor(aeoScore, 6)}))`,
+                  }}
+                >
                   {aeoScore}/6
                 </span>
               </span>
@@ -489,10 +598,16 @@ const PostEditor = () => {
             </button>
             {aeoOpen && (
               <PostEditorAeoPanel
-                tldr={tldr} setTldr={setTldr}
-                keyTakeaways={keyTakeaways} faqItems={faqItems}
-                addTakeaway={addTakeaway} removeTakeaway={removeTakeaway} updateTakeaway={updateTakeaway}
-                addFaq={addFaq} removeFaq={removeFaq} updateFaq={updateFaq}
+                tldr={tldr}
+                setTldr={setTldr}
+                keyTakeaways={keyTakeaways}
+                faqItems={faqItems}
+                addTakeaway={addTakeaway}
+                removeTakeaway={removeTakeaway}
+                updateTakeaway={updateTakeaway}
+                addFaq={addFaq}
+                removeFaq={removeFaq}
+                updateFaq={updateFaq}
                 aeoTips={aeoTips}
               />
             )}
@@ -503,11 +618,25 @@ const PostEditor = () => {
             <button
               onClick={() => setSeoOpen(!seoOpen)}
               className="font-body w-full flex items-center justify-between"
-              style={{ padding: 20, background: "none", border: "none", cursor: "pointer", color: "hsl(var(--admin-text-soft))" }}
+              style={{
+                padding: 20,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "hsl(var(--admin-text-soft))",
+              }}
             >
               <span className="flex items-center gap-2">
-                <span className="admin-label" style={{ marginBottom: 0 }}>SEO</span>
-                <span className="admin-badge" style={{ background: `hsl(var(--${scoreColor(seoScore, 4)}-soft))`, color: `hsl(var(--${scoreColor(seoScore, 4)}))` }}>
+                <span className="admin-label" style={{ marginBottom: 0 }}>
+                  SEO
+                </span>
+                <span
+                  className="admin-badge"
+                  style={{
+                    background: `hsl(var(--${scoreColor(seoScore, 4)}-soft))`,
+                    color: `hsl(var(--${scoreColor(seoScore, 4)}))`,
+                  }}
+                >
                   {seoScore}/4
                 </span>
               </span>
@@ -515,10 +644,14 @@ const PostEditor = () => {
             </button>
             {seoOpen && (
               <PostEditorSeoPanel
-                metaTitle={metaTitle} setMetaTitle={setMetaTitle}
-                metaDesc={metaDesc} setMetaDesc={setMetaDesc}
-                keywords={keywords} setKeywords={setKeywords}
-                ogImage={ogImage} setOgImage={setOgImage}
+                metaTitle={metaTitle}
+                setMetaTitle={setMetaTitle}
+                metaDesc={metaDesc}
+                setMetaDesc={setMetaDesc}
+                keywords={keywords}
+                setKeywords={setKeywords}
+                ogImage={ogImage}
+                setOgImage={setOgImage}
               />
             )}
           </div>
@@ -535,11 +668,15 @@ const PostEditor = () => {
             <div className="flex items-center gap-2" style={{ marginBottom: 16 }}>
               <Wand2 size={16} style={{ color: "hsl(var(--admin-accent))" }} />
               <h2 className="font-heading" style={{ fontSize: 20, fontWeight: 500 }}>
-                A.I. Write Post
+                AI Write Post
               </h2>
             </div>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 20, lineHeight: 1.6 }}>
-              Enter a topic and A.I. will research it, then write a complete blog post with SEO metadata, FAQs, and key takeaways.
+            <p
+              className="font-body"
+              style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 20, lineHeight: 1.6 }}
+            >
+              Enter a topic and AI will research it, then write a complete blog post with SEO metadata, FAQs, and key
+              takeaways.
             </p>
             <div style={{ marginBottom: 16 }}>
               <label className="admin-label">Topic / Keyword *</label>
@@ -564,14 +701,21 @@ const PostEditor = () => {
               />
             </div>
             {aiWriting && (
-              <div className="flex items-center gap-3 font-body" style={{ fontSize: 12, color: "hsl(var(--admin-accent))", marginBottom: 16 }}>
+              <div
+                className="flex items-center gap-3 font-body"
+                style={{ fontSize: 12, color: "hsl(var(--admin-accent))", marginBottom: 16 }}
+              >
                 <Loader2 size={14} className="animate-spin" />
                 <span>Researching &amp; writing… this takes 30-60 seconds</span>
               </div>
             )}
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => { setShowAiModal(false); setAiTopic(""); setAiContext(""); }}
+                onClick={() => {
+                  setShowAiModal(false);
+                  setAiTopic("");
+                  setAiContext("");
+                }}
                 className="admin-btn-ghost"
                 disabled={aiWriting}
               >
@@ -583,9 +727,15 @@ const PostEditor = () => {
                 className="admin-btn-primary flex items-center gap-2"
               >
                 {aiWriting ? (
-                  <><Loader2 size={14} className="animate-spin" />Generating...</>
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Generating...
+                  </>
                 ) : (
-                  <><Sparkles size={14} />Generate Post</>
+                  <>
+                    <Sparkles size={14} />
+                    Generate Post
+                  </>
                 )}
               </button>
             </div>

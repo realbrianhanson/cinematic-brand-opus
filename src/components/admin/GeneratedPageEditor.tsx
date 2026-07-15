@@ -71,7 +71,10 @@ const GeneratedPageEditor = () => {
     criteria.push({ label: "Meta description (under 160 chars)", done: hasDesc, points: "+20" });
     if (hasDesc) score += 20;
 
-    const kwCount = metaKeywords.split(",").map(k => k.trim()).filter(Boolean).length;
+    const kwCount = metaKeywords
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean).length;
     const hasKw = kwCount >= 3;
     criteria.push({ label: "At least 3 keywords", done: hasKw, points: "+15" });
     if (hasKw) score += 15;
@@ -79,8 +82,13 @@ const GeneratedPageEditor = () => {
     let wordCount = 0;
     try {
       const parsed = JSON.parse(contentStr);
-      wordCount = JSON.stringify(parsed).replace(/[{}[\]":,]/g, " ").split(/\s+/).filter(Boolean).length;
-    } catch { /* ignore */ }
+      wordCount = JSON.stringify(parsed)
+        .replace(/[{}[\]":,]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean).length;
+    } catch {
+      /* ignore */
+    }
     const hasWords = wordCount >= 300;
     criteria.push({ label: "Content has 300+ words", done: hasWords, points: "+15" });
     if (hasWords) score += 15;
@@ -94,7 +102,9 @@ const GeneratedPageEditor = () => {
     try {
       const parsed = JSON.parse(contentStr);
       hasFaq = !!(parsed.faq_items?.length || parsed.faqs?.length);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     criteria.push({ label: "Content has FAQ items", done: hasFaq, points: "+10" });
     if (hasFaq) score += 10;
 
@@ -102,7 +112,9 @@ const GeneratedPageEditor = () => {
     try {
       const parsed = JSON.parse(contentStr);
       hasIntro = !!(parsed.intro || parsed.introduction || parsed.description);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     criteria.push({ label: "Content has intro section", done: hasIntro, points: "+10" });
     if (hasIntro) score += 10;
 
@@ -113,7 +125,9 @@ const GeneratedPageEditor = () => {
     setAiGenerating(true);
     try {
       let excerpt = "";
-      try { excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || ""; } catch {}
+      try {
+        excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
+      } catch {}
       const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
         body: {
           title: page?.title || "",
@@ -138,9 +152,11 @@ const GeneratedPageEditor = () => {
   const handleEnhanceSeo = async () => {
     setEnhancing(true);
     try {
-      const missing = seoData.criteria.filter(c => !c.done).map(c => c.label);
+      const missing = seoData.criteria.filter((c) => !c.done).map((c) => c.label);
       let excerpt = "";
-      try { excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || ""; } catch {}
+      try {
+        excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
+      } catch {}
       const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
         body: {
           title: page?.title || "",
@@ -163,57 +179,61 @@ const GeneratedPageEditor = () => {
     }
   };
 
-
-
-  const doSave = (overrideReason?: string) => safeMutation(async () => {
-    let parsed: any;
-    try {
-      parsed = JSON.parse(contentStr);
-    } catch {
-      throw new Error("Invalid JSON in content editor");
-    }
-
-    const seoMeta = {
-      title: metaTitle || null,
-      description: metaDesc || null,
-      keywords: metaKeywords ? metaKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
-      og_image: ogImage || null,
-    };
-
-    const updateData: Record<string, any> = {
-      content_json: parsed,
-      status,
-      seo_meta: seoMeta,
-      quality_score: qualityScore ? Number(qualityScore) : null,
-      human_edited: true,
-    };
-    const wasPublishing = status === "published" && page?.status !== "published";
-    if (wasPublishing) {
-      updateData.published_at = new Date().toISOString();
-    }
-    if (overrideReason) {
-      const { data: authData } = await supabase.auth.getUser();
-      updateData.publish_override = true;
-      updateData.publish_override_reason = overrideReason;
-      updateData.publish_override_at = new Date().toISOString();
-      updateData.publish_override_by = authData?.user?.id ?? null;
-    }
-
-    const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
-    if (error) throw error;
-
-    // On publish transition: build silo links + submit IndexNow (fire-and-forget)
-    if (wasPublishing && id) {
-      supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
-      supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
-      const schemaSlug = (page as any)?.content_schemas?.slug;
-      if (schemaSlug && page?.slug) {
-        supabase.functions
-          .invoke("submit-indexnow", { body: { urls: [`/resources/${schemaSlug}/${page.slug}`] } })
-          .catch(() => {});
+  const doSave = (overrideReason?: string) =>
+    safeMutation(async () => {
+      let parsed: any;
+      try {
+        parsed = JSON.parse(contentStr);
+      } catch {
+        throw new Error("Invalid JSON in content editor");
       }
-    }
-  });
+
+      const seoMeta = {
+        title: metaTitle || null,
+        description: metaDesc || null,
+        keywords: metaKeywords
+          ? metaKeywords
+              .split(",")
+              .map((k) => k.trim())
+              .filter(Boolean)
+          : [],
+        og_image: ogImage || null,
+      };
+
+      const updateData: Record<string, any> = {
+        content_json: parsed,
+        status,
+        seo_meta: seoMeta,
+        quality_score: qualityScore ? Number(qualityScore) : null,
+        human_edited: true,
+      };
+      const wasPublishing = status === "published" && page?.status !== "published";
+      if (wasPublishing) {
+        updateData.published_at = new Date().toISOString();
+      }
+      if (overrideReason) {
+        const { data: authData } = await supabase.auth.getUser();
+        updateData.publish_override = true;
+        updateData.publish_override_reason = overrideReason;
+        updateData.publish_override_at = new Date().toISOString();
+        updateData.publish_override_by = authData?.user?.id ?? null;
+      }
+
+      const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
+      if (error) throw error;
+
+      // On publish transition: build silo links + submit IndexNow (fire-and-forget)
+      if (wasPublishing && id) {
+        supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
+        supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
+        const schemaSlug = (page as any)?.content_schemas?.slug;
+        if (schemaSlug && page?.slug) {
+          supabase.functions
+            .invoke("submit-indexnow", { body: { urls: [`/resources/${schemaSlug}/${page.slug}`] } })
+            .catch(() => {});
+        }
+      }
+    });
 
   const saveMutation = useMutation({
     mutationFn: (overrideReason?: string) => doSave(overrideReason),
@@ -250,7 +270,11 @@ const GeneratedPageEditor = () => {
         }
       } catch (e: any) {
         console.warn("Quality scoring failed:", e.message);
-        toast({ title: "Scoring failed", description: "Publish blocked until content can be scored.", variant: "destructive" });
+        toast({
+          title: "Scoring failed",
+          description: "Publish blocked until content can be scored.",
+          variant: "destructive",
+        });
         setScoring(false);
         return;
       }
@@ -311,7 +335,9 @@ const GeneratedPageEditor = () => {
   if (!page) {
     return (
       <div style={{ padding: 64, textAlign: "center" }}>
-        <p className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>Page not found.</p>
+        <p className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>
+          Page not found.
+        </p>
       </div>
     );
   }
@@ -320,7 +346,7 @@ const GeneratedPageEditor = () => {
   const schema = (page as any).content_schemas;
 
   const { score: seoScore, criteria: seoCriteria } = seoData;
-  const done = seoCriteria.filter(c => c.done).length;
+  const done = seoCriteria.filter((c) => c.done).length;
   const total = seoCriteria.length;
   const scoreColor = seoScore >= 75 ? "admin-sage" : seoScore >= 40 ? "admin-accent" : "admin-danger";
 
@@ -330,9 +356,14 @@ const GeneratedPageEditor = () => {
       {qualityWarning && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
           }}
         >
           <div className="admin-card" style={{ maxWidth: 480, width: "90%", padding: 28 }}>
@@ -343,17 +374,28 @@ const GeneratedPageEditor = () => {
               </h3>
             </div>
             <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 16 }}>
-              This content scored below the publish threshold of 75. The database will reject the publish unless you override.
+              This content scored below the publish threshold of 75. The database will reject the publish unless you
+              override.
             </p>
             <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
               {qualityWarning.issues.map((issue, i) => (
-                <li key={i} className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, listStyle: "disc" }}>
+                <li
+                  key={i}
+                  className="font-body"
+                  style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, listStyle: "disc" }}
+                >
                   {issue}
                 </li>
               ))}
             </ul>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => { setQualityWarning(null); setStatus("draft"); }} className="admin-btn-ghost">
+              <button
+                onClick={() => {
+                  setQualityWarning(null);
+                  setStatus("draft");
+                }}
+                className="admin-btn-ghost"
+              >
                 Go Back to Draft
               </button>
               <button
@@ -377,17 +419,24 @@ const GeneratedPageEditor = () => {
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Edit Page</h1>
+        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>
+          Edit Page
+        </h1>
         <div className="flex gap-3">
-          <button onClick={() => navigate("/admin/pages")} className="admin-btn-ghost">Cancel</button>
-          <button
-            onClick={handleSave}
-            disabled={saveMutation.isPending || scoring}
-            className="admin-btn-primary"
-          >
+          <button onClick={() => navigate("/admin/pages")} className="admin-btn-ghost">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={saveMutation.isPending || scoring} className="admin-btn-primary">
             {scoring ? (
-              <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Scoring...</span>
-            ) : saveMutation.isPending ? "Saving..." : "Save Changes"}
+              <span className="flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin" />
+                Scoring...
+              </span>
+            ) : saveMutation.isPending ? (
+              "Saving..."
+            ) : (
+              "Save Changes"
+            )}
           </button>
         </div>
       </div>
@@ -397,7 +446,10 @@ const GeneratedPageEditor = () => {
         <div className="lg:col-span-2 flex flex-col gap-5">
           {/* Title */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <h2 className="font-heading" style={{ fontSize: 22, fontWeight: 500, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+            <h2
+              className="font-heading"
+              style={{ fontSize: 22, fontWeight: 500, color: "hsl(var(--admin-text))", marginBottom: 8 }}
+            >
               {page.title}
             </h2>
             <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
@@ -408,7 +460,9 @@ const GeneratedPageEditor = () => {
           {/* JSON editor */}
           <div>
             <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <span className="admin-label" style={{ marginBottom: 0 }}>Content JSON</span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                Content JSON
+              </span>
               <button onClick={handleFormat} className="admin-btn-ghost" style={{ fontSize: 11, padding: "4px 12px" }}>
                 Format JSON
               </button>
@@ -419,10 +473,17 @@ const GeneratedPageEditor = () => {
               className="font-body w-full"
               spellCheck={false}
               style={{
-                fontFamily: "monospace", fontSize: 13, lineHeight: 1.6, minHeight: 500, padding: 20,
-                borderRadius: 6, border: "1px solid hsl(var(--admin-border))",
-                backgroundColor: "hsl(var(--admin-surface-2))", color: "hsl(var(--admin-text))",
-                resize: "vertical", outline: "none",
+                fontFamily: "monospace",
+                fontSize: 13,
+                lineHeight: 1.6,
+                minHeight: 500,
+                padding: 20,
+                borderRadius: 6,
+                border: "1px solid hsl(var(--admin-border))",
+                backgroundColor: "hsl(var(--admin-surface-2))",
+                color: "hsl(var(--admin-text))",
+                resize: "vertical",
+                outline: "none",
               }}
             />
           </div>
@@ -445,10 +506,15 @@ const GeneratedPageEditor = () => {
           <div className="admin-card" style={{ padding: 20 }}>
             <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
               <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
-              <span className="admin-label" style={{ marginBottom: 0 }}>A.I. SEO Helper</span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                AI. SEO Helper
+              </span>
             </div>
-            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 14, lineHeight: 1.5 }}>
-              Generate &amp; optimize SEO fields using A.I. based on your page content.
+            <p
+              className="font-body"
+              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 14, lineHeight: 1.5 }}
+            >
+              Generate &amp; optimize SEO fields using AI based on your page content.
             </p>
 
             {/* Score Ring */}
@@ -456,7 +522,11 @@ const GeneratedPageEditor = () => {
               <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 10px" }}>
                 <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--admin-surface-2))" strokeWidth="2.8" />
-                  <circle cx="18" cy="18" r="15.9" fill="none"
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.9"
+                    fill="none"
                     stroke={`hsl(var(--${scoreColor}))`}
                     strokeWidth="2.8"
                     strokeDasharray={`${seoScore} ${100 - seoScore}`}
@@ -464,41 +534,105 @@ const GeneratedPageEditor = () => {
                     style={{ transition: "stroke-dasharray 0.5s ease" }}
                   />
                 </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span className="font-heading" style={{ fontSize: 24, color: `hsl(var(--${scoreColor}))`, lineHeight: 1 }}>{seoScore}</span>
-                  <span className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}>/ 100</span>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <span
+                    className="font-heading"
+                    style={{ fontSize: 24, color: `hsl(var(--${scoreColor}))`, lineHeight: 1 }}
+                  >
+                    {seoScore}
+                  </span>
+                  <span className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}>
+                    / 100
+                  </span>
                 </div>
               </div>
-              <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              <p
+                className="font-body"
+                style={{
+                  fontSize: 10,
+                  color: "hsl(var(--admin-text-ghost))",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
                 SEO Score
               </p>
             </div>
 
             {/* Checklist */}
             <div style={{ marginBottom: 14 }}>
-              <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>📈 Increase Your Score</p>
-              <div style={{ backgroundColor: "hsl(var(--admin-surface-2))", borderRadius: 6, padding: "4px", marginBottom: 10 }}>
-                <div style={{
-                  height: 6, borderRadius: 3,
-                  background: done === total
-                    ? "hsl(var(--admin-sage))"
-                    : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-                  width: `${(done / total) * 100}%`,
-                  transition: "width 0.4s ease",
-                }} />
+              <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>
+                📈 Increase Your Score
+              </p>
+              <div
+                style={{
+                  backgroundColor: "hsl(var(--admin-surface-2))",
+                  borderRadius: 6,
+                  padding: "4px",
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    height: 6,
+                    borderRadius: 3,
+                    background:
+                      done === total
+                        ? "hsl(var(--admin-sage))"
+                        : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                    width: `${(done / total) * 100}%`,
+                    transition: "width 0.4s ease",
+                  }}
+                />
               </div>
-              <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginBottom: 10, textAlign: "right" }}>
+              <p
+                className="font-body"
+                style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginBottom: 10, textAlign: "right" }}
+              >
                 {done}/{total} completed
               </p>
               {seoCriteria.map((c, i) => (
                 <div key={i} className="flex items-start gap-2" style={{ marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, lineHeight: "18px", flexShrink: 0, color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-text-ghost))" }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      lineHeight: "18px",
+                      flexShrink: 0,
+                      color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-text-ghost))",
+                    }}
+                  >
                     {c.done ? "✓" : "○"}
                   </span>
-                  <span className="font-body" style={{ fontSize: 11, lineHeight: "18px", flex: 1, color: c.done ? "hsl(var(--admin-text-ghost))" : "hsl(var(--admin-text-soft))", textDecoration: c.done ? "line-through" : "none" }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 11,
+                      lineHeight: "18px",
+                      flex: 1,
+                      color: c.done ? "hsl(var(--admin-text-ghost))" : "hsl(var(--admin-text-soft))",
+                      textDecoration: c.done ? "line-through" : "none",
+                    }}
+                  >
                     {c.label}
                   </span>
-                  <span className="font-body" style={{ fontSize: 9, lineHeight: "18px", color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))", fontWeight: 600 }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 9,
+                      lineHeight: "18px",
+                      color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))",
+                      fontWeight: 600,
+                    }}
+                  >
                     {c.done ? "✓" : c.points}
                   </span>
                 </div>
@@ -513,9 +647,15 @@ const GeneratedPageEditor = () => {
               style={{ fontSize: 13 }}
             >
               {aiGenerating ? (
-                <><Loader2 size={14} className="animate-spin" />Generating...</>
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Generating...
+                </>
               ) : (
-                <><Sparkles size={14} />Generate SEO</>
+                <>
+                  <Sparkles size={14} />
+                  Generate SEO
+                </>
               )}
             </button>
 
@@ -530,14 +670,33 @@ const GeneratedPageEditor = () => {
                     ? "hsl(var(--admin-surface-2))"
                     : "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
                   color: enhancing ? "hsl(var(--admin-text-ghost))" : "#fff",
-                  border: "none", borderRadius: 6, padding: "10px 16px", fontSize: 13, fontWeight: 600,
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: enhancing ? "not-allowed" : "pointer",
                 }}
               >
                 {enhancing ? (
-                  <><Loader2 size={14} className="animate-spin" />Enhancing...</>
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Enhancing...
+                  </>
                 ) : (
-                  <>📈 Increase Score <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{seoScore}%</span></>
+                  <>
+                    📈 Increase Score{" "}
+                    <span
+                      style={{
+                        background: "rgba(255,255,255,0.2)",
+                        borderRadius: 12,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                      }}
+                    >
+                      {seoScore}%
+                    </span>
+                  </>
                 )}
               </button>
             )}
@@ -546,7 +705,9 @@ const GeneratedPageEditor = () => {
           {/* Quality score */}
           <div className="admin-card" style={{ padding: 20 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <label className="admin-label" style={{ marginBottom: 0 }}>Quality Score</label>
+              <label className="admin-label" style={{ marginBottom: 0 }}>
+                Quality Score
+              </label>
               <button
                 onClick={async () => {
                   setScoring(true);
@@ -580,9 +741,12 @@ const GeneratedPageEditor = () => {
             </div>
             <div className="flex items-center gap-2">
               <input
-                type="number" step="0.1" value={qualityScore}
+                type="number"
+                step="0.1"
+                value={qualityScore}
                 onChange={(e) => setQualityScore(e.target.value)}
-                placeholder="—" className="admin-input font-body w-full"
+                placeholder="—"
+                className="admin-input font-body w-full"
               />
               {qualityScore && (
                 <span style={{ flexShrink: 0 }}>
@@ -598,7 +762,9 @@ const GeneratedPageEditor = () => {
 
           {/* Info */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label" style={{ marginBottom: 12 }}>Info</label>
+            <label className="admin-label" style={{ marginBottom: 12 }}>
+              Info
+            </label>
             <div className="flex flex-col gap-2">
               {[
                 ["Niche", niche?.name || "—"],
@@ -610,8 +776,15 @@ const GeneratedPageEditor = () => {
                 ["Refresh Count", String(page.refresh_count ?? 0)],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between">
-                  <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>{label}</span>
-                  <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))", fontWeight: 500 }}>{value}</span>
+                  <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+                    {label}
+                  </span>
+                  <span
+                    className="font-body"
+                    style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))", fontWeight: 500 }}
+                  >
+                    {value}
+                  </span>
                 </div>
               ))}
             </div>
@@ -624,7 +797,9 @@ const GeneratedPageEditor = () => {
               className="flex items-center justify-between w-full"
               style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
             >
-              <span className="admin-label" style={{ marginBottom: 0 }}>SEO Meta</span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                SEO Meta
+              </span>
               {seoOpen ? (
                 <ChevronUp size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
               ) : (
@@ -634,35 +809,81 @@ const GeneratedPageEditor = () => {
             {seoOpen && (
               <div className="flex flex-col gap-3" style={{ marginTop: 12 }}>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>Meta Title</label>
-                  <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} className="admin-input font-body w-full" />
-                  <span className="font-body" style={{ fontSize: 10, color: metaTitle.length > 60 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))" }}>
+                  <label className="admin-label" style={{ fontSize: 10 }}>
+                    Meta Title
+                  </label>
+                  <input
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
+                    className="admin-input font-body w-full"
+                  />
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 10,
+                      color: metaTitle.length > 60 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))",
+                    }}
+                  >
                     {metaTitle.length}/60
                   </span>
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>Meta Description</label>
-                  <textarea value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} className="admin-input font-body w-full" rows={3} style={{ resize: "vertical" }} />
-                  <span className="font-body" style={{ fontSize: 10, color: metaDesc.length > 160 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))" }}>
+                  <label className="admin-label" style={{ fontSize: 10 }}>
+                    Meta Description
+                  </label>
+                  <textarea
+                    value={metaDesc}
+                    onChange={(e) => setMetaDesc(e.target.value)}
+                    className="admin-input font-body w-full"
+                    rows={3}
+                    style={{ resize: "vertical" }}
+                  />
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 10,
+                      color: metaDesc.length > 160 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))",
+                    }}
+                  >
                     {metaDesc.length}/160
                   </span>
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>Keywords</label>
-                  <input value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="comma, separated, keywords" className="admin-input font-body w-full" />
+                  <label className="admin-label" style={{ fontSize: 10 }}>
+                    Keywords
+                  </label>
+                  <input
+                    value={metaKeywords}
+                    onChange={(e) => setMetaKeywords(e.target.value)}
+                    placeholder="comma, separated, keywords"
+                    className="admin-input font-body w-full"
+                  />
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>OG Image URL</label>
+                  <label className="admin-label" style={{ fontSize: 10 }}>
+                    OG Image URL
+                  </label>
                   <div className="flex gap-2">
-                    <input value={ogImage} onChange={(e) => setOgImage(e.target.value)} placeholder="https://..." className="admin-input font-body w-full" />
+                    <input
+                      value={ogImage}
+                      onChange={(e) => setOgImage(e.target.value)}
+                      placeholder="https://..."
+                      className="admin-input font-body w-full"
+                    />
                     <button
                       onClick={async () => {
                         setGeneratingOg(true);
                         try {
-                          const { data, error } = await supabase.functions.invoke("generate-og-image", { body: { page_id: id } });
+                          const { data, error } = await supabase.functions.invoke("generate-og-image", {
+                            body: { page_id: id },
+                          });
                           if (error || data?.error) throw new Error(error?.message || data?.error);
                           // Refetch page to get updated og_image
-                          const { data: updated } = await supabase.from("generated_pages").select("seo_meta").eq("id", id!).single();
+                          const { data: updated } = await supabase
+                            .from("generated_pages")
+                            .select("seo_meta")
+                            .eq("id", id!)
+                            .single();
                           const newOg = (updated?.seo_meta as any)?.og_image || "";
                           setOgImage(newOg);
                           toast({ title: "OG image generated!" });
@@ -681,7 +902,16 @@ const GeneratedPageEditor = () => {
                     </button>
                   </div>
                   {ogImage && (
-                    <img src={ogImage} alt="OG preview" style={{ marginTop: 8, width: "100%", borderRadius: 4, border: "1px solid hsl(var(--admin-border))" }} />
+                    <img
+                      src={ogImage}
+                      alt="OG preview"
+                      style={{
+                        marginTop: 8,
+                        width: "100%",
+                        borderRadius: 4,
+                        border: "1px solid hsl(var(--admin-border))",
+                      }}
+                    />
                   )}
                 </div>
               </div>
@@ -690,7 +920,9 @@ const GeneratedPageEditor = () => {
 
           {/* Regenerate */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label" style={{ marginBottom: 8 }}>Regenerate</label>
+            <label className="admin-label" style={{ marginBottom: 8 }}>
+              Regenerate
+            </label>
             <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
               Re-generate content using AI. The slug and URL will stay the same.
             </p>

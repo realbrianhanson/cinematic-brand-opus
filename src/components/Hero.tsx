@@ -170,7 +170,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             lineHeight: 0.95,
             margin: 0,
           }}
-          aria-label="A.I. Doesn't Replace People. It Replaces Inefficiency."
+          aria-label="AI Doesn't Replace People. It Replaces Inefficiency."
         >
           {headlineLines.map((line, i) => (
             <span
