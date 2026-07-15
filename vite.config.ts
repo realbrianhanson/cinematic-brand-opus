@@ -34,7 +34,8 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("@tanstack/react-query")) return "react-query";
           if (id.includes("@supabase")) return "supabase";
           if (id.includes("react-router")) return "router";
-          if (id.includes("recharts") || id.includes("d3-")) return "charts";
+          // Note: don't split recharts/d3 — their internal circular imports
+          // trigger a TDZ ReferenceError when bundled into a separate chunk.
           if (id.includes("lucide-react")) return "icons";
           if (id.includes("framer-motion")) return "motion";
           if (id.includes("react-helmet-async")) return "helmet";
