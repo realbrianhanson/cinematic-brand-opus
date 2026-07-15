@@ -146,8 +146,13 @@ const News = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const bucket = BUCKETS.find((b) => b.value === lane) ?? BUCKETS[0];
+    const allowedLanes = new Set(bucket.lanes);
     return (newsItems || []).filter((n: any) => {
-      if (lane !== "all" && n.topic_lane !== lane) return false;
+      // Global on-brand gate: AI / Marketing / Sales only
+      if (!isOnBrand(n)) return false;
+      // Bucket filter
+      if (lane !== "all" && !allowedLanes.has(n.topic_lane)) return false;
       if (!q) return true;
       const hay = `${n.ai_title || ""} ${n.title || ""} ${n.ai_summary || ""} ${n.raw_excerpt || ""} ${sourceName(n)}`.toLowerCase();
       return hay.includes(q);
