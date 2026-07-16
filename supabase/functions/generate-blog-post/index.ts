@@ -339,6 +339,19 @@ Return valid JSON ONLY with these fields:
       console.error("Refine pipeline threw:", e.message);
     }
 
+    // Auto-link mentions of the free 3-day virtual training to the tracked CTA URL.
+    try {
+      const { data: ctaSettings } = await supabaseAdmin
+        .from("site_settings")
+        .select("cta_url")
+        .limit(1)
+        .maybeSingle();
+      if (result.content) result.content = linkifyEventMentions(result.content, ctaSettings?.cta_url);
+      if (result.excerpt) result.excerpt = linkifyEventMentions(result.excerpt, ctaSettings?.cta_url, { maxLinks: 1 });
+    } catch (e: any) {
+      console.warn("linkifyEventMentions failed:", e?.message);
+    }
+
     // Compute quality score for the finalized post
     const { score: qualityScore, issues: qualityIssues } = scorePost({
       title: result.title,
