@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const MAX_DRAFTS_PER_RUN = 5;
+const MAX_DRAFTS_PER_RUN = 6;
 const MAX_ATTEMPTS = 3;
 
 async function invoke(fn: string, body: any = {}): Promise<any> {
