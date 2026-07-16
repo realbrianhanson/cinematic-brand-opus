@@ -21,6 +21,7 @@ const corsHeaders = {
 };
 
 const ORIGINALITY_MAX_SIM = 0.82;
+const FRESHNESS_MAX_HOURS = 96;
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
@@ -224,6 +225,15 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   const freshness_hours = newest ? Math.round((Date.now() - newest) / 3600_000) : 999;
 
   // Hard gates
+  if (freshness_hours > FRESHNESS_MAX_HOURS && opp.brief?.evergreen !== true) {
+    await supabase.from("content_opportunities").update({
+      status: "rejected",
+      reject_reason: `sources too old (${freshness_hours}h > ${FRESHNESS_MAX_HOURS}h)`,
+    }).eq("id", opportunity_id);
+    return new Response(JSON.stringify({ error: "rejected: freshness", freshness_hours }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   if (maxSim > ORIGINALITY_MAX_SIM) {
     await supabase.from("content_opportunities").update({
       status: "rejected",
