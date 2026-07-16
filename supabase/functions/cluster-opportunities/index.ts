@@ -124,6 +124,7 @@ You will receive candidate news clusters from the last 72 hours. Pick UP TO 5 th
 - Are pure model-release recaps with no small-business angle
 - Are speculation/opinion pieces without concrete news
 - Are older than ~3 days with no new development
+Higher engagement means real people care about this topic right now; weight it accordingly.
 
 For each chosen cluster, return:
 - angle: the specific take Brian would bring (1 sentence)
