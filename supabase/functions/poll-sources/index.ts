@@ -178,6 +178,7 @@ async function fetchPerplexityDigest(
   } catch (e) {
     console.warn("Perplexity digest threw", e);
     return [];
+  }
 }
 
 async function fetchReddit(subreddit: string): Promise<Item[]> {
