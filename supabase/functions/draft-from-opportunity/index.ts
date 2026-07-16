@@ -304,6 +304,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     source_citations: sources,
     originality_score,
     freshness_hours,
+    embedding: draftVec ? toPgVector(draftVec) : null,
   }).select().single();
 
   if (postErr) {
