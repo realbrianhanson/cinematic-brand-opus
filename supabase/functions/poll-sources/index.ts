@@ -236,7 +236,6 @@ async function fetchHackerNews(query: string): Promise<Item[]> {
     return [];
   }
 }
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
