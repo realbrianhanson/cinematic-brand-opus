@@ -13,6 +13,7 @@ import {
   lintJson,
   scorePost,
 } from "../_shared/voice.ts";
+import { linkifyEventMentions } from "../_shared/eventLink.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
