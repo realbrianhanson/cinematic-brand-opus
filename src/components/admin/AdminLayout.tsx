@@ -71,7 +71,7 @@ const AdminLayout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 lg:translate-x-0 ${
+        className={`fixed lg:sticky lg:top-0 inset-y-0 lg:inset-y-auto left-0 z-50 flex flex-col h-screen transition-all duration-300 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{
