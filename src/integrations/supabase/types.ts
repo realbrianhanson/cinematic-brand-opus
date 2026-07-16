@@ -1063,6 +1063,7 @@ export type Database = {
           ai_title: string | null
           author: string | null
           embedding: string | null
+          engagement_score: number
           fetched_at: string
           full_content: string | null
           full_content_generated_at: string | null
@@ -1082,6 +1083,7 @@ export type Database = {
           ai_title?: string | null
           author?: string | null
           embedding?: string | null
+          engagement_score?: number
           fetched_at?: string
           full_content?: string | null
           full_content_generated_at?: string | null
@@ -1101,6 +1103,7 @@ export type Database = {
           ai_title?: string | null
           author?: string | null
           embedding?: string | null
+          engagement_score?: number
           fetched_at?: string
           full_content?: string | null
           full_content_generated_at?: string | null
