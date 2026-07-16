@@ -1082,6 +1082,7 @@ export type Database = {
           published_at: string | null
           raw_excerpt: string | null
           source_id: string | null
+          source_name: string | null
           status: string
           title: string | null
           topic_lane: string | null
@@ -1102,6 +1103,7 @@ export type Database = {
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null
+          source_name?: string | null
           status?: string
           title?: string | null
           topic_lane?: string | null
@@ -1122,6 +1124,7 @@ export type Database = {
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null
+          source_name?: string | null
           status?: string
           title?: string | null
           topic_lane?: string | null
