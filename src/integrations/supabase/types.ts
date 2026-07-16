@@ -816,6 +816,8 @@ export type Database = {
           created_at: string
           embedding: string | null
           excerpt: string | null
+          fact_check: Json | null
+          fact_checked_at: string | null
           faq_items: Json | null
           featured_image: string | null
           featured_image_alt: string | null
@@ -846,6 +848,8 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           excerpt?: string | null
+          fact_check?: Json | null
+          fact_checked_at?: string | null
           faq_items?: Json | null
           featured_image?: string | null
           featured_image_alt?: string | null
@@ -876,6 +880,8 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           excerpt?: string | null
+          fact_check?: Json | null
+          fact_checked_at?: string | null
           faq_items?: Json | null
           featured_image?: string | null
           featured_image_alt?: string | null

@@ -34,6 +34,7 @@ type QueuedPost = {
   source_citations: any;
   opportunity_id: string | null;
   created_at: string;
+  fact_check: any;
 };
 
 type SourceItem = {
@@ -79,7 +80,7 @@ export default function ContentQueue() {
     const [{ data: oppData }, { data: postData }, { data: itemData }] = await Promise.all([
       supabase.from("content_opportunities").select("*")
         .order("created_at", { ascending: false }).limit(80),
-      supabase.from("posts").select("id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at")
+      supabase.from("posts").select("id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at, fact_check")
         .eq("status", "draft").not("opportunity_id", "is", null)
         .order("created_at", { ascending: false }).limit(30),
       supabase.from("source_items").select("id, url, title, topic_lane, status, published_at, fetched_at")
@@ -261,12 +262,19 @@ export default function ContentQueue() {
           No drafts waiting. The pipeline runs every 30 minutes; new drafts will appear here automatically.
         </div>
       )}
-      {queued.map((p) => (
+      {queued.map((p) => {
+        const fc = p.fact_check as any;
+        const hasFc = fc && typeof fc === "object" && Array.isArray(fc.claims);
+        const totalClaims = hasFc ? fc.claims.length : 0;
+        const badClaims = hasFc ? ((fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)) : 0;
+        const factsAmber = hasFc && badClaims > 0;
+        const oneClickReady = (p.quality_score ?? 0) >= 85 && !factsAmber;
+        return (
         <div key={p.id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}>{p.title}</div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8, alignItems: "center" }}>
                 <span>Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong></span>
                 <span>Originality: <strong>{p.originality_score ?? "—"}%</strong></span>
                 <span>Fresh: <strong>{p.freshness_hours ?? "—"}h</strong></span>
@@ -274,6 +282,17 @@ export default function ContentQueue() {
                 <span>Created {timeAgo(p.created_at)}</span>
                 {Array.isArray(p.lint_flags) && p.lint_flags.length > 0 && (
                   <span style={{ color: "hsl(var(--admin-danger))" }}>Lint: {p.lint_flags.length}</span>
+                )}
+                {hasFc && (
+                  factsAmber ? (
+                    <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(38 80% 20%)", color: "hsl(38 90% 70%)", border: "1px solid hsl(38 60% 40%)", fontWeight: 600 }}>
+                      {badClaims} claims unverified
+                    </span>
+                  ) : (
+                    <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(140 40% 18%)", color: "hsl(140 70% 70%)", border: "1px solid hsl(140 40% 35%)", fontWeight: 600 }}>
+                      Facts verified {fc.verified_count ?? 0}/{totalClaims}
+                    </span>
+                  )
                 )}
               </div>
             </div>
@@ -283,13 +302,14 @@ export default function ContentQueue() {
                 <Edit3 size={12} /> Edit
               </button>
               <button onClick={() => publish(p.id, p.opportunity_id)}
-                style={{ padding: "8px 12px", background: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${(p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: (p.quality_score ?? 0) >= 85 ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                 <CheckCircle2 size={12} /> Publish
               </button>
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Opportunities pipeline */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>

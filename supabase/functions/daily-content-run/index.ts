@@ -81,7 +81,16 @@ Deno.serve(async (req) => {
   log.steps.drafts = [];
   for (const opp of queue || []) {
     const draft = await invoke("draft-from-opportunity", { opportunity_id: opp.id });
-    log.steps.drafts.push({ opportunity_id: opp.id, status: draft.status, ...draft.data });
+    const entry: any = { opportunity_id: opp.id, status: draft.status, ...draft.data };
+    if (draft.status >= 200 && draft.status < 300 && draft.data?.post_id) {
+      try {
+        const fc = await invoke("fact-check", { post_id: draft.data.post_id });
+        entry.fact_check_status = fc.status;
+      } catch (e: any) {
+        entry.fact_check_status = 0;
+      }
+    }
+    log.steps.drafts.push(entry);
     // If it failed non-terminally (server error), leave for next cron pass.
     if (draft.status >= 500) {
       await supabase.from("content_opportunities").update({
