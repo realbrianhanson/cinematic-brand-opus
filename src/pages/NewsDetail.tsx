@@ -74,7 +74,7 @@ const laneLabel = (lane?: string | null) => {
 };
 
 const sourceName = (n: any): string => {
-  if (n?.content_sources?.name) return n.content_sources.name;
+  if (n?.source_name) return n.source_name;
   try {
     return new URL(n.url).hostname.replace(/^www\./, "");
   } catch {
