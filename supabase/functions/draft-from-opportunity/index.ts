@@ -14,6 +14,7 @@ import {
   scorePost,
 } from "../_shared/voice.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
+import { generateFeaturedImage } from "../_shared/featuredImage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -295,6 +296,14 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   const { data: slugTaken } = await supabase.from("posts").select("id").eq("slug", slug).maybeSingle();
   if (slugTaken) slug = `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
 
+  // Featured image (tolerate null)
+  const featuredImageUrl = await generateFeaturedImage(
+    draft.title || opp.target_keyword || "Brian Hanson post",
+    draft.excerpt || draft.meta_description || opp.angle || "",
+    lovableKey,
+    supabase,
+  );
+
   const { data: post, error: postErr } = await supabase.from("posts").insert({
     title: draft.title,
     slug,
@@ -304,6 +313,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     key_takeaways: draft.key_takeaways,
     faq_items: draft.faq_items,
     featured_image_alt: draft.featured_image_alt,
+    featured_image: featuredImageUrl,
     status: "draft",
     quality_score,
     lint_flags: lintFlags,
