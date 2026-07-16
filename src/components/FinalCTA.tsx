@@ -96,10 +96,21 @@ const FinalCTA = () => {
                 background: "linear-gradient(135deg, #D4AF55, #B8962E)",
                 color: "#07070E",
               }}
+              disabled={status === "loading"}
             >
-              Subscribe
+              {status === "loading" ? "…" : "Subscribe"}
             </button>
           </form>
+
+          {message && (
+            <p
+              className="font-body mb-4"
+              style={{ fontSize: 13, color: status === "error" ? "#ff8080" : "#D4AF55" }}
+            >
+              {message}
+            </p>
+          )}
+
 
           <div className="flex justify-center gap-6 flex-wrap">
             {[
