@@ -73,6 +73,9 @@ const App = () => (
             <Route path="/resources/:contentType" element={<Suspense fallback={<PublicPageSkeleton />}><ContentTypeList /></Suspense>} />
             <Route path="/resources/:contentType/:pageSlug" element={<Suspense fallback={<PublicPageSkeleton />}><GeneratedPage /></Suspense>} />
             <Route path="/sitemap" element={<Suspense fallback={<PublicPageSkeleton />}><HTMLSitemap /></Suspense>} />
+            <Route path="/newsletter/confirmed" element={<Suspense fallback={<PublicPageSkeleton />}><NewsletterStatus /></Suspense>} />
+            <Route path="/newsletter/unsubscribed" element={<Suspense fallback={<PublicPageSkeleton />}><NewsletterStatus /></Suspense>} />
+            <Route path="/newsletter/invalid" element={<Suspense fallback={<PublicPageSkeleton />}><NewsletterStatus /></Suspense>} />
             <Route path="/admin/login" element={<Suspense fallback={<PublicPageSkeleton />}><AdminLogin /></Suspense>} />
             <Route
               path="/admin"
