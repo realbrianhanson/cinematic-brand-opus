@@ -112,7 +112,7 @@ const NewsDetail = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("source_items")
-        .select("id, title, image_url, topic_lane, published_at, content_sources(name), url")
+        .select("id, title, image_url, topic_lane, published_at, source_name, url")
         .eq("topic_lane", item!.topic_lane!)
         .eq("status", "published")
         .neq("id", id!)
