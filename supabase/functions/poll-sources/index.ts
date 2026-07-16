@@ -161,12 +161,22 @@ async function fetchPerplexityDigest(
     const items: Item[] = [];
     const lines = content.split("\n").filter((l) => l.trim());
     for (const c of citations.slice(0, 5)) {
-      // Find a line containing that URL or the domain
-      const domain = new URL(c).hostname.replace(/^www\./, "");
+      if (!c || !/^https?:\/\//i.test(c)) continue;
+      let domain: string;
+      try {
+        domain = new URL(c).hostname.replace(/^www\./, "");
+      } catch {
+        continue;
+      }
       const line = lines.find((l) => l.includes(c) || l.toLowerCase().includes(domain));
-      const title = line
+      let title = line
         ? line.replace(c, "").replace(/^[-*\d.\s]+/, "").replace(/\[.*?\]/g, "").slice(0, 200).trim()
         : undefined;
+      if (title) {
+        title = title.replace(/^[\s*`:\-]+/, "").replace(/[\s*`:\-]+$/, "").trim();
+      }
+      if (!title || title.trim().length < 15) continue;
+      if (/source url|^\W+$|```/i.test(title)) continue;
       items.push({
         url: c,
         title,
@@ -285,6 +295,10 @@ Deno.serve(async (req) => {
 
     let inserted = 0;
     for (const item of fresh.slice(0, 15)) {
+      // Final safety filter: title/url integrity for all source kinds
+      if (!item.url || !/^https?:\/\//i.test(item.url)) continue;
+      if (!item.title || item.title.trim().length < 15) continue;
+
       // Skip if url already exists
       const { data: existing } = await supabase
         .from("source_items")
