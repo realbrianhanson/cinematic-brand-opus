@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
   const { data: itemsRaw, error } = await supabase
     .from("source_items")
-    .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding")
+    .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding, engagement_score")
     .eq("pipeline_status", "new")
     .gte("published_at", cutoff)
     .not("published_at", "is", null)
