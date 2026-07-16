@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
     .from("source_items")
     .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding")
     .eq("pipeline_status", "new")
-    .gte("fetched_at", cutoff)
+    .gte("published_at", cutoff)
+    .not("published_at", "is", null)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(60);
   if (error) {
@@ -119,6 +120,7 @@ You will receive candidate news clusters from the last 72 hours. Pick UP TO 5 th
 - Duplicate a title Brian has already covered in the last 60 posts
 - Are pure model-release recaps with no small-business angle
 - Are speculation/opinion pieces without concrete news
+- Are older than ~3 days with no new development
 
 For each chosen cluster, return:
 - angle: the specific take Brian would bring (1 sentence)
