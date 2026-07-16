@@ -34,6 +34,7 @@ type QueuedPost = {
   source_citations: any;
   opportunity_id: string | null;
   created_at: string;
+  fact_check: any;
 };
 
 type SourceItem = {
