@@ -814,6 +814,7 @@ export type Database = {
           category_id: string | null
           content: string | null
           created_at: string
+          embedding: string | null
           excerpt: string | null
           faq_items: Json | null
           featured_image: string | null
@@ -843,6 +844,7 @@ export type Database = {
           category_id?: string | null
           content?: string | null
           created_at?: string
+          embedding?: string | null
           excerpt?: string | null
           faq_items?: Json | null
           featured_image?: string | null
@@ -872,6 +874,7 @@ export type Database = {
           category_id?: string | null
           content?: string | null
           created_at?: string
+          embedding?: string | null
           excerpt?: string | null
           faq_items?: Json | null
           featured_image?: string | null
@@ -1215,6 +1218,20 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      match_posts: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          id: string
+          similarity: number
+        }[]
+      }
+      match_source_items: {
+        Args: { match_count?: number; query_embedding: string; since?: string }
+        Returns: {
+          id: string
+          similarity: number
+        }[]
+      }
       top_pages_by_views: {
         Args: { limit_count?: number }
         Returns: {
