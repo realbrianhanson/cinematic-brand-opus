@@ -97,7 +97,7 @@ const NewsDetail = () => {
       const { data, error } = await supabase
         .from("source_items")
         .select(
-          "id, title, url, raw_excerpt, image_url, topic_lane, published_at, full_content, ai_title, ai_summary, content_sources(name)",
+          "id, title, url, raw_excerpt, image_url, topic_lane, published_at, full_content, ai_title, ai_summary, source_name",
         )
         .eq("id", id!)
         .maybeSingle();
