@@ -3,7 +3,7 @@
 // Result is saved as a DRAFT post linked to the opportunity (opportunity.status='queued').
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
-import { embedText, cosineSim } from "../_shared/embeddings.ts";
+import { embedText, cosineSim, toPgVector } from "../_shared/embeddings.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
 import {
   loadVoiceConfig,
