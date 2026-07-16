@@ -270,6 +270,10 @@ Deno.serve(async (req) => {
       items = await fetchRss(src.url);
     } else if (src.kind === "perplexity_topic" && perplexityKey) {
       items = await fetchPerplexityDigest(src.topic_lane, perplexityKey);
+    } else if (src.kind === "reddit" && src.url) {
+      items = await fetchReddit(src.url);
+    } else if (src.kind === "hackernews" && src.url) {
+      items = await fetchHackerNews(src.url);
     }
     totalScanned += items.length;
 
