@@ -21,6 +21,7 @@ interface SourceItem {
   topic_lane: string | null;
   published_at: string | null;
   embedding: number[] | null;
+  engagement_score: number | null;
 }
 
 function parseVec(v: any): number[] | null {
