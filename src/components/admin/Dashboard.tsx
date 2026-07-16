@@ -218,6 +218,11 @@ const Dashboard = () => {
             <span className="font-body block" style={{ fontSize: 32, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
               {s.value}
             </span>
+            {"subLabel" in s && s.subLabel ? (
+              <span className="font-body block" style={{ fontSize: 11, marginTop: 4, color: "hsl(var(--admin-text-soft))" }}>
+                {s.subLabel}
+              </span>
+            ) : null}
           </div>
         ))}
       </div>
