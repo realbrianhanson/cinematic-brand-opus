@@ -13,6 +13,7 @@ import {
   lintJson,
   scorePost,
 } from "../_shared/voice.ts";
+import { linkifyEventMentions } from "../_shared/eventLink.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -193,6 +194,15 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   } catch (err: any) {
     console.warn("critique/lint threw", err?.message);
   }
+
+  // Auto-link mentions of the free 3-day virtual training to the tracked CTA URL.
+  const { data: ctaSettings } = await supabase
+    .from("site_settings")
+    .select("cta_url")
+    .limit(1)
+    .maybeSingle();
+  if (draft.content) draft.content = linkifyEventMentions(draft.content, ctaSettings?.cta_url);
+  if (draft.excerpt) draft.excerpt = linkifyEventMentions(draft.excerpt, ctaSettings?.cta_url, { maxLinks: 1 });
 
   const lintFlags = lintJson(draft, voice.banned_phrases);
   const { score: quality_score } = scorePost({
