@@ -293,9 +293,6 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     tldr: draft.tldr,
     key_takeaways: draft.key_takeaways,
     faq_items: draft.faq_items,
-    meta_title: draft.meta_title,
-    meta_description: draft.meta_description,
-    keywords: draft.keywords,
     featured_image_alt: draft.featured_image_alt,
     status: "draft",
     quality_score,
@@ -312,6 +309,21 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
       status: "rejected", reject_reason: `post insert failed: ${postErr.message}`,
     }).eq("id", opportunity_id);
     return new Response(JSON.stringify({ error: postErr.message }), { status: 500, headers: corsHeaders });
+  }
+
+  // Persist SEO metadata to its own table (tolerate failure gracefully)
+  try {
+    const keywordArray = draft.keywords
+      ? String(draft.keywords).split(",").map((k: string) => k.trim()).filter(Boolean)
+      : null;
+    await supabase.from("seo_metadata").insert({
+      post_id: post.id,
+      meta_title: draft.meta_title || null,
+      meta_description: draft.meta_description || null,
+      keywords: keywordArray,
+    });
+  } catch (seoErr: any) {
+    console.warn("seo_metadata insert failed", seoErr?.message);
   }
 
   await supabase.from("content_opportunities").update({ status: "queued" }).eq("id", opportunity_id);
