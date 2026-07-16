@@ -74,7 +74,7 @@ const laneLabel = (lane?: string | null) => {
 };
 
 const sourceName = (n: any): string => {
-  if (n?.content_sources?.name) return n.content_sources.name;
+  if (n?.source_name) return n.source_name;
   try {
     return new URL(n.url).hostname.replace(/^www\./, "");
   } catch {
@@ -97,7 +97,7 @@ const NewsDetail = () => {
       const { data, error } = await supabase
         .from("source_items")
         .select(
-          "id, title, url, raw_excerpt, image_url, topic_lane, published_at, full_content, ai_title, ai_summary, content_sources(name)",
+          "id, title, url, raw_excerpt, image_url, topic_lane, published_at, full_content, ai_title, ai_summary, source_name",
         )
         .eq("id", id!)
         .maybeSingle();
@@ -112,7 +112,7 @@ const NewsDetail = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("source_items")
-        .select("id, title, image_url, topic_lane, published_at, content_sources(name), url")
+        .select("id, title, image_url, topic_lane, published_at, source_name, url")
         .eq("topic_lane", item!.topic_lane!)
         .eq("status", "published")
         .neq("id", id!)
