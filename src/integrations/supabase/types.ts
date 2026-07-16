@@ -971,6 +971,9 @@ export type Database = {
           author_name: string
           author_social_links: Json | null
           author_title: string | null
+          auto_publish_daily_cap: number
+          auto_publish_enabled: boolean
+          auto_publish_min_quality: number
           banned_phrases: string[] | null
           cta_button_text: string | null
           cta_headline: string | null
@@ -993,6 +996,9 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
+          auto_publish_daily_cap?: number
+          auto_publish_enabled?: boolean
+          auto_publish_min_quality?: number
           banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null
@@ -1015,6 +1021,9 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
+          auto_publish_daily_cap?: number
+          auto_publish_enabled?: boolean
+          auto_publish_min_quality?: number
           banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null

@@ -72,5 +72,8 @@ verify_jwt = false
 [functions.fact-check]
 verify_jwt = false
 
+[functions.auto-publish-gate]
+verify_jwt = false
+
 
 
