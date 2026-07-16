@@ -75,5 +75,14 @@ verify_jwt = false
 [functions.auto-publish-gate]
 verify_jwt = false
 
+[functions.newsletter-subscribe]
+verify_jwt = false
+
+[functions.newsletter-confirm]
+verify_jwt = false
+
+[functions.newsletter-unsubscribe]
+verify_jwt = false
+
 
 
