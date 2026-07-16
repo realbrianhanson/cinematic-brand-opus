@@ -311,6 +311,21 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     return new Response(JSON.stringify({ error: postErr.message }), { status: 500, headers: corsHeaders });
   }
 
+  // Persist SEO metadata to its own table (tolerate failure gracefully)
+  try {
+    const keywordArray = draft.keywords
+      ? String(draft.keywords).split(",").map((k: string) => k.trim()).filter(Boolean)
+      : null;
+    await supabase.from("seo_metadata").insert({
+      post_id: post.id,
+      meta_title: draft.meta_title || null,
+      meta_description: draft.meta_description || null,
+      keywords: keywordArray,
+    });
+  } catch (seoErr: any) {
+    console.warn("seo_metadata insert failed", seoErr?.message);
+  }
+
   await supabase.from("content_opportunities").update({ status: "queued" }).eq("id", opportunity_id);
   if (matchedNote) {
     await supabase.from("expert_notes").update({ used_in_post_id: post.id }).eq("id", matchedNote.id);
