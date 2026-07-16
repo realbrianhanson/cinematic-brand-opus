@@ -263,7 +263,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   if (maxSim > ORIGINALITY_MAX_SIM) {
     await supabase.from("content_opportunities").update({
       status: "rejected",
-      reject_reason: `originality too low (max similarity ${maxSim.toFixed(2)})`,
+      reject_reason: `originality too low (max similarity ${maxSim.toFixed(2)} vs ${simSource})`,
     }).eq("id", opportunity_id);
     return new Response(JSON.stringify({ error: "rejected: originality", maxSim }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
