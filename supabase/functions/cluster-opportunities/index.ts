@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     idx: i,
     topic_lane: s.lane,
     items: s.cluster.slice(0, 4).map((it) => ({
-      title: it.title, url: it.url, excerpt: it.raw_excerpt?.slice(0, 300),
+      title: it.title, url: it.url, excerpt: it.raw_excerpt?.slice(0, 300), engagement: it.engagement_score ?? 0,
     })),
   }));
 
