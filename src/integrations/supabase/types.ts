@@ -1059,6 +1059,7 @@ export type Database = {
           full_content_generated_at: string | null
           id: string
           image_url: string | null
+          pipeline_status: string
           published_at: string | null
           raw_excerpt: string | null
           source_id: string | null
@@ -1077,6 +1078,7 @@ export type Database = {
           full_content_generated_at?: string | null
           id?: string
           image_url?: string | null
+          pipeline_status?: string
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null
@@ -1095,6 +1097,7 @@ export type Database = {
           full_content_generated_at?: string | null
           id?: string
           image_url?: string | null
+          pipeline_status?: string
           published_at?: string | null
           raw_excerpt?: string | null
           source_id?: string | null

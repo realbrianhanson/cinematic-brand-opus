@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
   const { data: itemsRaw, error } = await supabase
     .from("source_items")
     .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding")
-    .eq("status", "new")
+    .eq("pipeline_status", "new")
     .gte("fetched_at", cutoff)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(60);
@@ -183,7 +183,7 @@ If none qualify, return { "picks": [] }.`;
     if (oppErr) { console.warn("opp insert failed", oppErr.message); continue; }
     created.push(oppRow);
     // Mark used
-    await supabase.from("source_items").update({ status: "used" }).in("id", ids);
+    await supabase.from("source_items").update({ pipeline_status: "used" }).in("id", ids);
   }
 
   return new Response(
