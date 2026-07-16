@@ -89,6 +89,12 @@ Deno.serve(async (req) => {
       } catch (e: any) {
         entry.fact_check_status = 0;
       }
+      try {
+        const gate = await invoke("auto-publish-gate", { post_id: draft.data.post_id });
+        entry.auto_publish = { status: gate.status, ...gate.data };
+      } catch (e: any) {
+        entry.auto_publish = { status: 0, error: e?.message };
+      }
     }
     log.steps.drafts.push(entry);
     // If it failed non-terminally (server error), leave for next cron pass.
