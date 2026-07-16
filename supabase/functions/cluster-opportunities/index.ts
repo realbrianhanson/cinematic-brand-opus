@@ -100,7 +100,9 @@ Deno.serve(async (req) => {
     const recencyBoost = Math.max(0, 72 - ageHours) / 72; // 0..1
     const lane = c[0].topic_lane || "ai_tools";
     const weight = laneWeights[lane] || 1.0;
-    return { cluster: c, score: (size * 2 + recencyBoost * 3) * weight, lane, ageHours };
+    const eng = Math.max(...c.map((i) => i.engagement_score || 0));
+    const engBoost = Math.min(1, Math.log10(1 + eng) / 3);
+    return { cluster: c, score: (size * 2 + recencyBoost * 3 + engBoost * 2) * weight, lane, ageHours };
   }).sort((a, b) => b.score - a.score);
 
   // Take top 8 candidates → ask the LLM to pick up to 5 Brian would write about
