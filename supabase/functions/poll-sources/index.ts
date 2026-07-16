@@ -295,6 +295,10 @@ Deno.serve(async (req) => {
 
     let inserted = 0;
     for (const item of fresh.slice(0, 15)) {
+      // Final safety filter: title/url integrity for all source kinds
+      if (!item.url || !/^https?:\/\//i.test(item.url)) continue;
+      if (!item.title || item.title.trim().length < 15) continue;
+
       // Skip if url already exists
       const { data: existing } = await supabase
         .from("source_items")
