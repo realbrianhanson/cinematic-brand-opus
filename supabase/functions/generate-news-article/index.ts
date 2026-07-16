@@ -164,7 +164,14 @@ Return STRICT JSON only, no prose, no code fences:
 
     const title = (parsed.title || item.title || "").toString().slice(0, 200);
     const summary = (parsed.summary || item.raw_excerpt || "").toString().slice(0, 400);
-    const content = (parsed.content_markdown || parsed.content || "").toString();
+    let content = (parsed.content_markdown || parsed.content || "").toString();
+
+    // Auto-link training mentions to the tracked CTA URL.
+    try {
+      const { data: ctaSettings } = await supabase
+        .from("site_settings").select("cta_url").limit(1).maybeSingle();
+      content = linkifyEventMentions(content, ctaSettings?.cta_url);
+    } catch (_) { /* non-fatal */ }
 
     if (!content || content.length < 200) {
       return new Response(JSON.stringify({ error: "generation_too_short" }), {
