@@ -18,6 +18,7 @@ interface Item {
   published_at?: string;
   raw_excerpt?: string;
   image_url?: string;
+  engagement?: number;
 }
 
 function extractImage(block: string): string | undefined {
