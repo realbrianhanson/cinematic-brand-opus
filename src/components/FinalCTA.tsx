@@ -1,15 +1,40 @@
 import { useState } from "react";
 import { Lock, Mail, Sparkles, ArrowUpRight } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
+import { supabase } from "@/integrations/supabase/client";
 
 const FinalCTA = () => {
   const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: formRef, visible: formVisible } = useReveal();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setEmail("");
+    if (!email) return;
+    setStatus("loading");
+    try {
+      const { data, error } = await supabase.functions.invoke("newsletter-subscribe", {
+        body: { email, source: "final_cta" },
+      });
+      if (error) throw error;
+      const state = (data as any)?.state;
+      if (state === "confirmation_sent" || state === "pending_email_setup") {
+        setMessage("Check your inbox to confirm!");
+        setStatus("success");
+        setEmail("");
+      } else if (state === "already_subscribed") {
+        setMessage("You're already on the list.");
+        setStatus("success");
+        setEmail("");
+      } else {
+        throw new Error("Unexpected response");
+      }
+    } catch (err: any) {
+      setMessage(err?.message || "Something went wrong. Please try again.");
+      setStatus("error");
+    }
   };
 
   return (
