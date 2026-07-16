@@ -3,7 +3,7 @@
 // Result is saved as a DRAFT post linked to the opportunity (opportunity.status='queued').
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
-import { embedText, cosineSim } from "../_shared/embeddings.ts";
+import { embedText, cosineSim, toPgVector } from "../_shared/embeddings.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
 import {
   loadVoiceConfig,
@@ -204,6 +204,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   const draftText = `${draft.title}\n${(draft.content || "").replace(/<[^>]+>/g, " ").slice(0, 6000)}`;
   const draftVec = await embedText(draftText, lovableKey);
   let maxSim = 0;
+  let simSource: "cluster_source" | "corpus_source" | "own_post" = "cluster_source";
   if (draftVec) {
     const { data: srcRows } = await supabase
       .from("source_items")
@@ -211,8 +212,33 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
       .in("id", opp.source_item_ids || []);
     for (const r of srcRows || []) {
       const v = typeof r.embedding === "string" ? JSON.parse(r.embedding) : r.embedding;
-      if (Array.isArray(v)) maxSim = Math.max(maxSim, cosineSim(draftVec, v));
+      if (Array.isArray(v)) {
+        const sim = cosineSim(draftVec, v);
+        if (sim > maxSim) { maxSim = sim; simSource = "cluster_source"; }
+      }
     }
+    try {
+      const { data: corpusMatches, error: corpusErr } = await supabase.rpc("match_source_items", {
+        query_embedding: toPgVector(draftVec),
+      });
+      if (corpusErr) console.warn("match_source_items rpc failed", corpusErr.message);
+      for (const m of corpusMatches || []) {
+        if (typeof m.similarity === "number" && m.similarity > maxSim) {
+          maxSim = m.similarity; simSource = "corpus_source";
+        }
+      }
+    } catch (e: any) { console.warn("match_source_items threw", e?.message); }
+    try {
+      const { data: postMatches, error: postMatchErr } = await supabase.rpc("match_posts", {
+        query_embedding: toPgVector(draftVec),
+      });
+      if (postMatchErr) console.warn("match_posts rpc failed", postMatchErr.message);
+      for (const m of postMatches || []) {
+        if (typeof m.similarity === "number" && m.similarity > maxSim) {
+          maxSim = m.similarity; simSource = "own_post";
+        }
+      }
+    } catch (e: any) { console.warn("match_posts threw", e?.message); }
   }
   const originality_score = Math.round((1 - maxSim) * 100);
 
@@ -237,7 +263,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
   if (maxSim > ORIGINALITY_MAX_SIM) {
     await supabase.from("content_opportunities").update({
       status: "rejected",
-      reject_reason: `originality too low (max similarity ${maxSim.toFixed(2)})`,
+      reject_reason: `originality too low (max similarity ${maxSim.toFixed(2)} vs ${simSource})`,
     }).eq("id", opportunity_id);
     return new Response(JSON.stringify({ error: "rejected: originality", maxSim }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -278,6 +304,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     source_citations: sources,
     originality_score,
     freshness_hours,
+    embedding: draftVec ? toPgVector(draftVec) : null,
   }).select().single();
 
   if (postErr) {
