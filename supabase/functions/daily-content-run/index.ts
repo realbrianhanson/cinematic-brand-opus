@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const MAX_DRAFTS_PER_RUN = 5;
+const MAX_DRAFTS_PER_RUN = 6;
 const MAX_ATTEMPTS = 3;
 
 async function invoke(fn: string, body: any = {}): Promise<any> {
@@ -59,6 +59,28 @@ Deno.serve(async (req) => {
   if (!skipCluster) {
     const cluster = await invoke("cluster-opportunities");
     log.steps.cluster = { status: cluster.status, ...cluster.data };
+  }
+
+  // Daily draft budget check: hard-cap runaway spend if we've drafted way more than cap
+  const { data: settingsRow } = await supabase
+    .from("site_settings")
+    .select("auto_publish_daily_cap")
+    .limit(1)
+    .maybeSingle();
+  const dailyCap = settingsRow?.auto_publish_daily_cap ?? 8;
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: draftsLast24h } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .not("opportunity_id", "is", null)
+    .gt("created_at", dayAgo);
+  if ((draftsLast24h ?? 0) >= dailyCap + 4) {
+    log.steps.drafts = [];
+    log.skipped_reason = "daily draft budget exhausted";
+    log.finished_at = new Date().toISOString();
+    return new Response(JSON.stringify({ ok: true, drafted: 0, log }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // 3. Drain queue: every "proposed" opp with attempts < MAX gets a draft attempt.
