@@ -19,6 +19,7 @@ const ContentTypeList = lazy(() => import("./pages/ContentTypeList"));
 const GeneratedPage = lazy(() => import("./pages/GeneratedPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const HTMLSitemap = lazy(() => import("./pages/HTMLSitemap"));
+const NewsletterStatus = lazy(() => import("./pages/NewsletterStatus"));
 
 const AdminLogin = lazy(() => import("./components/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
