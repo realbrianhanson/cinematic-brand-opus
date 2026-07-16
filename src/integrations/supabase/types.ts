@@ -686,6 +686,72 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_sends: {
+        Row: {
+          created_at: string
+          id: string
+          post_ids: string[]
+          recipient_count: number
+          sent_count: number
+          subject: string | null
+          week_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_ids?: string[]
+          recipient_count?: number
+          sent_count?: number
+          subject?: string | null
+          week_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_ids?: string[]
+          recipient_count?: number
+          sent_count?: number
+          subject?: string | null
+          week_key?: string
+        }
+        Relationships: []
+      }
+      newsletter_subscribers: {
+        Row: {
+          confirm_token: string
+          confirmed_at: string | null
+          created_at: string
+          email: string
+          id: string
+          source: string | null
+          status: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          confirm_token?: string
+          confirmed_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          source?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confirm_token?: string
+          confirmed_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          source?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       niches: {
         Row: {
           context: Json
@@ -983,6 +1049,9 @@ export type Database = {
           default_expert_pov: string | null
           id: string
           image_generation_enabled: boolean
+          newsletter_from_address: string | null
+          newsletter_postal_address: string | null
+          newsletter_reply_to: string | null
           publisher_name: string | null
           publisher_url: string | null
           site_name: string
@@ -1008,6 +1077,9 @@ export type Database = {
           default_expert_pov?: string | null
           id?: string
           image_generation_enabled?: boolean
+          newsletter_from_address?: string | null
+          newsletter_postal_address?: string | null
+          newsletter_reply_to?: string | null
           publisher_name?: string | null
           publisher_url?: string | null
           site_name?: string
@@ -1033,6 +1105,9 @@ export type Database = {
           default_expert_pov?: string | null
           id?: string
           image_generation_enabled?: boolean
+          newsletter_from_address?: string | null
+          newsletter_postal_address?: string | null
+          newsletter_reply_to?: string | null
           publisher_name?: string | null
           publisher_url?: string | null
           site_name?: string
