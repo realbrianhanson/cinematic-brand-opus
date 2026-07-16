@@ -315,6 +315,7 @@ Deno.serve(async (req) => {
         embedding: vec ? toPgVector(vec) : null,
         status: "published",
         pipeline_status: "new",
+        engagement_score: item.engagement ?? 0,
       });
 
       if (!insErr) inserted++;
