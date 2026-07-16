@@ -69,5 +69,8 @@ verify_jwt = false
 [functions.backfill-post-embeddings]
 verify_jwt = false
 
+[functions.fact-check]
+verify_jwt = false
+
 
 
