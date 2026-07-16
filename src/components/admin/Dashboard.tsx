@@ -39,12 +39,30 @@ const Dashboard = () => {
     },
   });
 
+  const { data: subscriberStats } = useQuery({
+    queryKey: ["admin-newsletter-subscriber-stats"],
+    queryFn: async () => {
+      const [confirmed, pending] = await Promise.all([
+        supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
+        supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      return { confirmed: confirmed.count ?? 0, pending: pending.count ?? 0 };
+    },
+  });
+
   const stats = useMemo(() => [
     { label: "Total Posts", value: postStats?.total ?? 0, icon: FileText, color: "#d4a843" },
     { label: "Published", value: postStats?.published ?? 0, icon: Eye, color: "#4ade80" },
     { label: "Drafts", value: postStats?.drafts ?? 0, icon: Pencil, color: "#facc15" },
     { label: "Scheduled", value: postStats?.scheduled ?? 0, icon: Clock, color: "#60a5fa" },
-  ], [postStats]);
+    {
+      label: "Newsletter subscribers",
+      value: `${subscriberStats?.confirmed ?? 0} / ${subscriberStats?.pending ?? 0}`,
+      subLabel: "confirmed / pending",
+      icon: Mail,
+      color: "#B8962E",
+    },
+  ], [postStats, subscriberStats]);
 
   // Stale pages query
   const { data: staleCount } = useQuery({
