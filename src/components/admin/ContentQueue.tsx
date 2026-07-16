@@ -80,7 +80,7 @@ export default function ContentQueue() {
     const [{ data: oppData }, { data: postData }, { data: itemData }] = await Promise.all([
       supabase.from("content_opportunities").select("*")
         .order("created_at", { ascending: false }).limit(80),
-      supabase.from("posts").select("id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at")
+      supabase.from("posts").select("id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at, fact_check")
         .eq("status", "draft").not("opportunity_id", "is", null)
         .order("created_at", { ascending: false }).limit(30),
       supabase.from("source_items").select("id, url, title, topic_lane, status, published_at, fetched_at")
