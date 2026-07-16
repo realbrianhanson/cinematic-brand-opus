@@ -103,7 +103,7 @@ const Speaking = () => {
 
             <div className="mt-10">
               <MagneticButton
-                href="#contact"
+                href="mailto:brian@aiforbusiness.com?subject=Speaking%20Inquiry"
                 className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase"
                 style={{
                   fontSize: 13,
