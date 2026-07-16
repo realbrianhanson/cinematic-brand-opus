@@ -21,6 +21,7 @@ interface SourceItem {
   topic_lane: string | null;
   published_at: string | null;
   embedding: number[] | null;
+  engagement_score: number | null;
 }
 
 function parseVec(v: any): number[] | null {
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
   const { data: itemsRaw, error } = await supabase
     .from("source_items")
-    .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding")
+    .select("id, url, title, raw_excerpt, topic_lane, published_at, embedding, engagement_score")
     .eq("pipeline_status", "new")
     .gte("published_at", cutoff)
     .not("published_at", "is", null)
@@ -99,7 +100,9 @@ Deno.serve(async (req) => {
     const recencyBoost = Math.max(0, 72 - ageHours) / 72; // 0..1
     const lane = c[0].topic_lane || "ai_tools";
     const weight = laneWeights[lane] || 1.0;
-    return { cluster: c, score: (size * 2 + recencyBoost * 3) * weight, lane, ageHours };
+    const eng = Math.max(...c.map((i) => i.engagement_score || 0));
+    const engBoost = Math.min(1, Math.log10(1 + eng) / 3);
+    return { cluster: c, score: (size * 2 + recencyBoost * 3 + engBoost * 2) * weight, lane, ageHours };
   }).sort((a, b) => b.score - a.score);
 
   // Take top 8 candidates → ask the LLM to pick up to 5 Brian would write about
@@ -108,7 +111,7 @@ Deno.serve(async (req) => {
     idx: i,
     topic_lane: s.lane,
     items: s.cluster.slice(0, 4).map((it) => ({
-      title: it.title, url: it.url, excerpt: it.raw_excerpt?.slice(0, 300),
+      title: it.title, url: it.url, excerpt: it.raw_excerpt?.slice(0, 300), engagement: it.engagement_score ?? 0,
     })),
   }));
 
@@ -121,6 +124,7 @@ You will receive candidate news clusters from the last 72 hours. Pick UP TO 5 th
 - Are pure model-release recaps with no small-business angle
 - Are speculation/opinion pieces without concrete news
 - Are older than ~3 days with no new development
+Higher engagement means real people care about this topic right now; weight it accordingly.
 
 For each chosen cluster, return:
 - angle: the specific take Brian would bring (1 sentence)

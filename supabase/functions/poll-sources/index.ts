@@ -18,6 +18,7 @@ interface Item {
   published_at?: string;
   raw_excerpt?: string;
   image_url?: string;
+  engagement?: number;
 }
 
 function extractImage(block: string): string | undefined {
@@ -180,6 +181,62 @@ async function fetchPerplexityDigest(
   }
 }
 
+async function fetchReddit(subreddit: string): Promise<Item[]> {
+  try {
+    const res = await fetch(
+      `https://www.reddit.com/r/${subreddit}/top.json?t=day&limit=15`,
+      { headers: { "User-Agent": "brianhanson-content-bot/1.0" } },
+    );
+    if (!res.ok) { console.warn("reddit fetch failed", subreddit, res.status); return []; }
+    const data = await res.json();
+    const items: Item[] = [];
+    for (const child of data?.data?.children || []) {
+      const p = child?.data;
+      if (!p) continue;
+      if (p.stickied) continue;
+      if ((p.ups || 0) < 100) continue;
+      const ext = typeof p.url_overridden_by_dest === "string" && /^https?:\/\//i.test(p.url_overridden_by_dest);
+      const url = ext ? p.url_overridden_by_dest : `https://www.reddit.com${p.permalink}`;
+      items.push({
+        url,
+        title: p.title,
+        published_at: p.created_utc ? new Date(p.created_utc * 1000).toISOString() : undefined,
+        raw_excerpt: ((p.selftext || p.title) || "").slice(0, 500),
+        author: p.author,
+        engagement: (p.ups || 0) + (p.num_comments || 0),
+      });
+    }
+    return items;
+  } catch (e) {
+    console.warn("reddit fetch threw", subreddit, e);
+    return [];
+  }
+}
+
+async function fetchHackerNews(query: string): Promise<Item[]> {
+  try {
+    const since = Math.floor(Date.now() / 1000) - 48 * 3600;
+    const url = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(query)}&tags=story&numericFilters=points>100,created_at_i>${since}`;
+    const res = await fetch(url);
+    if (!res.ok) { console.warn("hn fetch failed", query, res.status); return []; }
+    const data = await res.json();
+    const items: Item[] = [];
+    for (const hit of data?.hits || []) {
+      items.push({
+        url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
+        title: hit.title,
+        published_at: hit.created_at,
+        raw_excerpt: hit.title,
+        engagement: (hit.points || 0) + (hit.num_comments || 0),
+      });
+    }
+    return items;
+  } catch (e) {
+    console.warn("hn fetch threw", query, e);
+    return [];
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -213,6 +270,10 @@ Deno.serve(async (req) => {
       items = await fetchRss(src.url);
     } else if (src.kind === "perplexity_topic" && perplexityKey) {
       items = await fetchPerplexityDigest(src.topic_lane, perplexityKey);
+    } else if (src.kind === "reddit" && src.url) {
+      items = await fetchReddit(src.url);
+    } else if (src.kind === "hackernews" && src.url) {
+      items = await fetchHackerNews(src.url);
     }
     totalScanned += items.length;
 
@@ -254,6 +315,7 @@ Deno.serve(async (req) => {
         embedding: vec ? toPgVector(vec) : null,
         status: "published",
         pipeline_status: "new",
+        engagement_score: item.engagement ?? 0,
       });
 
       if (!insErr) inserted++;
