@@ -8,6 +8,7 @@ import {
   scorePost,
 } from "../_shared/voice.ts";
 import { MAIN_MODEL, IMAGE_MODEL } from "../_shared/models.ts";
+import { linkifyEventMentions } from "../_shared/eventLink.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
