@@ -45,6 +45,9 @@ const PostEditor = () => {
   const [excerpt, setExcerpt] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
+  const [initialStatus, setInitialStatus] = useState("draft");
+  const [publishBlock, setPublishBlock] = useState<{ postId: string; failures: string[] } | null>(null);
+  const [publishOverrideReason, setPublishOverrideReason] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const { prefs, updatePref } = useAdminPreferences();
   const [timezone, setTimezone] = useState(prefs.timezone);
@@ -111,6 +114,7 @@ const PostEditor = () => {
       setExcerpt(post.excerpt ?? "");
       setCategoryId(post.category_id ?? "");
       setStatus(post.status);
+      setInitialStatus(post.status);
       setScheduledAt((post as any).scheduled_at ? new Date((post as any).scheduled_at).toISOString().slice(0, 16) : "");
       setFeaturedImage(post.featured_image ?? "");
       setSlugManual(true);
@@ -379,13 +383,38 @@ const PostEditor = () => {
     }
   }, [aiTopic, aiContext, toast]);
 
+  const runManualPublish = useCallback(async (postId: string, overrideReason?: string) => {
+    const body: any = { post_id: postId };
+    if (overrideReason && overrideReason.trim().length >= 10) body.override_reason = overrideReason.trim();
+    const { data, error } = await supabase.functions.invoke("manual-publish", { body });
+    if (error) {
+      const ctx: any = (error as any).context;
+      let parsed: any = null;
+      if (ctx && typeof ctx.text === "function") {
+        try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+      }
+      if (parsed?.decision === "blocked" && Array.isArray(parsed.failures)) {
+        return { blocked: true as const, failures: parsed.failures as string[] };
+      }
+      throw new Error(parsed?.error || error.message);
+    }
+    if (data?.ok === false && Array.isArray(data.failures)) {
+      return { blocked: true as const, failures: data.failures as string[] };
+    }
+    return { blocked: false as const };
+  }, []);
+
   const saveMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (opts: { overrideReason?: string } = {}) =>
       safeMutation(async () => {
         const content = editorRef.current?.getHTML() ?? editorContent;
         const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
         const cleanFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
         const cleanTakeaways = keyTakeaways.filter((t) => t.trim());
+
+        // If moving to published (from anything else), route status change through manual-publish.
+        const wantsPublish = status === "published" && initialStatus !== "published";
+        const persistStatus = wantsPublish ? "draft" : status;
 
         const postData: Record<string, any> = {
           title,
@@ -393,8 +422,8 @@ const PostEditor = () => {
           content,
           excerpt: excerpt || null,
           category_id: categoryId || null,
-          status,
-          scheduled_at: status === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          status: persistStatus,
+          scheduled_at: persistStatus === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
           featured_image: featuredImage || null,
           reading_time,
           faq_items: cleanFaq.length ? cleanFaq : [],
@@ -424,10 +453,7 @@ const PostEditor = () => {
           meta_title: metaTitle || null,
           meta_description: metaDesc || null,
           keywords: keywords
-            ? keywords
-                .split(",")
-                .map((k) => k.trim())
-                .filter(Boolean)
+            ? keywords.split(",").map((k) => k.trim()).filter(Boolean)
             : null,
           og_image: ogImage || null,
         };
@@ -437,11 +463,29 @@ const PostEditor = () => {
         } else {
           await supabase.from("seo_metadata").insert(seoData);
         }
-        return postId;
+
+        // Now handle the publish transition through the gated edge function
+        if (wantsPublish && postId) {
+          const result = await runManualPublish(postId, opts.overrideReason);
+          if (result.blocked) {
+            return { postId, publishBlocked: result.failures };
+          }
+        }
+        return { postId };
       }),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      if (result?.publishBlocked) {
+        setPublishBlock({ postId: result.postId, failures: result.publishBlocked });
+        setPublishOverrideReason("");
+        toast({ title: "Saved as draft — publish gate blocked", description: "Review failures and either fix them or supply an override reason.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Saved" });
       navigate("/admin/posts");
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err?.message || "Unknown error", variant: "destructive" });
     },
   });
 
@@ -492,7 +536,7 @@ const PostEditor = () => {
             Cancel
           </button>
           <button
-            onClick={() => saveMutation.mutate()}
+            onClick={() => saveMutation.mutate({})}
             disabled={saveMutation.isPending || !title || !slug}
             className="admin-btn-primary"
           >
@@ -737,6 +781,52 @@ const PostEditor = () => {
                     Generate Post
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {publishBlock && (
+        <div onClick={() => setPublishBlock(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
+            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+              Publish gate blocked this post
+            </h3>
+            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
+              The post was saved as a draft. Fix the issues below, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            </p>
+            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
+              {publishBlock.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            </ul>
+            <label className="admin-label">Override reason</label>
+            <textarea value={publishOverrideReason} onChange={(e) => setPublishOverrideReason(e.target.value)}
+              rows={3} placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setPublishBlock(null)} className="admin-btn-ghost">Close</button>
+              <button
+                disabled={publishOverrideReason.trim().length < 10 || saveMutation.isPending}
+                onClick={async () => {
+                  const target = publishBlock;
+                  const reason = publishOverrideReason;
+                  if (!target) return;
+                  const result = await runManualPublish(target.postId, reason);
+                  if (result.blocked) {
+                    setPublishBlock({ postId: target.postId, failures: result.failures });
+                    toast({ title: "Still blocked", description: "Provide a stronger override reason or fix the issues.", variant: "destructive" });
+                    return;
+                  }
+                  setPublishBlock(null);
+                  toast({ title: "Published with override" });
+                  qc.invalidateQueries({ queryKey: ["admin-posts"] });
+                  navigate("/admin/posts");
+                }}
+                className="admin-btn-primary"
+                style={{ background: publishOverrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : undefined }}>
+                Publish anyway
               </button>
             </div>
           </div>

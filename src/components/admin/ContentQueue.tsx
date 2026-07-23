@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2, Wrench } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import NewsItemEditor from "./NewsItemEditor";
 
@@ -74,6 +74,10 @@ export default function ContentQueue() {
   const [items, setItems] = useState<SourceItem[]>([]);
   const [live, setLive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [fixingFactsId, setFixingFactsId] = useState<string | null>(null);
+  const [overrideFor, setOverrideFor] = useState<{ postId: string; oppId: string | null; failures: string[] } | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -186,12 +190,56 @@ export default function ContentQueue() {
     await load();
   };
 
-  const publish = async (postId: string, oppId: string | null) => {
-    const { error } = await supabase.from("posts").update({ status: "published" }).eq("id", postId);
-    if (error) { toast({ title: "Publish failed", description: error.message, variant: "destructive" }); return; }
-    if (oppId) await supabase.from("content_opportunities").update({ status: "published" }).eq("id", oppId);
-    toast({ title: "Published" });
-    await load();
+  const publish = async (postId: string, oppId: string | null, overrideReasonArg?: string) => {
+    setPublishing(postId);
+    try {
+      const body: any = { post_id: postId };
+      if (overrideReasonArg && overrideReasonArg.trim().length >= 10) {
+        body.override_reason = overrideReasonArg.trim();
+      }
+      const { data, error } = await supabase.functions.invoke("manual-publish", { body });
+      if (error) {
+        // Try to read the 422 body so we can show the failure list
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        if (ctx && typeof ctx.text === "function") {
+          try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+        }
+        if (parsed && parsed.decision === "blocked" && Array.isArray(parsed.failures)) {
+          setOverrideFor({ postId, oppId, failures: parsed.failures });
+          setOverrideReason("");
+          return;
+        }
+        toast({ title: "Publish failed", description: (parsed?.error || error.message), variant: "destructive" });
+        return;
+      }
+      if (data?.ok === false && Array.isArray(data.failures)) {
+        setOverrideFor({ postId, oppId, failures: data.failures });
+        setOverrideReason("");
+        return;
+      }
+      toast({ title: data?.decision === "published_with_override" ? "Published (override)" : "Published" });
+      await load();
+    } finally {
+      setPublishing(null);
+    }
+  };
+
+  const fixFacts = async (postId: string) => {
+    setFixingFactsId(postId);
+    try {
+      const { data, error } = await supabase.functions.invoke("remediate-post-facts", { body: { post_id: postId } });
+      if (error) throw error;
+      toast({
+        title: data?.changed ? "Facts remediated" : "No remediation needed",
+        description: data?.reason || (data?.changed ? "Rewrote claims and re-checked." : ""),
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Fix facts failed", description: e.message, variant: "destructive" });
+    } finally {
+      setFixingFactsId(null);
+    }
   };
 
   const cardStyle: React.CSSProperties = {
@@ -269,13 +317,25 @@ export default function ContentQueue() {
         const badClaims = hasFc ? ((fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)) : 0;
         const factsAmber = hasFc && badClaims > 0;
         const oneClickReady = (p.quality_score ?? 0) >= 85 && !factsAmber;
+        const structural = hasFc && typeof fc.structural_score === "number" ? fc.structural_score : null;
+        const deductions = hasFc && typeof fc.fact_deductions === "number" ? fc.fact_deductions : null;
+        const qualityTip = structural !== null
+          ? `Structural ${structural} − fact deductions ${deductions ?? 0} = ${p.quality_score ?? "—"}`
+          : "Quality score (structural — fact-check pending)";
         return (
         <div key={p.id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}>{p.title}</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8, alignItems: "center" }}>
-                <span>Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong></span>
+                <span title={qualityTip} style={{ cursor: "help" }}>
+                  Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong>
+                  {structural !== null && (
+                    <span style={{ marginLeft: 4, color: "hsl(var(--admin-text-ghost))" }}>
+                      ({structural}−{deductions ?? 0})
+                    </span>
+                  )}
+                </span>
                 <span>Originality: <strong>{p.originality_score ?? "—"}%</strong></span>
                 <span>Fresh: <strong>{p.freshness_hours ?? "—"}h</strong></span>
                 <span>Sources: <strong>{(p.source_citations as any[])?.length ?? 0}</strong></span>
@@ -286,7 +346,7 @@ export default function ContentQueue() {
                 {hasFc && (
                   factsAmber ? (
                     <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(38 80% 20%)", color: "hsl(38 90% 70%)", border: "1px solid hsl(38 60% 40%)", fontWeight: 600 }}>
-                      {badClaims} claims unverified
+                      {fc.contradicted_count ?? 0} contradicted · {fc.unverified_count ?? 0} unverified
                     </span>
                   ) : (
                     <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(140 40% 18%)", color: "hsl(140 70% 70%)", border: "1px solid hsl(140 40% 35%)", fontWeight: 600 }}>
@@ -294,16 +354,28 @@ export default function ContentQueue() {
                     </span>
                   )
                 )}
+                {hasFc && fc.remediated && (
+                  <span style={{ padding: "2px 6px", borderRadius: 4, background: "hsl(var(--admin-surface))", color: "hsl(var(--admin-text-ghost))", border: "1px solid hsl(var(--admin-border))", fontSize: 10 }}>
+                    remediated
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+              {factsAmber && !fc?.remediated && (
+                <button onClick={() => fixFacts(p.id)} disabled={fixingFactsId === p.id}
+                  title="Rewrite content to drop contradicted claims and attribute unverified ones, then re-check."
+                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(38 60% 40%)", borderRadius: 6, color: "hsl(38 90% 70%)", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                  {fixingFactsId === p.id ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />} Fix facts
+                </button>
+              )}
               <button onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
                 style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
                 <Edit3 size={12} /> Edit
               </button>
-              <button onClick={() => publish(p.id, p.opportunity_id)}
-                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <CheckCircle2 size={12} /> Publish
+              <button onClick={() => publish(p.id, p.opportunity_id)} disabled={publishing === p.id}
+                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: publishing === p.id ? "wait" : "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                {publishing === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} Publish
               </button>
             </div>
           </div>
@@ -427,6 +499,44 @@ export default function ContentQueue() {
 
       {editingId && (
         <NewsItemEditor itemId={editingId} onClose={() => setEditingId(null)} onSaved={load} />
+      )}
+
+      {overrideFor && (
+        <div onClick={() => setOverrideFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
+            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+              Publish gate blocked this post
+            </h3>
+            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
+              Fix the issues, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            </p>
+            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
+              {overrideFor.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            </ul>
+            <label className="admin-label">Override reason</label>
+            <textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+              rows={3} placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setOverrideFor(null)}
+                style={{ padding: "8px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 13 }}>
+                Cancel
+              </button>
+              <button disabled={overrideReason.trim().length < 10 || publishing === overrideFor.postId}
+                onClick={async () => {
+                  const target = overrideFor;
+                  const reason = overrideReason;
+                  setOverrideFor(null);
+                  await publish(target.postId, target.oppId, reason);
+                }}
+                style={{ padding: "8px 14px", background: overrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: overrideReason.trim().length >= 10 ? "#fff" : "hsl(var(--admin-text-ghost))", cursor: overrideReason.trim().length >= 10 ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}>
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

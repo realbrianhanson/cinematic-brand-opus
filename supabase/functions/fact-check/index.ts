@@ -1,8 +1,11 @@
 // Fact-checks a post: extracts verifiable claims (LLM) and verifies each via Perplexity.
-// Annotates posts.fact_check + fact_checked_at. Never changes status.
+// Annotates posts.fact_check + fact_checked_at, and recomputes quality_score
+// with fact-check deductions applied on top of the structural score.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
+import { scorePost } from "../_shared/voice.ts";
+import { computeQualityWithFacts } from "../_shared/publishGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +47,7 @@ Deno.serve(async (req) => {
 
   const { data: post, error: postErr } = await supabase
     .from("posts")
-    .select("id, title, content, source_citations, lint_flags")
+    .select("id, title, content, excerpt, tldr, key_takeaways, faq_items, source_citations, lint_flags, fact_check")
     .eq("id", post_id)
     .maybeSingle();
   if (postErr || !post) {
@@ -155,28 +158,53 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
   const unverified_count = checked.filter((c) => c.verdict === "unverified").length;
   const contradicted_count = checked.filter((c) => c.verdict === "contradicted").length;
 
+  // Recompute quality score using structural score + fact deductions
+  const { score: structural } = scorePost({
+    title: post.title,
+    content: post.content,
+    faq_items: (post as any).faq_items,
+    key_takeaways: (post as any).key_takeaways,
+    tldr: (post as any).tldr,
+    excerpt: (post as any).excerpt,
+  });
+  const citationsCount = Array.isArray(post.source_citations) ? post.source_citations.length : 0;
+  const q = computeQualityWithFacts({
+    structuralScore: structural,
+    unverifiedCount: unverified_count,
+    contradictedCount: contradicted_count,
+    citationsCount,
+  });
+
+  const priorFc = (post as any).fact_check || {};
   const fact_check = {
     claims: checked,
     verified_count,
     unverified_count,
     contradicted_count,
+    structural_score: structural,
+    fact_deductions: q.deductions,
+    score_breakdown: q.breakdown,
+    remediated: priorFc.remediated === true ? true : undefined,
   };
 
-  // Merge lint_flags if fact-check concerns exceed threshold
-  let newLintFlags = Array.isArray(post.lint_flags) ? [...post.lint_flags] : [];
-  if (unverified_count + contradicted_count > 2) {
-    newLintFlags = newLintFlags.filter((f: any) => !(f && f.type === "fact_check"));
+  // Merge lint_flags: only mark fact_check as a lint flag when the new gate would fail
+  let newLintFlags = Array.isArray(post.lint_flags)
+    ? (post.lint_flags as any[]).filter((f) => !(f && f.type === "fact_check"))
+    : [];
+  const gateWouldFailFacts = contradicted_count > 0 || verified_count < 2 || unverified_count > 2;
+  if (gateWouldFailFacts) {
     newLintFlags.push({
       type: "fact_check",
-      detail: `${unverified_count + contradicted_count} claims unverified or contradicted`,
+      detail: `${contradicted_count} contradicted, ${unverified_count} unverified, ${verified_count} verified`,
     });
   }
 
   const update: any = {
     fact_check,
     fact_checked_at: new Date().toISOString(),
+    quality_score: q.score,
+    lint_flags: newLintFlags,
   };
-  if (unverified_count + contradicted_count > 2) update.lint_flags = newLintFlags;
 
   const { error: upErr } = await supabase.from("posts").update(update).eq("id", post_id);
   if (upErr) {
@@ -187,5 +215,6 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
 
   return new Response(JSON.stringify({
     ok: true, verified_count, unverified_count, contradicted_count,
+    quality_score: q.score, structural_score: structural, fact_deductions: q.deductions,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });

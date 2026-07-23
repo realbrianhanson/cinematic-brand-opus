@@ -23,6 +23,7 @@ const corsHeaders = {
 };
 
 const ORIGINALITY_MAX_SIM = 0.82;
+const PRE_DRAFT_ORIGINALITY_MAX_SIM = 0.80;
 const FRESHNESS_MAX_HOURS = 96;
 
 function slugify(s: string): string {
@@ -69,6 +70,34 @@ Deno.serve(async (req) => {
     attempts: currentAttempts,
     last_attempt_at: new Date().toISOString(),
   }).eq("id", opportunity_id);
+
+  // PRE-DRAFT originality gate: embed the opportunity brief and compare to existing
+  // posts before spending on a full draft+critique cycle.
+  try {
+    const preText = [opp.angle, opp.target_keyword, opp.rationale, opp.gap_reason]
+      .filter(Boolean).join("\n").slice(0, 4000);
+    const preVec = await embedText(preText, lovableKey);
+    if (preVec) {
+      const { data: preMatches } = await supabase.rpc("match_posts", {
+        query_embedding: toPgVector(preVec),
+      });
+      let preMax = 0;
+      for (const m of preMatches || []) {
+        if (typeof m.similarity === "number" && m.similarity > preMax) preMax = m.similarity;
+      }
+      if (preMax > PRE_DRAFT_ORIGINALITY_MAX_SIM) {
+        await supabase.from("content_opportunities").update({
+          status: "rejected",
+          reject_reason: `pre-draft originality (max sim ${preMax.toFixed(2)} vs existing posts)`,
+        }).eq("id", opportunity_id);
+        return new Response(JSON.stringify({
+          error: "rejected: pre-draft originality", maxSim: preMax,
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+  } catch (e: any) {
+    console.warn("pre-draft originality check threw", e?.message);
+  }
 
   const failOpp = async (reason: string, terminal: boolean) => {
     await supabase.from("content_opportunities").update({
