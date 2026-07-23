@@ -45,6 +45,9 @@ const PostEditor = () => {
   const [excerpt, setExcerpt] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
+  const [initialStatus, setInitialStatus] = useState("draft");
+  const [publishBlock, setPublishBlock] = useState<{ postId: string; failures: string[] } | null>(null);
+  const [publishOverrideReason, setPublishOverrideReason] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const { prefs, updatePref } = useAdminPreferences();
   const [timezone, setTimezone] = useState(prefs.timezone);
@@ -111,6 +114,7 @@ const PostEditor = () => {
       setExcerpt(post.excerpt ?? "");
       setCategoryId(post.category_id ?? "");
       setStatus(post.status);
+      setInitialStatus(post.status);
       setScheduledAt((post as any).scheduled_at ? new Date((post as any).scheduled_at).toISOString().slice(0, 16) : "");
       setFeaturedImage(post.featured_image ?? "");
       setSlugManual(true);
