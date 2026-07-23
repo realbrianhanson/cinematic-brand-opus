@@ -39,10 +39,21 @@ export function linkifyEventMentions(
     for (const pat of PHRASE_PATTERNS) {
       if (linksAdded >= maxLinks) break;
       const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
-      out = out.replace(re, (match) => {
+      out = out.replace(re, (match, ...args) => {
         if (linksAdded >= maxLinks) return match;
+        // args: [...groups, offset, string]
+        const offset = args[args.length - 2] as number;
+        const full = args[args.length - 1] as string;
+        const before = full.slice(0, offset);
+        const after = full.slice(offset + match.length);
+        // Skip if the match sits inside a markdown link already:
+        // - text immediately after is `](` (we're the label of a link)
+        // - an unbalanced `[` appears before with a matching `](...)` after
+        if (/^\s*\]\(/.test(after)) return match;
+        const lastOpen = before.lastIndexOf("[");
+        const lastClose = before.lastIndexOf("]");
+        if (lastOpen > lastClose && /^[^\[]*\]\([^)]*\)/.test(after)) return match;
         linksAdded++;
-        // Choose format based on whether segment looks like HTML or markdown.
         const looksHtml = /<\w+[\s>]/.test(seg);
         return looksHtml
           ? `<a href="${url}" target="_blank" rel="noopener">${match}</a>`
