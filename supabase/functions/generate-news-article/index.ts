@@ -7,6 +7,7 @@ import { MAIN_MODEL } from "../_shared/models.ts";
 import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
+import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,6 +61,14 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // force: true requires admin or cron auth. Unauthenticated first-time
+    // generation stays public so /news/:id pages can lazily hydrate.
+    if (force) {
+      const authResult = await authorizeCronOrAdmin(req, corsHeaders);
+      if (authResult instanceof Response) return authResult;
+    }
+
     const { data: item, error } = await supabase
       .from("source_items")
       .select("id, title, url, raw_excerpt, full_content, ai_title, ai_summary, image_url, topic_lane, published_at, content_sources(name)")
@@ -94,6 +103,20 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Global rate limit for unauthenticated first-time generation.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase
+      .from("source_items")
+      .select("id", { count: "exact", head: true })
+      .not("full_content", "is", null)
+      .gt("updated_at", oneHourAgo);
+    if ((recentCount ?? 0) >= 20) {
+      return new Response(
+        JSON.stringify({ error: "rate_limited", message: "Full article available soon" }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const sourceText = await fetchSourceMarkdown(item.url);
     const voice = await loadVoiceConfig(supabase);
     const voiceBlock = formatVoiceBlock(voice);
@@ -118,7 +141,7 @@ Write a completely original article of 400-700 words. Do NOT copy sentences from
 Structure:
 1. A punchy 1-sentence lede.
 2. 3-5 short sections with markdown ## subheadings covering: what happened, why it matters, who is affected, what to watch next.
-3. A closing "Why it matters for Jacksonville businesses" paragraph (2-3 sentences).
+3. A closing "## Why it matters for your business" paragraph (2-3 sentences) aimed at non-technical small-business owners across the U.S. Speak to a national audience — do NOT mention any specific city or region.
 
 ${voiceBlock}
 
