@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
 import ScrollProgress from "@/components/ScrollProgress";
 import Nav from "@/components/Nav";
@@ -17,7 +17,36 @@ import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
 import PageHead from "@/components/PageHead";
-import { Helmet } from "react-helmet-async";
+
+const HOMEPAGE_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Brian Hanson",
+    jobTitle: "Keynote Speaker, Advisor & Operator",
+    url: "https://brianhanson.com/",
+    description:
+      "Brian Hanson helps founders and executives build authority, lead with clarity, and grow durable businesses through applied A.I., marketing, and leadership strategy.",
+    knowsAbout: [
+      "Artificial Intelligence",
+      "Leadership",
+      "Marketing Strategy",
+      "Business Growth",
+      "Personal Branding",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Brian Hanson",
+    url: "https://brianhanson.com/",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://brianhanson.com/resources?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  },
+];
 
 const Index = () => {
   const [siteVisible, setSiteVisible] = useState(false);
