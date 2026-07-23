@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2, Wrench } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import NewsItemEditor from "./NewsItemEditor";
 
@@ -74,6 +74,10 @@ export default function ContentQueue() {
   const [items, setItems] = useState<SourceItem[]>([]);
   const [live, setLive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [fixingFactsId, setFixingFactsId] = useState<string | null>(null);
+  const [overrideFor, setOverrideFor] = useState<{ postId: string; oppId: string | null; failures: string[] } | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -186,12 +190,56 @@ export default function ContentQueue() {
     await load();
   };
 
-  const publish = async (postId: string, oppId: string | null) => {
-    const { error } = await supabase.from("posts").update({ status: "published" }).eq("id", postId);
-    if (error) { toast({ title: "Publish failed", description: error.message, variant: "destructive" }); return; }
-    if (oppId) await supabase.from("content_opportunities").update({ status: "published" }).eq("id", oppId);
-    toast({ title: "Published" });
-    await load();
+  const publish = async (postId: string, oppId: string | null, overrideReasonArg?: string) => {
+    setPublishing(postId);
+    try {
+      const body: any = { post_id: postId };
+      if (overrideReasonArg && overrideReasonArg.trim().length >= 10) {
+        body.override_reason = overrideReasonArg.trim();
+      }
+      const { data, error } = await supabase.functions.invoke("manual-publish", { body });
+      if (error) {
+        // Try to read the 422 body so we can show the failure list
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        if (ctx && typeof ctx.text === "function") {
+          try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+        }
+        if (parsed && parsed.decision === "blocked" && Array.isArray(parsed.failures)) {
+          setOverrideFor({ postId, oppId, failures: parsed.failures });
+          setOverrideReason("");
+          return;
+        }
+        toast({ title: "Publish failed", description: (parsed?.error || error.message), variant: "destructive" });
+        return;
+      }
+      if (data?.ok === false && Array.isArray(data.failures)) {
+        setOverrideFor({ postId, oppId, failures: data.failures });
+        setOverrideReason("");
+        return;
+      }
+      toast({ title: data?.decision === "published_with_override" ? "Published (override)" : "Published" });
+      await load();
+    } finally {
+      setPublishing(null);
+    }
+  };
+
+  const fixFacts = async (postId: string) => {
+    setFixingFactsId(postId);
+    try {
+      const { data, error } = await supabase.functions.invoke("remediate-post-facts", { body: { post_id: postId } });
+      if (error) throw error;
+      toast({
+        title: data?.changed ? "Facts remediated" : "No remediation needed",
+        description: data?.reason || (data?.changed ? "Rewrote claims and re-checked." : ""),
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Fix facts failed", description: e.message, variant: "destructive" });
+    } finally {
+      setFixingFactsId(null);
+    }
   };
 
   const cardStyle: React.CSSProperties = {
