@@ -536,7 +536,7 @@ const PostEditor = () => {
             Cancel
           </button>
           <button
-            onClick={() => saveMutation.mutate()}
+            onClick={() => saveMutation.mutate({})}
             disabled={saveMutation.isPending || !title || !slug}
             className="admin-btn-primary"
           >
