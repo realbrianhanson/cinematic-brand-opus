@@ -17,13 +17,8 @@ export async function authorizeCronOrAdmin(
   corsHeaders: Record<string, string>,
 ): Promise<CronAuthResult | Response> {
   const cronSecret = Deno.env.get("CRON_INVOCATION_SECRET");
-  const pipelineSecret = Deno.env.get("PIPELINE_CRON_SECRET");
   const incomingCron = req.headers.get("x-cron-secret");
-  if (
-    incomingCron &&
-    ((cronSecret && incomingCron === cronSecret) ||
-      (pipelineSecret && incomingCron === pipelineSecret))
-  ) {
+  if (incomingCron && cronSecret && incomingCron === cronSecret) {
     return { ok: true, mode: "cron" };
   }
 
