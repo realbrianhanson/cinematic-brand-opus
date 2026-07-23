@@ -500,6 +500,44 @@ export default function ContentQueue() {
       {editingId && (
         <NewsItemEditor itemId={editingId} onClose={() => setEditingId(null)} onSaved={load} />
       )}
+
+      {overrideFor && (
+        <div onClick={() => setOverrideFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
+            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+              Publish gate blocked this post
+            </h3>
+            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
+              Fix the issues, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            </p>
+            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
+              {overrideFor.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            </ul>
+            <label className="admin-label">Override reason</label>
+            <textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+              rows={3} placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setOverrideFor(null)}
+                style={{ padding: "8px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 13 }}>
+                Cancel
+              </button>
+              <button disabled={overrideReason.trim().length < 10 || publishing === overrideFor.postId}
+                onClick={async () => {
+                  const target = overrideFor;
+                  const reason = overrideReason;
+                  setOverrideFor(null);
+                  await publish(target.postId, target.oppId, reason);
+                }}
+                style={{ padding: "8px 14px", background: overrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: overrideReason.trim().length >= 10 ? "#fff" : "hsl(var(--admin-text-ghost))", cursor: overrideReason.trim().length >= 10 ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}>
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
