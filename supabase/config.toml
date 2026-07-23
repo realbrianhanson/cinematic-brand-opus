@@ -91,3 +91,6 @@ verify_jwt = false
 
 [functions.resend-webhook]
 verify_jwt = false
+
+[functions.gsc-sync]
+verify_jwt = false
