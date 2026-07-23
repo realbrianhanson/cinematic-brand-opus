@@ -105,14 +105,25 @@ Deno.serve(async (req) => {
     const draft = await invoke("draft-from-opportunity", { opportunity_id: opp.id });
     const entry: any = { opportunity_id: opp.id, status: draft.status, ...draft.data };
     if (draft.status >= 200 && draft.status < 300 && draft.data?.post_id) {
+      const postId = draft.data.post_id;
       try {
-        const fc = await invoke("fact-check", { post_id: draft.data.post_id });
+        const fc = await invoke("fact-check", { post_id: postId });
         entry.fact_check_status = fc.status;
+        // If fact-check produced contradicted or many-unverified results, run
+        // one remediation pass on THIS fresh draft, then re-check. Never runs
+        // twice: fact_check.remediated=true blocks re-entry.
+        const fcData = fc?.data || {};
+        const needsRemediation =
+          (fcData.contradicted_count ?? 0) > 0 || (fcData.unverified_count ?? 0) >= 3;
+        if (needsRemediation) {
+          const rem = await invoke("remediate-post-facts", { post_id: postId });
+          entry.remediation = { status: rem.status, ...rem.data };
+        }
       } catch (e: any) {
         entry.fact_check_status = 0;
       }
       try {
-        const gate = await invoke("auto-publish-gate", { post_id: draft.data.post_id });
+        const gate = await invoke("auto-publish-gate", { post_id: postId });
         entry.auto_publish = { status: gate.status, ...gate.data };
       } catch (e: any) {
         entry.auto_publish = { status: 0, error: e?.message };
