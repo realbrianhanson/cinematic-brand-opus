@@ -63,11 +63,21 @@ const SiteSettingsManager = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("site_settings_private")
-        .select("id, report_email, report_enabled")
+        .select("id, report_email, report_enabled, voice_profile, banned_phrases, default_expert_pov, auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality")
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data as { id: string; report_email: string | null; report_enabled: boolean | null } | null;
+      return data as {
+        id: string;
+        report_email: string | null;
+        report_enabled: boolean | null;
+        voice_profile: string | null;
+        banned_phrases: string[] | null;
+        default_expert_pov: string | null;
+        auto_publish_enabled: boolean | null;
+        auto_publish_daily_cap: number | null;
+        auto_publish_min_quality: number | null;
+      } | null;
     },
   });
 
@@ -78,9 +88,11 @@ const SiteSettingsManager = () => {
         ...settings,
         author_credentials: (settings.author_credentials as string[]) ?? [],
         author_social_links: (settings.author_social_links as Record<string, string>) ?? {},
-        banned_phrases: ((settings as any).banned_phrases as string[]) ?? [],
-        voice_profile: ((settings as any).voice_profile as string) ?? "",
-        default_expert_pov: ((settings as any).default_expert_pov as string) ?? "",
+        // Strategy fields now live in site_settings_private (admin-only) to
+        // avoid leaking voice/banned/POV/gate config to anonymous visitors.
+        banned_phrases: (privateSettings?.banned_phrases as string[]) ?? [],
+        voice_profile: privateSettings?.voice_profile ?? "",
+        default_expert_pov: privateSettings?.default_expert_pov ?? "",
         image_generation_enabled: (settings as any).image_generation_enabled !== false,
         report_email: privateSettings?.report_email ?? "",
         report_enabled: privateSettings?.report_enabled ?? false,
@@ -105,9 +117,6 @@ const SiteSettingsManager = () => {
         cta_subtext: form.cta_subtext,
         cta_button_text: form.cta_button_text,
         cta_social_proof: form.cta_social_proof,
-        voice_profile: form.voice_profile || null,
-        banned_phrases: form.banned_phrases,
-        default_expert_pov: form.default_expert_pov || null,
         image_generation_enabled: form.image_generation_enabled,
         updated_at: new Date().toISOString(),
       };
@@ -123,10 +132,15 @@ const SiteSettingsManager = () => {
         if (error) throw error;
       }
 
-      // Persist sensitive report config to admin-only table.
+      // Persist sensitive config (report + voice/banned/POV/gates) to the
+      // admin-only table. RLS on site_settings_private already restricts this
+      // to admins; edge functions read via service role.
       const privatePayload = {
         report_email: (form as any).report_email || "",
         report_enabled: (form as any).report_enabled || false,
+        voice_profile: form.voice_profile || null,
+        banned_phrases: form.banned_phrases,
+        default_expert_pov: form.default_expert_pov || null,
         updated_at: new Date().toISOString(),
       };
       if (privateSettings?.id) {

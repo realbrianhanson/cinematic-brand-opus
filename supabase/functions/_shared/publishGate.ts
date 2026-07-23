@@ -80,7 +80,7 @@ export async function evaluateGate(
 
 export async function loadGateSettings(supabase: any): Promise<GateSettings> {
   const { data } = await supabase
-    .from("site_settings")
+    .from("site_settings_private")
     .select("auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality")
     .limit(1)
     .maybeSingle();

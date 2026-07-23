@@ -333,6 +333,9 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     supabase,
   );
 
+  const strippedForReading = String(draft.content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const readingTime = Math.max(1, Math.ceil((strippedForReading ? strippedForReading.split(/\s+/).length : 0) / 200));
+
   const { data: post, error: postErr } = await supabase.from("posts").insert({
     title: draft.title,
     slug,
@@ -350,6 +353,7 @@ ${matchedNote ? `Brian's Note (weave into a "From the trenches" callout):\n"${ma
     source_citations: sources,
     originality_score,
     freshness_hours,
+    reading_time: readingTime,
     embedding: draftVec ? toPgVector(draftVec) : null,
   }).select().single();
 

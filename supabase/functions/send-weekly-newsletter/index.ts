@@ -1,7 +1,29 @@
+// Tuesday 14:00 UTC: send this ISO week's newsletter to confirmed subscribers.
+//
+// Two-phase flow:
+//   1. Monday's compose-weekly-newsletter-preview inserted a newsletter_sends
+//      row with status='preview' and stored subject/intro/post_blurbs/post_ids.
+//   2. This job loads that row:
+//        - status='cancelled' → skip (admin vetoed the week)
+//        - status='preview'   → send stored content, mark status='sent'
+//        - status='sent'      → idempotency skip
+//        - no row             → compose fresh so the newsletter never silently
+//                                dies (fallback path).
+//
+// The composition helpers live in _shared/newsletterCompose.ts so the Monday
+// preview and this Tuesday send always render identical HTML.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
-import { MAIN_MODEL } from "../_shared/models.ts";
-import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
+import {
+  buildHtml,
+  composeFromPosts,
+  fetchRecentPosts,
+  isoWeekKey,
+  loadVoiceBlock,
+  type Composed,
+  type PostRow,
+} from "../_shared/newsletterCompose.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,184 +32,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const UNSUB_BASE =
-  "https://pwjdotliwsulqktavyxf.supabase.co/functions/v1/newsletter-unsubscribe";
-const POST_BASE = "https://brianhanson.com/blog";
-
-interface PostRow {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  tldr: string | null;
-  quality_score: number | null;
-}
-
-interface Blurb {
-  slug: string;
-  blurb: string;
-}
-
-interface Composed {
-  subject: string;
-  intro: string;
-  post_blurbs: Blurb[];
-}
-
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function isoWeekKey(d: Date): string {
-  // ISO week: Thursday-based
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-
-function stripFences(s: string): string {
-  return s.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-}
-
-function safeParseJson(raw: string): Composed | null {
-  try {
-    let s = stripFences(raw);
-    const first = s.indexOf("{");
-    const last = s.lastIndexOf("}");
-    if (first !== -1 && last !== -1) s = s.slice(first, last + 1);
-    const obj = JSON.parse(s);
-    if (typeof obj?.subject !== "string" || typeof obj?.intro !== "string") return null;
-    if (!Array.isArray(obj?.post_blurbs)) return null;
-    return obj as Composed;
-  } catch {
-    return null;
-  }
-}
-
-async function compose(
-  lovableKey: string,
-  voiceBlock: string,
-  posts: PostRow[],
-): Promise<Composed> {
-  const fallback = (): Composed => ({
-    subject: `This week in AI: ${posts[0].title}`.slice(0, 90),
-    intro:
-      "A few things worth your attention this week. Practical, no fluff — pick the one that maps to what you're building right now.",
-    post_blurbs: posts.map((p) => ({
-      slug: p.slug,
-      blurb: (p.tldr || p.excerpt || "").toString().slice(0, 280),
-    })),
-  });
-
-  try {
-    const list = posts
-      .map(
-        (p, i) =>
-          `${i + 1}. slug: ${p.slug}\n   title: ${p.title}\n   excerpt: ${(p.tldr || p.excerpt || "").toString().slice(0, 400)}`,
-      )
-      .join("\n\n");
-
-    const system = `You compose a weekly email digest for Brian Hanson's list of small-business owners exploring AI.
-${voiceBlock}
-Return ONLY JSON, no prose, no code fences.`;
-
-    const user = `Compose this week's newsletter as JSON with exactly this shape:
-{
-  "subject": "curiosity-driven, under 55 chars, no clickbait cliches",
-  "intro": "2-3 first-person sentences from Brian setting up the week's theme",
-  "post_blurbs": [{"slug": "...", "blurb": "1-2 punchy sentences on why this matters to a small-business owner"}]
-}
-
-Posts to cover (use these exact slugs):
-
-${list}`;
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": lovableKey,
-      },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!res.ok) return fallback();
-    const j = await res.json();
-    const raw = j?.choices?.[0]?.message?.content || "";
-    const parsed = safeParseJson(raw);
-    if (!parsed) return fallback();
-
-    // Ensure a blurb for every post; fall back to excerpt if missing.
-    const bySlug = new Map(parsed.post_blurbs.map((b) => [b.slug, b.blurb]));
-    const filled: Blurb[] = posts.map((p) => ({
-      slug: p.slug,
-      blurb: (bySlug.get(p.slug) || p.tldr || p.excerpt || "").toString().slice(0, 400),
-    }));
-    return {
-      subject: parsed.subject.slice(0, 90) || fallback().subject,
-      intro: parsed.intro || fallback().intro,
-      post_blurbs: filled,
-    };
-  } catch {
-    return fallback();
-  }
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function buildHtml(
-  composed: Composed,
-  posts: PostRow[],
-  token: string,
-  postalAddress: string | null,
-): string {
-  const bySlug = new Map(composed.post_blurbs.map((b) => [b.slug, b.blurb]));
-  const items = posts
-    .map((p) => {
-      const url = `${POST_BASE}/${p.slug}`;
-      const blurb = escapeHtml(bySlug.get(p.slug) || p.excerpt || "");
-      return `
-        <div style="margin:0 0 28px;">
-          <a href="${url}" style="display:block;font-size:19px;font-weight:700;color:#1a1a1a;text-decoration:none;line-height:1.35;margin-bottom:6px;">${escapeHtml(p.title)}</a>
-          <p style="margin:0 0 8px;font-size:15px;line-height:1.55;color:#3a3a3a;">${blurb}</p>
-          <a href="${url}" style="font-size:13px;color:#B8962E;text-decoration:none;font-weight:600;letter-spacing:0.03em;">READ →</a>
-        </div>`;
-    })
-    .join("");
-
-  const unsub = `${UNSUB_BASE}?token=${token}`;
-
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#faf8f4;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;">
-  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
-    <div style="border-bottom:2px solid #B8962E;padding-bottom:12px;margin-bottom:24px;">
-      <span style="font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#B8962E;font-weight:700;">Brian Hanson · AI Brief</span>
-    </div>
-    <p style="font-size:16px;line-height:1.6;color:#1a1a1a;margin:0 0 28px;">${escapeHtml(composed.intro)}</p>
-    ${items}
-    <p style="font-size:15px;line-height:1.6;color:#1a1a1a;margin:32px 0 0;border-top:1px solid #e5ddc9;padding-top:20px;">Reply and tell me which one you're testing this week. I read every response.<br/><br/>— Brian</p>
-    <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5ddc9;font-size:12px;line-height:1.6;color:#7a7460;">
-      ${postalAddress ? `<div style="margin-bottom:10px;">${escapeHtml(postalAddress)}</div>` : ""}
-      <a href="${unsub}" style="color:#7a7460;text-decoration:underline;">Unsubscribe</a>
-    </div>
-  </div>
-</body></html>`;
 }
 
 Deno.serve(async (req) => {
@@ -207,37 +56,67 @@ Deno.serve(async (req) => {
 
   const weekKey = isoWeekKey(new Date());
 
-  // Idempotency
-  const { data: existing } = await admin
+  // 1. Load this week's row.
+  const { data: row } = await admin
     .from("newsletter_sends")
-    .select("id")
+    .select("id, status, subject, intro, post_blurbs, post_ids")
     .eq("week_key", weekKey)
     .maybeSingle();
-  if (existing) return json(200, { ok: true, skipped: "already sent this week" });
 
-  // Content
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: postsRaw } = await admin
-    .from("posts")
-    .select("id, title, slug, excerpt, tldr, quality_score")
-    .eq("status", "published")
-    .gte("created_at", since)
-    .order("quality_score", { ascending: false, nullsFirst: false })
-    .limit(5);
-  const posts = (postsRaw || []) as PostRow[];
-  if (posts.length === 0) return json(200, { ok: true, skipped: "no posts this week" });
+  if (row?.status === "cancelled") {
+    return json(200, { ok: true, skipped: "cancelled by admin", week_key: weekKey });
+  }
+  if (row?.status === "sent") {
+    return json(200, { ok: true, skipped: "already sent this week", week_key: weekKey });
+  }
 
-  // Recipients
+  // 2. Resolve posts + composed content.
+  let posts: PostRow[] = [];
+  let composed: Composed;
+
+  if (row && row.status === "preview") {
+    // Send exactly what the admin saw in the preview.
+    if (Array.isArray(row.post_ids) && row.post_ids.length > 0) {
+      const { data } = await admin
+        .from("posts")
+        .select("id, title, slug, excerpt, tldr, quality_score")
+        .in("id", row.post_ids as string[]);
+      posts = (data || []) as PostRow[];
+      // Preserve the preview's post order.
+      const order = new Map((row.post_ids as string[]).map((id, i) => [id, i]));
+      posts.sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99));
+    }
+    composed = {
+      subject: row.subject || "",
+      intro: row.intro || "",
+      post_blurbs: Array.isArray(row.post_blurbs) ? (row.post_blurbs as any) : [],
+    };
+  } else {
+    // Fallback: no preview row exists (compose failed on Monday) — compose fresh.
+    posts = await fetchRecentPosts(admin);
+    if (posts.length === 0) {
+      return json(200, { ok: true, skipped: "no posts this week", week_key: weekKey });
+    }
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    const voiceBlock = await loadVoiceBlock(admin);
+    composed = await composeFromPosts(lovableKey, voiceBlock, posts);
+  }
+
+  if (posts.length === 0) {
+    return json(200, { ok: true, skipped: "no posts resolved", week_key: weekKey });
+  }
+
+  // 3. Recipients
   const { data: subs } = await admin
     .from("newsletter_subscribers")
     .select("id, email, confirm_token")
     .eq("status", "confirmed");
   const recipients = (subs || []) as { id: string; email: string; confirm_token: string }[];
   if (recipients.length === 0) {
-    return json(200, { ok: true, skipped: "no confirmed subscribers" });
+    return json(200, { ok: true, skipped: "no confirmed subscribers", week_key: weekKey });
   }
 
-  // Site settings
+  // 4. Send config
   const { data: settings } = await admin
     .from("site_settings")
     .select("newsletter_from_address, newsletter_reply_to, newsletter_postal_address")
@@ -248,34 +127,26 @@ Deno.serve(async (req) => {
   const replyTo = settings?.newsletter_reply_to || null;
   const postal = settings?.newsletter_postal_address || null;
 
-  // Compose
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
-  const voice = await loadVoiceConfig(admin);
-  const voiceBlock = formatVoiceBlock(voice);
-  const composed = lovableKey
-    ? await compose(lovableKey, voiceBlock, posts)
-    : {
-        subject: `This week in AI: ${posts[0].title}`.slice(0, 90),
-        intro: "A few things worth your attention this week.",
-        post_blurbs: posts.map((p) => ({
-          slug: p.slug,
-          blurb: (p.tldr || p.excerpt || "").toString().slice(0, 280),
-        })),
-      };
-
-  // Insert send row BEFORE sending
-  const { error: insertErr } = await admin.from("newsletter_sends").insert({
+  // 5. Ensure a newsletter_sends row exists in 'preview' state before we start
+  // sending. (Fallback path may not have created one yet.)
+  const upsertPayload = {
     week_key: weekKey,
     subject: composed.subject,
+    intro: composed.intro,
+    post_blurbs: composed.post_blurbs,
     post_ids: posts.map((p) => p.id),
     recipient_count: recipients.length,
     sent_count: 0,
-  });
-  if (insertErr) {
-    return json(500, { error: `insert failed: ${insertErr.message}` });
+    status: "preview" as const,
+  };
+  if (row?.id) {
+    await admin.from("newsletter_sends").update(upsertPayload).eq("id", row.id);
+  } else {
+    const { error } = await admin.from("newsletter_sends").insert(upsertPayload);
+    if (error) return json(500, { error: `insert failed: ${error.message}` });
   }
 
-  // Send in chunks of 100
+  // 6. Send in chunks of 100.
   let sent = 0;
   const chunkSize = 100;
   for (let i = 0; i < recipients.length; i += chunkSize) {
@@ -304,12 +175,10 @@ Deno.serve(async (req) => {
       if (res.ok) {
         sent += chunk.length;
       } else {
-        console.error(
-          `Resend batch failed [${res.status}]: ${await res.text()}`,
-        );
+        console.error(`Resend batch failed [${res.status}]: ${await res.text()}`);
       }
     } catch (e) {
-      console.error(`Resend batch threw:`, e);
+      console.error("Resend batch threw:", e);
     }
 
     if (i + chunkSize < recipients.length) {
@@ -319,7 +188,7 @@ Deno.serve(async (req) => {
 
   await admin
     .from("newsletter_sends")
-    .update({ sent_count: sent })
+    .update({ sent_count: sent, recipient_count: recipients.length, status: "sent" })
     .eq("week_key", weekKey);
 
   return json(200, {
@@ -328,5 +197,6 @@ Deno.serve(async (req) => {
     subject: composed.subject,
     recipients: recipients.length,
     sent,
+    used_preview: row?.status === "preview",
   });
 });
