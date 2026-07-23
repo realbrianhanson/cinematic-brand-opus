@@ -786,6 +786,52 @@ const PostEditor = () => {
           </div>
         </div>
       )}
+
+      {publishBlock && (
+        <div onClick={() => setPublishBlock(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
+            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+              Publish gate blocked this post
+            </h3>
+            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
+              The post was saved as a draft. Fix the issues below, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            </p>
+            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
+              {publishBlock.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            </ul>
+            <label className="admin-label">Override reason</label>
+            <textarea value={publishOverrideReason} onChange={(e) => setPublishOverrideReason(e.target.value)}
+              rows={3} placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setPublishBlock(null)} className="admin-btn-ghost">Close</button>
+              <button
+                disabled={publishOverrideReason.trim().length < 10 || saveMutation.isPending}
+                onClick={async () => {
+                  const target = publishBlock;
+                  const reason = publishOverrideReason;
+                  if (!target) return;
+                  const result = await runManualPublish(target.postId, reason);
+                  if (result.blocked) {
+                    setPublishBlock({ postId: target.postId, failures: result.failures });
+                    toast({ title: "Still blocked", description: "Provide a stronger override reason or fix the issues.", variant: "destructive" });
+                    return;
+                  }
+                  setPublishBlock(null);
+                  toast({ title: "Published with override" });
+                  qc.invalidateQueries({ queryKey: ["admin-posts"] });
+                  navigate("/admin/posts");
+                }}
+                className="admin-btn-primary"
+                style={{ background: publishOverrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : undefined }}>
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
