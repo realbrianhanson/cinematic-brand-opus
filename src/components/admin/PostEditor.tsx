@@ -383,13 +383,38 @@ const PostEditor = () => {
     }
   }, [aiTopic, aiContext, toast]);
 
+  const runManualPublish = useCallback(async (postId: string, overrideReason?: string) => {
+    const body: any = { post_id: postId };
+    if (overrideReason && overrideReason.trim().length >= 10) body.override_reason = overrideReason.trim();
+    const { data, error } = await supabase.functions.invoke("manual-publish", { body });
+    if (error) {
+      const ctx: any = (error as any).context;
+      let parsed: any = null;
+      if (ctx && typeof ctx.text === "function") {
+        try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+      }
+      if (parsed?.decision === "blocked" && Array.isArray(parsed.failures)) {
+        return { blocked: true as const, failures: parsed.failures as string[] };
+      }
+      throw new Error(parsed?.error || error.message);
+    }
+    if (data?.ok === false && Array.isArray(data.failures)) {
+      return { blocked: true as const, failures: data.failures as string[] };
+    }
+    return { blocked: false as const };
+  }, []);
+
   const saveMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (opts: { overrideReason?: string } = {}) =>
       safeMutation(async () => {
         const content = editorRef.current?.getHTML() ?? editorContent;
         const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
         const cleanFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
         const cleanTakeaways = keyTakeaways.filter((t) => t.trim());
+
+        // If moving to published (from anything else), route status change through manual-publish.
+        const wantsPublish = status === "published" && initialStatus !== "published";
+        const persistStatus = wantsPublish ? "draft" : status;
 
         const postData: Record<string, any> = {
           title,
@@ -397,8 +422,8 @@ const PostEditor = () => {
           content,
           excerpt: excerpt || null,
           category_id: categoryId || null,
-          status,
-          scheduled_at: status === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          status: persistStatus,
+          scheduled_at: persistStatus === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
           featured_image: featuredImage || null,
           reading_time,
           faq_items: cleanFaq.length ? cleanFaq : [],
@@ -428,10 +453,7 @@ const PostEditor = () => {
           meta_title: metaTitle || null,
           meta_description: metaDesc || null,
           keywords: keywords
-            ? keywords
-                .split(",")
-                .map((k) => k.trim())
-                .filter(Boolean)
+            ? keywords.split(",").map((k) => k.trim()).filter(Boolean)
             : null,
           og_image: ogImage || null,
         };
@@ -441,11 +463,29 @@ const PostEditor = () => {
         } else {
           await supabase.from("seo_metadata").insert(seoData);
         }
-        return postId;
+
+        // Now handle the publish transition through the gated edge function
+        if (wantsPublish && postId) {
+          const result = await runManualPublish(postId, opts.overrideReason);
+          if (result.blocked) {
+            return { postId, publishBlocked: result.failures };
+          }
+        }
+        return { postId };
       }),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      if (result?.publishBlocked) {
+        setPublishBlock({ postId: result.postId, failures: result.publishBlocked });
+        setPublishOverrideReason("");
+        toast({ title: "Saved as draft — publish gate blocked", description: "Review failures and either fix them or supply an override reason.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Saved" });
       navigate("/admin/posts");
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err?.message || "Unknown error", variant: "destructive" });
     },
   });
 
