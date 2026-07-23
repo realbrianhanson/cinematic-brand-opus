@@ -66,31 +66,23 @@ const Index = () => {
     }, 100);
   };
 
+  useEffect(() => {
+    const scripts = HOMEPAGE_LD.map((data, i) => {
+      const el = document.createElement("script");
+      el.type = "application/ld+json";
+      el.id = `home-ld-${i}`;
+      el.textContent = JSON.stringify(data);
+      document.head.appendChild(el);
+      return el;
+    });
+    return () => {
+      for (const s of scripts) s.remove();
+    };
+  }, []);
+
   return (
     <>
       <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership." url="https://brianhanson.com/" type="website" />
-      <Helmet>
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Person",
-          name: "Brian Hanson",
-          jobTitle: "Keynote Speaker, Advisor & Operator",
-          url: "https://brianhanson.com/",
-          description: "Brian Hanson helps founders and executives build authority, lead with clarity, and grow durable businesses through applied A.I., marketing, and leadership strategy.",
-          knowsAbout: ["Artificial Intelligence", "Leadership", "Marketing Strategy", "Business Growth", "Personal Branding"],
-        })}</script>
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "Brian Hanson",
-          url: "https://brianhanson.com/",
-          potentialAction: {
-            "@type": "SearchAction",
-            target: "https://brianhanson.com/resources?q={search_term_string}",
-            "query-input": "required name=search_term_string",
-          },
-        })}</script>
-      </Helmet>
       {!loaded && <Loader onComplete={handleLoaderComplete} />}
       <div
         className="public-site min-h-screen"
