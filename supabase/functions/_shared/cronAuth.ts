@@ -12,14 +12,53 @@ export interface CronAuthResult {
   userId?: string;
 }
 
+// Module-level cache of the Vault-stored cron secret. Vault is the single
+// source of truth so future rotation is one SQL update. TTL ~5 min.
+let vaultCronSecret: string | null = null;
+let vaultCronSecretFetchedAt = 0;
+const VAULT_CRON_SECRET_TTL_MS = 5 * 60 * 1000;
+
+async function getVaultCronSecret(): Promise<string | null> {
+  const now = Date.now();
+  if (vaultCronSecret && now - vaultCronSecretFetchedAt < VAULT_CRON_SECRET_TTL_MS) {
+    return vaultCronSecret;
+  }
+  const url = Deno.env.get("SUPABASE_URL");
+  const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !srk) return null;
+  try {
+    const admin = createClient(url, srk);
+    const { data, error } = await admin.rpc("get_cron_invocation_secret");
+    if (error) {
+      console.error("get_cron_invocation_secret RPC failed:", error.message);
+      return null;
+    }
+    const val = typeof data === "string" ? data : null;
+    if (val) {
+      vaultCronSecret = val;
+      vaultCronSecretFetchedAt = now;
+    }
+    return val;
+  } catch (e) {
+    console.error("get_cron_invocation_secret threw:", e);
+    return null;
+  }
+}
+
 export async function authorizeCronOrAdmin(
   req: Request,
   corsHeaders: Record<string, string>,
 ): Promise<CronAuthResult | Response> {
-  const cronSecret = Deno.env.get("CRON_INVOCATION_SECRET");
   const incomingCron = req.headers.get("x-cron-secret");
-  if (incomingCron && cronSecret && incomingCron === cronSecret) {
-    return { ok: true, mode: "cron" };
+  if (incomingCron) {
+    const envSecret = Deno.env.get("CRON_INVOCATION_SECRET");
+    if (envSecret && incomingCron === envSecret) {
+      return { ok: true, mode: "cron" };
+    }
+    const vaultSecret = await getVaultCronSecret();
+    if (vaultSecret && incomingCron === vaultSecret) {
+      return { ok: true, mode: "cron" };
+    }
   }
 
   const authHeader = req.headers.get("Authorization");
