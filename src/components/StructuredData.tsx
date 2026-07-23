@@ -91,7 +91,7 @@ const StructuredData = ({
       publisher: {
         "@type": "Organization",
         name: siteSettings?.publisher_name || "Publisher",
-        ...(siteSettings?.publisher_url && { url: siteSettings.publisher_url }),
+        ...(siteSettings?.publisher_url && !siteSettings.publisher_url.includes("example.com") && { url: siteSettings.publisher_url }),
       },
       datePublished: publishedAt,
       dateModified: updatedAt,

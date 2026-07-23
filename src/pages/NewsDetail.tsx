@@ -188,6 +188,7 @@ const NewsDetail = () => {
         url={shareUrl}
         image={item.image_url || undefined}
         publishedAt={item.published_at || undefined}
+        robots="noindex, follow"
       />
 
       <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 820 }}>

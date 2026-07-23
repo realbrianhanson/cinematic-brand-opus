@@ -488,7 +488,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
     publisher: {
       "@type": "Organization",
       name: settings.publisher_name || settings.site_name || "Publisher",
-      ...(settings.publisher_url && { url: settings.publisher_url }),
+      ...(settings.publisher_url && !settings.publisher_url.includes("example.com") && { url: settings.publisher_url }),
     },
     datePublished: post.created_at,
     dateModified: post.updated_at,
@@ -762,7 +762,7 @@ async function renderGeneratedPage(
     publisher: {
       "@type": "Organization",
       name: settings.publisher_name || settings.site_name || "Publisher",
-      ...(settings.publisher_url && { url: settings.publisher_url }),
+      ...(settings.publisher_url && !settings.publisher_url.includes("example.com") && { url: settings.publisher_url }),
     },
     datePublished: page.published_at || page.created_at,
     dateModified: page.updated_at,
@@ -957,7 +957,7 @@ async function renderPillarPage(settings: Settings, path: string, slug: string):
     publisher: {
       "@type": "Organization",
       name: settings.publisher_name || settings.site_name || "Publisher",
-      ...(settings.publisher_url && { url: settings.publisher_url }),
+      ...(settings.publisher_url && !settings.publisher_url.includes("example.com") && { url: settings.publisher_url }),
     },
     datePublished: pillar.published_at || pillar.created_at,
     dateModified: pillar.updated_at,

@@ -260,6 +260,14 @@ const SiteSettingsManager = () => {
                   onChange={(e) => updateField("publisher_name", e.target.value)}
                 />
               </Field>
+              <Field label="Publisher URL">
+                <input
+                  className="admin-input font-body"
+                  value={form.publisher_url ?? ""}
+                  onChange={(e) => updateField("publisher_url", e.target.value)}
+                  placeholder="https://yoursite.com"
+                />
+              </Field>
             </div>
           </div>
 
