@@ -12,7 +12,7 @@ import {
   isoWeekKey,
   loadVoiceBlock,
   type PostRow,
-} from "../_shared/newsletterCompose.ts";
+} from "../_shared/newsletter-compose.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

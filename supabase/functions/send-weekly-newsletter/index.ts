@@ -10,7 +10,7 @@
 //        - no row             → compose fresh so the newsletter never silently
 //                                dies (fallback path).
 //
-// The composition helpers live in _shared/newsletterCompose.ts so the Monday
+// The composition helpers live in _shared/newsletter-compose.ts so the Monday
 // preview and this Tuesday send always render identical HTML.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
@@ -23,7 +23,7 @@ import {
   loadVoiceBlock,
   type Composed,
   type PostRow,
-} from "../_shared/newsletterCompose.ts";
+} from "../_shared/newsletter-compose.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
