@@ -244,6 +244,7 @@ const News = () => {
         description="Global AI, marketing, and sales news — curated and summarized daily."
         url="https://brianhanson.com/news"
         type="website"
+        robots="noindex, follow"
       />
       <CustomCursor />
       <Nav />
