@@ -1,8 +1,11 @@
 // Fact-checks a post: extracts verifiable claims (LLM) and verifies each via Perplexity.
-// Annotates posts.fact_check + fact_checked_at. Never changes status.
+// Annotates posts.fact_check + fact_checked_at, and recomputes quality_score
+// with fact-check deductions applied on top of the structural score.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
+import { scorePost } from "../_shared/voice.ts";
+import { computeQualityWithFacts } from "../_shared/publishGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +47,7 @@ Deno.serve(async (req) => {
 
   const { data: post, error: postErr } = await supabase
     .from("posts")
-    .select("id, title, content, source_citations, lint_flags")
+    .select("id, title, content, excerpt, tldr, key_takeaways, faq_items, source_citations, lint_flags, fact_check")
     .eq("id", post_id)
     .maybeSingle();
   if (postErr || !post) {
