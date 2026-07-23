@@ -1325,6 +1325,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_cron_invocation_secret: { Args: never; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       match_posts: {
         Args: { match_count?: number; query_embedding: string }
