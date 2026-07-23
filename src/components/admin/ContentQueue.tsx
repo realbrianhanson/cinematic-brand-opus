@@ -317,13 +317,25 @@ export default function ContentQueue() {
         const badClaims = hasFc ? ((fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)) : 0;
         const factsAmber = hasFc && badClaims > 0;
         const oneClickReady = (p.quality_score ?? 0) >= 85 && !factsAmber;
+        const structural = hasFc && typeof fc.structural_score === "number" ? fc.structural_score : null;
+        const deductions = hasFc && typeof fc.fact_deductions === "number" ? fc.fact_deductions : null;
+        const qualityTip = structural !== null
+          ? `Structural ${structural} − fact deductions ${deductions ?? 0} = ${p.quality_score ?? "—"}`
+          : "Quality score (structural — fact-check pending)";
         return (
         <div key={p.id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}>{p.title}</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8, alignItems: "center" }}>
-                <span>Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong></span>
+                <span title={qualityTip} style={{ cursor: "help" }}>
+                  Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong>
+                  {structural !== null && (
+                    <span style={{ marginLeft: 4, color: "hsl(var(--admin-text-ghost))" }}>
+                      ({structural}−{deductions ?? 0})
+                    </span>
+                  )}
+                </span>
                 <span>Originality: <strong>{p.originality_score ?? "—"}%</strong></span>
                 <span>Fresh: <strong>{p.freshness_hours ?? "—"}h</strong></span>
                 <span>Sources: <strong>{(p.source_citations as any[])?.length ?? 0}</strong></span>
@@ -334,7 +346,7 @@ export default function ContentQueue() {
                 {hasFc && (
                   factsAmber ? (
                     <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(38 80% 20%)", color: "hsl(38 90% 70%)", border: "1px solid hsl(38 60% 40%)", fontWeight: 600 }}>
-                      {badClaims} claims unverified
+                      {fc.contradicted_count ?? 0} contradicted · {fc.unverified_count ?? 0} unverified
                     </span>
                   ) : (
                     <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(140 40% 18%)", color: "hsl(140 70% 70%)", border: "1px solid hsl(140 40% 35%)", fontWeight: 600 }}>
@@ -342,16 +354,28 @@ export default function ContentQueue() {
                     </span>
                   )
                 )}
+                {hasFc && fc.remediated && (
+                  <span style={{ padding: "2px 6px", borderRadius: 4, background: "hsl(var(--admin-surface))", color: "hsl(var(--admin-text-ghost))", border: "1px solid hsl(var(--admin-border))", fontSize: 10 }}>
+                    remediated
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+              {factsAmber && !fc?.remediated && (
+                <button onClick={() => fixFacts(p.id)} disabled={fixingFactsId === p.id}
+                  title="Rewrite content to drop contradicted claims and attribute unverified ones, then re-check."
+                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(38 60% 40%)", borderRadius: 6, color: "hsl(38 90% 70%)", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                  {fixingFactsId === p.id ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />} Fix facts
+                </button>
+              )}
               <button onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
                 style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
                 <Edit3 size={12} /> Edit
               </button>
-              <button onClick={() => publish(p.id, p.opportunity_id)}
-                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <CheckCircle2 size={12} /> Publish
+              <button onClick={() => publish(p.id, p.opportunity_id)} disabled={publishing === p.id}
+                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: publishing === p.id ? "wait" : "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                {publishing === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} Publish
               </button>
             </div>
           </div>
