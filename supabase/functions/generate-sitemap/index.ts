@@ -120,18 +120,27 @@ async function mainEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> 
     .select("id, slug")
     .eq("is_active", true);
   const schemaMap = new Map<string, string>((schemas || []).map((s: any) => [s.id, s.slug]));
-  for (const s of schemas || []) {
-    entries.push({
-      loc: `${siteUrl}/resources/${s.slug}`,
-      changefreq: "weekly",
-      priority: "0.7",
-    });
-  }
 
   const { data: pages } = await supabase
     .from("generated_pages")
     .select("slug, updated_at, content_schema_id")
     .eq("status", "published");
+
+  // Only emit hub URLs for content types with >=1 published page — otherwise
+  // the hub renders "No published resources found." (thin content).
+  const activeSchemaIds = new Set<string>(
+    (pages || []).map((p: any) => p.content_schema_id).filter(Boolean),
+  );
+  for (const s of schemas || []) {
+    if (activeSchemaIds.has(s.id)) {
+      entries.push({
+        loc: `${siteUrl}/resources/${s.slug}`,
+        changefreq: "weekly",
+        priority: "0.7",
+      });
+    }
+  }
+
   for (const pg of pages || []) {
     const typeSlug = schemaMap.get(pg.content_schema_id);
     if (!typeSlug) continue;
