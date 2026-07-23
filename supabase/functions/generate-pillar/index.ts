@@ -243,6 +243,10 @@ async function generatePillarForNiche(
         ? privateSettings.default_expert_pov.trim()
         : "";
 
+  // Public site identity (non-sensitive display fields) — used for meta title.
+  const { data: siteSettings } = await supabase
+    .from("site_settings").select("site_name, publisher_name").limit(1).maybeSingle();
+
   // Child pages we'll link to at close
   const { data: childPages } = await supabase
     .from("generated_pages")
