@@ -14,13 +14,13 @@ export interface LintViolation {
 }
 
 /**
- * Load voice_profile + banned_phrases from site_settings.
- * Returns empty strings/arrays if not configured — callers should still
- * inject the block; the model will just receive an empty voice section.
+ * Load voice_profile + banned_phrases from site_settings_private (admin-only).
+ * Callers use the service role, which bypasses RLS. Anonymous readers can no
+ * longer see these values via the public site_settings row.
  */
 export async function loadVoiceConfig(supabase: any): Promise<VoiceConfig> {
   const { data } = await supabase
-    .from("site_settings")
+    .from("site_settings_private")
     .select("voice_profile, banned_phrases")
     .limit(1)
     .maybeSingle();
@@ -28,6 +28,18 @@ export async function loadVoiceConfig(supabase: any): Promise<VoiceConfig> {
     voice_profile: (data?.voice_profile || "").trim(),
     banned_phrases: Array.isArray(data?.banned_phrases) ? data.banned_phrases : [],
   };
+}
+
+/**
+ * Load the site-wide default expert POV (admin-only). Returns "" if unset.
+ */
+export async function loadDefaultExpertPov(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("site_settings_private")
+    .select("default_expert_pov")
+    .limit(1)
+    .maybeSingle();
+  return typeof data?.default_expert_pov === "string" ? data.default_expert_pov.trim() : "";
 }
 
 /**

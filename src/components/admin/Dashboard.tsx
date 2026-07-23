@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2, Globe, Send, Mail } from "lucide-react";
 import BriansNotesWidget from "./BriansNotesWidget";
+import NewsletterPreviewCard from "./NewsletterPreviewCard";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -231,6 +232,10 @@ const Dashboard = () => {
       <div style={{ marginBottom: 32 }}>
         <BriansNotesWidget />
       </div>
+
+      {/* Weekly newsletter preview (Monday compose → Tuesday send) */}
+      <NewsletterPreviewCard />
+
 
 
       {/* Recent posts */}

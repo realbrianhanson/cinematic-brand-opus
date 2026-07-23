@@ -690,28 +690,40 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          intro: string | null
+          post_blurbs: Json | null
           post_ids: string[]
           recipient_count: number
           sent_count: number
+          status: string
           subject: string | null
+          updated_at: string
           week_key: string
         }
         Insert: {
           created_at?: string
           id?: string
+          intro?: string | null
+          post_blurbs?: Json | null
           post_ids?: string[]
           recipient_count?: number
           sent_count?: number
+          status?: string
           subject?: string | null
+          updated_at?: string
           week_key: string
         }
         Update: {
           created_at?: string
           id?: string
+          intro?: string | null
+          post_blurbs?: Json | null
           post_ids?: string[]
           recipient_count?: number
           sent_count?: number
+          status?: string
           subject?: string | null
+          updated_at?: string
           week_key?: string
         }
         Relationships: []
@@ -1037,16 +1049,11 @@ export type Database = {
           author_name: string
           author_social_links: Json | null
           author_title: string | null
-          auto_publish_daily_cap: number
-          auto_publish_enabled: boolean
-          auto_publish_min_quality: number
-          banned_phrases: string[] | null
           cta_button_text: string | null
           cta_headline: string | null
           cta_social_proof: string | null
           cta_subtext: string | null
           cta_url: string | null
-          default_expert_pov: string | null
           id: string
           image_generation_enabled: boolean
           newsletter_from_address: string | null
@@ -1057,7 +1064,6 @@ export type Database = {
           site_name: string
           site_url: string
           updated_at: string | null
-          voice_profile: string | null
         }
         Insert: {
           author_bio?: string | null
@@ -1065,16 +1071,11 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
-          auto_publish_daily_cap?: number
-          auto_publish_enabled?: boolean
-          auto_publish_min_quality?: number
-          banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null
           cta_social_proof?: string | null
           cta_subtext?: string | null
           cta_url?: string | null
-          default_expert_pov?: string | null
           id?: string
           image_generation_enabled?: boolean
           newsletter_from_address?: string | null
@@ -1085,7 +1086,6 @@ export type Database = {
           site_name?: string
           site_url?: string
           updated_at?: string | null
-          voice_profile?: string | null
         }
         Update: {
           author_bio?: string | null
@@ -1093,16 +1093,11 @@ export type Database = {
           author_name?: string
           author_social_links?: Json | null
           author_title?: string | null
-          auto_publish_daily_cap?: number
-          auto_publish_enabled?: boolean
-          auto_publish_min_quality?: number
-          banned_phrases?: string[] | null
           cta_button_text?: string | null
           cta_headline?: string | null
           cta_social_proof?: string | null
           cta_subtext?: string | null
           cta_url?: string | null
-          default_expert_pov?: string | null
           id?: string
           image_generation_enabled?: boolean
           newsletter_from_address?: string | null
@@ -1113,31 +1108,48 @@ export type Database = {
           site_name?: string
           site_url?: string
           updated_at?: string | null
-          voice_profile?: string | null
         }
         Relationships: []
       }
       site_settings_private: {
         Row: {
+          auto_publish_daily_cap: number
+          auto_publish_enabled: boolean
+          auto_publish_min_quality: number
+          banned_phrases: string[]
           created_at: string
+          default_expert_pov: string | null
           id: string
           report_email: string | null
           report_enabled: boolean | null
           updated_at: string
+          voice_profile: string | null
         }
         Insert: {
+          auto_publish_daily_cap?: number
+          auto_publish_enabled?: boolean
+          auto_publish_min_quality?: number
+          banned_phrases?: string[]
           created_at?: string
+          default_expert_pov?: string | null
           id?: string
           report_email?: string | null
           report_enabled?: boolean | null
           updated_at?: string
+          voice_profile?: string | null
         }
         Update: {
+          auto_publish_daily_cap?: number
+          auto_publish_enabled?: boolean
+          auto_publish_min_quality?: number
+          banned_phrases?: string[]
           created_at?: string
+          default_expert_pov?: string | null
           id?: string
           report_email?: string | null
           report_enabled?: boolean | null
           updated_at?: string
+          voice_profile?: string | null
         }
         Relationships: []
       }

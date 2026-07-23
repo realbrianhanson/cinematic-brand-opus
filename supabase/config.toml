@@ -89,6 +89,9 @@ verify_jwt = false
 [functions.send-weekly-newsletter]
 verify_jwt = false
 
+[functions.compose-weekly-newsletter-preview]
+verify_jwt = false
+
 [functions.resend-webhook]
 verify_jwt = false
 

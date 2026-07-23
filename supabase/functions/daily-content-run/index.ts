@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
   // Daily draft budget check: hard-cap runaway spend if we've drafted way more than cap
   const { data: settingsRow } = await supabase
-    .from("site_settings")
+    .from("site_settings_private")
     .select("auto_publish_daily_cap")
     .limit(1)
     .maybeSingle();

@@ -605,12 +605,15 @@ async function handleStepProcessing(
   }
   if (pillarLink) internalLinkOptions.push({ title: pillarLink.title, url: `/guides/${pillarLink.slug}` });
 
-  // Expert POV (per-niche override, otherwise site-wide default). Used ONLY to seed
-  // the "From the trenches" callout — the model may not invent experiences.
+  // Expert POV (per-niche override, otherwise site-wide default from admin-only
+  // site_settings_private). Used ONLY to seed the "From the trenches" callout —
+  // the model may not invent experiences.
+  const { data: privateSettings } = await supabase
+    .from("site_settings_private").select("default_expert_pov").limit(1).maybeSingle();
   const expertPov: string =
     (typeof niche.expert_pov === "string" && niche.expert_pov.trim())
       ? niche.expert_pov.trim()
-      : (typeof siteSettings?.default_expert_pov === "string" ? siteSettings.default_expert_pov.trim() : "");
+      : (typeof privateSettings?.default_expert_pov === "string" ? privateSettings.default_expert_pov.trim() : "");
 
   const paa: string[] = Array.isArray(item.paa) ? item.paa : [];
 

@@ -25,4 +25,18 @@ window.addEventListener("unhandledrejection", (e) => {
   maybeReload(msg);
 });
 
+// Duplicate-domain guard: the canonical site is brianhanson.com; any
+// *.lovable.app host (production alias or preview) must not be indexed by
+// Google to avoid duplicate-content dilution. Preview hosts still work for
+// editing — we're only telling crawlers to drop the copy.
+if (typeof window !== "undefined" && window.location.hostname.endsWith("lovable.app")) {
+  let robots = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+  if (!robots) {
+    robots = document.createElement("meta");
+    robots.setAttribute("name", "robots");
+    document.head.appendChild(robots);
+  }
+  robots.setAttribute("content", "noindex");
+}
+
 createRoot(document.getElementById("root")!).render(<App />);

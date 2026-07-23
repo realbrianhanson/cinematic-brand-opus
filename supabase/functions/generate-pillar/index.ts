@@ -233,13 +233,14 @@ async function generatePillarForNiche(
   const voice = await loadVoiceConfig(supabase);
   const voiceBlock = formatVoiceBlock(voice);
 
-  // Site settings (for expert POV fallback)
-  const { data: siteSettings } = await supabase.from("site_settings").select("*").limit(1).maybeSingle();
+  // Site settings (for expert POV fallback) — admin-only private table.
+  const { data: privateSettings } = await supabase
+    .from("site_settings_private").select("default_expert_pov").limit(1).maybeSingle();
   const expertPov: string =
     typeof niche.expert_pov === "string" && niche.expert_pov.trim()
       ? niche.expert_pov.trim()
-      : typeof siteSettings?.default_expert_pov === "string"
-        ? siteSettings.default_expert_pov.trim()
+      : typeof privateSettings?.default_expert_pov === "string"
+        ? privateSettings.default_expert_pov.trim()
         : "";
 
   // Child pages we'll link to at close

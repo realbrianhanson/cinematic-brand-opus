@@ -49,12 +49,13 @@ const BlogPost = () => {
     staleTime: 60000,
   });
 
-  // Fetch all niches for matching
+  // Fetch active niches for cross-link matching. Only display columns —
+  // the full `context` jsonb is admin-only and not exposed publicly.
   const { data: allNiches } = useQuery({
     queryKey: ["all-niches-for-crosslink"],
     queryFn: async () => {
-      const { data } = await supabase.from("niches").select("id, name, slug, context").eq("is_active", true);
-      return data ?? [];
+      const { data } = await supabase.from("niches").select("id, name, slug").eq("is_active", true);
+      return (data ?? []).map((n) => ({ ...n, context: null }));
     },
     staleTime: 120000,
   });
