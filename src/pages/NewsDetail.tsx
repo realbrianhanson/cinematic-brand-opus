@@ -255,9 +255,16 @@ const NewsDetail = () => {
               Generating the full article — this usually takes 10-20 seconds. The page will refresh automatically.
             </p>
           ) : genError ? (
-            <p className="font-body" style={{ color: "#f88", fontSize: 15 }}>
-              Could not generate the article: {genError}
-            </p>
+            <div>
+              {summary && (
+                <p className="font-body" style={{ color: "rgba(255,255,255,0.85)", fontSize: 17, lineHeight: 1.7, marginBottom: "1em" }}>
+                  {summary}
+                </p>
+              )}
+              <p className="font-body" style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, fontStyle: "italic" }}>
+                Full article available soon.
+              </p>
+            </div>
           ) : (
             <p className="font-body" style={{ color: "rgba(255,255,255,0.6)" }}>
               Preparing article...
