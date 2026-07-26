@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Pencil, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Search, Send } from "lucide-react";
+import { toast } from "sonner";
 
 const PostsManager = () => {
   const qc = useQueryClient();
@@ -32,6 +33,7 @@ const PostsManager = () => {
     };
   }, [qc]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmPublishAll, setConfirmPublishAll] = useState(false);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["admin-posts"],
@@ -56,6 +58,37 @@ const PostsManager = () => {
       setDeleteId(null);
     },
   });
+  const publishAllMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .update({
+          status: "published",
+          scheduled_at: null,
+          publish_override: true,
+          publish_override_reason: "Bulk publish all drafts from admin UI",
+          published_at: new Date().toISOString(),
+        })
+        .eq("status", "draft")
+        .select("id");
+      if (error) throw error;
+      return data?.length ?? 0;
+    },
+    onSuccess: (count) => {
+      toast.success(`Published ${count} draft${count === 1 ? "" : "s"}`);
+      qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      setConfirmPublishAll(false);
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || "Failed to publish drafts");
+    },
+  });
+
+  const draftCount = useMemo(
+    () => posts?.filter((p) => p.status === "draft").length ?? 0,
+    [posts]
+  );
+
 
   const filtered = useMemo(
     () => posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [],
@@ -69,9 +102,19 @@ const PostsManager = () => {
     <div>
       <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
         <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Posts</h1>
-        <Link to="/admin/posts/new" className="admin-btn-primary">
-          <Plus size={14} /> New Post
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setConfirmPublishAll(true)}
+            disabled={draftCount === 0}
+            className="admin-btn-ghost"
+            style={{ opacity: draftCount === 0 ? 0.4 : 1, display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <Send size={14} /> Publish all drafts {draftCount > 0 && `(${draftCount})`}
+          </button>
+          <Link to="/admin/posts/new" className="admin-btn-primary">
+            <Plus size={14} /> New Post
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
@@ -196,6 +239,36 @@ const PostsManager = () => {
                 style={{ background: "hsl(var(--admin-danger))" }}
               >
                 {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish-all confirmation */}
+      {confirmPublishAll && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div className="admin-card" style={{ padding: 32, maxWidth: 440, width: "90%" }}>
+            <h2 className="font-heading italic" style={{ fontSize: 20, marginBottom: 12 }}>
+              Publish {draftCount} draft{draftCount === 1 ? "" : "s"}?
+            </h2>
+            <p className="font-body" style={{ fontSize: 14, marginBottom: 20, color: "hsl(var(--admin-text-soft))" }}>
+              This bypasses quality, lint, and fact-check gates via publish override.
+              Each post will go live immediately.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmPublishAll(false)} className="admin-btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => publishAllMutation.mutate()}
+                className="admin-btn-primary"
+                disabled={publishAllMutation.isPending}
+              >
+                {publishAllMutation.isPending ? "Publishing..." : `Publish ${draftCount}`}
               </button>
             </div>
           </div>
