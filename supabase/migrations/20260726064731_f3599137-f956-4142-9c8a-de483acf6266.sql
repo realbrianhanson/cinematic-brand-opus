@@ -1,0 +1,1 @@
+UPDATE public.site_settings_private SET auto_publish_daily_cap = 3;
