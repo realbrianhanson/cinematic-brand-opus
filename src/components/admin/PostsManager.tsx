@@ -33,6 +33,7 @@ const PostsManager = () => {
     };
   }, [qc]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmPublishAll, setConfirmPublishAll] = useState(false);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["admin-posts"],
