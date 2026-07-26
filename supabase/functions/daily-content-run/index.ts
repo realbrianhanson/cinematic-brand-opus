@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     .select("id", { count: "exact", head: true })
     .not("opportunity_id", "is", null)
     .gt("created_at", dayAgo);
-  if ((draftsLast24h ?? 0) >= dailyCap + 4) {
+  if ((draftsLast24h ?? 0) >= dailyCap + 1) {
     log.steps.drafts = [];
     log.skipped_reason = "daily draft budget exhausted";
     log.finished_at = new Date().toISOString();
