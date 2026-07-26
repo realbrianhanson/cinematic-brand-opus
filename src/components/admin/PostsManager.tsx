@@ -102,9 +102,19 @@ const PostsManager = () => {
     <div>
       <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
         <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Posts</h1>
-        <Link to="/admin/posts/new" className="admin-btn-primary">
-          <Plus size={14} /> New Post
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setConfirmPublishAll(true)}
+            disabled={draftCount === 0}
+            className="admin-btn-ghost"
+            style={{ opacity: draftCount === 0 ? 0.4 : 1, display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <Send size={14} /> Publish all drafts {draftCount > 0 && `(${draftCount})`}
+          </button>
+          <Link to="/admin/posts/new" className="admin-btn-primary">
+            <Plus size={14} /> New Post
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
