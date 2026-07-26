@@ -244,6 +244,36 @@ const PostsManager = () => {
           </div>
         </div>
       )}
+
+      {/* Publish-all confirmation */}
+      {confirmPublishAll && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div className="admin-card" style={{ padding: 32, maxWidth: 440, width: "90%" }}>
+            <h2 className="font-heading italic" style={{ fontSize: 20, marginBottom: 12 }}>
+              Publish {draftCount} draft{draftCount === 1 ? "" : "s"}?
+            </h2>
+            <p className="font-body" style={{ fontSize: 14, marginBottom: 20, color: "hsl(var(--admin-text-soft))" }}>
+              This bypasses quality, lint, and fact-check gates via publish override.
+              Each post will go live immediately.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmPublishAll(false)} className="admin-btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => publishAllMutation.mutate()}
+                className="admin-btn-primary"
+                disabled={publishAllMutation.isPending}
+              >
+                {publishAllMutation.isPending ? "Publishing..." : `Publish ${draftCount}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
