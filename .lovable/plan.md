@@ -1,21 +1,31 @@
-# Content Engine v2 — as built (July 16, 2026)
+# Lower daily article output to 3/day
 
-Pipeline (all live, cron every 30 min via autonomous-content-pipeline-30min):
-poll-sources (RSS + Perplexity + Reddit + Hacker News, engagement_score stored, pipeline_status='new')
-→ cluster-opportunities (cosine 0.82 dedupe, engagement-weighted scoring, editorial LLM pick, reads pipeline_status='new', marks 'used' without touching News visibility)
-→ draft-from-opportunity (voice critique/lint, expert_note injection; SEO fields go to seo_metadata, embedding stored on post)
-→ fact-check (claims extracted via MAIN_MODEL, verified via Perplexity sonar; >2 unverified/contradicted flags lint_flags and blocks one-click publish)
-→ /admin/queue approval (nothing auto-publishes; DB trigger requires quality >= 75 or publish_override)
+## Changes
 
-Hard gates in draft-from-opportunity:
-- Freshness: reject if newest source > 96h (FRESHNESS_MAX_HOURS) unless brief.evergreen
-- Originality: reject if max cosine similarity > 0.82 vs own cluster sources, 14-day source corpus (match_source_items RPC), or existing posts (match_posts RPC); reject_reason names the corpus
-- Quality: reject if scorePost < 75
+1. **Update `site_settings_private.auto_publish_daily_cap`**: `8` → `3`
+   - This is the auto-publish gate ceiling (`_shared/publishGate.ts`). Once 3 posts are scheduled/published in a 24h window, the gate stops promoting drafts.
 
-Key columns: source_items.pipeline_status ('new'|'used'|'stale' — pipeline lifecycle, separate from News-page status), source_items.engagement_score, posts.embedding, posts.fact_check, posts.fact_checked_at.
+2. **Tighten the drafting budget in `supabase/functions/daily-content-run/index.ts`**
+   - Currently stops drafting at `dailyCap + 4` (= 7 with new cap). That would waste 4 drafts/day that never publish.
+   - Change buffer from `+ 4` to `+ 1`, so drafting stops at `cap + 1 = 4`. One-draft headroom absorbs the occasional draft that fails fact-check/quality gates, without burning credits on drafts that will never ship.
 
-Cron auth: x-cron-secret header checked against CRON_INVOCATION_SECRET or PIPELINE_CRON_SECRET env; vault secret CRON_INVOCATION_SECRET feeds pg_cron jobs. Jobs: autonomous-content-pipeline-30min (*/30), poll-sources-every-4h (15 */4), plus pre-existing publish/freshness/indexnow/report/gsc crons.
+3. **Reduce per-run draft ceiling**: `MAX_DRAFTS_PER_RUN` `6` → `3`
+   - Prevents a single 30-min cron run from blowing the entire day's budget in one burst, spreading output more evenly across the day.
 
-Utility: backfill-post-embeddings (admin/cron auth) embeds posts where embedding is null, returns {processed, remaining}.
+## What stays the same
 
-Deferred: perspective hard gate (first-person check when expert_note existed), content-performance-scorer learning loop (topic_performance table exists, build ~3 weeks after launch), X/TikTok signals, Claude scheduled deep-angle briefs.
+- Cron cadence (every 30 min) — unchanged. The daily budget check short-circuits runs once the ceiling is hit, so extra runs are cheap no-ops.
+- Quality gates, fact-check, similarity, voice/lint — all unchanged.
+- Manual publish path — unchanged; admin can still force-publish via override.
+
+## Expected steady-state
+
+- **~3 published articles per 24h** (matching cap).
+- Up to ~4 drafts created per 24h; the 4th is a buffer for gate rejections.
+- Existing drafts and already-published posts are untouched.
+
+## Technical details
+
+- Migration: `UPDATE public.site_settings_private SET auto_publish_daily_cap = 3;` (single-row table).
+- Code edit: `supabase/functions/daily-content-run/index.ts` — two constants (`MAX_DRAFTS_PER_RUN`, and the `dailyCap + 4` expression).
+- No schema changes, no new tables, no RLS changes.
