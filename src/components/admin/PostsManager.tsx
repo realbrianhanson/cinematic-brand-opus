@@ -58,6 +58,37 @@ const PostsManager = () => {
       setDeleteId(null);
     },
   });
+  const publishAllMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .update({
+          status: "published",
+          scheduled_at: null,
+          publish_override: true,
+          publish_override_reason: "Bulk publish all drafts from admin UI",
+          published_at: new Date().toISOString(),
+        })
+        .eq("status", "draft")
+        .select("id");
+      if (error) throw error;
+      return data?.length ?? 0;
+    },
+    onSuccess: (count) => {
+      toast.success(`Published ${count} draft${count === 1 ? "" : "s"}`);
+      qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      setConfirmPublishAll(false);
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || "Failed to publish drafts");
+    },
+  });
+
+  const draftCount = useMemo(
+    () => posts?.filter((p) => p.status === "draft").length ?? 0,
+    [posts]
+  );
+
 
   const filtered = useMemo(
     () => posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [],
