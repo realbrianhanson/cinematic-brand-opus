@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONFIRM_BASE =
-  "https://pwjdotliwsulqktavyxf.supabase.co/functions/v1/newsletter-confirm";
+  "https://brianhanson.com/api/public/newsletter/confirm";
 
 interface SiteSettings {
   newsletter_from_address: string | null;

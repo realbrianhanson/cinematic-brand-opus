@@ -49,6 +49,8 @@ import { Route as AdminContentTypesIdEditRouteImport } from './routes/admin.cont
 import { Route as AdminPagesIdEditRouteImport } from './routes/admin.pages.$id.edit'
 import { Route as AdminPillarsIdEditRouteImport } from './routes/admin.pillars.$id.edit'
 import { Route as AdminPostsIdEditRouteImport } from './routes/admin.posts.$id.edit'
+import { Route as ApiPublicNewsletterConfirmRouteImport } from './routes/api/public/newsletter/confirm'
+import { Route as ApiPublicNewsletterUnsubscribeRouteImport } from './routes/api/public/newsletter/unsubscribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -251,6 +253,18 @@ const AdminPostsIdEditRoute = AdminPostsIdEditRouteImport.update({
   path: '/$id/edit',
   getParentRoute: () => AdminPostsRoute,
 } as any)
+const ApiPublicNewsletterConfirmRoute =
+  ApiPublicNewsletterConfirmRouteImport.update({
+    id: '/api/public/newsletter/confirm',
+    path: '/api/public/newsletter/confirm',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNewsletterUnsubscribeRoute =
+  ApiPublicNewsletterUnsubscribeRouteImport.update({
+    id: '/api/public/newsletter/unsubscribe',
+    path: '/api/public/newsletter/unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -293,6 +307,8 @@ export interface FileRoutesByFullPath {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -334,6 +350,8 @@ export interface FileRoutesByTo {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -377,6 +395,8 @@ export interface FileRoutesById {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -421,6 +441,8 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -462,6 +484,8 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   id:
     | '__root__'
     | '/'
@@ -504,6 +528,8 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -521,6 +547,8 @@ export interface RootRouteChildren {
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
+  ApiPublicNewsletterConfirmRoute: typeof ApiPublicNewsletterConfirmRoute
+  ApiPublicNewsletterUnsubscribeRoute: typeof ApiPublicNewsletterUnsubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -805,6 +833,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPostsIdEditRouteImport
       parentRoute: typeof AdminPostsRoute
     }
+    '/api/public/newsletter/confirm': {
+      id: '/api/public/newsletter/confirm'
+      path: '/api/public/newsletter/confirm'
+      fullPath: '/api/public/newsletter/confirm'
+      preLoaderRoute: typeof ApiPublicNewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/newsletter/unsubscribe': {
+      id: '/api/public/newsletter/unsubscribe'
+      path: '/api/public/newsletter/unsubscribe'
+      fullPath: '/api/public/newsletter/unsubscribe'
+      preLoaderRoute: typeof ApiPublicNewsletterUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -957,6 +999,8 @@ const rootRouteChildren: RootRouteChildren = {
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
+  ApiPublicNewsletterConfirmRoute: ApiPublicNewsletterConfirmRoute,
+  ApiPublicNewsletterUnsubscribeRoute: ApiPublicNewsletterUnsubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
