@@ -170,7 +170,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/webp", href: "/brian-headshot.webp" },
       { rel: "alternate", type: "application/rss+xml", title: "Brian Hanson — Blog", href: "/rss.xml" },
-      { rel: "preload", as: "image", href: "/videos/hero-poster.jpg", fetchpriority: "high" },
+      { rel: "preload", as: "image", href: "/videos/hero-poster.jpg", fetchPriority: "high" },
       { rel: "preconnect", href: "https://pwjdotliwsulqktavyxf.supabase.co", crossOrigin: "anonymous" },
       { rel: "dns-prefetch", href: "https://pwjdotliwsulqktavyxf.supabase.co" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
