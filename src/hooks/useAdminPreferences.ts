@@ -54,7 +54,7 @@ export function useAdminPreferences() {
       if (user) {
         await supabase
           .from("admin_preferences")
-          .update({ [key]: value })
+          .update({ [key]: value } as Partial<AdminPreferences>)
           .eq("user_id", user.id);
       }
     },

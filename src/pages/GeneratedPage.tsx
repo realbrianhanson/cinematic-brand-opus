@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PageHead from "@/components/PageHead";
 import Footer from "@/components/Footer";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Linkedin, Twitter, Facebook, Link2, ThumbsUp, ThumbsDown, Clock, Calendar } from "lucide-react";

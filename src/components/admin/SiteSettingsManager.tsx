@@ -96,7 +96,7 @@ const SiteSettingsManager = () => {
         image_generation_enabled: (settings as any).image_generation_enabled !== false,
         report_email: privateSettings?.report_email ?? "",
         report_enabled: privateSettings?.report_enabled ?? false,
-      });
+      } as Settings);
     }
   }, [settings, privateSettings]);
 

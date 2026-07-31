@@ -12,9 +12,9 @@ interface TextScrambleProps {
 
 const TextScramble = ({ text, trigger, delay = 0, className, style }: TextScrambleProps) => {
   const [display, setDisplay] = useState("");
-  const frameRef = useRef(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const frameRef = useRef<number>(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (!trigger) return;

@@ -11,16 +11,16 @@ interface StructuredDataProps {
   faqs?: Array<{ question: string; answer: string }>;
   /** Flat item names for ItemList (used on generated pages so client HTML matches render-page). */
   itemListNames?: string[];
-  siteSettings: {
-    site_name?: string;
-    author_name?: string;
-    author_title?: string;
-    author_bio?: string;
+  siteSettings?: {
+    site_name?: string | null;
+    author_name?: string | null;
+    author_title?: string | null;
+    author_bio?: string | null;
     author_social_links?: any;
-    author_credentials?: string[];
-    publisher_name?: string;
-    publisher_url?: string;
-    site_url?: string;
+    author_credentials?: string[] | null;
+    publisher_name?: string | null;
+    publisher_url?: string | null;
+    site_url?: string | null;
   } | null;
 }
 

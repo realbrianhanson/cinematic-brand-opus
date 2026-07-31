@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight, List, CheckSquare, BookOpen, Wrench, FileText, HelpCircle } from "lucide-react";
 import PageHead from "@/components/PageHead";

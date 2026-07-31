@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 
 const navLinks = [
   { label: "Story", href: "#story" },

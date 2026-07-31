@@ -13,7 +13,7 @@ export const useAnnounce = () => useContext(AnnouncerContext);
 export const AriaLiveAnnouncer = ({ children }: { children: React.ReactNode }) => {
   const [politeMessage, setPoliteMessage] = useState("");
   const [assertiveMessage, setAssertiveMessage] = useState("");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const announce = useCallback((message: string, priority: "polite" | "assertive" = "polite") => {
     // Clear then set to force re-announcement of identical messages
