@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import WidgetRenderer from "@/components/WidgetRenderer";
 
 const hashLinks = [

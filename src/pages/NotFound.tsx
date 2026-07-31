@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "@/lib/router-compat";
 import { ArrowRight, Search } from "lucide-react";
 import Nav from "@/components/Nav";
 import PageHead from "@/components/PageHead";

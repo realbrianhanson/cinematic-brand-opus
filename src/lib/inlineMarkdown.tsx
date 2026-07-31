@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@/lib/router-compat";
 
 // Render inline markdown links [text](url) as real anchors inside a text string.
 // Internal (leading-slash) links use react-router; external links open in a new tab.

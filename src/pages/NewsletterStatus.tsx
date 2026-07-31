@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "@/lib/router-compat";
 
 const MESSAGES: Record<string, { headline: string; line: string }> = {
   "/newsletter/confirmed": {
