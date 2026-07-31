@@ -1,7 +1,6 @@
 /**
- * Router-compat shim — bridges @/lib/router-compat v6 call sites to
+ * Router-compat shim — bridges react-router-dom v6 call sites to
  * @tanstack/react-router without hand-rewriting every component.
- * This is the same load-bearing pattern used in Klar's dev-copy migration.
  */
 import {
   useNavigate as tsNavigate,
@@ -27,6 +26,13 @@ function parseTo(to: string): { pathname: string; search?: Record<string, string
     search: searchStr ? Object.fromEntries(new URLSearchParams(searchStr)) : undefined,
     hash: hashStr || undefined,
   };
+}
+
+function isActivePath(locationPath: string, toPath: string, end: boolean): boolean {
+  if (toPath === "/" || end) {
+    return locationPath === toPath || (toPath !== "/" && locationPath === toPath.replace(/\/$/, ""));
+  }
+  return locationPath === toPath || locationPath.startsWith(toPath.replace(/\/$/, "") + "/");
 }
 
 // ---------- useNavigate ----------
@@ -153,6 +159,37 @@ export function Navigate({ to, replace, state }: { to: string; replace?: boolean
 
 export const Outlet = TSOutlet;
 
-// ---------- NavLink (minimal) ----------
+// ---------- NavLink ----------
 
-export const NavLink = Link;
+export type NavLinkRenderProps = { isActive: boolean; isPending: boolean };
+
+export type NavLinkProps = Omit<LinkProps, "className" | "style"> & {
+  end?: boolean;
+  className?: string | ((props: NavLinkRenderProps) => string);
+  style?: React.CSSProperties | ((props: NavLinkRenderProps) => React.CSSProperties);
+};
+
+export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavLink(
+  { to, end, className, style, children, ...rest },
+  ref,
+) {
+  const { pathname } = useLocation();
+  const { pathname: toPath } = parseTo(to);
+  const active = isActivePath(pathname, toPath, !!end);
+  const renderProps: NavLinkRenderProps = { isActive: active, isPending: false };
+
+  const resolvedClassName = typeof className === "function" ? className(renderProps) : className;
+  const resolvedStyle = typeof style === "function" ? style(renderProps) : style;
+
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className={resolvedClassName}
+      style={resolvedStyle}
+      {...rest}
+    >
+      {typeof children === "function" ? children(renderProps) : children}
+    </Link>
+  );
+});
