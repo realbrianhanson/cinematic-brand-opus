@@ -7,7 +7,7 @@ import { MAIN_MODEL } from "./models.ts";
 import { loadVoiceConfig, formatVoiceBlock } from "./voice.ts";
 
 export const UNSUB_BASE =
-  "https://pwjdotliwsulqktavyxf.supabase.co/functions/v1/newsletter-unsubscribe";
+  "https://brianhanson.com/api/public/newsletter/unsubscribe";
 export const POST_BASE = "https://brianhanson.com/blog";
 
 export interface PostRow {

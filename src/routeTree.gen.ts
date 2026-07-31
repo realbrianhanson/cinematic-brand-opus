@@ -12,9 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BlogRouteImport } from './routes/blog'
+import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as ResourcesRouteImport } from './routes/resources'
+import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as SitemapRouteImport } from './routes/sitemap'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminContentTypesRouteImport } from './routes/admin.content-types'
@@ -45,6 +49,8 @@ import { Route as AdminContentTypesIdEditRouteImport } from './routes/admin.cont
 import { Route as AdminPagesIdEditRouteImport } from './routes/admin.pages.$id.edit'
 import { Route as AdminPillarsIdEditRouteImport } from './routes/admin.pillars.$id.edit'
 import { Route as AdminPostsIdEditRouteImport } from './routes/admin.posts.$id.edit'
+import { Route as ApiPublicNewsletterConfirmRouteImport } from './routes/api/public/newsletter/confirm'
+import { Route as ApiPublicNewsletterUnsubscribeRouteImport } from './routes/api/public/newsletter/unsubscribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -61,6 +67,16 @@ const BlogRoute = BlogRouteImport.update({
   path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LlmsFullDottxtRoute = LlmsFullDottxtRouteImport.update({
+  id: '/llms-full.txt',
+  path: '/llms-full.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -71,9 +87,19 @@ const ResourcesRoute = ResourcesRouteImport.update({
   path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RssDotxmlRoute = RssDotxmlRouteImport.update({
+  id: '/rss.xml',
+  path: '/rss.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapRoute = SitemapRouteImport.update({
   id: '/sitemap',
   path: '/sitemap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -227,14 +253,30 @@ const AdminPostsIdEditRoute = AdminPostsIdEditRouteImport.update({
   path: '/$id/edit',
   getParentRoute: () => AdminPostsRoute,
 } as any)
+const ApiPublicNewsletterConfirmRoute =
+  ApiPublicNewsletterConfirmRouteImport.update({
+    id: '/api/public/newsletter/confirm',
+    path: '/api/public/newsletter/confirm',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNewsletterUnsubscribeRoute =
+  ApiPublicNewsletterUnsubscribeRouteImport.update({
+    id: '/api/public/newsletter/unsubscribe',
+    path: '/api/public/newsletter/unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/blog': typeof BlogRouteWithChildren
+  '/llms-full.txt': typeof LlmsFullDottxtRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
   '/resources': typeof ResourcesRouteWithChildren
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
@@ -265,13 +307,19 @@ export interface FileRoutesByFullPath {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/blog': typeof BlogRouteWithChildren
+  '/llms-full.txt': typeof LlmsFullDottxtRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
   '/resources': typeof ResourcesRouteWithChildren
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
@@ -302,15 +350,21 @@ export interface FileRoutesByTo {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/blog': typeof BlogRouteWithChildren
+  '/llms-full.txt': typeof LlmsFullDottxtRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
   '/resources': typeof ResourcesRouteWithChildren
+  '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
@@ -341,6 +395,8 @@ export interface FileRoutesById {
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
+  '/api/public/newsletter/confirm': typeof ApiPublicNewsletterConfirmRoute
+  '/api/public/newsletter/unsubscribe': typeof ApiPublicNewsletterUnsubscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -348,9 +404,13 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/blog'
+    | '/llms-full.txt'
+    | '/llms.txt'
     | '/news'
     | '/resources'
+    | '/rss.xml'
     | '/sitemap'
+    | '/sitemap.xml'
     | '/admin/categories'
     | '/admin/content-types'
     | '/admin/generate'
@@ -381,13 +441,19 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/blog'
+    | '/llms-full.txt'
+    | '/llms.txt'
     | '/news'
     | '/resources'
+    | '/rss.xml'
     | '/sitemap'
+    | '/sitemap.xml'
     | '/admin/categories'
     | '/admin/content-types'
     | '/admin/generate'
@@ -418,14 +484,20 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/blog'
+    | '/llms-full.txt'
+    | '/llms.txt'
     | '/news'
     | '/resources'
+    | '/rss.xml'
     | '/sitemap'
+    | '/sitemap.xml'
     | '/admin/categories'
     | '/admin/content-types'
     | '/admin/generate'
@@ -456,19 +528,27 @@ export interface FileRouteTypes {
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
+    | '/api/public/newsletter/confirm'
+    | '/api/public/newsletter/unsubscribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   BlogRoute: typeof BlogRouteWithChildren
+  LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   NewsRoute: typeof NewsRouteWithChildren
   ResourcesRoute: typeof ResourcesRouteWithChildren
+  RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapRoute: typeof SitemapRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
+  ApiPublicNewsletterConfirmRoute: typeof ApiPublicNewsletterConfirmRoute
+  ApiPublicNewsletterUnsubscribeRoute: typeof ApiPublicNewsletterUnsubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -494,6 +574,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/llms-full.txt': {
+      id: '/llms-full.txt'
+      path: '/llms-full.txt'
+      fullPath: '/llms-full.txt'
+      preLoaderRoute: typeof LlmsFullDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/news': {
       id: '/news'
       path: '/news'
@@ -508,11 +602,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rss.xml': {
+      id: '/rss.xml'
+      path: '/rss.xml'
+      fullPath: '/rss.xml'
+      preLoaderRoute: typeof RssDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap': {
       id: '/sitemap'
       path: '/sitemap'
       fullPath: '/sitemap'
       preLoaderRoute: typeof SitemapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -725,6 +833,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPostsIdEditRouteImport
       parentRoute: typeof AdminPostsRoute
     }
+    '/api/public/newsletter/confirm': {
+      id: '/api/public/newsletter/confirm'
+      path: '/api/public/newsletter/confirm'
+      fullPath: '/api/public/newsletter/confirm'
+      preLoaderRoute: typeof ApiPublicNewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/newsletter/unsubscribe': {
+      id: '/api/public/newsletter/unsubscribe'
+      path: '/api/public/newsletter/unsubscribe'
+      fullPath: '/api/public/newsletter/unsubscribe'
+      preLoaderRoute: typeof ApiPublicNewsletterUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -866,13 +988,19 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   BlogRoute: BlogRouteWithChildren,
+  LlmsFullDottxtRoute: LlmsFullDottxtRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   NewsRoute: NewsRouteWithChildren,
   ResourcesRoute: ResourcesRouteWithChildren,
+  RssDotxmlRoute: RssDotxmlRoute,
   SitemapRoute: SitemapRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
+  ApiPublicNewsletterConfirmRoute: ApiPublicNewsletterConfirmRoute,
+  ApiPublicNewsletterUnsubscribeRoute: ApiPublicNewsletterUnsubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
