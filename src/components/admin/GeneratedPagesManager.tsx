@@ -148,9 +148,9 @@ const GeneratedPagesManager = () => {
   // Mutations
   const updateStatus = useMutation({
     mutationFn: ({ ids, status }: { ids: string[]; status: string }) => safeMutation(async () => {
-      const updateData: Record<string, any> = { status };
+      const updateData: Record<string, unknown> = { status };
       if (status === "published") updateData.published_at = new Date().toISOString();
-      const { error } = await supabase.from("generated_pages").update(updateData).in("id", ids);
+      const { error } = await supabase.from("generated_pages").update(updateData as never).in("id", ids);
       if (error) throw error;
 
       // On publish: trigger OG image generation, silo linking, and IndexNow submission
@@ -374,7 +374,7 @@ const GeneratedPagesManager = () => {
         {paginated.map((pg) => {
           const niche = (pg as any).niches;
           const schema = (pg as any).content_schemas;
-          const sc = statusColors[pg.status] || statusColors.draft;
+          const sc = statusColors[pg.status ?? "draft"] || statusColors.draft;
 
           return (
             <div
@@ -500,7 +500,7 @@ const GeneratedPagesManager = () => {
                 {pg.views ?? 0}
               </span>
               <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
-                {timeAgo(pg.created_at)}
+                {timeAgo(pg.created_at ?? "")}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

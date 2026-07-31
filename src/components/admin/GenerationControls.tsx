@@ -81,7 +81,7 @@ const GenerationControls = () => {
       const groups: Record<string, BatchGroup> = {};
       for (const log of data) {
         const bid = log.batch_id || "unknown";
-        if (!groups[bid]) groups[bid] = { batch_id: bid, date: log.created_at, success: 0, failed: 0, total: 0, logs: [] };
+        if (!groups[bid]) groups[bid] = { batch_id: bid, date: log.created_at ?? new Date().toISOString(), success: 0, failed: 0, total: 0, logs: [] };
         groups[bid].total++;
         if (log.status === "success") groups[bid].success++;
         else if (log.status === "failed") groups[bid].failed++;

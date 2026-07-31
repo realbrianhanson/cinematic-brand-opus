@@ -68,7 +68,7 @@ const PostsManager = () => {
           publish_override: true,
           publish_override_reason: "Bulk publish all drafts from admin UI",
           published_at: new Date().toISOString(),
-        })
+        } as never)
         .eq("status", "draft")
         .select("id");
       if (error) throw error;
