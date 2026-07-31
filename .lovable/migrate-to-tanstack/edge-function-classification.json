@@ -1,0 +1,208 @@
+{
+  "functions": [
+    {
+      "name": "build-silo-links",
+      "classification": "internal-only",
+      "signal": "called from 3 src/ files",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-blog-post",
+      "classification": "internal-only",
+      "signal": "called from 1 src/ file",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-content",
+      "classification": "internal-only",
+      "signal": "called from 3 src/ files",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-og-image",
+      "classification": "internal-only",
+      "signal": "called from 3 src/ files",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-pillar",
+      "classification": "internal-only",
+      "signal": "called from 1 src/ file",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-seo-aeo",
+      "classification": "internal-only",
+      "signal": "called from 2 src/ files",
+      "outcome": "left"
+    },
+    {
+      "name": "manual-publish",
+      "classification": "internal-only",
+      "signal": "called from 2 src/ files",
+      "outcome": "left"
+    },
+    {
+      "name": "remediate-post-facts",
+      "classification": "internal-only",
+      "signal": "called from 1 src/ file",
+      "outcome": "left"
+    },
+    {
+      "name": "score-content-quality",
+      "classification": "internal-only",
+      "signal": "called from 1 src/ file",
+      "outcome": "left"
+    },
+    {
+      "name": "submit-to-google",
+      "classification": "internal-only",
+      "signal": "called from 1 src/ file",
+      "outcome": "left"
+    },
+    {
+      "name": "auto-publish-gate",
+      "classification": "cron target",
+      "signal": "part of daily-content-run pipeline; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "backfill-post-embeddings",
+      "classification": "cron target",
+      "signal": "background utility; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "check-content-freshness",
+      "classification": "cron target",
+      "signal": "scheduled daily 06:00 per project knowledge",
+      "outcome": "left"
+    },
+    {
+      "name": "cluster-opportunities",
+      "classification": "cron target",
+      "signal": "background utility; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "compose-weekly-newsletter-preview",
+      "classification": "cron target",
+      "signal": "part of newsletter pipeline; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "daily-content-run",
+      "classification": "cron target",
+      "signal": "scheduled 30-min cron per project knowledge; 1 src/ caller",
+      "outcome": "left"
+    },
+    {
+      "name": "draft-from-opportunity",
+      "classification": "cron target",
+      "signal": "part of daily-content-run pipeline; 1 src/ caller",
+      "outcome": "left"
+    },
+    {
+      "name": "fact-check",
+      "classification": "cron target",
+      "signal": "part of content pipeline; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-news-article",
+      "classification": "cron target",
+      "signal": "internal news generation; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "generate-sitemap",
+      "classification": "public HTTP",
+      "signal": "returns XML; proxied by Cloudflare at /sitemap.xml",
+      "outcome": "left"
+    },
+    {
+      "name": "gsc-sync",
+      "classification": "cron target",
+      "signal": "scheduled Mon 05:00 per project knowledge",
+      "outcome": "left"
+    },
+    {
+      "name": "llms-txt",
+      "classification": "public HTTP",
+      "signal": "returns text; proxied by Cloudflare at /llms.txt",
+      "outcome": "left"
+    },
+    {
+      "name": "newsletter-confirm",
+      "classification": "public HTTP",
+      "signal": "email confirmation link endpoint; public URL",
+      "outcome": "left"
+    },
+    {
+      "name": "newsletter-subscribe",
+      "classification": "public HTTP",
+      "signal": "public form endpoint; 2 src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "newsletter-unsubscribe",
+      "classification": "public HTTP",
+      "signal": "email unsubscribe link endpoint; public URL",
+      "outcome": "left"
+    },
+    {
+      "name": "poll-sources",
+      "classification": "cron target",
+      "signal": "part of daily-content-run pipeline; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "publish-scheduled-posts",
+      "classification": "cron target",
+      "signal": "scheduled 15-min cron per project knowledge",
+      "outcome": "left"
+    },
+    {
+      "name": "refresh-stale-content",
+      "classification": "cron target",
+      "signal": "scheduled Sun 07:00 per project knowledge; referenced in migrations",
+      "outcome": "left"
+    },
+    {
+      "name": "render-page",
+      "classification": "public HTTP",
+      "signal": "returns HTML; proxied by Cloudflare for bot rendering",
+      "outcome": "left"
+    },
+    {
+      "name": "resend-webhook",
+      "classification": "webhook receiver",
+      "signal": "verifies resend-signature header",
+      "outcome": "left"
+    },
+    {
+      "name": "rss",
+      "classification": "public HTTP",
+      "signal": "returns RSS XML; proxied by Cloudflare at /rss.xml",
+      "outcome": "left"
+    },
+    {
+      "name": "send-weekly-newsletter",
+      "classification": "cron target",
+      "signal": "part of newsletter pipeline; no direct src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "submit-indexnow",
+      "classification": "cron target",
+      "signal": "scheduled daily 08:00 per project knowledge; 3 src/ callers",
+      "outcome": "left"
+    },
+    {
+      "name": "weekly-report",
+      "classification": "cron target",
+      "signal": "scheduled Mon 12:00 per project knowledge; 1 src/ caller",
+      "outcome": "left"
+    }
+  ]
+}
