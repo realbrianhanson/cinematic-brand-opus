@@ -167,6 +167,7 @@ export type NavLinkProps = Omit<LinkProps, "className" | "style"> & {
   end?: boolean;
   className?: string | ((props: NavLinkRenderProps) => string);
   style?: React.CSSProperties | ((props: NavLinkRenderProps) => React.CSSProperties);
+  children?: ReactNode;
 };
 
 export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavLink(
@@ -189,7 +190,7 @@ export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavL
       style={resolvedStyle}
       {...rest}
     >
-      {typeof children === "function" ? children(renderProps) : children}
+      {children}
     </Link>
   );
 });
