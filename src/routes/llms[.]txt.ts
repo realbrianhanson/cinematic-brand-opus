@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/llms[.]txt")({
+export const Route = createFileRoute("/llms.txt")({
   server: {
     handlers: {
       GET: async () => {
