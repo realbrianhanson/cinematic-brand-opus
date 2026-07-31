@@ -54,9 +54,20 @@ export async function getSiteSettings() {
     )
     .limit(1)
     .maybeSingle();
-  const s = (data ?? {}) as Record<string, string | null>;
+  const s = (data ?? {}) as {
+    site_name?: string | null;
+    site_url?: string | null;
+    author_name?: string | null;
+    author_title?: string | null;
+    author_bio?: string | null;
+    publisher_name?: string | null;
+  };
   return {
-    ...s,
+    site_name: s.site_name ?? null,
+    author_name: s.author_name ?? null,
+    author_title: s.author_title ?? null,
+    author_bio: s.author_bio ?? null,
+    publisher_name: s.publisher_name ?? null,
     siteUrl: (s.site_url || "https://brianhanson.com").replace(/\/+$/, ""),
   };
 }
