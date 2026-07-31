@@ -111,14 +111,14 @@ const Footer = () => {
               Contact
             </h4>
             <a
-              href="mailto:hello@brianhanson.com"
+              href="mailto:brian@brianhanson.com"
               data-hover
               className="font-body block mb-2 transition-colors duration-200"
               style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
             >
-              hello@brianhanson.com
+              brian@brianhanson.com
             </a>
             <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
               Speaking · Partnerships · Media
