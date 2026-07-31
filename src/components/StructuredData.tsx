@@ -11,7 +11,7 @@ interface StructuredDataProps {
   faqs?: Array<{ question: string; answer: string }>;
   /** Flat item names for ItemList (used on generated pages so client HTML matches render-page). */
   itemListNames?: string[];
-  siteSettings: {
+  siteSettings?: {
     site_name?: string;
     author_name?: string;
     author_title?: string;

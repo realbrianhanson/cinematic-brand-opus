@@ -45,7 +45,7 @@ const GeneratedPageEditor = () => {
   useEffect(() => {
     if (page) {
       setContentStr(JSON.stringify(page.content_json, null, 2));
-      setStatus(page.status);
+      setStatus(page.status ?? "");
       setQualityScore(page.quality_score != null ? String(page.quality_score) : "");
       const seo = (page.seo_meta as any) || {};
       setMetaTitle(seo.title || "");
@@ -200,7 +200,7 @@ const GeneratedPageEditor = () => {
         og_image: ogImage || null,
       };
 
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         content_json: parsed,
         status,
         seo_meta: seoMeta,
@@ -219,7 +219,7 @@ const GeneratedPageEditor = () => {
         updateData.publish_override_by = authData?.user?.id ?? null;
       }
 
-      const { error } = await supabase.from("generated_pages").update(updateData).eq("id", id!);
+      const { error } = await supabase.from("generated_pages").update(updateData as never).eq("id", id!);
       if (error) throw error;
 
       // On publish transition: build silo links + submit IndexNow (fire-and-forget)
@@ -771,7 +771,7 @@ const GeneratedPageEditor = () => {
                 ["Content Type", schema?.name || "—"],
                 ["Model", page.generation_model || "—"],
                 ["Cost", page.generation_cost != null ? `$${Number(page.generation_cost).toFixed(4)}` : "—"],
-                ["Created", new Date(page.created_at).toLocaleDateString()],
+                ["Created", page.created_at ? new Date(page.created_at).toLocaleDateString() : "—"],
                 ["Last Refreshed", page.last_refreshed ? new Date(page.last_refreshed).toLocaleDateString() : "—"],
                 ["Refresh Count", String(page.refresh_count ?? 0)],
               ].map(([label, value]) => (
