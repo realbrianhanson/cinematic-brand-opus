@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -76,6 +77,11 @@ const LlmsFullDottxtRoute = LlmsFullDottxtRouteImport.update({
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
   id: '/llms.txt',
   path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RssDotxmlRoute = RssDotxmlRouteImport.update({
@@ -184,14 +190,14 @@ const GuidesSlugRoute = GuidesSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const NewsIndexRoute = NewsIndexRouteImport.update({
-  id: '/news/',
-  path: '/news/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => NewsRoute,
 } as any)
 const NewsIdRoute = NewsIdRouteImport.update({
-  id: '/news/$id',
-  path: '/news/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => NewsRoute,
 } as any)
 const NewsletterConfirmedRoute = NewsletterConfirmedRouteImport.update({
   id: '/newsletter/confirmed',
@@ -279,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/blog': typeof BlogRouteWithChildren
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/news': typeof NewsRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -368,6 +375,7 @@ export interface FileRoutesById {
   '/blog': typeof BlogRouteWithChildren
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/news': typeof NewsRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -415,6 +423,7 @@ export interface FileRouteTypes {
     | '/blog'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/news'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -503,6 +512,7 @@ export interface FileRouteTypes {
     | '/blog'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/news'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -549,15 +559,14 @@ export interface RootRouteChildren {
   BlogRoute: typeof BlogRouteWithChildren
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
+  NewsRoute: typeof NewsRouteWithChildren
   RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
-  NewsIdRoute: typeof NewsIdRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
-  NewsIndexRoute: typeof NewsIndexRoute
   ResourcesIndexRoute: typeof ResourcesIndexRoute
   ResourcesContentTypePageSlugRoute: typeof ResourcesContentTypePageSlugRoute
   ResourcesContentTypeIndexRoute: typeof ResourcesContentTypeIndexRoute
@@ -600,6 +609,13 @@ declare module '@tanstack/react-router' {
       path: '/llms.txt'
       fullPath: '/llms.txt'
       preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rss.xml': {
@@ -751,17 +767,17 @@ declare module '@tanstack/react-router' {
     }
     '/news/': {
       id: '/news/'
-      path: '/news'
+      path: '/'
       fullPath: '/news/'
       preLoaderRoute: typeof NewsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof NewsRoute
     }
     '/news/$id': {
       id: '/news/$id'
-      path: '/news/$id'
+      path: '/$id'
       fullPath: '/news/$id'
       preLoaderRoute: typeof NewsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof NewsRoute
     }
     '/newsletter/confirmed': {
       id: '/newsletter/confirmed'
@@ -974,21 +990,32 @@ const BlogRouteChildren: BlogRouteChildren = {
 
 const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 
+interface NewsRouteChildren {
+  NewsIdRoute: typeof NewsIdRoute
+  NewsIndexRoute: typeof NewsIndexRoute
+}
+
+const NewsRouteChildren: NewsRouteChildren = {
+  NewsIdRoute: NewsIdRoute,
+  NewsIndexRoute: NewsIndexRoute,
+}
+
+const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   BlogRoute: BlogRouteWithChildren,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
+  NewsRoute: NewsRouteWithChildren,
   RssDotxmlRoute: RssDotxmlRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   GuidesSlugRoute: GuidesSlugRoute,
-  NewsIdRoute: NewsIdRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
-  NewsIndexRoute: NewsIndexRoute,
   ResourcesIndexRoute: ResourcesIndexRoute,
   ResourcesContentTypePageSlugRoute: ResourcesContentTypePageSlugRoute,
   ResourcesContentTypeIndexRoute: ResourcesContentTypeIndexRoute,
