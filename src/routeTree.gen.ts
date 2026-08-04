@@ -15,6 +15,7 @@ import { Route as BlogRouteImport } from './routes/blog'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -82,6 +83,11 @@ const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResourcesRoute = ResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RssDotxmlRoute = RssDotxmlRouteImport.update({
@@ -215,9 +221,9 @@ const NewsletterUnsubscribedRoute = NewsletterUnsubscribedRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
-  id: '/resources/',
-  path: '/resources/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResourcesRoute,
 } as any)
 const AdminContentTypesNewRoute = AdminContentTypesNewRouteImport.update({
   id: '/new',
@@ -236,15 +242,15 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
 } as any)
 const ResourcesContentTypeIndexRoute =
   ResourcesContentTypeIndexRouteImport.update({
-    id: '/resources/$contentType/',
-    path: '/resources/$contentType/',
-    getParentRoute: () => rootRouteImport,
+    id: '/$contentType/',
+    path: '/$contentType/',
+    getParentRoute: () => ResourcesRoute,
   } as any)
 const ResourcesContentTypePageSlugRoute =
   ResourcesContentTypePageSlugRouteImport.update({
-    id: '/resources/$contentType/$pageSlug',
-    path: '/resources/$contentType/$pageSlug',
-    getParentRoute: () => rootRouteImport,
+    id: '/$contentType/$pageSlug',
+    path: '/$contentType/$pageSlug',
+    getParentRoute: () => ResourcesRoute,
   } as any)
 const AdminContentTypesIdEditRoute = AdminContentTypesIdEditRouteImport.update({
   id: '/$id/edit',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
+  '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -376,6 +383,7 @@ export interface FileRoutesById {
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
+  '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -424,6 +432,7 @@ export interface FileRouteTypes {
     | '/llms-full.txt'
     | '/llms.txt'
     | '/news'
+    | '/resources'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -513,6 +522,7 @@ export interface FileRouteTypes {
     | '/llms-full.txt'
     | '/llms.txt'
     | '/news'
+    | '/resources'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -560,6 +570,7 @@ export interface RootRouteChildren {
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   NewsRoute: typeof NewsRouteWithChildren
+  ResourcesRoute: typeof ResourcesRouteWithChildren
   RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -567,9 +578,6 @@ export interface RootRouteChildren {
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
-  ResourcesIndexRoute: typeof ResourcesIndexRoute
-  ResourcesContentTypePageSlugRoute: typeof ResourcesContentTypePageSlugRoute
-  ResourcesContentTypeIndexRoute: typeof ResourcesContentTypeIndexRoute
   ApiPublicNewsletterConfirmRoute: typeof ApiPublicNewsletterConfirmRoute
   ApiPublicNewsletterUnsubscribeRoute: typeof ApiPublicNewsletterUnsubscribeRoute
 }
@@ -616,6 +624,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resources': {
+      id: '/resources'
+      path: '/resources'
+      fullPath: '/resources'
+      preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rss.xml': {
@@ -802,10 +817,10 @@ declare module '@tanstack/react-router' {
     }
     '/resources/': {
       id: '/resources/'
-      path: '/resources'
+      path: '/'
       fullPath: '/resources/'
       preLoaderRoute: typeof ResourcesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ResourcesRoute
     }
     '/admin/content-types/new': {
       id: '/admin/content-types/new'
@@ -830,17 +845,17 @@ declare module '@tanstack/react-router' {
     }
     '/resources/$contentType/': {
       id: '/resources/$contentType/'
-      path: '/resources/$contentType'
+      path: '/$contentType'
       fullPath: '/resources/$contentType/'
       preLoaderRoute: typeof ResourcesContentTypeIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ResourcesRoute
     }
     '/resources/$contentType/$pageSlug': {
       id: '/resources/$contentType/$pageSlug'
-      path: '/resources/$contentType/$pageSlug'
+      path: '/$contentType/$pageSlug'
       fullPath: '/resources/$contentType/$pageSlug'
       preLoaderRoute: typeof ResourcesContentTypePageSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ResourcesRoute
     }
     '/admin/content-types/$id/edit': {
       id: '/admin/content-types/$id/edit'
@@ -1002,6 +1017,22 @@ const NewsRouteChildren: NewsRouteChildren = {
 
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
+interface ResourcesRouteChildren {
+  ResourcesIndexRoute: typeof ResourcesIndexRoute
+  ResourcesContentTypePageSlugRoute: typeof ResourcesContentTypePageSlugRoute
+  ResourcesContentTypeIndexRoute: typeof ResourcesContentTypeIndexRoute
+}
+
+const ResourcesRouteChildren: ResourcesRouteChildren = {
+  ResourcesIndexRoute: ResourcesIndexRoute,
+  ResourcesContentTypePageSlugRoute: ResourcesContentTypePageSlugRoute,
+  ResourcesContentTypeIndexRoute: ResourcesContentTypeIndexRoute,
+}
+
+const ResourcesRouteWithChildren = ResourcesRoute._addFileChildren(
+  ResourcesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -1009,6 +1040,7 @@ const rootRouteChildren: RootRouteChildren = {
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   NewsRoute: NewsRouteWithChildren,
+  ResourcesRoute: ResourcesRouteWithChildren,
   RssDotxmlRoute: RssDotxmlRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
@@ -1016,9 +1048,6 @@ const rootRouteChildren: RootRouteChildren = {
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
-  ResourcesIndexRoute: ResourcesIndexRoute,
-  ResourcesContentTypePageSlugRoute: ResourcesContentTypePageSlugRoute,
-  ResourcesContentTypeIndexRoute: ResourcesContentTypeIndexRoute,
   ApiPublicNewsletterConfirmRoute: ApiPublicNewsletterConfirmRoute,
   ApiPublicNewsletterUnsubscribeRoute: ApiPublicNewsletterUnsubscribeRoute,
 }
