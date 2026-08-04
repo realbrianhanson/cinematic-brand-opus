@@ -1,12 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
-import PublicPageSkeleton from "@/components/PublicPageSkeleton";
-import Blog from "@/pages/Blog";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/blog")({
-  component: () => (
-    <Suspense fallback={<PublicPageSkeleton />}>
-      <Blog />
-    </Suspense>
-  ),
+  component: () => <Outlet />,
 });

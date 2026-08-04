@@ -34,16 +34,20 @@ import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
 import { Route as AdminWidgetsRouteImport } from './routes/admin.widgets'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
 import { Route as NewsIdRouteImport } from './routes/news.$id'
 import { Route as NewsletterConfirmedRouteImport } from './routes/newsletter.confirmed'
 import { Route as NewsletterInvalidRouteImport } from './routes/newsletter.invalid'
 import { Route as NewsletterUnsubscribedRouteImport } from './routes/newsletter.unsubscribed'
+import { Route as ResourcesIndexRouteImport } from './routes/resources.index'
 import { Route as ResourcesContentTypeRouteImport } from './routes/resources.$contentType'
 import { Route as AdminContentTypesNewRouteImport } from './routes/admin.content-types.new'
 import { Route as AdminPillarsNewRouteImport } from './routes/admin.pillars.new'
 import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
+import { Route as ResourcesContentTypeIndexRouteImport } from './routes/resources.$contentType.index'
 import { Route as ResourcesContentTypePageSlugRouteImport } from './routes/resources.$contentType.$pageSlug'
 import { Route as AdminContentTypesIdEditRouteImport } from './routes/admin.content-types.$id.edit'
 import { Route as AdminPagesIdEditRouteImport } from './routes/admin.pages.$id.edit'
@@ -177,6 +181,11 @@ const AdminWidgetsRoute = AdminWidgetsRouteImport.update({
   path: '/widgets',
   getParentRoute: () => AdminRoute,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BlogRoute,
+} as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -186,6 +195,11 @@ const GuidesSlugRoute = GuidesSlugRouteImport.update({
   id: '/guides/$slug',
   path: '/guides/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NewsRoute,
 } as any)
 const NewsIdRoute = NewsIdRouteImport.update({
   id: '/$id',
@@ -207,6 +221,11 @@ const NewsletterUnsubscribedRoute = NewsletterUnsubscribedRouteImport.update({
   path: '/newsletter/unsubscribed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResourcesRoute,
+} as any)
 const ResourcesContentTypeRoute = ResourcesContentTypeRouteImport.update({
   id: '/$contentType',
   path: '/$contentType',
@@ -227,6 +246,12 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AdminPostsRoute,
 } as any)
+const ResourcesContentTypeIndexRoute =
+  ResourcesContentTypeIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ResourcesContentTypeRoute,
+  } as any)
 const ResourcesContentTypePageSlugRoute =
   ResourcesContentTypePageSlugRouteImport.update({
     id: '/$pageSlug',
@@ -299,10 +324,14 @@ export interface FileRoutesByFullPath {
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
   '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
+  '/news/': typeof NewsIndexRoute
+  '/resources/': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
@@ -312,11 +341,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/blog': typeof BlogRouteWithChildren
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
-  '/news': typeof NewsRouteWithChildren
-  '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -340,12 +366,15 @@ export interface FileRoutesByTo {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
-  '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/blog': typeof BlogIndexRoute
+  '/news': typeof NewsIndexRoute
+  '/resources': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/resources/$contentType': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
@@ -387,10 +416,14 @@ export interface FileRoutesById {
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
   '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
+  '/news/': typeof NewsIndexRoute
+  '/resources/': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
@@ -433,10 +466,14 @@ export interface FileRouteTypes {
     | '/newsletter/unsubscribed'
     | '/resources/$contentType'
     | '/admin/'
+    | '/blog/'
+    | '/news/'
+    | '/resources/'
     | '/admin/content-types/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
@@ -446,11 +483,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/blog'
     | '/llms-full.txt'
     | '/llms.txt'
-    | '/news'
-    | '/resources'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -474,12 +508,15 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
-    | '/resources/$contentType'
     | '/admin'
+    | '/blog'
+    | '/news'
+    | '/resources'
     | '/admin/content-types/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/resources/$contentType'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
@@ -520,10 +557,14 @@ export interface FileRouteTypes {
     | '/newsletter/unsubscribed'
     | '/resources/$contentType'
     | '/admin/'
+    | '/blog/'
+    | '/news/'
+    | '/resources/'
     | '/admin/content-types/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
@@ -728,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminWidgetsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/blog/': {
+      id: '/blog/'
+      path: '/'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof BlogRoute
+    }
     '/blog/$slug': {
       id: '/blog/$slug'
       path: '/$slug'
@@ -741,6 +789,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/guides/$slug'
       preLoaderRoute: typeof GuidesSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/news/': {
+      id: '/news/'
+      path: '/'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof NewsRoute
     }
     '/news/$id': {
       id: '/news/$id'
@@ -770,6 +825,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsletterUnsubscribedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resources/': {
+      id: '/resources/'
+      path: '/'
+      fullPath: '/resources/'
+      preLoaderRoute: typeof ResourcesIndexRouteImport
+      parentRoute: typeof ResourcesRoute
+    }
     '/resources/$contentType': {
       id: '/resources/$contentType'
       path: '/$contentType'
@@ -797,6 +859,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/posts/new'
       preLoaderRoute: typeof AdminPostsNewRouteImport
       parentRoute: typeof AdminPostsRoute
+    }
+    '/resources/$contentType/': {
+      id: '/resources/$contentType/'
+      path: '/'
+      fullPath: '/resources/$contentType/'
+      preLoaderRoute: typeof ResourcesContentTypeIndexRouteImport
+      parentRoute: typeof ResourcesContentTypeRoute
     }
     '/resources/$contentType/$pageSlug': {
       id: '/resources/$contentType/$pageSlug'
@@ -943,30 +1012,36 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface BlogRouteChildren {
   BlogSlugRoute: typeof BlogSlugRoute
+  BlogIndexRoute: typeof BlogIndexRoute
 }
 
 const BlogRouteChildren: BlogRouteChildren = {
   BlogSlugRoute: BlogSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
 }
 
 const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 
 interface NewsRouteChildren {
   NewsIdRoute: typeof NewsIdRoute
+  NewsIndexRoute: typeof NewsIndexRoute
 }
 
 const NewsRouteChildren: NewsRouteChildren = {
   NewsIdRoute: NewsIdRoute,
+  NewsIndexRoute: NewsIndexRoute,
 }
 
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
 interface ResourcesContentTypeRouteChildren {
   ResourcesContentTypePageSlugRoute: typeof ResourcesContentTypePageSlugRoute
+  ResourcesContentTypeIndexRoute: typeof ResourcesContentTypeIndexRoute
 }
 
 const ResourcesContentTypeRouteChildren: ResourcesContentTypeRouteChildren = {
   ResourcesContentTypePageSlugRoute: ResourcesContentTypePageSlugRoute,
+  ResourcesContentTypeIndexRoute: ResourcesContentTypeIndexRoute,
 }
 
 const ResourcesContentTypeRouteWithChildren =
@@ -974,10 +1049,12 @@ const ResourcesContentTypeRouteWithChildren =
 
 interface ResourcesRouteChildren {
   ResourcesContentTypeRoute: typeof ResourcesContentTypeRouteWithChildren
+  ResourcesIndexRoute: typeof ResourcesIndexRoute
 }
 
 const ResourcesRouteChildren: ResourcesRouteChildren = {
   ResourcesContentTypeRoute: ResourcesContentTypeRouteWithChildren,
+  ResourcesIndexRoute: ResourcesIndexRoute,
 }
 
 const ResourcesRouteWithChildren = ResourcesRoute._addFileChildren(
@@ -1005,13 +1082,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

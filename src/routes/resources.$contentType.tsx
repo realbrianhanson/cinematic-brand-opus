@@ -1,12 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
-import PublicPageSkeleton from "@/components/PublicPageSkeleton";
-import ContentTypeList from "@/pages/ContentTypeList";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/resources/$contentType")({
-  component: () => (
-    <Suspense fallback={<PublicPageSkeleton />}>
-      <ContentTypeList />
-    </Suspense>
-  ),
+  component: () => <Outlet />,
 });
