@@ -43,6 +43,7 @@ import { Route as NewsletterConfirmedRouteImport } from './routes/newsletter.con
 import { Route as NewsletterInvalidRouteImport } from './routes/newsletter.invalid'
 import { Route as NewsletterUnsubscribedRouteImport } from './routes/newsletter.unsubscribed'
 import { Route as ResourcesIndexRouteImport } from './routes/resources.index'
+import { Route as ResourcesContentTypeRouteImport } from './routes/resources.$contentType'
 import { Route as AdminContentTypesNewRouteImport } from './routes/admin.content-types.new'
 import { Route as AdminPillarsNewRouteImport } from './routes/admin.pillars.new'
 import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
@@ -225,6 +226,11 @@ const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ResourcesRoute,
 } as any)
+const ResourcesContentTypeRoute = ResourcesContentTypeRouteImport.update({
+  id: '/$contentType',
+  path: '/$contentType',
+  getParentRoute: () => ResourcesRoute,
+} as any)
 const AdminContentTypesNewRoute = AdminContentTypesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -242,15 +248,15 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
 } as any)
 const ResourcesContentTypeIndexRoute =
   ResourcesContentTypeIndexRouteImport.update({
-    id: '/$contentType/',
-    path: '/$contentType/',
-    getParentRoute: () => ResourcesRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => ResourcesContentTypeRoute,
   } as any)
 const ResourcesContentTypePageSlugRoute =
   ResourcesContentTypePageSlugRouteImport.update({
-    id: '/$contentType/$pageSlug',
-    path: '/$contentType/$pageSlug',
-    getParentRoute: () => ResourcesRoute,
+    id: '/$pageSlug',
+    path: '/$pageSlug',
+    getParentRoute: () => ResourcesContentTypeRoute,
   } as any)
 const AdminContentTypesIdEditRoute = AdminContentTypesIdEditRouteImport.update({
   id: '/$id/edit',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
+  '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/news/': typeof NewsIndexRoute
@@ -407,6 +414,7 @@ export interface FileRoutesById {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
+  '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/news/': typeof NewsIndexRoute
@@ -456,6 +464,7 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
+    | '/resources/$contentType'
     | '/admin/'
     | '/blog/'
     | '/news/'
@@ -546,6 +555,7 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
+    | '/resources/$contentType'
     | '/admin/'
     | '/blog/'
     | '/news/'
@@ -822,6 +832,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResourcesIndexRouteImport
       parentRoute: typeof ResourcesRoute
     }
+    '/resources/$contentType': {
+      id: '/resources/$contentType'
+      path: '/$contentType'
+      fullPath: '/resources/$contentType'
+      preLoaderRoute: typeof ResourcesContentTypeRouteImport
+      parentRoute: typeof ResourcesRoute
+    }
     '/admin/content-types/new': {
       id: '/admin/content-types/new'
       path: '/new'
@@ -845,17 +862,17 @@ declare module '@tanstack/react-router' {
     }
     '/resources/$contentType/': {
       id: '/resources/$contentType/'
-      path: '/$contentType'
+      path: '/'
       fullPath: '/resources/$contentType/'
       preLoaderRoute: typeof ResourcesContentTypeIndexRouteImport
-      parentRoute: typeof ResourcesRoute
+      parentRoute: typeof ResourcesContentTypeRoute
     }
     '/resources/$contentType/$pageSlug': {
       id: '/resources/$contentType/$pageSlug'
-      path: '/$contentType/$pageSlug'
+      path: '/$pageSlug'
       fullPath: '/resources/$contentType/$pageSlug'
       preLoaderRoute: typeof ResourcesContentTypePageSlugRouteImport
-      parentRoute: typeof ResourcesRoute
+      parentRoute: typeof ResourcesContentTypeRoute
     }
     '/admin/content-types/$id/edit': {
       id: '/admin/content-types/$id/edit'
@@ -1017,16 +1034,27 @@ const NewsRouteChildren: NewsRouteChildren = {
 
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
-interface ResourcesRouteChildren {
-  ResourcesIndexRoute: typeof ResourcesIndexRoute
+interface ResourcesContentTypeRouteChildren {
   ResourcesContentTypePageSlugRoute: typeof ResourcesContentTypePageSlugRoute
   ResourcesContentTypeIndexRoute: typeof ResourcesContentTypeIndexRoute
 }
 
-const ResourcesRouteChildren: ResourcesRouteChildren = {
-  ResourcesIndexRoute: ResourcesIndexRoute,
+const ResourcesContentTypeRouteChildren: ResourcesContentTypeRouteChildren = {
   ResourcesContentTypePageSlugRoute: ResourcesContentTypePageSlugRoute,
   ResourcesContentTypeIndexRoute: ResourcesContentTypeIndexRoute,
+}
+
+const ResourcesContentTypeRouteWithChildren =
+  ResourcesContentTypeRoute._addFileChildren(ResourcesContentTypeRouteChildren)
+
+interface ResourcesRouteChildren {
+  ResourcesContentTypeRoute: typeof ResourcesContentTypeRouteWithChildren
+  ResourcesIndexRoute: typeof ResourcesIndexRoute
+}
+
+const ResourcesRouteChildren: ResourcesRouteChildren = {
+  ResourcesContentTypeRoute: ResourcesContentTypeRouteWithChildren,
+  ResourcesIndexRoute: ResourcesIndexRoute,
 }
 
 const ResourcesRouteWithChildren = ResourcesRoute._addFileChildren(
@@ -1054,3 +1082,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
