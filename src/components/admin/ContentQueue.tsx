@@ -101,7 +101,7 @@ export default function ContentQueue() {
   // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
-      .channel("content-queue")
+      .channel(`content-queue-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "content_opportunities" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "source_items" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => load())
