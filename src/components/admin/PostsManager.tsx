@@ -14,7 +14,7 @@ const PostsManager = () => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const channel = supabase
-      .channel("admin-posts-realtime")
+      .channel(`admin-posts-realtime-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
