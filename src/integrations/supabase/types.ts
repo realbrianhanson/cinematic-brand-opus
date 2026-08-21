@@ -910,6 +910,7 @@ export type Database = {
           publish_override_at: string | null
           publish_override_by: string | null
           publish_override_reason: string | null
+          published_at: string | null
           quality_score: number | null
           reading_time: number | null
           scheduled_at: string | null
@@ -942,6 +943,7 @@ export type Database = {
           publish_override_at?: string | null
           publish_override_by?: string | null
           publish_override_reason?: string | null
+          published_at?: string | null
           quality_score?: number | null
           reading_time?: number | null
           scheduled_at?: string | null
@@ -974,6 +976,7 @@ export type Database = {
           publish_override_at?: string | null
           publish_override_by?: string | null
           publish_override_reason?: string | null
+          published_at?: string | null
           quality_score?: number | null
           reading_time?: number | null
           scheduled_at?: string | null
