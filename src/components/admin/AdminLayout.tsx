@@ -69,12 +69,28 @@ const AdminLayout = () => {
         />
       )}
 
+      {/* Sidebar spacer (desktop) — reserves layout width for the fixed sidebar */}
+      <div
+        className="hidden lg:block"
+        style={{
+          width: collapsed ? 68 : 240,
+          flexShrink: 0,
+          transition: "width 0.3s",
+        }}
+        aria-hidden="true"
+      />
+
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky lg:top-0 inset-y-0 lg:inset-y-auto left-0 z-50 flex flex-col h-screen transition-all duration-300 lg:translate-x-0 ${
+        className={`z-50 flex flex-col transition-all duration-300 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{
+          position: "fixed",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          height: "100vh",
           width: collapsed ? 68 : 240,
           backgroundColor: "hsl(var(--admin-surface))",
           borderRight: "1px solid hsl(var(--admin-border))",
