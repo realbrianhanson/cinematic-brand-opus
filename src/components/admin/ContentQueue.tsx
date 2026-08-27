@@ -286,7 +286,7 @@ export default function ContentQueue() {
       </div>
 
       {/* Stats strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 24 }}>
         {[
           { label: "New signals", value: newItems },
           { label: "Proposed", value: counts.proposed || 0 },
