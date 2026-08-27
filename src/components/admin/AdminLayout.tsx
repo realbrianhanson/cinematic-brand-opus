@@ -341,7 +341,7 @@ const AdminLayout = () => {
         </div>
 
         <main
-          className="flex-1 overflow-y-auto"
+          className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ padding: "32px 28px" }}
         >
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
