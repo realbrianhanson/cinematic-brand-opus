@@ -2,10 +2,14 @@ import { useState } from "react";
 import { Lock, Mail, Sparkles, ArrowUpRight } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  interpretSubscribeResult,
+  type SubscribeUiState,
+} from "@/lib/newsletterClient";
 
 const FinalCTA = () => {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<SubscribeUiState>("idle");
   const [message, setMessage] = useState("");
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: formRef, visible: formVisible } = useReveal();
@@ -14,28 +18,40 @@ const FinalCTA = () => {
     e.preventDefault();
     if (!email) return;
     setStatus("loading");
+    setMessage("");
+
+    let httpStatus = 200;
+    let payload: unknown = null;
     try {
       const { data, error } = await supabase.functions.invoke("newsletter-subscribe", {
         body: { email, source: "final_cta" },
       });
-      if (error) throw error;
-      const state = (data as any)?.state;
-      if (state === "confirmation_sent" || state === "pending_email_setup") {
-        setMessage("Check your inbox to confirm!");
-        setStatus("success");
-        setEmail("");
-      } else if (state === "already_subscribed") {
-        setMessage("You're already on the list.");
-        setStatus("success");
-        setEmail("");
+      if (error) {
+        const res = (error as any)?.context as Response | undefined;
+        if (res) {
+          httpStatus = res.status;
+          payload = await res.clone().json().catch(() => null);
+        } else {
+          httpStatus = 0;
+        }
       } else {
-        throw new Error("Unexpected response");
+        payload = data;
       }
-    } catch (err: any) {
-      setMessage(err?.message || "Something went wrong. Please try again.");
-      setStatus("error");
+    } catch {
+      httpStatus = 0;
     }
+
+    const result = interpretSubscribeResult(httpStatus, payload);
+    setStatus(result.state);
+    setMessage(result.message);
+    if (result.state === "confirmation_sent") setEmail("");
   };
+
+  const isProblem =
+    status === "unavailable" ||
+    status === "rate_limited" ||
+    status === "invalid_email" ||
+    status === "error";
 
   return (
     <section id="contact" className="relative py-32 lg:py-40" style={{ background: "#07070E" }}>
