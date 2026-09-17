@@ -85,14 +85,14 @@ export async function composeFromPosts(
       )
       .join("\n\n");
 
-    const system = `You compose a weekly email digest for Brian Hanson's list of small-business owners exploring AI.
+    const system = `You compose a weekly email digest for ${authorName}'s list of small-business owners exploring AI.
 ${voiceBlock}
 Return ONLY JSON, no prose, no code fences.`;
 
     const user = `Compose this week's newsletter as JSON with exactly this shape:
 {
   "subject": "curiosity-driven, under 55 chars, no clickbait cliches",
-  "intro": "2-3 first-person sentences from Brian setting up the week's theme",
+  "intro": "2-3 first-person sentences from ${authorName} setting up the week's theme",
   "post_blurbs": [{"slug": "...", "blurb": "1-2 punchy sentences on why this matters to a small-business owner"}]
 }
 
