@@ -1,17 +1,12 @@
-const items = [
-  "4× INC. 5000",
-  "150,000+ COMMUNITY",
-  "REAL ADVISORS",
-  "AI FOR BUSINESS",
-  "REVVEN — 3,000+ USERS",
-  "$50M+ REVENUE INFLUENCED",
-  "20+ YEARS MARKETING",
-  "BUILT WITHOUT CODE",
-];
-
-const repeated = [...items, ...items, ...items, ...items];
+import { siteConfig } from "@/config/site";
 
 const ProofBar = () => {
+  const items = siteConfig.proofBadges;
+  if (items.length === 0) return null;
+
+  const repeated = [...items, ...items, ...items, ...items];
+  const accent = siteConfig.brand.accent;
+
   return (
     <section
       id="proof"
@@ -40,7 +35,7 @@ const ProofBar = () => {
                 style={{
                   width: 3,
                   height: 3,
-                  background: "#D4AF55",
+                  background: accent,
                   transform: "rotate(45deg)",
                 }}
               />
