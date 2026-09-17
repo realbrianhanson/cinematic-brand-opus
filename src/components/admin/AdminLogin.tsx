@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "@/lib/router-compat";
@@ -62,14 +63,14 @@ const AdminLogin = () => {
                 lineHeight: 1,
               }}
             >
-              C
+              {siteConfig.identity.logoInitials}
             </span>
           </div>
           <span
             className="font-heading italic block"
             style={{ fontSize: 22, color: "hsl(var(--admin-text))" }}
           >
-            Brian Hanson
+            {siteConfig.identity.name}
           </span>
           <div
             className="mx-auto"

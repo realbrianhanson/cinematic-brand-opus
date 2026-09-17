@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { siteConfig } from "@/config/site";
 import appCss from "../styles.css?url";
 
 // ported from main.tsx — recover from stale lazy-chunk references after a redeploy.
@@ -91,7 +92,7 @@ function RootComponent() {
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onUnhandled);
 
-    // Duplicate-domain guard: canonical site is brianhanson.com; *.lovable.app must not be indexed.
+    // Duplicate-domain guard: the canonical site is the configured site URL; *.lovable.app must not be indexed.
     if (window.location.hostname.endsWith("lovable.app")) {
       let robots = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
       if (!robots) {
@@ -143,34 +144,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "google-site-verification", content: "K_UDj1XvNR1AVquMTg9QMT_LfxDmHKiPwdzM3pcOQW4" },
-      { title: "Brian Hanson | Authority, Leadership, Legacy" },
-      {
-        name: "description",
-        content:
-          "Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership.",
-      },
-      { property: "og:title", content: "Brian Hanson | Authority, Leadership, Legacy" },
-      { name: "twitter:title", content: "Brian Hanson | Authority, Leadership, Legacy" },
-      {
-        property: "og:description",
-        content:
-          "Keynote speaker and advisor Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses through applied A.I. and modern leadership.",
-      },
-      {
-        name: "twitter:description",
-        content:
-          "Keynote speaker and advisor Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses through applied A.I. and modern leadership.",
-      },
-      { property: "og:image", content: "https://brianhanson.com/og-default.png" },
-      { name: "twitter:image", content: "https://brianhanson.com/og-default.png" },
+      { title: siteConfig.metadata.defaultTitle },
+      { name: "description", content: siteConfig.metadata.defaultDescription },
+      { property: "og:title", content: siteConfig.metadata.defaultTitle },
+      { name: "twitter:title", content: siteConfig.metadata.defaultTitle },
+      { property: "og:description", content: siteConfig.metadata.socialDescription },
+      { name: "twitter:description", content: siteConfig.metadata.socialDescription },
+      ...(siteConfig.metadata.socialImageUrl
+        ? [
+            { property: "og:image", content: siteConfig.metadata.socialImageUrl },
+            { name: "twitter:image", content: siteConfig.metadata.socialImageUrl },
+          ]
+        : []),
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/webp", href: "/brian-headshot.webp" },
-      { rel: "alternate", type: "application/rss+xml", title: "Brian Hanson — Blog", href: "/rss.xml" },
-      { rel: "preload", as: "image", href: "/videos/hero-poster.jpg", fetchPriority: "high" },
+      ...(siteConfig.metadata.faviconHref
+        ? [{ rel: "icon", type: "image/webp", href: siteConfig.metadata.faviconHref }]
+        : []),
+      { rel: "alternate", type: "application/rss+xml", title: siteConfig.metadata.rssTitle, href: "/rss.xml" },
+      ...(siteConfig.hero.posterSrc
+        ? [{ rel: "preload", as: "image", href: siteConfig.hero.posterSrc, fetchPriority: "high" as const }]
+        : []),
       { rel: "preconnect", href: "https://pwjdotliwsulqktavyxf.supabase.co", crossOrigin: "anonymous" },
       { rel: "dns-prefetch", href: "https://pwjdotliwsulqktavyxf.supabase.co" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },

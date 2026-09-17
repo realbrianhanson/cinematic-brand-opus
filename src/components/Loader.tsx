@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { siteConfig } from "@/config/site";
 
 interface LoaderProps {
   onComplete: () => void;
@@ -59,7 +60,7 @@ const Loader = ({ onComplete }: LoaderProps) => {
         }}
       >
         <span className="font-display italic" style={{ fontSize: 24, color: "#D4AF55", lineHeight: 1 }}>
-          B
+          {siteConfig.identity.logoInitials}
         </span>
       </div>
     </div>

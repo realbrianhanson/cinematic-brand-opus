@@ -4,13 +4,7 @@ import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
-
-const headlineLines = [
-  { text: "AI Doesn't", gold: false, italic: false, spring: false, springDelay: 0 },
-  { text: "Replace People.", gold: false, italic: false, spring: false, springDelay: 0 },
-  { text: "It Replaces", gold: true, italic: true, spring: true, springDelay: 0.9 },
-  { text: "Inefficiency.", gold: true, italic: true, spring: true, springDelay: 1.1 },
-];
+import { siteConfig } from "@/config/site";
 
 interface HeroProps {
   loaded?: boolean;
@@ -23,14 +17,18 @@ const Hero = ({ loaded = true }: HeroProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
   const visible = loaded;
+  const { hero, brand } = siteConfig;
+  const { headlineLines } = hero;
+  const headlineText = headlineLines.map((l) => l.text).join(" ");
 
   // Lazy-load hero video: only kick in after the page's initial load event.
   useEffect(() => {
+    if (!hero.videoSrc) return;
     const start = () => {
       const v = videoRef.current;
       if (!v) return;
       if (!v.src) {
-        v.src = "/videos/hero-bg.mp4";
+        v.src = hero.videoSrc!;
         v.load();
         v.play().catch(() => {});
       }
@@ -43,7 +41,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
     }
     window.addEventListener("load", start, { once: true });
     return () => window.removeEventListener("load", start);
-  }, []);
+  }, [hero.videoSrc]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -65,23 +63,27 @@ const Hero = ({ loaded = true }: HeroProps) => {
     <section id="hero" ref={sectionRef} className="relative min-h-screen flex items-center overflow-hidden">
       {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <img
-          src="/videos/hero-poster.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: videoReady ? 0 : 0.55, transition: "opacity 0.6s ease" }}
-        />
-        <video
-          ref={videoRef}
-          muted
-          loop
-          playsInline
-          preload="none"
-          poster="/videos/hero-poster.jpg"
-          className="absolute w-full h-full object-cover"
-          style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
-        />
+        {hero.posterSrc && (
+          <img
+            src={hero.posterSrc}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ opacity: videoReady ? 0 : 0.55, transition: "opacity 0.6s ease" }}
+          />
+        )}
+        {hero.videoSrc && (
+          <video
+            ref={videoRef}
+            muted
+            loop
+            playsInline
+            preload="none"
+            poster={hero.posterSrc ?? undefined}
+            className="absolute w-full h-full object-cover"
+            style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
+          />
+        )}
         {/* Desktop horizontal scrim: heavy left → light right */}
         <div
           className="absolute inset-0 hidden md:block"
@@ -134,6 +136,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
         style={{ maxWidth: 1440 }}
       >
         {/* Overline */}
+        {hero.overline && (
         <div
           className="flex items-center gap-4 mb-10"
           style={{
@@ -157,9 +160,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
               color: "#D4AF55",
             }}
           >
-            4× Inc. 5000 · AI Educator · Keynote Speaker
+            {hero.overline}
           </span>
         </div>
+        )}
 
         {/* Headline */}
         <h1
@@ -170,7 +174,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             lineHeight: 0.95,
             margin: 0,
           }}
-          aria-label="AI Doesn't Replace People. It Replaces Inefficiency."
+          aria-label={headlineText}
         >
           {headlineLines.map((line, i) => (
             <span
@@ -200,7 +204,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
                     <SpringText
                       text={line.text}
                       visible={visible}
-                      delay={line.springDelay}
+                      delay={line.springDelay ?? 0}
                       charStyle={
                         line.gold
                           ? {
@@ -233,8 +237,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s",
           }}
         >
-          Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to
-          scale. No coding required.
+          {hero.subtitle}
         </p>
 
         {/* CTA Buttons */}
@@ -246,9 +249,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
             transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.85s",
           }}
         >
+          {hero.primaryCta && (
           <MagneticButton
-            href="https://aiforbeginners.com"
-            target="_blank"
+            href={hero.primaryCta.href}
+            target={hero.primaryCta.external ? "_blank" : undefined}
             className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
             style={{
               fontSize: 13,
@@ -259,13 +263,16 @@ const Hero = ({ loaded = true }: HeroProps) => {
             }}
           >
             <Sparkles size={15} strokeWidth={2.5} />
-            Join Free 3-Day AI Event
+            {hero.primaryCta.label}
             <ArrowRight size={15} strokeWidth={2.5} />
             <div className="hero-cta-shine" />
           </MagneticButton>
+          )}
 
+          {hero.secondaryCta && (
           <MagneticButton
-            href="#speaking"
+            href={hero.secondaryCta.href}
+            target={hero.secondaryCta.external ? "_blank" : undefined}
             className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(212,175,85,0.08)]"
             style={{
               fontSize: 13,
@@ -276,12 +283,14 @@ const Hero = ({ loaded = true }: HeroProps) => {
               background: "transparent",
             }}
           >
-            <Mic size={15} strokeWidth={2.5} color="#D4AF55" />
-            Book Brian to Speak
+            <Mic size={15} strokeWidth={2.5} color={brand.accent} />
+            {hero.secondaryCta.label}
           </MagneticButton>
+          )}
         </div>
 
         {/* Social proof strip */}
+        {hero.socialProof && (
         <div
           className="flex items-center gap-4 mt-16"
           style={{
@@ -311,9 +320,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
             ))}
           </div>
           <span className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>
-            150,000+ business owners in the community
+            {hero.socialProof}
           </span>
         </div>
+        )}
       </div>
 
       {/* Scroll indicator */}
