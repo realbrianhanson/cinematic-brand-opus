@@ -144,7 +144,12 @@ const NewsCardSkeleton = () => (
   </div>
 );
 
-const News = () => {
+interface NewsProps {
+  /** First page rendered on the server. */
+  initialPage?: { items: unknown[]; nextPage: number | null } | null;
+}
+
+const News = ({ initialPage }: NewsProps = {}) => {
   const [query, setQuery] = useState("");
   const [lane, setLane] = useState<string>("all");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -177,6 +182,15 @@ const News = () => {
     getNextPageParam: (last) => last.nextPage,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    ...(initialPage
+      ? {
+          initialData: {
+            pages: [{ items: initialPage.items as never[], nextPage: initialPage.nextPage }],
+            pageParams: [0],
+          },
+          initialDataUpdatedAt: 0,
+        }
+      : {}),
   });
 
   // Live updates: refetch when new news items land
@@ -240,13 +254,6 @@ const News = () => {
 
   return (
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
-      <PageHead
-        title={pageTitle("Latest News")}
-        description="Global AI, marketing, and sales news — curated and summarized daily."
-        url={absoluteUrl("/news")}
-        type="website"
-        robots="noindex, follow"
-      />
       <CustomCursor />
       <Nav />
 

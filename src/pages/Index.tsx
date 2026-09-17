@@ -16,112 +16,63 @@ import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
-import PageHead from "@/components/PageHead";
-import { siteConfig, absoluteUrl } from "@/config/site";
+import { siteConfig } from "@/config/site";
 
-const { identity, metadata, sections } = siteConfig;
-
-const HOMEPAGE_LD = [
-  {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: identity.name,
-    jobTitle: identity.role,
-    url: absoluteUrl("/"),
-    description: metadata.socialDescription,
-    knowsAbout: identity.knowsAbout,
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: identity.name,
-    url: absoluteUrl("/"),
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${absoluteUrl("/resources")}?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
-  },
-];
+const { sections } = siteConfig;
 
 const Index = () => {
-  const [siteVisible, setSiteVisible] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  // The page is fully visible from the first paint. The intro is an overlay on
+  // top of it, so no-JS visitors and storage failures still see the content.
+  const [introDone, setIntroDone] = useState(false);
 
-  const handleLoaderComplete = () => {
-    setSiteVisible(true);
-    setTimeout(() => {
-      setLoaded(true);
-      const hash = window.location.hash.replace("#", "");
-      if (hash) {
-        setTimeout(() => {
-          const el = document.getElementById(hash);
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 150);
-      }
-    }, 100);
-  };
+  const handleLoaderComplete = () => setIntroDone(true);
 
+  // Scroll to a hash target once the page is interactive (footer/nav anchors).
   useEffect(() => {
-    const scripts = HOMEPAGE_LD.map((data, i) => {
-      const el = document.createElement("script");
-      el.type = "application/ld+json";
-      el.id = `home-ld-${i}`;
-      el.textContent = JSON.stringify(data);
-      document.head.appendChild(el);
-      return el;
-    });
-    return () => {
-      for (const s of scripts) s.remove();
-    };
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (
     <>
-      <PageHead
-        title={metadata.defaultTitle}
-        description={metadata.defaultDescription}
-        url={absoluteUrl("/")}
-        type="website"
-      />
-      {!loaded && <Loader onComplete={handleLoaderComplete} />}
-      <div
-        className="public-site min-h-screen"
-        style={{
-          opacity: siteVisible ? 1 : 0,
-          transition: "opacity 0.5s ease 0.2s",
-        }}
-      >
+      {!introDone && <Loader onComplete={handleLoaderComplete} />}
+      <div className="public-site min-h-screen">
         <AmbientOrbs />
         <FilmGrain />
         <CustomCursor />
         <ScrollProgress />
-        <Nav loaded={loaded} />
-        <Hero loaded={loaded} />
-        {sections.proofBar && <ProofBar />}
-        <Divider />
-        {sections.story && (
-          <>
-            <SectionReveal><Story /></SectionReveal>
-            <Divider />
-          </>
-        )}
-        {sections.expertise && <Expertise />}
-        {sections.results && <Stats />}
-        <Divider />
-        {sections.event && (
-          <>
-            <SectionReveal><EventCTA /></SectionReveal>
-            <Divider />
-          </>
-        )}
-        {sections.speaking && (
-          <>
-            <SectionReveal><Speaking /></SectionReveal>
-            <Divider />
-          </>
-        )}
-        {sections.newsletter && <FinalCTA />}
+        <Nav loaded />
+        <main id="main-content">
+          <Hero loaded />
+          {sections.proofBar && <ProofBar />}
+          <Divider />
+          {sections.story && (
+            <>
+              <SectionReveal><Story /></SectionReveal>
+              <Divider />
+            </>
+          )}
+          {sections.expertise && <Expertise />}
+          {sections.results && <Stats />}
+          <Divider />
+          {sections.event && (
+            <>
+              <SectionReveal><EventCTA /></SectionReveal>
+              <Divider />
+            </>
+          )}
+          {sections.speaking && (
+            <>
+              <SectionReveal><Speaking /></SectionReveal>
+              <Divider />
+            </>
+          )}
+          {sections.newsletter && <FinalCTA />}
+        </main>
         <Footer />
       </div>
     </>

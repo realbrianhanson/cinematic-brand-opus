@@ -33,7 +33,12 @@ const sourceName = (n: any): string => {
   }
 };
 
-const NewsDetail = () => {
+interface NewsDetailProps {
+  /** Server-rendered news item (published only). */
+  initialItem?: Record<string, any> | null;
+}
+
+const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
   const { id } = useParams<{ id: string }>();
 
   const {
@@ -54,6 +59,7 @@ const NewsDetail = () => {
       return data;
     },
     enabled: !!id,
+    ...(initialItem ? { initialData: initialItem as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: related } = useQuery({
@@ -116,14 +122,6 @@ const NewsDetail = () => {
   return (
     <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
-      <PageHead
-        title={pageTitle(title ?? "News")}
-        description={summary || ""}
-        url={shareUrl}
-        image={item.image_url || undefined}
-        publishedAt={item.published_at || undefined}
-        robots="noindex, follow"
-      />
 
       <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 820 }}>
         <Link

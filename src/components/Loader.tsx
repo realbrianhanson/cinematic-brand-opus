@@ -5,35 +5,82 @@ interface LoaderProps {
   onComplete: () => void;
 }
 
-// One quick fade of the B mark. Cap at 1.2s. Skip on repeat visits.
+const STORAGE_KEY = "bh_seen_loader";
+
+/** sessionStorage throws in private modes and sandboxed frames; never let it break the page. */
+const seenThisSession = (): boolean => {
+  try {
+    return window.sessionStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const markSeen = () => {
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, "1");
+  } catch {
+    /* storage unavailable — the intro simply plays again next time */
+  }
+};
+
+const prefersReducedMotion = (): boolean => {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+};
+
+const prefersLessData = (): boolean => {
+  try {
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+    ).connection;
+    if (!connection) return false;
+    return (
+      connection.saveData === true ||
+      connection.effectiveType === "slow-2g" ||
+      connection.effectiveType === "2g"
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * One quick fade of the logo mark, capped at 1.2s.
+ *
+ * This is a decorative overlay on top of already-visible content, so a storage
+ * failure, a reduced-motion preference or a data-saver connection just removes
+ * the overlay instead of leaving a blank page.
+ */
 const Loader = ({ onComplete }: LoaderProps) => {
   const [visible, setVisible] = useState(false);
   const [wiping, setWiping] = useState(false);
   const [removed, setRemoved] = useState(false);
 
   useEffect(() => {
-    // Skip loader on repeat visits within the session.
-    if (typeof window !== "undefined" && sessionStorage.getItem("bh_seen_loader") === "1") {
-      setRemoved(true);
-      onComplete();
-      return;
-    }
-    // Respect reduced-motion — skip animation entirely.
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      sessionStorage.setItem("bh_seen_loader", "1");
+    if (seenThisSession() || prefersReducedMotion() || prefersLessData()) {
+      markSeen();
       setRemoved(true);
       onComplete();
       return;
     }
 
-    const tShow = setTimeout(() => setVisible(true), 20);
-    const tWipe = setTimeout(() => setWiping(true), 600);
-    const tDone = setTimeout(() => {
-      sessionStorage.setItem("bh_seen_loader", "1");
-      setRemoved(true);
-      onComplete();
-    }, 1150);
-    return () => { clearTimeout(tShow); clearTimeout(tWipe); clearTimeout(tDone); };
+    const timers = [
+      window.setTimeout(() => setVisible(true), 20),
+      window.setTimeout(() => setWiping(true), 600),
+      window.setTimeout(() => {
+        markSeen();
+        setRemoved(true);
+        onComplete();
+      }, 1150),
+    ];
+
+    return () => {
+      for (const t of timers) window.clearTimeout(t);
+    };
   }, [onComplete]);
 
   if (removed) return null;
@@ -41,6 +88,7 @@ const Loader = ({ onComplete }: LoaderProps) => {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center"
+      aria-hidden="true"
       style={{
         zIndex: 200,
         background: "#07070E",

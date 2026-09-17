@@ -140,3 +140,8 @@ Lovable instead.
   until you add them.
 - Legal pages (privacy, terms) are not provided. Nothing is linked until you
   supply real URLs.
+- Production builds fail if the project folder path contains an apostrophe
+  (for example `.../Brian's Second Brain/...`). The framework's build-time code
+  generators cannot handle it. Keep or copy the project in a folder path with
+  no apostrophes before running `npm run build`. Development and tests are
+  unaffected.

@@ -37,7 +37,13 @@ function readingTime(json: any): number {
   return Math.max(1, Math.round(wordCount / 200));
 }
 
-const GeneratedPage = () => {
+interface GeneratedPageProps {
+  /** Server-rendered page (published only); admin drafts still load client-side. */
+  initialPage?: Record<string, any> | null;
+  initialSettings?: Record<string, any> | null;
+}
+
+const GeneratedPage = ({ initialPage, initialSettings }: GeneratedPageProps = {}) => {
   const { contentType, pageSlug } = useParams<{ contentType: string; pageSlug: string }>();
   const viewCounted = useRef(false);
   const [copied, setCopied] = useState(false);
@@ -56,6 +62,7 @@ const GeneratedPage = () => {
       return { ...pg, schema, niche };
     },
     enabled: !!contentType && !!pageSlug,
+    ...(initialPage ? { initialData: initialPage as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: settings } = useQuery({
@@ -64,7 +71,9 @@ const GeneratedPage = () => {
       const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
       return data;
     },
+    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
   });
+
 
   useEffect(() => {
     if (page?.id && !viewCounted.current) {
@@ -155,15 +164,6 @@ const GeneratedPage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
-      <PageHead
-        title={seo.title || page.title}
-        description={seo.description || content?.intro || ""}
-        url={pageUrl}
-        image={seo.og_image}
-        publishedAt={page.published_at || page.created_at || ""}
-        updatedAt={page.updated_at || ""}
-        authorName={settings?.author_name}
-      />
       <Nav />
       <div className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 1240 }}>
         <SiloSidebar
@@ -182,23 +182,6 @@ const GeneratedPage = () => {
           padding: "40px clamp(20px, 4vw, 48px)",
         }}
       >
-        <StructuredData
-          pageType="generated"
-          title={page.title}
-          description={((page.seo_meta as any)?.description) || content?.intro || ""}
-          url={`${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`}
-          publishedAt={page.published_at || page.created_at || ""}
-          updatedAt={page.updated_at || ""}
-          breadcrumbs={[
-            { name: "Home", url: settings?.site_url || "/" },
-            { name: "Resources", url: `${settings?.site_url || ""}/resources` },
-            { name: page.schema.name, url: `${settings?.site_url || ""}/resources/${contentType}` },
-            { name: page.title, url: `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}` },
-          ]}
-          faqs={faqs}
-          itemListNames={itemListNames}
-          siteSettings={settings}
-        />
         <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Resources", href: "/resources" },

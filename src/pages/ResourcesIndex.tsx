@@ -17,7 +17,17 @@ const rendererIcons: Record<string, typeof List> = {
   FAQRenderer: HelpCircle,
 };
 
-const ResourcesIndex = () => {
+interface ResourcesIndexProps {
+  initialSchemas?: unknown[] | null;
+  initialCounts?: Record<string, number> | null;
+  initialSettings?: Record<string, any> | null;
+}
+
+const ResourcesIndex = ({
+  initialSchemas,
+  initialCounts,
+  initialSettings,
+}: ResourcesIndexProps = {}) => {
   const { data: schemas } = useQuery({
     queryKey: ["public-content-schemas"],
     queryFn: async () => {
@@ -29,6 +39,7 @@ const ResourcesIndex = () => {
       if (error) throw error;
       return data ?? [];
     },
+    ...(initialSchemas ? { initialData: initialSchemas as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: pageCounts } = useQuery({
@@ -45,6 +56,7 @@ const ResourcesIndex = () => {
       });
       return counts;
     },
+    ...(initialCounts ? { initialData: initialCounts as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: settings } = useQuery({
@@ -53,16 +65,11 @@ const ResourcesIndex = () => {
       const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
       return data;
     },
+    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
-      <PageHead
-        title={`Free Resources | ${settings?.site_name || "Resources"}`}
-        description="Actionable guides, checklists, templates, and tools organized by industry."
-        url={`${settings?.site_url || ""}/resources`}
-        type="website"
-      />
       <Nav />
       <header className="pt-32 pb-16 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
         <Breadcrumbs items={[
