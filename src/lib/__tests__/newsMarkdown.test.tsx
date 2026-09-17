@@ -51,7 +51,8 @@ describe("renderNewsMarkdown", () => {
   it("never emits raw HTML from the source markdown", () => {
     const out = html('<img src=x onerror="alert(1)">\n\n<script>alert(1)</script>');
     expect(out).not.toContain("<script");
-    expect(out).not.toContain("onerror=");
+    expect(out).not.toContain("<img");
+    expect(out).not.toContain('onerror="alert');
     expect(out).toContain("&lt;script&gt;");
   });
 
@@ -64,7 +65,9 @@ describe("renderNewsMarkdown", () => {
 
   it("cannot break out of the href attribute", () => {
     const out = html('[x](https://example.com" onclick="alert(1))');
-    expect(out).not.toContain("onclick=");
+    // The quote is escaped as text, so no attribute can be injected.
+    expect(out).not.toContain('onclick="alert');
+    expect(out).not.toContain("<a ");
   });
 
   it("adds noopener/noreferrer to external links", () => {
