@@ -1,5 +1,5 @@
 import { siteConfig } from "@/config/site";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "@/lib/router-compat";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,28 +8,34 @@ const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const { signIn, user, isAdmin } = useAuth();
+  const { signIn, user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  if (user && isAdmin) {
-    navigate("/admin", { replace: true });
-    return null;
-  }
+  // Redirecting is a side effect, never something done during render.
+  useEffect(() => {
+    if (!authLoading && user && isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [authLoading, user, isAdmin, navigate]);
+
+  const signedInWithoutAccess = !authLoading && !!user && !isAdmin;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
-    const { error: err } = await signIn(email, password);
-    if (err) {
-      setError(err);
-      setLoading(false);
-    } else {
-      navigate("/admin");
+    setPending(true);
+    try {
+      const { error: err } = await signIn(email, password);
+      if (err) setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed. Please try again.");
+    } finally {
+      setPending(false);
     }
   };
+
 
   return (
     <div
