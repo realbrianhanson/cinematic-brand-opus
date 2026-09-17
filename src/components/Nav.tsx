@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
-
-const navLinks = [
-  { label: "Story", href: "#story" },
-  { label: "Expertise", href: "#expertise" },
-  { label: "Speaking", href: "#speaking" },
-  { label: "Results", href: "#results" },
-  { label: "Resources", href: "/resources" },
-];
+import { siteConfig } from "@/config/site";
 
 interface NavProps {
   loaded?: boolean;
@@ -21,6 +14,9 @@ const Nav = ({ loaded = true }: NavProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
+
+  const { identity, nav, brand } = siteConfig;
+  const navLinks = [...nav.hashLinks, ...nav.routeLinks];
 
   const handleHashClick = (e: React.MouseEvent, hash: string) => {
     e.preventDefault();
@@ -51,7 +47,7 @@ const Nav = ({ loaded = true }: NavProps) => {
       setScrolled(window.scrollY > 80);
 
       // Track active section
-      const sections = navLinks.map((l) => l.href.slice(1));
+      const sections = nav.hashLinks.map((l) => l.href.slice(1));
       let current = "";
       for (const id of sections) {
         const el = document.getElementById(id);
@@ -63,7 +59,7 @@ const Nav = ({ loaded = true }: NavProps) => {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [nav.hashLinks]);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -102,9 +98,9 @@ const Nav = ({ loaded = true }: NavProps) => {
             >
               <span
                 className="font-display italic"
-                style={{ fontSize: 16, color: "#D4AF55", lineHeight: 1 }}
+                style={{ fontSize: 16, color: brand.accent, lineHeight: 1 }}
               >
-                B
+                {identity.logoInitials}
               </span>
             </div>
             <span
@@ -115,7 +111,7 @@ const Nav = ({ loaded = true }: NavProps) => {
                 color: "rgba(255,255,255,0.5)",
               }}
             >
-              Brian Hanson
+              {identity.name}
             </span>
           </a>
 
@@ -148,7 +144,7 @@ const Nav = ({ loaded = true }: NavProps) => {
                       fontSize: 10,
                       letterSpacing: "0.18em",
                       color: activeSection === link.href.slice(1)
-                        ? "#D4AF55"
+                        ? brand.accent
                         : "rgba(255,255,255,0.45)",
                     }}
                   >
@@ -156,60 +152,40 @@ const Nav = ({ loaded = true }: NavProps) => {
                   </a>
                 )
               )}
-              <Link
-                to="/blog"
-                data-hover
-                className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  color: "rgba(255,255,255,0.45)",
-                }}
-              >
-                Blog
-              </Link>
-              <Link
-                to="/news"
-                data-hover
-                className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  color: "rgba(255,255,255,0.45)",
-                }}
-              >
-                News
-              </Link>
             </div>
 
-            {/* Divider */}
-            <div
-              style={{
-                width: 1,
-                height: 20,
-                background: "rgba(255,255,255,0.1)",
-              }}
-            />
+            {nav.cta && (
+              <>
+                {/* Divider */}
+                <div
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: "rgba(255,255,255,0.1)",
+                  }}
+                />
 
-            {/* CTA */}
-            <a
-              href="https://aiforbeginners.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              data-hover
-              className="inline-flex items-center gap-1.5 font-body font-bold uppercase transition-opacity duration-300 hover:opacity-90"
-              style={{
-                fontSize: 11,
-                letterSpacing: "0.1em",
-                background: "linear-gradient(135deg, #D4AF55, #B8962E)",
-                color: "#07070E",
-                padding: "10px 24px",
-                borderRadius: 0,
-              }}
-            >
-              Free AI Event
-              <ArrowUpRight size={13} strokeWidth={2.5} />
-            </a>
+                {/* CTA */}
+                <a
+                  href={nav.cta.href}
+                  target={nav.cta.external ? "_blank" : undefined}
+                  rel={nav.cta.external ? "noopener noreferrer" : undefined}
+                  data-hover
+                  className="inline-flex items-center gap-1.5 font-body font-bold uppercase transition-opacity duration-300 hover:opacity-90"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: "0.1em",
+                    background: `linear-gradient(135deg, ${brand.accent}, ${brand.accentDark})`,
+                    color: brand.backdrop,
+                    padding: "10px 24px",
+                    borderRadius: 0,
+                  }}
+                >
+                  {nav.cta.label}
+                  <ArrowUpRight size={13} strokeWidth={2.5} />
+                </a>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -228,7 +204,7 @@ const Nav = ({ loaded = true }: NavProps) => {
       {menuOpen && (
         <div
           className="fixed inset-0 flex flex-col"
-          style={{ zIndex: 100, background: "#07070E" }}
+          style={{ zIndex: 100, background: brand.backdrop }}
         >
           {/* Close */}
           <div className="flex justify-end px-6 pt-5">
@@ -272,53 +248,29 @@ const Nav = ({ loaded = true }: NavProps) => {
                 </a>
               )
             )}
-            <Link
-              to="/blog"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center justify-between py-5 font-display italic text-foreground"
-              style={{
-                fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                animation: `mobileNavIn 0.4s ease-out ${navLinks.length * 0.07}s both`,
-              }}
-            >
-              Blog
-              <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-            </Link>
-            <Link
-              to="/news"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center justify-between py-5 font-display italic text-foreground"
-              style={{
-                fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                animation: `mobileNavIn 0.4s ease-out ${(navLinks.length + 1) * 0.07}s both`,
-              }}
-            >
-              News
-              <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-            </Link>
           </div>
 
           {/* Mobile CTA */}
-          <div className="px-8 pb-10">
-            <a
-              href="https://aiforbeginners.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full text-center font-body font-bold uppercase"
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.08em",
-                background: "linear-gradient(135deg, #D4AF55, #B8962E)",
-                color: "#07070E",
-                padding: "16px 24px",
-                animation: "mobileNavIn 0.4s ease-out 0.35s both",
-              }}
-            >
-              Free 3-Day AI Event →
-            </a>
-          </div>
+          {nav.cta && (
+            <div className="px-8 pb-10">
+              <a
+                href={nav.cta.href}
+                target={nav.cta.external ? "_blank" : undefined}
+                rel={nav.cta.external ? "noopener noreferrer" : undefined}
+                className="block w-full text-center font-body font-bold uppercase"
+                style={{
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
+                  background: `linear-gradient(135deg, ${brand.accent}, ${brand.accentDark})`,
+                  color: brand.backdrop,
+                  padding: "16px 24px",
+                  animation: "mobileNavIn 0.4s ease-out 0.35s both",
+                }}
+              >
+                {nav.mobileCtaLabel ?? nav.cta.label}
+              </a>
+            </div>
+          )}
         </div>
       )}
     </>
