@@ -31,14 +31,12 @@ describe("article source fetching", () => {
     });
   });
   it("does not follow a source redirect to a private host", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(null, {
-          status: 302,
-          headers: { location: "https://169.254.169.254/metadata" },
-        }),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://169.254.169.254/metadata" },
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     expect(await fetchSourceMarkdown("https://example.com/article")).toBe("");
     expect(fetchMock).toHaveBeenCalledTimes(1);
