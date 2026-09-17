@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { renderNewsMarkdown } from "@/lib/newsMarkdown";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,56 +7,6 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import PageHead from "@/components/PageHead";
 import { toast } from "@/hooks/use-toast";
-
-// Very small markdown -> HTML for the AI output (## headings, paragraphs, **bold**, [text](url)).
-const renderMarkdown = (md: string): string => {
-  const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const lines = md.split(/\r?\n/);
-  const out: string[] = [];
-  let para: string[] = [];
-  const flushPara = () => {
-    if (!para.length) return;
-    let text = escape(para.join(" ").trim());
-    text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    text = text.replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#D4AF55;text-decoration:underline;">$1</a>',
-    );
-    out.push(`<p style="margin:0 0 1.2em 0;font-size:17px;line-height:1.8;color:rgba(255,255,255,0.9);">${text}</p>`);
-    para = [];
-  };
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) {
-      flushPara();
-      continue;
-    }
-    if (line.startsWith("### ")) {
-      flushPara();
-      out.push(
-        `<h3 style="font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;margin:2em 0 0.7em;color:#fff;">${escape(line.slice(4))}</h3>`,
-      );
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      flushPara();
-      out.push(
-        `<h2 style="font-family:'Instrument Serif',serif;font-style:italic;font-size:28px;margin:2em 0 0.8em;color:#fff;">${escape(line.slice(3))}</h2>`,
-      );
-      continue;
-    }
-    if (line.startsWith("# ")) {
-      flushPara();
-      out.push(
-        `<h2 style="font-family:'Instrument Serif',serif;font-style:italic;font-size:32px;margin:2em 0 0.8em;color:#fff;">${escape(line.slice(2))}</h2>`,
-      );
-      continue;
-    }
-    para.push(line);
-  }
-  flushPara();
-  return out.join("\n");
-};
 
 const laneLabel = (lane?: string | null) => {
   switch (lane) {
@@ -84,13 +34,10 @@ const sourceName = (n: any): string => {
 
 const NewsDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [generating, setGenerating] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
 
   const {
     data: item,
     isLoading,
-    refetch,
   } = useQuery({
     queryKey: ["news-item", id],
     queryFn: async () => {
@@ -100,6 +47,7 @@ const NewsDetail = () => {
           "id, title, url, raw_excerpt, image_url, topic_lane, published_at, full_content, ai_title, ai_summary, source_name",
         )
         .eq("id", id!)
+        .eq("status", "published")
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -123,21 +71,6 @@ const NewsDetail = () => {
     enabled: !!item?.topic_lane,
   });
 
-  // Auto-generate full content if missing.
-  useEffect(() => {
-    if (!item || item.full_content || generating) return;
-    setGenerating(true);
-    setGenError(null);
-    supabase.functions
-      .invoke("generate-news-article", { body: { id: item.id } })
-      .then(({ error }) => {
-        if (error) setGenError(error.message || "Failed to generate article");
-        return refetch();
-      })
-      .catch((e) => setGenError(String(e)))
-      .finally(() => setGenerating(false));
-  }, [item?.id, item?.full_content]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
@@ -154,11 +87,11 @@ const NewsDetail = () => {
           News item not found
         </p>
         <Link
-          to="/blog"
+          to="/news"
           className="font-body uppercase"
           style={{ fontSize: 12, letterSpacing: "0.15em", color: "#D4AF55" }}
         >
-          ← Back to Blog
+          ← Back to News
         </Link>
       </div>
     );
@@ -193,7 +126,7 @@ const NewsDetail = () => {
 
       <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 820 }}>
         <Link
-          to="/blog"
+          to="/news"
           className="inline-flex items-center gap-2 font-body uppercase mb-10 transition-colors duration-200"
           style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.45)" }}
         >
@@ -250,26 +183,21 @@ const NewsDetail = () => {
           }}
         >
           {item.full_content ? (
-            <div className="font-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(item.full_content) }} />
-          ) : generating ? (
-            <p className="font-body" style={{ color: "rgba(255,255,255,0.7)", fontSize: 16 }}>
-              Generating the full article — this usually takes 10-20 seconds. The page will refresh automatically.
-            </p>
-          ) : genError ? (
+            <div className="font-body">{renderNewsMarkdown(item.full_content)}</div>
+          ) : (
             <div>
               {summary && (
-                <p className="font-body" style={{ color: "rgba(255,255,255,0.85)", fontSize: 17, lineHeight: 1.7, marginBottom: "1em" }}>
+                <p
+                  className="font-body"
+                  style={{ color: "rgba(255,255,255,0.85)", fontSize: 17, lineHeight: 1.7, marginBottom: "1em" }}
+                >
                   {summary}
                 </p>
               )}
               <p className="font-body" style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, fontStyle: "italic" }}>
-                Full article available soon.
+                The full write-up for this story is not published yet. Read the original report below.
               </p>
             </div>
-          ) : (
-            <p className="font-body" style={{ color: "rgba(255,255,255,0.6)" }}>
-              Preparing article...
-            </p>
           )}
 
           {item.url && (
