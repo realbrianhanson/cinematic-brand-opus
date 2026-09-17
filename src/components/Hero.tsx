@@ -17,6 +17,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const { lightMode, resolved } = useMediaPreferences();
   const visible = loaded;
   const { hero, brand } = siteConfig;
   const { headlineLines } = hero;
