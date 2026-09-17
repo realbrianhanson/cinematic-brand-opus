@@ -28,6 +28,13 @@ function parseTo(to: string): { pathname: string; search?: Record<string, string
   };
 }
 
+// TanStack's searchStr sometimes already carries the leading "?" — react-router
+// consumers expect exactly one, and never a bare "?" for an empty search.
+export function normalizeSearch(searchStr: string | undefined | null): string {
+  const raw = (searchStr ?? "").replace(/^\?+/, "");
+  return raw ? `?${raw}` : "";
+}
+
 function isActivePath(locationPath: string, toPath: string, end: boolean): boolean {
   if (toPath === "/" || end) {
     return locationPath === toPath || (toPath !== "/" && locationPath === toPath.replace(/\/$/, ""));
