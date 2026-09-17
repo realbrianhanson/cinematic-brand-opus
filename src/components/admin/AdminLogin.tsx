@@ -101,8 +101,14 @@ const AdminLogin = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: 14 }}>
+          <label htmlFor="admin-email" className="sr-only">
+            Email
+          </label>
           <input
+            id="admin-email"
+            name="email"
             type="email"
+            autoComplete="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -110,9 +116,15 @@ const AdminLogin = () => {
             className="admin-input font-body"
             style={{ padding: "14px 18px", fontSize: 14 }}
           />
+          <label htmlFor="admin-password" className="sr-only">
+            Password
+          </label>
           <div style={{ position: "relative" }}>
             <input
+              id="admin-password"
+              name="password"
               type={showPass ? "text" : "password"}
+              autoComplete="current-password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -123,6 +135,8 @@ const AdminLogin = () => {
             <button
               type="button"
               onClick={() => setShowPass(!showPass)}
+              aria-label={showPass ? "Hide password" : "Show password"}
+              aria-pressed={showPass}
               style={{
                 position: "absolute",
                 right: 14,
@@ -140,22 +154,24 @@ const AdminLogin = () => {
             </button>
           </div>
 
-          {error && (
+          {(error || signedInWithoutAccess) && (
             <p
+              role="alert"
               className="font-body text-center"
               style={{ fontSize: 13, color: "hsl(var(--admin-danger))" }}
             >
-              {error}
+              {error ||
+                "This account does not have admin access. Sign in with an admin account."}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={pending || authLoading}
             className="admin-btn-primary justify-center"
             style={{ padding: "16px", marginTop: 4 }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {pending ? "Signing in..." : "Sign In"}
           </button>
         </form>
       </div>
