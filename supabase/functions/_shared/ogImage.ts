@@ -84,10 +84,13 @@ async function tryFirecrawl(pageUrl: string): Promise<string | null> {
   }
 }
 
-function toAbsolute(src: string, base: string): string {
+// Resolves a candidate image reference and only accepts a public http(s) result,
+// so a scraped page can never plant an internal or javascript: URL in the DB.
+function toAbsolute(src: string, base: string): string | null {
   try {
-    return new URL(src, base).toString();
+    const abs = new URL(src, base).toString();
+    return isPublicHttpUrl(abs, { allowHttp: true }) ? abs : null;
   } catch {
-    return src;
+    return null;
   }
 }
