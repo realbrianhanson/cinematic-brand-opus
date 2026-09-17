@@ -46,7 +46,10 @@ describe("buildPageHead", () => {
 });
 
 describe("compactJsonLd", () => {
-  it("drops null and undefined values", () => {
-    expect(compactJsonLd({ a: 1, b: null, c: undefined, d: "x" })).toEqual({ a: 1, d: "x" });
+  it("drops empty blocks", () => {
+    expect(compactJsonLd([{ a: 1 }, null, undefined, { d: "x" }])).toEqual([
+      { a: 1 },
+      { d: "x" },
+    ]);
   });
 });
