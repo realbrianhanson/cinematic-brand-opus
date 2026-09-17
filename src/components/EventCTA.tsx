@@ -2,42 +2,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
-import eventCrowd from "@/assets/event-crowd.jpg";
+import { siteConfig } from "@/config/site";
+import type { EventDay } from "@/config/types";
 
-const days = [
-  {
-    num: "01",
-    day: "Day 1",
-    title: "AI Foundations",
-    bullets: [
-      "What AI can actually do for YOUR business",
-      "The tools that matter (skip the noise)",
-      "Your first AI workflow — live",
-    ],
-  },
-  {
-    num: "02",
-    day: "Day 2",
-    title: "Implementation",
-    bullets: [
-      "Hands-on building with push-button tools",
-      "Automate content, marketing, and ops",
-      "Real results before the day ends",
-    ],
-  },
-  {
-    num: "03",
-    day: "Day 3",
-    title: "Scale & Automate",
-    bullets: [
-      "Systems that run while you live",
-      "The AI stack that replaces busywork",
-      "Your 90-day implementation roadmap",
-    ],
-  },
-];
-
-const DayCard = ({ card, index }: { card: (typeof days)[0]; index: number }) => {
+const DayCard = ({ card, index }: { card: EventDay; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -97,7 +65,7 @@ const DayCard = ({ card, index }: { card: (typeof days)[0]; index: number }) => 
             WebkitTextFillColor: "transparent",
           }}
         >
-          {card.num}
+          {String(index + 1).padStart(2, "0")}
         </span>
 
         <span
@@ -138,6 +106,7 @@ const DayCard = ({ card, index }: { card: (typeof days)[0]; index: number }) => 
 const EventCTA = () => {
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: ctaRef, visible: ctaVisible } = useReveal();
+  const event = siteConfig.event;
 
   return (
     <section className="relative py-36 lg:py-44" style={{ background: "#07070E" }}>
@@ -152,7 +121,7 @@ const EventCTA = () => {
           <div className="flex items-center justify-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
             <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, transparent, #D4AF55)" }} />
             <span className="font-body font-bold uppercase" style={{ fontSize: 10, letterSpacing: "0.3em", color: "#D4AF55" }}>
-              Free Virtual Event
+              {event.overline}
             </span>
             <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, #D4AF55, transparent)" }} />
           </div>
@@ -164,39 +133,42 @@ const EventCTA = () => {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}>
-              3 Days
+              {event.headingAccent}
             </em>{" "}
-            That Will Change How You Do Business
+            {event.headingRest}
           </h2>
 
           <p className="font-body mt-6 mx-auto" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "rgba(255,255,255,0.45)", maxWidth: 560, ...revealStyle(headerVisible, 0.2) }}>
-            Simple, push-button AI solutions with high impact. No tech background needed...
+            {event.intro}
           </p>
         </div>
 
         {/* Event photo */}
-        <div className="relative w-full overflow-hidden mb-16 rounded" style={{ maxHeight: 420 }}>
-          <img
-            src={eventCrowd}
-            alt="Brian Hanson's AI for Business live event with hundreds of attendees"
-            className="w-full h-full object-cover object-center"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: "linear-gradient(to top, #07070E, transparent 40%)",
-          }} />
-        </div>
+        {event.imageSrc && (
+          <div className="relative w-full overflow-hidden mb-16 rounded" style={{ maxHeight: 420 }}>
+            <img
+              src={event.imageSrc}
+              alt={event.imageAlt}
+              className="w-full h-full object-cover object-center"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: "linear-gradient(to top, #07070E, transparent 40%)",
+            }} />
+          </div>
+        )}
 
         {/* Day cards */}
         <div className="grid lg:grid-cols-3 gap-5 mb-16">
-          {days.map((d, i) => <DayCard key={i} card={d} index={i} />)}
+          {event.days.map((d, i) => <DayCard key={i} card={d} index={i} />)}
         </div>
 
         {/* CTA */}
         <div ref={ctaRef} className="text-center" style={revealStyle(ctaVisible, 0)}>
+          {event.cta && (
           <MagneticButton
-            href="https://aiforbeginners.com"
-            target="_blank"
+            href={event.cta.href}
+            target={event.cta.external ? "_blank" : undefined}
             className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase"
             style={{
               fontSize: 14,
@@ -207,14 +179,17 @@ const EventCTA = () => {
             }}
           >
             <Sparkles size={16} strokeWidth={2.5} />
-            Register Free — AIForBeginners.com
+            {event.cta.label}
             <ArrowRight size={16} strokeWidth={2.5} />
             <div className="hero-cta-shine" />
           </MagneticButton>
+          )}
 
-          <p className="font-body mt-5" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
-            100% free. No credit card. Just show up ready to learn.
-          </p>
+          {event.ctaNote && (
+            <p className="font-body mt-5" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+              {event.ctaNote}
+            </p>
+          )}
         </div>
       </div>
     </section>
