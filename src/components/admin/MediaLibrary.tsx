@@ -1,9 +1,17 @@
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Upload, Loader2, Image as ImageIconLucide, Trash2,
-  Film, FolderOpen, Copy, Play, X,
+  Upload,
+  Loader2,
+  Image as ImageIconLucide,
+  Trash2,
+  Film,
+  FolderOpen,
+  Copy,
+  Play,
+  X,
 } from "lucide-react";
 
 interface MediaItem {
@@ -48,8 +56,8 @@ const MediaLibrary = () => {
         (item) => item.type === folder,
       );
       setFiles(safeItems);
-    } catch (err: any) {
-      console.error("Failed to load files:", err?.message ?? err);
+    } catch (err) {
+      console.error("Failed to load files:", errorMessage(err) ?? err);
       setFiles([]);
     } finally {
       window.clearTimeout(timeoutId);
@@ -72,15 +80,27 @@ const MediaLibrary = () => {
 
     const isPhoto = folder === "photo";
     if (isPhoto && !file.type.startsWith("image/")) {
-      toast({ title: "Invalid file", description: "Select an image file.", variant: "destructive" });
+      toast({
+        title: "Invalid file",
+        description: "Select an image file.",
+        variant: "destructive",
+      });
       return;
     }
     if (!isPhoto && !file.type.startsWith("video/")) {
-      toast({ title: "Invalid file", description: "Select a video file.", variant: "destructive" });
+      toast({
+        title: "Invalid file",
+        description: "Select a video file.",
+        variant: "destructive",
+      });
       return;
     }
     if (file.size > maxSize) {
-      toast({ title: "File too large", description: `Max ${maxLabel}.`, variant: "destructive" });
+      toast({
+        title: "File too large",
+        description: `Max ${maxLabel}.`,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -90,10 +110,14 @@ const MediaLibrary = () => {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
       const filePath = `${folderPath}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from("blog-images").upload(filePath, file);
+      const { error: uploadError } = await supabase.storage
+        .from("blog-images")
+        .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from("blog-images").getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("blog-images").getPublicUrl(filePath);
 
       const { error: dbError } = await supabase.from("media").insert({
         name: file.name,
@@ -107,8 +131,12 @@ const MediaLibrary = () => {
 
       toast({ title: `${isPhoto ? "Image" : "Video"} uploaded` });
       fetchFiles();
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({
+        title: "Upload failed",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -118,16 +146,25 @@ const MediaLibrary = () => {
   const handleDelete = async (item: MediaItem) => {
     setDeleting(item.id);
     try {
-      const { error: storageErr } = await supabase.storage.from("blog-images").remove([item.file_path]);
+      const { error: storageErr } = await supabase.storage
+        .from("blog-images")
+        .remove([item.file_path]);
       if (storageErr) throw storageErr;
 
-      const { error: dbErr } = await supabase.from("media").delete().eq("id", item.id);
+      const { error: dbErr } = await supabase
+        .from("media")
+        .delete()
+        .eq("id", item.id);
       if (dbErr) throw dbErr;
 
       setFiles((prev) => prev.filter((f) => f.id !== item.id));
       toast({ title: "File deleted" });
-    } catch (err: any) {
-      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
     } finally {
       setDeleting(null);
     }
@@ -141,10 +178,18 @@ const MediaLibrary = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
+      <div
+        className="flex items-center justify-between"
+        style={{ marginBottom: 24 }}
+      >
         <h1
           className="font-heading"
-          style={{ fontSize: 24, fontWeight: 700, color: "hsl(var(--admin-text))", margin: 0 }}
+          style={{
+            fontSize: 24,
+            fontWeight: 700,
+            color: "hsl(var(--admin-text))",
+            margin: 0,
+          }}
         >
           Media Library
         </h1>
@@ -154,7 +199,11 @@ const MediaLibrary = () => {
           disabled={uploading}
           style={{ fontSize: 13 }}
         >
-          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+          {uploading ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Upload size={14} />
+          )}
           {uploading ? "Uploading…" : "Upload"}
         </button>
         <input
@@ -168,10 +217,10 @@ const MediaLibrary = () => {
 
       {/* Folder tabs */}
       <div className="flex gap-2" style={{ marginBottom: 24 }}>
-        {([
+        {[
           { key: "photo" as FolderTab, label: "Photos", icon: ImageIconLucide },
           { key: "video" as FolderTab, label: "Videos", icon: Film },
-        ]).map((f) => (
+        ].map((f) => (
           <button
             key={f.key}
             onClick={() => setFolder(f.key)}
@@ -180,9 +229,18 @@ const MediaLibrary = () => {
               padding: "10px 20px",
               borderRadius: 6,
               border: "1px solid",
-              borderColor: folder === f.key ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))",
-              backgroundColor: folder === f.key ? "hsl(var(--admin-accent-soft))" : "transparent",
-              color: folder === f.key ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))",
+              borderColor:
+                folder === f.key
+                  ? "hsl(var(--admin-accent))"
+                  : "hsl(var(--admin-border))",
+              backgroundColor:
+                folder === f.key
+                  ? "hsl(var(--admin-accent-soft))"
+                  : "transparent",
+              color:
+                folder === f.key
+                  ? "hsl(var(--admin-accent))"
+                  : "hsl(var(--admin-text-soft))",
               cursor: "pointer",
               fontSize: 13,
               fontWeight: 500,
@@ -197,20 +255,43 @@ const MediaLibrary = () => {
 
       {/* Grid */}
       {loading ? (
-        <div className="flex items-center justify-center" style={{ padding: 64 }}>
-          <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+        <div
+          className="flex items-center justify-center"
+          style={{ padding: 64 }}
+        >
+          <Loader2
+            size={24}
+            className="animate-spin"
+            style={{ color: "hsl(var(--admin-accent))" }}
+          />
         </div>
       ) : files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3" style={{ padding: 64 }}>
-          <FolderOpen size={40} style={{ color: "hsl(var(--admin-text-soft))", opacity: 0.3 }} />
-          <p className="font-body" style={{ color: "hsl(var(--admin-text-soft))", fontSize: 14, margin: 0 }}>
-            No {folder === "photo" ? "photos" : "videos"} yet. Upload one to get started.
+        <div
+          className="flex flex-col items-center justify-center gap-3"
+          style={{ padding: 64 }}
+        >
+          <FolderOpen
+            size={40}
+            style={{ color: "hsl(var(--admin-text-soft))", opacity: 0.3 }}
+          />
+          <p
+            className="font-body"
+            style={{
+              color: "hsl(var(--admin-text-soft))",
+              fontSize: 14,
+              margin: 0,
+            }}
+          >
+            No {folder === "photo" ? "photos" : "videos"} yet. Upload one to get
+            started.
           </p>
         </div>
       ) : (
         <div
           className="grid gap-4"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+          }}
         >
           {files.map((file) => (
             <div
@@ -219,14 +300,27 @@ const MediaLibrary = () => {
               style={{ overflow: "hidden", padding: 0 }}
             >
               <div
-                style={{ aspectRatio: "1", position: "relative", overflow: "hidden", cursor: file.type === "video" ? "pointer" : "default" }}
-                onClick={file.type === "video" ? () => setPreviewVideo(file) : undefined}
+                style={{
+                  aspectRatio: "1",
+                  position: "relative",
+                  overflow: "hidden",
+                  cursor: file.type === "video" ? "pointer" : "default",
+                }}
+                onClick={
+                  file.type === "video"
+                    ? () => setPreviewVideo(file)
+                    : undefined
+                }
               >
                 {file.type === "photo" ? (
                   <img
                     src={file.url}
                     alt={file.name}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
                     loading="lazy"
                   />
                 ) : (
@@ -237,7 +331,11 @@ const MediaLibrary = () => {
                   >
                     <video
                       src={file.url}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
                       muted
                       preload="metadata"
                     />
@@ -256,7 +354,10 @@ const MediaLibrary = () => {
                           justifyContent: "center",
                         }}
                       >
-                        <Play size={18} style={{ color: "#000", marginLeft: 2 }} />
+                        <Play
+                          size={18}
+                          style={{ color: "#000", marginLeft: 2 }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -265,14 +366,18 @@ const MediaLibrary = () => {
                 <div
                   className="absolute inset-x-0 bottom-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between"
                   style={{
-                    background: "linear-gradient(transparent 0%, rgba(0,0,0,0.75))",
+                    background:
+                      "linear-gradient(transparent 0%, rgba(0,0,0,0.75))",
                     padding: 8,
                     height: "50%",
                     pointerEvents: "none",
                   }}
                 >
                   <button
-                    onClick={(e) => { e.stopPropagation(); copyUrl(file.url); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copyUrl(file.url);
+                    }}
                     style={{
                       background: "rgba(255,255,255,0.15)",
                       border: "none",
@@ -287,7 +392,10 @@ const MediaLibrary = () => {
                     <Copy size={13} />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(file); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(file);
+                    }}
                     disabled={deleting === file.id}
                     style={{
                       background: "rgba(220,38,38,0.8)",

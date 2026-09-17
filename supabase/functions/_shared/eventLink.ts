@@ -3,7 +3,7 @@
 // skips text already inside an <a> tag or a markdown link, and skips content
 // that already contains the CTA URL. Works for both HTML and markdown bodies.
 
-const DEFAULT_CTA_URL = "https://aiforbeginners.com";
+import { safeHref } from "./safeHref.ts";
 
 // Ordered longest-first so bigger phrases win before subphrases match.
 const PHRASE_PATTERNS: RegExp[] = [
@@ -19,7 +19,15 @@ export function linkifyEventMentions(
   opts: { maxLinks?: number } = {},
 ): string {
   if (!body || typeof body !== "string") return body ?? "";
-  const url = (ctaUrl && ctaUrl.trim()) || DEFAULT_CTA_URL;
+  const url = safeHref(ctaUrl);
+  if (!url) return body;
+  // These legacy phrases describe this particular event, not every member's CTA.
+  try {
+    if (new URL(url).hostname.replace(/^www\./, "") !== "aiforbeginners.com")
+      return body;
+  } catch {
+    return body;
+  }
   const maxLinks = opts.maxLinks ?? 2;
 
   // Split by existing anchors and markdown links so we never re-wrap.
@@ -38,7 +46,10 @@ export function linkifyEventMentions(
     let out = seg;
     for (const pat of PHRASE_PATTERNS) {
       if (linksAdded >= maxLinks) break;
-      const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
+      const re = new RegExp(
+        pat.source,
+        pat.flags.includes("g") ? pat.flags : pat.flags + "g",
+      );
       out = out.replace(re, (match, ...args) => {
         if (linksAdded >= maxLinks) return match;
         // args: [...groups, offset, string]
@@ -52,7 +63,8 @@ export function linkifyEventMentions(
         if (/^\s*\]\(/.test(after)) return match;
         const lastOpen = before.lastIndexOf("[");
         const lastClose = before.lastIndexOf("]");
-        if (lastOpen > lastClose && /^[^\[]*\]\([^)]*\)/.test(after)) return match;
+        if (lastOpen > lastClose && /^[^[]*\]\([^)]*\)/.test(after))
+          return match;
         linksAdded++;
         const looksHtml = /<\w+[\s>]/.test(seg);
         return looksHtml

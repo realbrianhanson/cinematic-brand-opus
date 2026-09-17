@@ -10,7 +10,8 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
 
@@ -27,13 +28,16 @@ Deno.serve(async (req) => {
     .limit(40);
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   let processed = 0;
   for (const r of rows || []) {
-    const stripped = String(r.content || "").replace(/<[^>]+>/g, " ").slice(0, 6000);
+    const stripped = String(r.content || "")
+      .replace(/<[^>]+>/g, " ")
+      .slice(0, 6000);
     const text = `${r.title || ""}\n${stripped}`.trim();
     if (!text) continue;
     const vec = await embedText(text, lovableKey);
@@ -54,7 +58,10 @@ Deno.serve(async (req) => {
     .select("id", { count: "exact", head: true })
     .is("embedding", null);
 
-  return new Response(JSON.stringify({ processed, remaining: remaining ?? null }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ processed, remaining: remaining ?? null }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });

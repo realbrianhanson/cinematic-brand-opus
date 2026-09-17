@@ -20,21 +20,28 @@ export async function generateFeaturedImage(
     const imagePrompt = `Create a professional, visually striking blog header image for an article titled "${title}". The image should be: a modern, clean editorial-style photograph or illustration that evokes the theme of the article. Context: ${excerpt}. Style: cinematic lighting, rich colors, no text overlays, no watermarks, suitable as a 16:9 blog featured image. High quality, editorial photography style.`;
 
     console.log("Generating featured image via Nano Banana 2...");
-    const imgRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+    const imgRes = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: IMAGE_MODEL,
+          messages: [{ role: "user", content: imagePrompt }],
+          modalities: ["image", "text"],
+        }),
       },
-      body: JSON.stringify({
-        model: IMAGE_MODEL,
-        messages: [{ role: "user", content: imagePrompt }],
-        modalities: ["image", "text"],
-      }),
-    });
+    );
 
     if (!imgRes.ok) {
-      console.warn("Image generation failed:", imgRes.status, await imgRes.text());
+      console.warn(
+        "Image generation failed:",
+        imgRes.status,
+        await imgRes.text(),
+      );
       return null;
     }
 
@@ -54,14 +61,19 @@ export async function generateFeaturedImage(
 
     const { error: uploadErr } = await supabaseAdmin.storage
       .from("blog-images")
-      .upload(filePath, bytes, { contentType: `image/${base64Match[1]}`, upsert: false });
+      .upload(filePath, bytes, {
+        contentType: `image/${base64Match[1]}`,
+        upsert: false,
+      });
 
     if (uploadErr) {
       console.warn("Image upload failed:", uploadErr.message);
       return null;
     }
 
-    const { data: urlData } = supabaseAdmin.storage.from("blog-images").getPublicUrl(filePath);
+    const { data: urlData } = supabaseAdmin.storage
+      .from("blog-images")
+      .getPublicUrl(filePath);
     console.log("Featured image uploaded:", urlData.publicUrl);
     return urlData.publicUrl;
   } catch (e) {

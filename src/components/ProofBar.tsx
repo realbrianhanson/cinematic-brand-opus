@@ -14,19 +14,31 @@ const ProofBar = () => {
       style={{ background: "#08080F" }}
     >
       {/* Top border */}
-      <div className="absolute top-0 left-0 w-full h-px" style={{
-        background: "linear-gradient(90deg, transparent, rgba(212,175,85,0.12), transparent)",
-      }} />
+      <div
+        className="absolute top-0 left-0 w-full h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.12), transparent)",
+        }}
+      />
       {/* Bottom border */}
-      <div className="absolute bottom-0 left-0 w-full h-px" style={{
-        background: "linear-gradient(90deg, transparent, rgba(212,175,85,0.12), transparent)",
-      }} />
+      <div
+        className="absolute bottom-0 left-0 w-full h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.12), transparent)",
+        }}
+      />
 
       {/* Marquee container with edge fade */}
-      <div style={{
-        maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
-        WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
-      }}>
+      <div
+        style={{
+          maskImage:
+            "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+          WebkitMaskImage:
+            "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+        }}
+      >
         <div className="flex items-center gap-16 proof-marquee">
           {repeated.map((item, i) => (
             <div key={i} className="flex items-center gap-2 shrink-0">

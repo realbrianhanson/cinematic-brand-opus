@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/newsMarkdown";
 import { Fragment, type ReactNode } from "react";
 import { Link } from "@/lib/router-compat";
 
@@ -13,7 +14,13 @@ export function renderInlineMarkdown(text: unknown): ReactNode {
   let key = 0;
   while ((m = re.exec(str)) !== null) {
     if (m.index > last) out.push(str.slice(last, m.index));
-    const [, label, href] = m;
+    const [, label, rawHref] = m;
+    const href = safeHref(rawHref);
+    if (!href) {
+      out.push(label);
+      last = m.index + m[0].length;
+      continue;
+    }
     if (/^https?:\/\//i.test(href)) {
       out.push(
         <a
@@ -21,7 +28,7 @@ export function renderInlineMarkdown(text: unknown): ReactNode {
           href={href}
           target="_blank"
           rel="noopener nofollow"
-          style={{ color: "#D4AF55", textDecoration: "underline" }}
+          style={{ color: "var(--brand-accent)", textDecoration: "underline" }}
         >
           {label}
         </a>,
@@ -31,7 +38,7 @@ export function renderInlineMarkdown(text: unknown): ReactNode {
         <Link
           key={`ml-${key++}`}
           to={href}
-          style={{ color: "#D4AF55", textDecoration: "underline" }}
+          style={{ color: "var(--brand-accent)", textDecoration: "underline" }}
         >
           {label}
         </Link>,

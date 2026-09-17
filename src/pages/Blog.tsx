@@ -1,3 +1,5 @@
+import { siteConfig } from "@/config/site";
+import { fetchBlogPage } from "@/lib/publicLists";
 import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
@@ -10,11 +12,18 @@ import CustomCursor from "@/components/CustomCursor";
 // Simple hash to pick a stable gradient direction per post
 const hashSeed = (s: string) => {
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
+  for (let i = 0; i < s.length; i++)
+    h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
   return Math.abs(h);
 };
 
-const TypographicCover = ({ title, label }: { title: string; label?: string }) => {
+const TypographicCover = ({
+  title,
+  label,
+}: {
+  title: string;
+  label?: string;
+}) => {
   const seed = hashSeed(title);
   const angle = 100 + (seed % 80);
   const initial = (title || "•").trim().charAt(0).toUpperCase();
@@ -24,13 +33,20 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
       className="relative w-full flex items-end p-6"
       style={{
         height: 200,
-        background: `linear-gradient(${angle}deg, #D4AF55 0%, #8B7023 55%, #14141b 100%)`,
+        background: `linear-gradient(${angle}deg, var(--brand-accent) 0%, #8B7023 55%, #14141b 100%)`,
         overflow: "hidden",
       }}
     >
       <span
         className="font-display italic select-none"
-        style={{ position: "absolute", top: -20, right: 8, fontSize: 220, lineHeight: 1, color: "rgba(7,7,14,0.35)" }}
+        style={{
+          position: "absolute",
+          top: -20,
+          right: 8,
+          fontSize: 220,
+          lineHeight: 1,
+          color: "rgba(var(--brand-backdrop-rgb),0.35)",
+        }}
       >
         {initial}
       </span>
@@ -43,7 +59,7 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
             left: 16,
             fontSize: 10,
             letterSpacing: "0.2em",
-            color: "rgba(7,7,14,0.85)",
+            color: "rgba(var(--brand-backdrop-rgb),0.85)",
             background: "rgba(255,255,255,0.35)",
             padding: "4px 8px",
             borderRadius: 2,
@@ -57,7 +73,7 @@ const TypographicCover = ({ title, label }: { title: string; label?: string }) =
         style={{
           fontSize: 22,
           lineHeight: 1.2,
-          color: "rgba(7,7,14,0.92)",
+          color: "rgba(var(--brand-backdrop-rgb),0.92)",
           maxWidth: "88%",
           textShadow: "0 1px 0 rgba(255,255,255,0.08)",
         }}
@@ -82,10 +98,30 @@ const CardSkeleton = () => (
   >
     <div style={{ height: 200, background: "rgba(255,255,255,0.04)" }} />
     <div className="p-6 flex flex-col gap-3">
-      <div style={{ height: 10, width: 90, background: "rgba(255,255,255,0.06)" }} />
-      <div style={{ height: 22, width: "85%", background: "rgba(255,255,255,0.08)" }} />
-      <div style={{ height: 14, width: "100%", background: "rgba(255,255,255,0.05)" }} />
-      <div style={{ height: 14, width: "70%", background: "rgba(255,255,255,0.05)" }} />
+      <div
+        style={{ height: 10, width: 90, background: "rgba(255,255,255,0.06)" }}
+      />
+      <div
+        style={{
+          height: 22,
+          width: "85%",
+          background: "rgba(255,255,255,0.08)",
+        }}
+      />
+      <div
+        style={{
+          height: 14,
+          width: "100%",
+          background: "rgba(255,255,255,0.05)",
+        }}
+      />
+      <div
+        style={{
+          height: 14,
+          width: "70%",
+          background: "rgba(255,255,255,0.05)",
+        }}
+      />
     </div>
   </div>
 );
@@ -95,11 +131,12 @@ const CARD_COLUMNS =
   "id, slug, title, excerpt, featured_image, featured_image_alt, reading_time, created_at, categories(name, slug)";
 
 interface BlogProps {
+  category?: string;
   /** First page rendered on the server so the list is in the initial HTML. */
   initialPage?: { items: unknown[]; nextPage: number | null } | null;
 }
 
-const Blog = ({ initialPage }: BlogProps = {}) => {
+const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -110,30 +147,21 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["public-posts-infinite"],
+    queryKey: ["public-posts-infinite", category],
     initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      const from = (pageParam as number) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      const { data, error } = await supabase
-        .from("posts")
-        .select(CARD_COLUMNS)
-        .eq("status", "published")
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      if (error) throw error;
-      return {
-        items: data ?? [],
-        nextPage: (data?.length ?? 0) === PAGE_SIZE ? (pageParam as number) + 1 : null,
-      };
-    },
+    queryFn: ({ pageParam }) => fetchBlogPage(supabase, pageParam, category),
     getNextPageParam: (last) => last.nextPage,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     ...(initialPage
       ? {
           initialData: {
-            pages: [{ items: initialPage.items as never[], nextPage: initialPage.nextPage }],
+            pages: [
+              {
+                items: initialPage.items as never[],
+                nextPage: initialPage.nextPage,
+              },
+            ],
             pageParams: [0],
           },
           // Treat server data as immediately stale so signed-in admins and
@@ -148,7 +176,8 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
     if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage)
+          fetchNextPage();
       },
       { rootMargin: "600px 0px" },
     );
@@ -158,7 +187,7 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
 
   const posts = useMemo(() => {
     const seen = new Set<string>();
-    const out: any[] = [];
+    const out: Awaited<ReturnType<typeof fetchBlogPage>>["items"] = [];
     for (const p of data?.pages ?? []) {
       for (const it of p.items) {
         if (seen.has(it.id)) continue;
@@ -170,49 +199,89 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
   }, [data]);
 
   return (
-    <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div
+      className="public-site min-h-screen"
+      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+    >
       <CustomCursor />
       <Nav />
-      <header className="pt-32 pb-16 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
+      <header
+        className="pt-32 pb-16 px-6 lg:px-14 mx-auto"
+        style={{ maxWidth: 1440 }}
+      >
         <Link
           to="/"
           className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
-          style={{ fontSize: 12, letterSpacing: "0.18em", color: "rgba(255,255,255,0.75)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.18em",
+            color: "rgba(255,255,255,0.75)",
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.color = "var(--brand-accent)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.color = "rgba(255,255,255,0.75)")
+          }
         >
           <ArrowLeft size={14} />
           Back to Home
         </Link>
         <h1
           className="font-display italic"
-          style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", lineHeight: 1.1, color: "#fff" }}
+          style={{
+            fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+            lineHeight: 1.1,
+            color: "#fff",
+          }}
         >
           Articles &amp; Playbooks
         </h1>
         <p
           className="font-body mt-4"
-          style={{ fontSize: 17, color: "rgba(255,255,255,0.85)", maxWidth: 560, lineHeight: 1.6 }}
+          style={{
+            fontSize: 17,
+            color: "rgba(255,255,255,0.85)",
+            maxWidth: 560,
+            lineHeight: 1.6,
+          }}
         >
-          AI, marketing, and building businesses that matter.
+          {siteConfig.content.blogDescription}
         </p>
       </header>
 
-      <main id="main-content" className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
+      {category && (
+        <div className="px-6 lg:px-14 pb-6">
+          Category: {category} · <Link to="/blog">Show all articles</Link>
+        </div>
+      )}
+      <main
+        id="main-content"
+        className="px-6 lg:px-14 pb-24 mx-auto"
+        style={{ maxWidth: 1440 }}
+      >
         {isError && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
+          <p
+            className="font-body"
+            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+          >
             Failed to load posts. Please refresh the page.
           </p>
         )}
         {!isLoading && !isError && posts.length === 0 && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
+          <p
+            className="font-body"
+            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+          >
             No posts published yet. Check back soon.
           </p>
         )}
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {isLoading &&
-            Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={`sk-${i}`} />)}
+            Array.from({ length: 6 }).map((_, i) => (
+              <CardSkeleton key={`sk-${i}`} />
+            ))}
 
           {posts.map((post, idx) => (
             <Link
@@ -227,7 +296,8 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
                 flexDirection: "column",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)";
+                e.currentTarget.style.borderColor =
+                  "rgba(var(--brand-accent-rgb),0.35)";
                 e.currentTarget.style.transform = "translateY(-4px)";
               }}
               onMouseLeave={(e) => {
@@ -236,7 +306,14 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
               }}
             >
               {post.featured_image ? (
-                <div style={{ height: 200, overflow: "hidden", background: "#0a0a14", flexShrink: 0 }}>
+                <div
+                  style={{
+                    height: 200,
+                    overflow: "hidden",
+                    background: "#0a0a14",
+                    flexShrink: 0,
+                  }}
+                >
                   <img
                     src={post.featured_image}
                     alt={post.featured_image_alt || post.title}
@@ -256,7 +333,11 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
                   {post.categories?.name && (
                     <span
                       className="font-body uppercase"
-                      style={{ fontSize: 11, letterSpacing: "0.15em", color: "#D4AF55" }}
+                      style={{
+                        fontSize: 11,
+                        letterSpacing: "0.15em",
+                        color: "var(--brand-accent)",
+                      }}
                     >
                       {post.categories.name}
                     </span>
@@ -270,7 +351,7 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
                   </span>
                 </div>
                 <h2
-                  className="font-display italic mb-3 transition-colors duration-300 group-hover:text-[#D4AF55]"
+                  className="font-display italic mb-3 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
                   style={{ fontSize: 22, lineHeight: 1.3, color: "#fff" }}
                 >
                   {post.title}
@@ -292,8 +373,12 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
                   </p>
                 )}
                 <div
-                  className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[#D4AF55]"
-                  style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(255,255,255,0.75)" }}
+                  className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: "0.15em",
+                    color: "rgba(255,255,255,0.75)",
+                  }}
                 >
                   Read article <ArrowRight size={12} />
                 </div>
@@ -302,7 +387,9 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
           ))}
 
           {isFetchingNextPage &&
-            Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={`sk-more-${i}`} />)}
+            Array.from({ length: 3 }).map((_, i) => (
+              <CardSkeleton key={`sk-more-${i}`} />
+            ))}
         </div>
 
         <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
@@ -310,7 +397,11 @@ const Blog = ({ initialPage }: BlogProps = {}) => {
         {!hasNextPage && !isLoading && posts.length > 0 && (
           <p
             className="text-center font-body uppercase mt-12"
-            style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(255,255,255,0.4)" }}
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.2em",
+              color: "rgba(255,255,255,0.4)",
+            }}
           >
             — End of articles —
           </p>

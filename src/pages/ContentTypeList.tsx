@@ -1,3 +1,11 @@
+import type {
+  PublicPost,
+  PublicPillar,
+  PublicGeneratedPage,
+  PublicSiteSettings,
+  PublicNewsItem,
+} from "@/lib/publicTypes";
+import type { Tables, Json } from "@/integrations/supabase/types";
 import { useState, useMemo } from "react";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
@@ -10,23 +18,32 @@ import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 
 interface ContentTypeListProps {
-  initialSchema?: Record<string, any> | null;
+  initialSchema?: Tables<"content_schemas"> | null;
   initialPages?: unknown[] | null;
 }
 
-const ContentTypeList = ({ initialSchema, initialPages }: ContentTypeListProps = {}) => {
+const ContentTypeList = ({
+  initialSchema,
+  initialPages,
+}: ContentTypeListProps = {}) => {
   const { contentType } = useParams<{ contentType: string }>();
   const [nicheFilter, setNicheFilter] = useState("");
 
   const { data: schema } = useQuery({
     queryKey: ["public-schema", contentType],
     queryFn: async () => {
-      const { data, error } = await supabase.from("content_schemas").select("*").eq("slug", contentType!).maybeSingle();
+      const { data, error } = await supabase
+        .from("content_schemas")
+        .select("*")
+        .eq("slug", contentType!)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!contentType,
-    ...(initialSchema ? { initialData: initialSchema as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialSchema
+      ? { initialData: initialSchema as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const { data: pages } = useQuery({
@@ -42,43 +59,71 @@ const ContentTypeList = ({ initialSchema, initialPages }: ContentTypeListProps =
       return data ?? [];
     },
     enabled: !!schema?.id,
-    ...(initialPages ? { initialData: initialPages as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialPages
+      ? { initialData: initialPages as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const niches = useMemo(() => {
     if (!pages) return [];
     const map = new Map<string, string>();
-    pages.forEach((p: any) => { if (p.niches?.slug) map.set(p.niches.slug, p.niches.name); });
-    return Array.from(map, ([slug, name]) => ({ slug, name })).sort((a, b) => a.name.localeCompare(b.name));
+    pages.forEach((p) => {
+      if (p.niches?.slug) map.set(p.niches.slug, p.niches.name);
+    });
+    return Array.from(map, ([slug, name]) => ({ slug, name })).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
   }, [pages]);
 
   const filtered = useMemo(() => {
     if (!pages) return [];
     if (!nicheFilter) return pages;
-    return pages.filter((p: any) => p.niches?.slug === nicheFilter);
+    return pages.filter((p) => p.niches?.slug === nicheFilter);
   }, [pages, nicheFilter]);
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+    >
       <Nav />
-      <header className="pt-32 pb-8 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>
-        <Breadcrumbs items={[
-          { label: "Home", href: "/" },
-          { label: "Resources", href: "/resources" },
-          { label: schema?.name || "..." },
-        ]} />
+      <header
+        className="pt-32 pb-8 px-6 lg:px-14 mx-auto"
+        style={{ maxWidth: 1440 }}
+      >
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Resources", href: "/resources" },
+            { label: schema?.name || "..." },
+          ]}
+        />
 
-        <h1 className="font-display italic" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.1 }}>
+        <h1
+          className="font-display italic"
+          style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.1 }}
+        >
           {schema?.name || "Loading..."}
         </h1>
         {schema?.description && (
-          <p className="font-body mt-4" style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", maxWidth: 560 }}>
+          <p
+            className="font-body mt-4"
+            style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.4)",
+              maxWidth: 560,
+            }}
+          >
             {schema.description}
           </p>
         )}
       </header>
 
-      <main id="main-content" className="px-6 lg:px-14 pb-24 mx-auto" style={{ maxWidth: 1440 }}>
+      <main
+        id="main-content"
+        className="px-6 lg:px-14 pb-24 mx-auto"
+        style={{ maxWidth: 1440 }}
+      >
         {/* Filter */}
         {niches.length > 1 && (
           <div className="mb-10 flex flex-wrap gap-2">
@@ -89,16 +134,23 @@ const ContentTypeList = ({ initialSchema, initialPages }: ContentTypeListProps =
                 fontSize: 10,
                 letterSpacing: "0.12em",
                 border: "1px solid",
-                borderColor: !nicheFilter ? "#D4AF55" : "rgba(255,255,255,0.1)",
-                color: !nicheFilter ? "#D4AF55" : "rgba(255,255,255,0.4)",
-                background: !nicheFilter ? "rgba(212,175,85,0.08)" : "transparent",
+                borderColor: !nicheFilter
+                  ? "var(--brand-accent)"
+                  : "rgba(255,255,255,0.1)",
+                color: !nicheFilter
+                  ? "var(--brand-accent)"
+                  : "rgba(255,255,255,0.4)",
+                background: !nicheFilter
+                  ? "rgba(var(--brand-accent-rgb),0.08)"
+                  : "transparent",
                 cursor: "pointer",
               }}
             >
               All ({pages?.length || 0})
             </button>
             {niches.map((n) => {
-              const count = pages?.filter((p: any) => p.niches?.slug === n.slug).length || 0;
+              const count =
+                pages?.filter((p) => p.niches?.slug === n.slug).length || 0;
               const active = nicheFilter === n.slug;
               return (
                 <button
@@ -109,9 +161,15 @@ const ContentTypeList = ({ initialSchema, initialPages }: ContentTypeListProps =
                     fontSize: 10,
                     letterSpacing: "0.12em",
                     border: "1px solid",
-                    borderColor: active ? "#D4AF55" : "rgba(255,255,255,0.1)",
-                    color: active ? "#D4AF55" : "rgba(255,255,255,0.4)",
-                    background: active ? "rgba(212,175,85,0.08)" : "transparent",
+                    borderColor: active
+                      ? "var(--brand-accent)"
+                      : "rgba(255,255,255,0.1)",
+                    color: active
+                      ? "var(--brand-accent)"
+                      : "rgba(255,255,255,0.4)",
+                    background: active
+                      ? "rgba(var(--brand-accent-rgb),0.08)"
+                      : "transparent",
                     cursor: "pointer",
                   }}
                 >
@@ -124,40 +182,82 @@ const ContentTypeList = ({ initialSchema, initialPages }: ContentTypeListProps =
 
         {/* Grid */}
         <div className="grid md:grid-cols-2 gap-8">
-          {filtered.map((p: any) => (
+          {filtered.map((p) => (
             <Link
               to={`/resources/${contentType}/${p.slug}`}
               key={p.id}
               className="group block p-7"
-              style={{ border: "1px solid rgba(255,255,255,0.06)", transition: "border-color 0.3s, transform 0.3s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.25)"; e.currentTarget.style.transform = "translateY(-3px)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
+              style={{
+                border: "1px solid rgba(255,255,255,0.06)",
+                transition: "border-color 0.3s, transform 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor =
+                  "rgba(var(--brand-accent-rgb),0.25)";
+                e.currentTarget.style.transform = "translateY(-3px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
             >
               <div className="flex items-center gap-3 mb-3">
                 {p.niches?.name && (
-                  <span className="font-body uppercase" style={{ fontSize: 9, letterSpacing: "0.15em", color: "#D4AF55" }}>
+                  <span
+                    className="font-body uppercase"
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.15em",
+                      color: "var(--brand-accent)",
+                    }}
+                  >
                     {p.niches.name}
                   </span>
                 )}
               </div>
-              <h2 className="font-display italic mb-3 transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 20, lineHeight: 1.3 }}>
+              <h2
+                className="font-display italic mb-3 transition-colors group-hover:text-[var(--brand-accent)]"
+                style={{ fontSize: 20, lineHeight: 1.3 }}
+              >
                 {p.title}
               </h2>
-              <div className="flex items-center gap-1 font-body uppercase transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)" }}>
-                View {schema?.name?.toLowerCase() || "resource"} <ArrowRight size={12} />
+              <div
+                className="flex items-center gap-1 font-body uppercase transition-colors group-hover:text-[var(--brand-accent)]"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.15em",
+                  color: "rgba(255,255,255,0.3)",
+                }}
+              >
+                View {schema?.name?.toLowerCase() || "resource"}{" "}
+                <ArrowRight size={12} />
               </div>
             </Link>
           ))}
         </div>
 
         {filtered.length === 0 && !pages && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Loading...</p>
+          <p
+            className="font-body"
+            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+          >
+            Loading...
+          </p>
         )}
         {filtered.length === 0 && pages && (
-          <p className="font-body" style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>No published resources found.</p>
+          <p
+            className="font-body"
+            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+          >
+            No published resources found.
+          </p>
         )}
 
-        <PublicCTA variant="end" contentTypeSlug={contentType} pageType="content-type-list" />
+        <PublicCTA
+          variant="end"
+          contentTypeSlug={contentType}
+          pageType="content-type-list"
+        />
       </main>
       <Footer />
     </div>

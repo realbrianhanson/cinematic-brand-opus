@@ -3,7 +3,10 @@ import { Trash2 } from "lucide-react";
 
 const ImageNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   return (
-    <NodeViewWrapper className="tiptap-image-wrapper" data-selected={selected || undefined}>
+    <NodeViewWrapper
+      className="tiptap-image-wrapper"
+      data-selected={selected || undefined}
+    >
       <img
         src={node.attrs.src}
         alt={node.attrs.alt || ""}

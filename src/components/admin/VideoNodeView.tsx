@@ -3,7 +3,10 @@ import { Trash2 } from "lucide-react";
 
 const VideoNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   return (
-    <NodeViewWrapper className="tiptap-media-wrapper" data-selected={selected || undefined}>
+    <NodeViewWrapper
+      className="tiptap-media-wrapper"
+      data-selected={selected || undefined}
+    >
       <video
         src={node.attrs.src}
         controls

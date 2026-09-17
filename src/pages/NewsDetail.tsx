@@ -1,11 +1,29 @@
+import { newsDisplay } from "@/lib/newsDisplay";
+import type {
+  PublicPost,
+  PublicPillar,
+  PublicGeneratedPage,
+  PublicSiteSettings,
+  PublicNewsItem,
+} from "@/lib/publicTypes";
+import type { Tables, Json } from "@/integrations/supabase/types";
 import { renderNewsMarkdown } from "@/lib/newsMarkdown";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Clock, ExternalLink, Share2, Twitter, Linkedin, Facebook, Link as LinkIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  ExternalLink,
+  Share2,
+  Twitter,
+  Linkedin,
+  Facebook,
+  Link as LinkIcon,
+} from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import { pageTitle } from "@/config/site";
+import { absoluteUrl, pageTitle } from "@/config/site";
 import PageHead from "@/components/PageHead";
 import { toast } from "@/hooks/use-toast";
 
@@ -24,7 +42,10 @@ const laneLabel = (lane?: string | null) => {
   }
 };
 
-const sourceName = (n: any): string => {
+const sourceName = (n: {
+  source_name?: string | null;
+  url: string;
+}): string => {
   if (n?.source_name) return n.source_name;
   try {
     return new URL(n.url).hostname.replace(/^www\./, "");
@@ -35,16 +56,13 @@ const sourceName = (n: any): string => {
 
 interface NewsDetailProps {
   /** Server-rendered news item (published only). */
-  initialItem?: Record<string, any> | null;
+  initialItem?: PublicNewsItem | null;
 }
 
 const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
   const { id } = useParams<{ id: string }>();
 
-  const {
-    data: item,
-    isLoading,
-  } = useQuery({
+  const { data: item, isLoading } = useQuery({
     queryKey: ["news-item", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,7 +77,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
       return data;
     },
     enabled: !!id,
-    ...(initialItem ? { initialData: initialItem as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialItem
+      ? { initialData: initialItem as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const { data: related } = useQuery({
@@ -67,7 +87,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
     queryFn: async () => {
       const { data } = await supabase
         .from("source_items")
-        .select("id, title, image_url, topic_lane, published_at, source_name, url")
+        .select(
+          "id, title, image_url, topic_lane, published_at, source_name, url",
+        )
         .eq("topic_lane", item!.topic_lane!)
         .eq("status", "published")
         .neq("id", id!)
@@ -80,7 +102,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--brand-backdrop)" }}
+      >
         <p className="font-body" style={{ color: "rgba(255,255,255,0.6)" }}>
           Loading article...
         </p>
@@ -89,14 +114,21 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
   }
   if (!item) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6" style={{ background: "#07070E" }}>
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-6"
+        style={{ background: "var(--brand-backdrop)" }}
+      >
         <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
           News item not found
         </p>
         <Link
           to="/news"
           className="font-body uppercase"
-          style={{ fontSize: 12, letterSpacing: "0.15em", color: "#D4AF55" }}
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.15em",
+            color: "var(--brand-accent)",
+          }}
         >
           ← Back to News
         </Link>
@@ -104,10 +136,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
     );
   }
 
-  const title = item.ai_title || item.title;
-  const summary = item.ai_summary || item.raw_excerpt;
+  const { title, summary } = newsDisplay(item);
   const src = sourceName(item);
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareUrl = absoluteUrl(`/news/${item.id}`);
   const shareTitle = encodeURIComponent(title || "");
 
   const copyLink = async () => {
@@ -120,14 +151,25 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "#0b0b10", color: "#fff" }}
+    >
       <Nav />
 
-      <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 820 }}>
+      <article
+        id="main-content"
+        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
+        style={{ maxWidth: 820 }}
+      >
         <Link
           to="/news"
           className="inline-flex items-center gap-2 font-body uppercase mb-10 transition-colors duration-200"
-          style={{ fontSize: 11, letterSpacing: "0.18em", color: "rgba(255,255,255,0.45)" }}
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            color: "rgba(255,255,255,0.45)",
+          }}
         >
           <ArrowLeft size={14} /> Back to News
         </Link>
@@ -146,10 +188,20 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         )}
 
         <div className="flex items-center gap-4 mb-6 flex-wrap">
-          <span className="font-body uppercase" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#D4AF55" }}>
+          <span
+            className="font-body uppercase"
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.15em",
+              color: "var(--brand-accent)",
+            }}
+          >
             {laneLabel(item.topic_lane)}
           </span>
-          <span className="font-body flex items-center gap-1" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+          <span
+            className="font-body flex items-center gap-1"
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+          >
             <Clock size={12} />
             {item.published_at
               ? new Date(item.published_at).toLocaleDateString(undefined, {
@@ -159,17 +211,30 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                 })
               : "Recent"}
           </span>
-          <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+          <span
+            className="font-body"
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+          >
             Source: {src}
           </span>
         </div>
 
-        <h1 className="font-display italic mb-6" style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", lineHeight: 1.15 }}>
+        <h1
+          className="font-display italic mb-6"
+          style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", lineHeight: 1.15 }}
+        >
           {title}
         </h1>
 
         {summary && (
-          <p className="font-body mb-10" style={{ fontSize: 19, lineHeight: 1.6, color: "rgba(255,255,255,0.85)" }}>
+          <p
+            className="font-body mb-10"
+            style={{
+              fontSize: 19,
+              lineHeight: 1.6,
+              color: "rgba(255,255,255,0.85)",
+            }}
+          >
             {summary}
           </p>
         )}
@@ -182,28 +247,50 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           }}
         >
           {item.full_content ? (
-            <div className="font-body">{renderNewsMarkdown(item.full_content)}</div>
+            <div className="font-body">
+              {renderNewsMarkdown(item.full_content)}
+            </div>
           ) : (
             <div>
               {summary && (
                 <p
                   className="font-body"
-                  style={{ color: "rgba(255,255,255,0.85)", fontSize: 17, lineHeight: 1.7, marginBottom: "1em" }}
+                  style={{
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: 17,
+                    lineHeight: 1.7,
+                    marginBottom: "1em",
+                  }}
                 >
                   {summary}
                 </p>
               )}
-              <p className="font-body" style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, fontStyle: "italic" }}>
-                The full write-up for this story is not published yet. Read the original report below.
+              <p
+                className="font-body"
+                style={{
+                  color: "rgba(255,255,255,0.6)",
+                  fontSize: 14,
+                  fontStyle: "italic",
+                }}
+              >
+                The full write-up for this story is not published yet. Read the
+                original report below.
               </p>
             </div>
           )}
 
           {item.url && (
-            <div className="mt-10 pt-6" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <div
+              className="mt-10 pt-6"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+            >
               <span
                 className="font-body uppercase block mb-2"
-                style={{ fontSize: 10, letterSpacing: "0.18em", color: "rgba(255,255,255,0.5)" }}
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  color: "rgba(255,255,255,0.5)",
+                }}
               >
                 Reference
               </span>
@@ -212,7 +299,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 font-body"
-                style={{ color: "#D4AF55", fontSize: 14 }}
+                style={{ color: "var(--brand-accent)", fontSize: 14 }}
               >
                 Original report on {src} <ExternalLink size={13} />
               </a>
@@ -224,7 +311,11 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         <div className="mt-10 flex items-center gap-3 flex-wrap">
           <span
             className="font-body uppercase flex items-center gap-2"
-            style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(255,255,255,0.6)" }}
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.15em",
+              color: "rgba(255,255,255,0.6)",
+            }}
           >
             <Share2 size={13} /> Share
           </span>
@@ -234,7 +325,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             rel="noopener noreferrer"
             aria-label="Share on Twitter"
             className="p-2"
-            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#fff" }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+            }}
           >
             <Twitter size={14} />
           </a>
@@ -244,7 +338,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             rel="noopener noreferrer"
             aria-label="Share on LinkedIn"
             className="p-2"
-            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#fff" }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+            }}
           >
             <Linkedin size={14} />
           </a>
@@ -254,7 +351,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             rel="noopener noreferrer"
             aria-label="Share on Facebook"
             className="p-2"
-            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#fff" }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+            }}
           >
             <Facebook size={14} />
           </a>
@@ -262,7 +362,11 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             onClick={copyLink}
             aria-label="Copy link"
             className="p-2"
-            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#fff", background: "transparent" }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+              background: "transparent",
+            }}
           >
             <LinkIcon size={14} />
           </button>
@@ -275,33 +379,50 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
               Related News
             </h2>
             <div className="grid md:grid-cols-2 gap-5">
-              {related.map((r: any) => (
+              {related.map((r) => (
                 <Link
                   key={r.id}
                   to={`/news/${r.id}`}
                   className="group block p-4"
-                  style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#14141b", textDecoration: "none" }}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "#14141b",
+                    textDecoration: "none",
+                  }}
                 >
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span
                       className="font-body uppercase"
-                      style={{ fontSize: 10, letterSpacing: "0.15em", color: "#D4AF55" }}
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.15em",
+                        color: "var(--brand-accent)",
+                      }}
                     >
                       {laneLabel(r.topic_lane)}
                     </span>
-                    <span className="font-body" style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
+                    <span
+                      className="font-body"
+                      style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
+                    >
                       {r.published_at
-                        ? new Date(r.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                        ? new Date(r.published_at).toLocaleDateString(
+                            undefined,
+                            { month: "short", day: "numeric" },
+                          )
                         : ""}
                     </span>
                   </div>
                   <h3
-                    className="font-display italic group-hover:text-[#D4AF55] transition-colors"
+                    className="font-display italic group-hover:text-[var(--brand-accent)] transition-colors"
                     style={{ fontSize: 17, lineHeight: 1.35, color: "#fff" }}
                   >
                     {r.title}
                   </h3>
-                  <p className="font-body mt-2" style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                  <p
+                    className="font-body mt-2"
+                    style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}
+                  >
                     {sourceName(r)}
                   </p>
                 </Link>

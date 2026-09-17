@@ -6,7 +6,10 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -23,7 +26,9 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [sessionResolved, setSessionResolved] = useState(false);
-  const [role, setRole] = useState<{ userId: string; isAdmin: boolean } | null>(null);
+  const [role, setRole] = useState<{ userId: string; isAdmin: boolean } | null>(
+    null,
+  );
 
   // Session state only. The auth callback must stay synchronous: awaiting any
   // Supabase call inside it can deadlock the client's internal lock.
@@ -31,7 +36,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let active = true;
     let receivedAuthEvent = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       receivedAuthEvent = true;
       setUser(session?.user ?? null);
@@ -70,12 +77,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let stale = false;
     setRole(null);
 
-    Promise.resolve(supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle())
+    Promise.resolve(
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle(),
+    )
       .then(({ data, error }) => {
         if (stale) return;
         if (error) console.error("Role check error:", error.message);
@@ -95,9 +104,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isAdmin = !!userId && role?.userId === userId && role.isAdmin;
   const loading = !sessionResolved || (!!userId && role?.userId !== userId);
 
-
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) return { error: error.message };
     return { error: null };
   };

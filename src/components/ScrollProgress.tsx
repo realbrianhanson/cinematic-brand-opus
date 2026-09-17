@@ -35,7 +35,8 @@ const ScrollProgress = () => {
         style={{
           width: "100%",
           height: "100%",
-          background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
+          background:
+            "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
           transformOrigin: "left center",
           transform: "scaleX(0)",
         }}

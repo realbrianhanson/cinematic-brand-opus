@@ -7,19 +7,28 @@ interface RelatedResourcesProps {
   currentPageId: string;
   nicheId: string;
   nicheName: string;
-  nicheContext?: any;
+  nicheContext?: unknown;
   contentSchemaId: string;
   contentTypeName: string;
 }
 
-const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, contentSchemaId, contentTypeName }: RelatedResourcesProps) => {
+const RelatedResources = ({
+  currentPageId,
+  nicheId,
+  nicheName,
+  nicheContext,
+  contentSchemaId,
+  contentTypeName,
+}: RelatedResourcesProps) => {
   // Siblings: same niche, different content type (silo-aware — NO cross-silo)
   const { data: siblings } = useQuery({
     queryKey: ["silo-siblings", nicheId, contentSchemaId],
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, slug, niche_id, content_schema_id, content_schemas(name, slug), niches(slug)")
+        .select(
+          "id, title, slug, niche_id, content_schema_id, content_schemas(name, slug), niches(slug)",
+        )
         .eq("niche_id", nicheId)
         .neq("content_schema_id", contentSchemaId)
         .eq("status", "published")
@@ -57,7 +66,7 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
         .order("created_at", { ascending: false })
         .limit(20);
       if (!posts || posts.length === 0) return [];
-      const postsWithCat = posts.map((p: any) => ({
+      const postsWithCat = posts.map((p) => ({
         id: p.id,
         title: p.title,
         slug: p.slug,
@@ -81,24 +90,52 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
           href={`/guides/${pillar.slug}`}
           className="group flex items-center gap-4 mb-10 p-5"
           style={{
-            border: "1px solid rgba(212,175,85,0.15)",
-            background: "rgba(212,175,85,0.04)",
+            border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
+            background: "rgba(var(--brand-accent-rgb),0.04)",
             textDecoration: "none",
             transition: "border-color 0.3s, background 0.3s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)"; e.currentTarget.style.background = "rgba(212,175,85,0.07)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.15)"; e.currentTarget.style.background = "rgba(212,175,85,0.04)"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor =
+              "rgba(var(--brand-accent-rgb),0.35)";
+            e.currentTarget.style.background =
+              "rgba(var(--brand-accent-rgb),0.07)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor =
+              "rgba(var(--brand-accent-rgb),0.15)";
+            e.currentTarget.style.background =
+              "rgba(var(--brand-accent-rgb),0.04)";
+          }}
         >
-          <BookOpen size={20} style={{ color: "hsl(var(--accent))", flexShrink: 0 }} />
+          <BookOpen
+            size={20}
+            style={{ color: "hsl(var(--accent))", flexShrink: 0 }}
+          />
           <div style={{ flex: 1 }}>
-            <span className="font-body uppercase block" style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
+            <span
+              className="font-body uppercase block"
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                color: "rgba(255,255,255,0.35)",
+                marginBottom: 4,
+              }}
+            >
               Complete Guide
             </span>
-            <span className="font-body font-medium group-hover:text-accent transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>
+            <span
+              className="font-body font-medium group-hover:text-accent transition-colors"
+              style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
+            >
               {pillar.title}
             </span>
           </div>
-          <ArrowRight size={16} className="shrink-0 group-hover:text-accent transition-colors" style={{ color: "rgba(255,255,255,0.2)" }} />
+          <ArrowRight
+            size={16}
+            className="shrink-0 group-hover:text-accent transition-colors"
+            style={{ color: "rgba(255,255,255,0.2)" }}
+          />
         </a>
       )}
 
@@ -109,7 +146,7 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
             More {nicheName} Resources
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {siblings.map((pg: any) => {
+            {siblings.map((pg) => {
               const ctSlug = pg.content_schemas?.slug || "";
               return (
                 <a
@@ -121,16 +158,45 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
                     transition: "border-color 0.3s, transform 0.3s",
                     textDecoration: "none",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(212,175,85,0.2)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(var(--brand-accent-rgb),0.2)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.06)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
                 >
-                  <span className="font-body uppercase block mb-2" style={{ fontSize: 9, letterSpacing: "0.12em", color: "hsl(var(--accent))" }}>
+                  <span
+                    className="font-body uppercase block mb-2"
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      color: "hsl(var(--accent))",
+                    }}
+                  >
                     {pg.content_schemas?.name || "Resource"}
                   </span>
-                  <h3 className="font-body font-medium mb-2 transition-colors group-hover:text-accent" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
+                  <h3
+                    className="font-body font-medium mb-2 transition-colors group-hover:text-accent"
+                    style={{
+                      fontSize: 14,
+                      color: "rgba(255,255,255,0.75)",
+                      lineHeight: 1.4,
+                    }}
+                  >
                     {pg.title}
                   </h3>
-                  <span className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-accent" style={{ fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>
+                  <span
+                    className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-accent"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.12em",
+                      color: "rgba(255,255,255,0.25)",
+                    }}
+                  >
                     View <ArrowRight size={10} />
                   </span>
                 </a>
@@ -142,8 +208,22 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
 
       {/* Blog posts related to this niche */}
       {hasBlogPosts && (
-        <div className="mt-10" style={{ paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <h3 className="font-body uppercase mb-4" style={{ fontSize: 10, letterSpacing: "0.15em", color: "hsl(var(--accent))", fontWeight: 700 }}>
+        <div
+          className="mt-10"
+          style={{
+            paddingTop: 24,
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <h3
+            className="font-body uppercase mb-4"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.15em",
+              color: "hsl(var(--accent))",
+              fontWeight: 700,
+            }}
+          >
             From the Blog
           </h3>
           <div className="flex flex-col gap-3">
@@ -152,9 +232,17 @@ const RelatedResources = ({ currentPageId, nicheId, nicheName, nicheContext, con
                 key={post.id}
                 href={`/blog/${post.slug}`}
                 className="font-body flex items-center gap-2 transition-colors"
-                style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                style={{
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.6)",
+                  textDecoration: "none",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "hsl(var(--accent))")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+                }
               >
                 {post.title} <ArrowRight size={12} />
               </a>

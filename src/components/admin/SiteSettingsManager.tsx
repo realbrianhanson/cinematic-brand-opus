@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,17 +27,40 @@ const defaultSettings = {
   voice_profile: "",
   banned_phrases: [] as string[],
   default_expert_pov: "",
-  image_generation_enabled: true,
+  image_generation_enabled: false,
+  newsletter_from_address: "",
+  newsletter_reply_to: "",
+  newsletter_postal_address: "",
 };
 
 type Settings = typeof defaultSettings & { id?: string };
 
 const socialPlatforms = [
-  { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/yourname" },
-  { key: "twitter", label: "Twitter / X", placeholder: "https://x.com/yourhandle" },
-  { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourhandle" },
-  { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@yourchannel" },
-  { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@yourhandle" },
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    placeholder: "https://linkedin.com/in/yourname",
+  },
+  {
+    key: "twitter",
+    label: "Twitter / X",
+    placeholder: "https://x.com/yourhandle",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    placeholder: "https://instagram.com/yourhandle",
+  },
+  {
+    key: "youtube",
+    label: "YouTube",
+    placeholder: "https://youtube.com/@yourchannel",
+  },
+  {
+    key: "tiktok",
+    label: "TikTok",
+    placeholder: "https://tiktok.com/@yourhandle",
+  },
 ];
 
 const SiteSettingsManager = () => {
@@ -45,25 +69,33 @@ const SiteSettingsManager = () => {
   const [form, setForm] = useState<Settings>(defaultSettings);
   const [credentialInput, setCredentialInput] = useState("");
 
-  const { data: settings, isLoading } = useQuery({
+  const {
+    data: settings,
+    isLoading,
+    error: settingsError,
+  } = useQuery({
     queryKey: ["admin-site-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("site_settings")
-        .select("*")
-        .limit(1)
+        .rpc("admin_read_site_settings")
         .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: privateSettings } = useQuery({
+  const {
+    data: privateSettings,
+    isLoading: privateLoading,
+    error: privateError,
+  } = useQuery({
     queryKey: ["admin-site-settings-private"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("site_settings_private")
-        .select("id, report_email, report_enabled, voice_profile, banned_phrases, default_expert_pov, auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality")
+        .select(
+          "id, report_email, report_enabled, voice_profile, banned_phrases, default_expert_pov, auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality",
+        )
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -82,87 +114,107 @@ const SiteSettingsManager = () => {
   });
 
   useEffect(() => {
-    if (settings) {
+    if (settings && !privateLoading && !privateError) {
       setForm({
         ...defaultSettings,
         ...settings,
         author_credentials: (settings.author_credentials as string[]) ?? [],
-        author_social_links: (settings.author_social_links as Record<string, string>) ?? {},
+        author_social_links:
+          (settings.author_social_links as Record<string, string>) ?? {},
         // Strategy fields now live in site_settings_private (admin-only) to
         // avoid leaking voice/banned/POV/gate config to anonymous visitors.
         banned_phrases: (privateSettings?.banned_phrases as string[]) ?? [],
         voice_profile: privateSettings?.voice_profile ?? "",
         default_expert_pov: privateSettings?.default_expert_pov ?? "",
-        image_generation_enabled: (settings as any).image_generation_enabled !== false,
+        image_generation_enabled: settings.image_generation_enabled !== false,
+        newsletter_from_address: settings.newsletter_from_address ?? "",
+        newsletter_reply_to: settings.newsletter_reply_to ?? "",
+        newsletter_postal_address: settings.newsletter_postal_address ?? "",
         report_email: privateSettings?.report_email ?? "",
         report_enabled: privateSettings?.report_enabled ?? false,
       } as Settings);
     }
-  }, [settings, privateSettings]);
+  }, [settings, privateSettings, privateLoading, privateError]);
 
   const saveMutation = useMutation({
-    mutationFn: () => safeMutation(async () => {
-      const payload = {
-        site_name: form.site_name,
-        site_url: form.site_url,
-        publisher_name: form.publisher_name,
-        publisher_url: form.publisher_url,
-        author_name: form.author_name,
-        author_title: form.author_title,
-        author_bio: form.author_bio,
-        author_credentials: form.author_credentials,
-        author_social_links: form.author_social_links,
-        cta_url: form.cta_url,
-        cta_headline: form.cta_headline,
-        cta_subtext: form.cta_subtext,
-        cta_button_text: form.cta_button_text,
-        cta_social_proof: form.cta_social_proof,
-        image_generation_enabled: form.image_generation_enabled,
-        updated_at: new Date().toISOString(),
-      };
+    mutationFn: () =>
+      safeMutation(async () => {
+        if (isLoading || privateLoading || settingsError || privateError)
+          throw new Error("Settings are not loaded. Reload before saving.");
+        const payload = {
+          site_name: form.site_name,
+          site_url: form.site_url,
+          publisher_name: form.publisher_name,
+          publisher_url: form.publisher_url,
+          author_name: form.author_name,
+          author_title: form.author_title,
+          author_bio: form.author_bio,
+          author_credentials: form.author_credentials,
+          author_social_links: form.author_social_links,
+          cta_url: form.cta_url,
+          cta_headline: form.cta_headline,
+          cta_subtext: form.cta_subtext,
+          cta_button_text: form.cta_button_text,
+          cta_social_proof: form.cta_social_proof,
+          image_generation_enabled: form.image_generation_enabled,
+          newsletter_from_address: form.newsletter_from_address.trim() || null,
+          newsletter_reply_to: form.newsletter_reply_to.trim() || null,
+          newsletter_postal_address:
+            form.newsletter_postal_address.trim() || null,
+          updated_at: new Date().toISOString(),
+        };
 
-      if (settings?.id) {
-        const { error } = await supabase
-          .from("site_settings")
-          .update(payload)
-          .eq("id", settings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("site_settings").insert(payload);
-        if (error) throw error;
-      }
+        if (settings?.id) {
+          const { error } = await supabase
+            .from("site_settings")
+            .update(payload)
+            .eq("id", settings.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("site_settings")
+            .insert(payload);
+          if (error) throw error;
+        }
 
-      // Persist sensitive config (report + voice/banned/POV/gates) to the
-      // admin-only table. RLS on site_settings_private already restricts this
-      // to admins; edge functions read via service role.
-      const privatePayload = {
-        report_email: (form as any).report_email || "",
-        report_enabled: (form as any).report_enabled || false,
-        voice_profile: form.voice_profile || null,
-        banned_phrases: form.banned_phrases,
-        default_expert_pov: form.default_expert_pov || null,
-        updated_at: new Date().toISOString(),
-      };
-      if (privateSettings?.id) {
-        const { error } = await (supabase as any)
-          .from("site_settings_private")
-          .update(privatePayload)
-          .eq("id", privateSettings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any)
-          .from("site_settings_private")
-          .insert(privatePayload);
-        if (error) throw error;
-      }
-    }),
+        // Persist sensitive config (report + voice/banned/POV/gates) to the
+        // admin-only table. RLS on site_settings_private already restricts this
+        // to admins; edge functions read via service role.
+        const privatePayload = {
+          report_email: form.report_email || "",
+          report_enabled: form.report_enabled || false,
+          voice_profile: form.voice_profile || null,
+          banned_phrases: form.banned_phrases,
+          default_expert_pov: form.default_expert_pov || null,
+          updated_at: new Date().toISOString(),
+        };
+        if (privateSettings?.id) {
+          const { error } = await supabase
+            .from("site_settings_private")
+            .update(privatePayload)
+            .eq("id", privateSettings.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("site_settings_private")
+            .insert(privatePayload);
+          if (error) throw error;
+        }
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
       qc.invalidateQueries({ queryKey: ["admin-site-settings-private"] });
-      toast({ title: "Settings saved", description: "Your site settings have been updated." });
+      toast({
+        title: "Settings saved",
+        description: "Your site settings have been updated.",
+      });
     },
     onError: (err: Error) => {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+      toast({
+        title: "Save failed",
+        description: err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -188,7 +240,7 @@ const SiteSettingsManager = () => {
   const removeCredential = (idx: number) => {
     updateField(
       "author_credentials",
-      form.author_credentials.filter((_, i) => i !== idx)
+      form.author_credentials.filter((_, i) => i !== idx),
     );
   };
 
@@ -200,13 +252,30 @@ const SiteSettingsManager = () => {
   };
 
   const removeBannedPhrase = (idx: number) => {
-    updateField("banned_phrases", form.banned_phrases.filter((_, i) => i !== idx));
+    updateField(
+      "banned_phrases",
+      form.banned_phrases.filter((_, i) => i !== idx),
+    );
   };
 
-  if (isLoading) {
+  if (settingsError || privateError)
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 300 }}>
-        <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-text-ghost))" }} />
+      <p role="alert">
+        Unable to load settings. Please reload before making changes.
+      </p>
+    );
+
+  if (isLoading || privateLoading) {
+    return (
+      <div
+        className="flex items-center justify-center"
+        style={{ minHeight: 300 }}
+      >
+        <Loader2
+          size={24}
+          className="animate-spin"
+          style={{ color: "hsl(var(--admin-text-ghost))" }}
+        />
       </div>
     );
   }
@@ -214,19 +283,31 @@ const SiteSettingsManager = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 28 }}>
+      <div
+        className="flex items-center justify-between"
+        style={{ marginBottom: 28 }}
+      >
         <div>
           <h1
             className="font-body"
-            style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))" }}
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: "hsl(var(--admin-text))",
+            }}
           >
             Site Config
           </h1>
           <p
             className="font-body"
-            style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginTop: 4 }}
+            style={{
+              fontSize: 13,
+              color: "hsl(var(--admin-text-ghost))",
+              marginTop: 4,
+            }}
           >
-            Configure your site identity, author profile, and global CTA settings.
+            Configure your site identity, author profile, and global CTA
+            settings.
           </p>
         </div>
         <button
@@ -234,20 +315,38 @@ const SiteSettingsManager = () => {
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
         >
-          {saveMutation.isPending && <Loader2 size={14} className="animate-spin" style={{ marginRight: 6 }} />}
+          {saveMutation.isPending && (
+            <Loader2
+              size={14}
+              className="animate-spin"
+              style={{ marginRight: 6 }}
+            />
+          )}
           Save Settings
         </button>
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 380px",
+          gap: 24,
+          alignItems: "start",
+        }}
+      >
         {/* Left column - Forms */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Section 1: Site Identity */}
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 20,
+              }}
             >
               Site Identity
             </h2>
@@ -271,7 +370,9 @@ const SiteSettingsManager = () => {
                 <input
                   className="admin-input font-body"
                   value={form.publisher_name ?? ""}
-                  onChange={(e) => updateField("publisher_name", e.target.value)}
+                  onChange={(e) =>
+                    updateField("publisher_name", e.target.value)
+                  }
                 />
               </Field>
               <Field label="Publisher URL">
@@ -289,7 +390,12 @@ const SiteSettingsManager = () => {
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 20,
+              }}
             >
               Author / Owner
             </h2>
@@ -319,7 +425,14 @@ const SiteSettingsManager = () => {
                 />
               </Field>
               <Field label="Author Credentials">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginBottom: 8,
+                  }}
+                >
                   {form.author_credentials.map((cred, i) => (
                     <span
                       key={i}
@@ -339,9 +452,18 @@ const SiteSettingsManager = () => {
                       {cred}
                       <button
                         onClick={() => removeCredential(i)}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                        }}
                       >
-                        <X size={12} style={{ color: "hsl(var(--admin-text-ghost))" }} />
+                        <X
+                          size={12}
+                          style={{ color: "hsl(var(--admin-text-ghost))" }}
+                        />
                       </button>
                     </span>
                   ))}
@@ -351,7 +473,9 @@ const SiteSettingsManager = () => {
                     className="admin-input font-body"
                     value={credentialInput}
                     onChange={(e) => setCredentialInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCredential())}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && (e.preventDefault(), addCredential())
+                    }
                     placeholder="Type a credential and press Enter"
                     style={{ flex: 1 }}
                   />
@@ -376,9 +500,19 @@ const SiteSettingsManager = () => {
               {/* Social Links */}
               <div style={{ marginTop: 4 }}>
                 <span className="admin-label">Social Links</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    marginTop: 8,
+                  }}
+                >
                   {socialPlatforms.map((p) => (
-                    <div key={p.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      key={p.key}
+                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
                       <span
                         className="font-body"
                         style={{
@@ -409,7 +543,12 @@ const SiteSettingsManager = () => {
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 20,
+              }}
             >
               Call-to-Action (CTA)
             </h2>
@@ -443,7 +582,9 @@ const SiteSettingsManager = () => {
                 <input
                   className="admin-input font-body"
                   value={form.cta_button_text ?? ""}
-                  onChange={(e) => updateField("cta_button_text", e.target.value)}
+                  onChange={(e) =>
+                    updateField("cta_button_text", e.target.value)
+                  }
                   placeholder="Get Free Access"
                 />
               </Field>
@@ -451,7 +592,9 @@ const SiteSettingsManager = () => {
                 <input
                   className="admin-input font-body"
                   value={form.cta_social_proof ?? ""}
-                  onChange={(e) => updateField("cta_social_proof", e.target.value)}
+                  onChange={(e) =>
+                    updateField("cta_social_proof", e.target.value)
+                  }
                   placeholder="Rated 4.9/5 by attendees"
                 />
               </Field>
@@ -462,16 +605,27 @@ const SiteSettingsManager = () => {
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 6,
+              }}
             >
               Content Voice
             </h2>
             <p
               className="font-body"
-              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 20, lineHeight: 1.5 }}
+              style={{
+                fontSize: 12,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 20,
+                lineHeight: 1.5,
+              }}
             >
-              Applied to every AI generation and revision pass. Voice profile shapes tone;
-              banned phrases are hard failures that trigger a rewrite.
+              Applied to every AI generation and revision pass. Voice profile
+              shapes tone; banned phrases are hard failures that trigger a
+              rewrite.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <Field label="Voice Profile">
@@ -481,11 +635,24 @@ const SiteSettingsManager = () => {
                   value={form.voice_profile ?? ""}
                   onChange={(e) => updateField("voice_profile", e.target.value)}
                   placeholder="Describe the voice: tone, sentence rhythm, vocabulary rules, structural quirks…"
-                  style={{ resize: "vertical", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6 }}
+                  style={{
+                    resize: "vertical",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
                 />
               </Field>
               <Field label={`Banned Phrases (${form.banned_phrases.length})`}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginBottom: 8,
+                  }}
+                >
                   {form.banned_phrases.map((phrase, i) => (
                     <span
                       key={i}
@@ -500,13 +667,20 @@ const SiteSettingsManager = () => {
                         backgroundColor: "hsl(0 70% 50% / 0.1)",
                         color: "hsl(0 70% 45%)",
                         border: "1px solid hsl(0 70% 50% / 0.25)",
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontFamily:
+                          "ui-monospace, SFMono-Regular, Menlo, monospace",
                       }}
                     >
                       {phrase}
                       <button
                         onClick={() => removeBannedPhrase(i)}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                        }}
                       >
                         <X size={11} style={{ color: "hsl(0 70% 45%)" }} />
                       </button>
@@ -532,10 +706,23 @@ const SiteSettingsManager = () => {
                       e.target.value = "";
                     }
                   }}
-                  style={{ resize: "vertical", fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                  style={{
+                    resize: "vertical",
+                    fontSize: 12,
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  }}
                 />
-                <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 6 }}>
-                  Case-insensitive substring match. Press Enter or click away to add. Matched phrases block publishing until fixed.
+                <p
+                  className="font-body"
+                  style={{
+                    fontSize: 11,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginTop: 6,
+                  }}
+                >
+                  Case-insensitive substring match. Press Enter or click away to
+                  add. Matched phrases block publishing until fixed.
                 </p>
               </Field>
               <Field label="Default Expert POV (site-wide fallback for 'From the trenches' callouts)">
@@ -543,7 +730,9 @@ const SiteSettingsManager = () => {
                   className="admin-input font-body"
                   rows={5}
                   value={form.default_expert_pov ?? ""}
-                  onChange={(e) => updateField("default_expert_pov" as any, e.target.value)}
+                  onChange={(e) =>
+                    updateField("default_expert_pov", e.target.value)
+                  }
                   placeholder="First-person background used when a niche has no expert_pov of its own. Only claims from this text will appear in callouts."
                   style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6 }}
                 />
@@ -551,12 +740,58 @@ const SiteSettingsManager = () => {
               <div className="flex items-center gap-3">
                 <Switch
                   checked={form.image_generation_enabled}
-                  onCheckedChange={(v) => updateField("image_generation_enabled" as any, v)}
+                  onCheckedChange={(v) =>
+                    updateField("image_generation_enabled", v)
+                  }
                 />
-                <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
-                  Generate one editorial image per resource page (adds ~$0.02 per page)
+                <span
+                  className="font-body"
+                  style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+                >
+                  Generate one editorial image per resource page (uses provider
+                  credits)
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div className="admin-card" style={{ padding: 24 }}>
+            <h2 className="font-body" style={{ marginBottom: 16 }}>
+              Newsletter delivery
+            </h2>
+            <p style={{ marginBottom: 16 }}>
+              Use a sender verified with your email provider. Weekly digests
+              require your business mailing address.
+            </p>
+            <div className="flex flex-col gap-4">
+              <Field label="Verified sender (Name <email@example.com>)">
+                <input
+                  className="admin-input"
+                  value={form.newsletter_from_address}
+                  onChange={(e) =>
+                    updateField("newsletter_from_address", e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Reply-to email">
+                <input
+                  className="admin-input"
+                  type="email"
+                  value={form.newsletter_reply_to}
+                  onChange={(e) =>
+                    updateField("newsletter_reply_to", e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Business mailing address">
+                <textarea
+                  className="admin-input"
+                  value={form.newsletter_postal_address}
+                  onChange={(e) =>
+                    updateField("newsletter_postal_address", e.target.value)
+                  }
+                />
+              </Field>
             </div>
           </div>
 
@@ -564,7 +799,12 @@ const SiteSettingsManager = () => {
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 20,
+              }}
             >
               Weekly Reports
             </h2>
@@ -572,18 +812,21 @@ const SiteSettingsManager = () => {
               <Field label="Report Email">
                 <input
                   className="admin-input font-body"
-                  value={(form as any).report_email ?? ""}
-                  onChange={(e) => updateField("report_email" as any, e.target.value)}
+                  value={form.report_email ?? ""}
+                  onChange={(e) => updateField("report_email", e.target.value)}
                   placeholder="admin@yoursite.com"
                   type="email"
                 />
               </Field>
               <div className="flex items-center gap-3">
                 <Switch
-                  checked={(form as any).report_enabled ?? false}
-                  onCheckedChange={(v) => updateField("report_enabled" as any, v)}
+                  checked={form.report_enabled ?? false}
+                  onCheckedChange={(v) => updateField("report_enabled", v)}
                 />
-                <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+                >
                   Enable weekly email reports
                 </span>
               </div>
@@ -592,11 +835,24 @@ const SiteSettingsManager = () => {
         </div>
 
         {/* Right column - Live CTA Preview + Sitemap Card */}
-        <div style={{ position: "sticky", top: 32, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div
+          style={{
+            position: "sticky",
+            top: 32,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}
+        >
           <div className="admin-card" style={{ padding: 24 }}>
             <h2
               className="font-body"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16 }}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 16,
+              }}
             >
               CTA Preview
             </h2>
@@ -662,7 +918,12 @@ const SiteSettingsManager = () => {
             </div>
             <p
               className="font-body"
-              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 12, textAlign: "center" }}
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--admin-text-ghost))",
+                marginTop: 12,
+                textAlign: "center",
+              }}
             >
               Live preview — updates as you type
             </p>
@@ -681,8 +942,14 @@ const SitemapInfoCard = () => {
     queryKey: ["sitemap-page-count"],
     queryFn: async () => {
       const [gen, pillar] = await Promise.all([
-        supabase.from("generated_pages").select("id", { count: "exact", head: true }).eq("status", "published"),
-        supabase.from("pillar_pages").select("id", { count: "exact", head: true }).eq("status", "published"),
+        supabase
+          .from("generated_pages")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published"),
+        supabase
+          .from("pillar_pages")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published"),
       ]);
       return (gen.count || 0) + (pillar.count || 0);
     },
@@ -692,7 +959,15 @@ const SitemapInfoCard = () => {
     <div className="admin-card" style={{ padding: 24 }}>
       <h2
         className="font-body"
-        style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
       >
         <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
         Sitemap &amp; Crawlers
@@ -710,9 +985,16 @@ const SitemapInfoCard = () => {
             border: "1px solid hsl(var(--admin-border))",
           }}
         >
-          <FileText size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
-          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
-            robots.txt: <span style={{ color: "hsl(120 60% 45%)" }}>Active</span>
+          <FileText
+            size={14}
+            style={{ color: "hsl(var(--admin-text-ghost))" }}
+          />
+          <span
+            className="font-body"
+            style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+          >
+            robots.txt:{" "}
+            <span style={{ color: "hsl(120 60% 45%)" }}>Active</span>
           </span>
         </div>
 
@@ -727,8 +1009,14 @@ const SitemapInfoCard = () => {
             border: "1px solid hsl(var(--admin-border))",
           }}
         >
-          <FileText size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
-          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+          <FileText
+            size={14}
+            style={{ color: "hsl(var(--admin-text-ghost))" }}
+          />
+          <span
+            className="font-body"
+            style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+          >
             {publishedCount ?? "…"} published pages in sitemap
           </span>
         </div>
@@ -744,9 +1032,30 @@ const SitemapInfoCard = () => {
             border: "1px solid hsl(40 90% 55% / 0.2)",
           }}
         >
-          <AlertTriangle size={14} style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }} />
-          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5 }}>
-            Update the Sitemap URL in <code style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))" }}>public/robots.txt</code> to your actual domain before going live.
+          <AlertTriangle
+            size={14}
+            style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }}
+          />
+          <span
+            className="font-body"
+            style={{
+              fontSize: 11,
+              color: "hsl(var(--admin-text-soft))",
+              lineHeight: 1.5,
+            }}
+          >
+            Update the Sitemap URL in{" "}
+            <code
+              style={{
+                fontSize: 10,
+                padding: "1px 4px",
+                borderRadius: 3,
+                backgroundColor: "hsl(var(--admin-surface-2))",
+              }}
+            >
+              public/robots.txt
+            </code>{" "}
+            to your actual domain before going live.
           </span>
         </div>
       </div>
@@ -763,16 +1072,23 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
     setTesting(true);
     try {
       const cleanUrl = (siteUrl || "https://example.com").replace(/\/$/, "");
-      const { data, error } = await supabase.functions.invoke("submit-indexnow", {
-        body: { urls: [cleanUrl] },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "submit-indexnow",
+        {
+          body: { urls: [cleanUrl] },
+        },
+      );
       if (error) throw error;
       toast({
         title: "Test submitted",
         description: `IndexNow: ${data?.indexnow_status || "unknown"} · ${data?.submitted_count ?? 0} URLs submitted`,
       });
-    } catch (e: any) {
-      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Test failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setTesting(false);
     }
@@ -782,7 +1098,15 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
     <div className="admin-card" style={{ padding: 24 }}>
       <h2
         className="font-body"
-        style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
       >
         <Send size={16} style={{ color: "hsl(var(--admin-accent))" }} />
         IndexNow
@@ -797,7 +1121,9 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
             border: "1px solid hsl(var(--admin-border))",
           }}
         >
-          <span className="admin-label" style={{ marginBottom: 4 }}>API Key</span>
+          <span className="admin-label" style={{ marginBottom: 4 }}>
+            API Key
+          </span>
           <code
             className="font-body block"
             style={{
@@ -822,14 +1148,43 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
             border: "1px solid hsl(40 90% 55% / 0.2)",
           }}
         >
-          <AlertTriangle size={14} style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }} />
-          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-soft))", lineHeight: 1.5 }}>
-            Host a file named <code style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, backgroundColor: "hsl(var(--admin-surface-2))" }}>{indexNowKey}.txt</code> at your site root containing just the key string.
+          <AlertTriangle
+            size={14}
+            style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }}
+          />
+          <span
+            className="font-body"
+            style={{
+              fontSize: 11,
+              color: "hsl(var(--admin-text-soft))",
+              lineHeight: 1.5,
+            }}
+          >
+            Host a file named{" "}
+            <code
+              style={{
+                fontSize: 10,
+                padding: "1px 4px",
+                borderRadius: 3,
+                backgroundColor: "hsl(var(--admin-surface-2))",
+              }}
+            >
+              {indexNowKey}.txt
+            </code>{" "}
+            at your site root containing just the key string.
           </span>
         </div>
 
-        <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", lineHeight: 1.5 }}>
-          IndexNow instantly notifies Bing, Yandex, DuckDuckGo, Naver &amp; Seznam when pages are published. Google is pinged via sitemap.
+        <p
+          className="font-body"
+          style={{
+            fontSize: 11,
+            color: "hsl(var(--admin-text-ghost))",
+            lineHeight: 1.5,
+          }}
+        >
+          IndexNow instantly notifies Bing, Yandex, DuckDuckGo, Naver &amp;
+          Seznam when pages are published. Google is pinged via sitemap.
         </p>
 
         <button
@@ -838,7 +1193,11 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
           className="admin-btn-ghost font-body flex items-center justify-center gap-2 w-full"
           style={{ fontSize: 12, padding: "8px 14px" }}
         >
-          {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {testing ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Send size={14} />
+          )}
           {testing ? "Testing..." : "Test IndexNow"}
         </button>
       </div>
@@ -846,7 +1205,13 @@ const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
   );
 };
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
   <div>
     <span className="admin-label">{label}</span>
     <div style={{ marginTop: 6 }}>{children}</div>

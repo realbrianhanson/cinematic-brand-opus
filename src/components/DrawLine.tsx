@@ -17,11 +17,16 @@ const DrawLine = ({ visible, d, className }: DrawLineProps) => {
   }, [d]);
 
   return (
-    <svg className={className} viewBox="0 0 400 400" fill="none" preserveAspectRatio="none">
+    <svg
+      className={className}
+      viewBox="0 0 400 400"
+      fill="none"
+      preserveAspectRatio="none"
+    >
       <path
         ref={pathRef}
         d={d}
-        stroke="#D4AF55"
+        stroke="var(--brand-accent)"
         strokeWidth={0.5}
         opacity={0.2}
         strokeDasharray={length}

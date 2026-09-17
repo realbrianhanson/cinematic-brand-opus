@@ -26,19 +26,28 @@ Deno.serve(async (req) => {
   const token = new URL(req.url).searchParams.get("token");
   if (!token) return Response.redirect(`${base}/invalid`, 302);
 
-  const { data: row } = await admin
+  const { data: row, error: readError } = await admin
     .from("newsletter_subscribers")
     .select("id, status")
     .eq("confirm_token", token)
     .maybeSingle();
 
+  if (readError)
+    return new Response("Unable to confirm right now.", { status: 503 });
   if (!row) return Response.redirect(`${base}/invalid`, 302);
 
   if (row.status === "pending") {
-    await admin
+    const { data: changed, error: updateError } = await admin
       .from("newsletter_subscribers")
       .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
-      .eq("id", row.id);
+      .eq("id", row.id)
+      .eq("confirm_token", token)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+    if (updateError)
+      return new Response("Unable to confirm right now.", { status: 503 });
+    if (!changed) return Response.redirect(`${base}/invalid`, 302);
     return Response.redirect(`${base}/confirmed`, 302);
   }
 

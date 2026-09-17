@@ -63,7 +63,11 @@ const Hero = ({ loaded = true }: HeroProps) => {
   }, []);
 
   return (
-    <section id="hero" ref={sectionRef} className="relative min-h-screen flex items-center overflow-hidden">
+    <section
+      id="hero"
+      ref={sectionRef}
+      className="relative min-h-screen flex items-center overflow-hidden"
+    >
       {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         {hero.posterSrc && (
@@ -72,7 +76,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
             alt=""
             aria-hidden="true"
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ opacity: videoReady ? 0 : 0.55, transition: "opacity 0.6s ease" }}
+            style={{
+              opacity: videoReady ? 0 : 0.55,
+              transition: "opacity 0.6s ease",
+            }}
           />
         )}
         {hero.videoSrc && !lightMode && (
@@ -88,7 +95,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
             onError={() => setVideoReady(false)}
             onStalled={() => setVideoReady(false)}
             className="absolute w-full h-full object-cover"
-            style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
+            style={{
+              opacity: videoReady ? 1 : 0,
+              transition: "opacity 0.8s ease",
+            }}
           />
         )}
         {/* Desktop horizontal scrim: heavy left → light right */}
@@ -96,7 +106,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
           className="absolute inset-0 hidden md:block"
           style={{
             background:
-              "linear-gradient(90deg, rgba(7,7,14,0.92) 0%, rgba(7,7,14,0.88) 30%, rgba(7,7,14,0.55) 55%, rgba(7,7,14,0.28) 80%, rgba(7,7,14,0.22) 100%)",
+              "linear-gradient(90deg, rgba(var(--brand-backdrop-rgb),0.92) 0%, rgba(var(--brand-backdrop-rgb),0.88) 30%, rgba(var(--brand-backdrop-rgb),0.55) 55%, rgba(var(--brand-backdrop-rgb),0.28) 80%, rgba(var(--brand-backdrop-rgb),0.22) 100%)",
           }}
         />
         {/* Desktop bottom scrim for CTA legibility */}
@@ -104,14 +114,16 @@ const Hero = ({ loaded = true }: HeroProps) => {
           className="absolute inset-x-0 bottom-0 hidden md:block"
           style={{
             height: "45%",
-            background: "linear-gradient(180deg, transparent 0%, rgba(7,7,14,0.55) 100%)",
+            background:
+              "linear-gradient(180deg, transparent 0%, rgba(var(--brand-backdrop-rgb),0.55) 100%)",
           }}
         />
         {/* Mobile: stronger uniform scrim */}
         <div
           className="absolute inset-0 md:hidden"
           style={{
-            background: "linear-gradient(180deg, rgba(7,7,14,0.82) 0%, rgba(7,7,14,0.85) 100%)",
+            background:
+              "linear-gradient(180deg, rgba(var(--brand-backdrop-rgb),0.82) 0%, rgba(var(--brand-backdrop-rgb),0.85) 100%)",
           }}
         />
       </div>
@@ -120,7 +132,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
       <div
         className="absolute inset-0 pointer-events-none z-[2]"
         style={{
-          background: "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(212,175,85,0.05), transparent)",
+          background:
+            "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(var(--brand-accent-rgb),0.05), transparent)",
         }}
       />
 
@@ -144,32 +157,33 @@ const Hero = ({ loaded = true }: HeroProps) => {
       >
         {/* Overline */}
         {hero.overline && (
-        <div
-          className="flex items-center gap-4 mb-10"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(20px)",
-            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.4s",
-          }}
-        >
           <div
+            className="flex items-center gap-4 mb-10"
             style={{
-              width: 60,
-              height: 2,
-              background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
-            }}
-          />
-          <span
-            className="font-body font-bold uppercase"
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.25em",
-              color: "#D4AF55",
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(20px)",
+              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.4s",
             }}
           >
-            {hero.overline}
-          </span>
-        </div>
+            <div
+              style={{
+                width: 60,
+                height: 2,
+                background:
+                  "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
+              }}
+            />
+            <span
+              className="font-body font-bold uppercase"
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.25em",
+                color: "var(--brand-accent)",
+              }}
+            >
+              {hero.overline}
+            </span>
+          </div>
         )}
 
         {/* Headline */}
@@ -215,7 +229,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
                       charStyle={
                         line.gold
                           ? {
-                              background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+                              background:
+                                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
                               WebkitBackgroundClip: "text",
                               WebkitTextFillColor: "transparent",
                             }
@@ -257,79 +272,83 @@ const Hero = ({ loaded = true }: HeroProps) => {
           }}
         >
           {hero.primaryCta && (
-          <MagneticButton
-            href={hero.primaryCta.href}
-            target={hero.primaryCta.external ? "_blank" : undefined}
-            className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
-            style={{
-              fontSize: 13,
-              letterSpacing: "0.08em",
-              background: "linear-gradient(135deg, #D4AF55, #B8962E)",
-              color: "#07070E",
-              padding: "20px 40px",
-            }}
-          >
-            <Sparkles size={15} strokeWidth={2.5} />
-            {hero.primaryCta.label}
-            <ArrowRight size={15} strokeWidth={2.5} />
-            <div className="hero-cta-shine" />
-          </MagneticButton>
+            <MagneticButton
+              href={hero.primaryCta.href}
+              target={hero.primaryCta.external ? "_blank" : undefined}
+              className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.08em",
+                background:
+                  "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
+                color: "var(--brand-backdrop)",
+                padding: "20px 40px",
+              }}
+            >
+              <Sparkles size={15} strokeWidth={2.5} />
+              {hero.primaryCta.label}
+              <ArrowRight size={15} strokeWidth={2.5} />
+              <div className="hero-cta-shine" />
+            </MagneticButton>
           )}
 
           {hero.secondaryCta && (
-          <MagneticButton
-            href={hero.secondaryCta.href}
-            target={hero.secondaryCta.external ? "_blank" : undefined}
-            className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(212,175,85,0.08)]"
-            style={{
-              fontSize: 13,
-              letterSpacing: "0.08em",
-              border: "1.5px solid #D4AF55",
-              color: "#ffffff",
-              padding: "18.5px 38.5px",
-              background: "transparent",
-            }}
-          >
-            <Mic size={15} strokeWidth={2.5} color={brand.accent} />
-            {hero.secondaryCta.label}
-          </MagneticButton>
+            <MagneticButton
+              href={hero.secondaryCta.href}
+              target={hero.secondaryCta.external ? "_blank" : undefined}
+              className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(var(--brand-accent-rgb),0.08)]"
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.08em",
+                border: "1.5px solid var(--brand-accent)",
+                color: "#ffffff",
+                padding: "18.5px 38.5px",
+                background: "transparent",
+              }}
+            >
+              <Mic size={15} strokeWidth={2.5} color={brand.accent} />
+              {hero.secondaryCta.label}
+            </MagneticButton>
           )}
         </div>
 
         {/* Social proof strip */}
         {hero.socialProof && (
-        <div
-          className="flex items-center gap-4 mt-16"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 1s",
-          }}
-        >
-          <div className="flex -space-x-2">
-            {[
-              "linear-gradient(135deg, #D4AF55, #B8962E)",
-              "linear-gradient(135deg, #E8C96A, #D4AF55)",
-              "linear-gradient(135deg, #B8962E, #8B7023)",
-              "linear-gradient(135deg, #D4AF55, #E8C96A)",
-              "linear-gradient(135deg, #8B7023, #D4AF55)",
-            ].map((bg, i) => (
-              <div
-                key={i}
-                className="rounded-full border-2"
-                style={{
-                  width: 34,
-                  height: 34,
-                  background: bg,
-                  borderColor: "#07070E",
-                }}
-              />
-            ))}
+          <div
+            className="flex items-center gap-4 mt-16"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(15px)",
+              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 1s",
+            }}
+          >
+            <div className="flex -space-x-2">
+              {[
+                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
+                "linear-gradient(135deg, var(--brand-accent-light), var(--brand-accent))",
+                "linear-gradient(135deg, var(--brand-accent-dark), #8B7023)",
+                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
+                "linear-gradient(135deg, #8B7023, var(--brand-accent))",
+              ].map((bg, i) => (
+                <div
+                  key={i}
+                  className="rounded-full border-2"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    background: bg,
+                    borderColor: "var(--brand-backdrop)",
+                  }}
+                />
+              ))}
+            </div>
+            <span
+              className="font-body"
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}
+            >
+              {hero.socialProof}
+            </span>
           </div>
-          <span className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>
-            {hero.socialProof}
-          </span>
-        </div>
         )}
       </div>
 

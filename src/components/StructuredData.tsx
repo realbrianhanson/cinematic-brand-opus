@@ -16,7 +16,7 @@ interface StructuredDataProps {
     author_name?: string | null;
     author_title?: string | null;
     author_bio?: string | null;
-    author_social_links?: any;
+    author_social_links?: unknown;
     author_credentials?: string[] | null;
     publisher_name?: string | null;
     publisher_url?: string | null;
@@ -68,16 +68,27 @@ const StructuredData = ({
 
     // 1. Person
     if (siteSettings?.author_name) {
-      const sameAs = Object.values(siteSettings.author_social_links || {}).filter(Boolean);
+      const sameAs = Object.values(
+        siteSettings.author_social_links || {},
+      ).filter(Boolean);
       inject("person", {
         "@context": "https://schema.org",
         "@type": "Person",
         name: siteSettings.author_name,
-        ...(siteSettings.author_title && { jobTitle: siteSettings.author_title }),
-        ...(siteSettings.author_bio && { description: siteSettings.author_bio }),
-        ...(siteSettings.site_url && !siteSettings.site_url.includes("example.com") && { url: siteSettings.site_url }),
+        ...(siteSettings.author_title && {
+          jobTitle: siteSettings.author_title,
+        }),
+        ...(siteSettings.author_bio && {
+          description: siteSettings.author_bio,
+        }),
+        ...(siteSettings.site_url &&
+          !siteSettings.site_url.includes("example.com") && {
+            url: siteSettings.site_url,
+          }),
         ...(sameAs.length > 0 && { sameAs }),
-        ...(siteSettings.author_credentials?.length && { knowsAbout: siteSettings.author_credentials }),
+        ...(siteSettings.author_credentials?.length && {
+          knowsAbout: siteSettings.author_credentials,
+        }),
       });
     }
 
@@ -87,11 +98,17 @@ const StructuredData = ({
       "@type": "Article",
       headline: title,
       description,
-      author: { "@type": "Person", name: siteSettings?.author_name || "Author" },
+      author: {
+        "@type": "Person",
+        name: siteSettings?.author_name || "Author",
+      },
       publisher: {
         "@type": "Organization",
         name: siteSettings?.publisher_name || "Publisher",
-        ...(siteSettings?.publisher_url && !siteSettings.publisher_url.includes("example.com") && { url: siteSettings.publisher_url }),
+        ...(siteSettings?.publisher_url &&
+          !siteSettings.publisher_url.includes("example.com") && {
+            url: siteSettings.publisher_url,
+          }),
       },
       datePublished: publishedAt,
       dateModified: updatedAt,
@@ -152,10 +169,21 @@ const StructuredData = ({
     return () => {
       scripts.forEach((s) => s.remove());
     };
-  }, [instanceId, pageType, title, description, canonicalUrl, publishedAt, updatedAt, breadcrumbs, faqs, itemListNames, siteSettings]);
+  }, [
+    instanceId,
+    pageType,
+    title,
+    description,
+    canonicalUrl,
+    publishedAt,
+    updatedAt,
+    breadcrumbs,
+    faqs,
+    itemListNames,
+    siteSettings,
+  ]);
 
   return null;
 };
 
 export default StructuredData;
-

@@ -1,6 +1,7 @@
+import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { safeHtml } from "@/lib/safeHtml";
 
-const SidebarCustomHTML = ({ config }: { config: any }) => {
+const SidebarCustomHTML = ({ config }: { config: WidgetConfig }) => {
   if (!config.html) return null;
   return (
     <div

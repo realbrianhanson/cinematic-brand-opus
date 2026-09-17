@@ -30,12 +30,15 @@ const AdminLogin = () => {
       const { error: err } = await signIn(email, password);
       if (err) setError(err);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Sign in failed. Please try again.",
+      );
     } finally {
       setPending(false);
     }
   };
-
 
   return (
     <div
@@ -100,7 +103,11 @@ const AdminLogin = () => {
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: 14 }}>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col"
+          style={{ gap: 14 }}
+        >
           <label htmlFor="admin-email" className="sr-only">
             Email
           </label>
@@ -130,7 +137,12 @@ const AdminLogin = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="admin-input font-body"
-              style={{ padding: "14px 40px 14px 18px", fontSize: 14, width: "100%", boxSizing: "border-box" }}
+              style={{
+                padding: "14px 40px 14px 18px",
+                fontSize: 14,
+                width: "100%",
+                boxSizing: "border-box",
+              }}
             />
             <button
               type="button"

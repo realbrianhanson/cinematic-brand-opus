@@ -1,3 +1,11 @@
+import type {
+  PublicPost,
+  PublicPillar,
+  PublicGeneratedPage,
+  PublicSiteSettings,
+  PublicNewsItem,
+} from "@/lib/publicTypes";
+import type { Tables, Json } from "@/integrations/supabase/types";
 import { useParams, Link } from "@/lib/router-compat";
 import { safeHtml } from "@/lib/safeHtml";
 import { useQuery } from "@tanstack/react-query";
@@ -14,17 +22,23 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
 const wordCount = (html: string) => {
-  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return text ? text.split(" ").length : 0;
 };
 
 interface PillarPageProps {
   /** Server-rendered guide so the body is in the initial HTML. */
-  initialPillar?: Record<string, any> | null;
-  initialSettings?: Record<string, any> | null;
+  initialPillar?: PublicPillar | null;
+  initialSettings?: PublicSiteSettings | null;
 }
 
-const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) => {
+const PillarPage = ({
+  initialPillar,
+  initialSettings,
+}: PillarPageProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
   const { data: pillar, isLoading } = useQuery({
@@ -41,20 +55,30 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
     },
     enabled: !!slug,
     staleTime: 30000,
-    ...(initialPillar ? { initialData: initialPillar as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialPillar
+      ? { initialData: initialPillar as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const { data: siteSettings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("site_settings")
+        .select(
+          "id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at",
+        )
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     staleTime: 60000,
-    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialSettings
+      ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
-  const nicheId = (pillar as any)?.niches?.id ?? pillar?.niche_id;
+  const nicheId = pillar?.niches?.id ?? pillar?.niche_id;
 
   // connectedPages query removed — SiloNavigation handles its own fetching
 
@@ -85,18 +109,18 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
         .order("created_at", { ascending: false })
         .limit(20);
       if (!posts || posts.length === 0) return [];
-      const postsWithCat = posts.map((p: any) => ({
+      const postsWithCat = posts.map((p) => ({
         id: p.id,
         title: p.title,
         slug: p.slug,
         category_name: p.categories?.name || "",
       }));
-      const nicheData = (pillar as any)?.niches;
+      const nicheData = pillar?.niches;
       return findRelatedNicheForPage(
         nicheData?.name || "",
-        nicheData?.context,
+        null,
         postsWithCat,
-        5
+        5,
       );
     },
     enabled: !!nicheId && !!pillar,
@@ -109,17 +133,37 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070E" }}>
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Loading...</p>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--brand-backdrop)" }}
+      >
+        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
+          Loading...
+        </p>
       </div>
     );
   }
 
   if (!pillar) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6" style={{ background: "#07070E" }}>
-        <p className="font-display italic text-2xl" style={{ color: "#fff" }}>Guide not found</p>
-        <Link to="/" className="font-body uppercase" style={{ fontSize: 12, letterSpacing: "0.15em", color: "#D4AF55" }}>← Back to Home</Link>
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-6"
+        style={{ background: "var(--brand-backdrop)" }}
+      >
+        <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
+          Guide not found
+        </p>
+        <Link
+          to="/"
+          className="font-body uppercase"
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.15em",
+            color: "var(--brand-accent)",
+          }}
+        >
+          ← Back to Home
+        </Link>
       </div>
     );
   }
@@ -127,29 +171,64 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
   const readingTime = Math.max(1, Math.ceil(wordCount(pillar.content) / 250));
   const authorName = siteSettings?.author_name || "Author";
 
-  const nicheName = (pillar as any)?.niches?.name || "";
+  const nicheName = pillar?.niches?.name || "";
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+    >
       <Nav />
-      <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
-        <Breadcrumbs items={[
-          { label: "Home", href: "/" },
-          { label: "Guides", href: "/resources" },
-          { label: pillar.title },
-        ]} />
+      <article
+        id="main-content"
+        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
+        style={{ maxWidth: 800 }}
+      >
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Guides", href: "/resources" },
+            { label: pillar.title },
+          ]}
+        />
 
-        <h1 className="font-display italic" style={{ fontSize: "clamp(32px, 5vw, 48px)", lineHeight: 1.15, marginBottom: 20 }}>{pillar.title}</h1>
+        <h1
+          className="font-display italic"
+          style={{
+            fontSize: "clamp(32px, 5vw, 48px)",
+            lineHeight: 1.15,
+            marginBottom: 20,
+          }}
+        >
+          {pillar.title}
+        </h1>
 
-        <div className="flex items-center gap-4 mb-10" style={{ color: "rgba(255,255,255,0.4)" }}>
-          <span className="font-body" style={{ fontSize: 12 }}>By {authorName}</span>
-          <span style={{ fontSize: 10 }}>•</span>
-          <span className="font-body flex items-center gap-1" style={{ fontSize: 12 }}>
-            <Calendar size={12} />
-            {new Date(pillar.published_at || pillar.created_at!).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        <div
+          className="flex items-center gap-4 mb-10"
+          style={{ color: "rgba(255,255,255,0.4)" }}
+        >
+          <span className="font-body" style={{ fontSize: 12 }}>
+            By {authorName}
           </span>
           <span style={{ fontSize: 10 }}>•</span>
-          <span className="font-body flex items-center gap-1" style={{ fontSize: 12 }}>
+          <span
+            className="font-body flex items-center gap-1"
+            style={{ fontSize: 12 }}
+          >
+            <Calendar size={12} />
+            {new Date(
+              pillar.published_at || pillar.created_at!,
+            ).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+          <span style={{ fontSize: 10 }}>•</span>
+          <span
+            className="font-body flex items-center gap-1"
+            style={{ fontSize: 12 }}
+          >
             <Clock size={12} />
             {readingTime} min read
           </span>
@@ -157,7 +236,11 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
 
         <div
           className="blog-content font-body"
-          style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(255,255,255,0.8)" }}
+          style={{
+            fontSize: 16,
+            lineHeight: 1.8,
+            color: "rgba(255,255,255,0.8)",
+          }}
           dangerouslySetInnerHTML={{ __html: safeHtml(pillar.content) }}
         />
 
@@ -165,22 +248,58 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
 
         {/* Related Pillar Guides */}
         {relatedPillars && relatedPillars.length > 0 && (
-          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Related Pillar Guides</h2>
+          <section
+            style={{
+              marginTop: 48,
+              paddingTop: 32,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+              Related Pillar Guides
+            </h2>
             <div className="grid md:grid-cols-3 gap-4">
-              {relatedPillars.map((rp: any) => (
+              {relatedPillars.map((rp) => (
                 <Link
                   key={rp.id}
                   to={`/guides/${rp.slug}`}
                   className="group block p-5"
-                  style={{ border: "1px solid rgba(255,255,255,0.06)", textDecoration: "none", transition: "border-color 0.3s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(212,175,85,0.2)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    textDecoration: "none",
+                    transition: "border-color 0.3s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderColor =
+                      "rgba(var(--brand-accent-rgb),0.2)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.06)")
+                  }
                 >
                   {rp.niches?.name && (
-                    <span className="font-body uppercase block mb-2" style={{ fontSize: 9, letterSpacing: "0.12em", color: "#D4AF55" }}>{rp.niches.name}</span>
+                    <span
+                      className="font-body uppercase block mb-2"
+                      style={{
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        color: "var(--brand-accent)",
+                      }}
+                    >
+                      {rp.niches.name}
+                    </span>
                   )}
-                  <h3 className="font-body font-medium transition-colors group-hover:text-[#D4AF55]" style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>{rp.title}</h3>
+                  <h3
+                    className="font-body font-medium transition-colors group-hover:text-[var(--brand-accent)]"
+                    style={{
+                      fontSize: 14,
+                      color: "rgba(255,255,255,0.7)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {rp.title}
+                  </h3>
                 </Link>
               ))}
             </div>
@@ -189,17 +308,33 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
 
         {/* Related Blog Articles */}
         {relatedBlogPosts && relatedBlogPosts.length > 0 && (
-          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Related Articles</h2>
+          <section
+            style={{
+              marginTop: 48,
+              paddingTop: 32,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+              Related Articles
+            </h2>
             <div className="flex flex-col gap-3">
               {relatedBlogPosts.map((post) => (
                 <a
                   key={post.id}
                   href={`/blog/${post.slug}`}
                   className="font-body flex items-center gap-2 transition-colors"
-                  style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                  style={{
+                    fontSize: 14,
+                    color: "rgba(255,255,255,0.6)",
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "hsl(var(--accent))")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+                  }
                 >
                   {post.title} <ArrowRight size={12} />
                 </a>
@@ -208,7 +343,12 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
           </section>
         )}
 
-        <PublicCTA variant="end" pageId={pillar.id} pageType="pillar" nicheName={(pillar as any).niches?.name} />
+        <PublicCTA
+          variant="end"
+          pageId={pillar.id}
+          pageType="pillar"
+          nicheName={pillar.niches?.name}
+        />
       </article>
       <Footer />
     </div>

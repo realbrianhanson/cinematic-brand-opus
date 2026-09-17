@@ -34,9 +34,12 @@ Deno.serve(async (req) => {
     if (fetchError) throw fetchError;
 
     if (!posts || posts.length === 0) {
-      return new Response(JSON.stringify({ published: 0, message: "No posts to publish" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ published: 0, message: "No posts to publish" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Re-check the CURRENT gate at publish time. A post may have been scheduled

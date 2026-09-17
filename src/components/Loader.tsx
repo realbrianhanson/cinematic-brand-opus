@@ -35,7 +35,9 @@ const prefersReducedMotion = (): boolean => {
 const prefersLessData = (): boolean => {
   try {
     const connection = (
-      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+      navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }
     ).connection;
     if (!connection) return false;
     return (
@@ -92,7 +94,7 @@ const Loader = ({ onComplete }: LoaderProps) => {
       aria-hidden="true"
       style={{
         zIndex: 200,
-        background: "#07070E",
+        background: "var(--brand-backdrop)",
         clipPath: wiping ? "inset(0 0 100% 0)" : "inset(0 0 0 0)",
         transition: "clip-path 0.5s cubic-bezier(0.77, 0, 0.18, 1)",
       }}
@@ -102,13 +104,16 @@ const Loader = ({ onComplete }: LoaderProps) => {
         style={{
           width: 56,
           height: 56,
-          border: "1.5px solid rgba(212,175,85,0.55)",
+          border: "1.5px solid rgba(var(--brand-accent-rgb),0.55)",
           opacity: visible && !wiping ? 1 : 0,
           transform: visible ? "scale(1)" : "scale(0.9)",
           transition: "opacity 0.4s ease, transform 0.4s ease",
         }}
       >
-        <span className="font-display italic" style={{ fontSize: 24, color: "#D4AF55", lineHeight: 1 }}>
+        <span
+          className="font-display italic"
+          style={{ fontSize: 24, color: "var(--brand-accent)", lineHeight: 1 }}
+        >
           {siteConfig.identity.logoInitials}
         </span>
       </div>

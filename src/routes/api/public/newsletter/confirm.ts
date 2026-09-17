@@ -5,9 +5,8 @@ export const Route = createFileRoute("/api/public/newsletter/confirm")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const { supabaseAdmin } = await import(
-          "@/integrations/supabase/client.server"
-        );
+        const { supabaseAdmin } =
+          await import("@/integrations/supabase/client.server");
 
         const { data: settings } = await supabaseAdmin
           .from("site_settings")
@@ -24,19 +23,33 @@ export const Route = createFileRoute("/api/public/newsletter/confirm")({
         const token = new URL(request.url).searchParams.get("token");
         if (!token) return Response.redirect(`${base}/invalid`, 302);
 
-        const { data: row } = await supabaseAdmin
+        const { data: row, error: readError } = await supabaseAdmin
           .from("newsletter_subscribers")
           .select("id, status")
           .eq("confirm_token", token)
           .maybeSingle();
 
+        if (readError)
+          return new Response("Unable to confirm right now.", { status: 503 });
         if (!row) return Response.redirect(`${base}/invalid`, 302);
 
         if (row.status === "pending") {
-          await supabaseAdmin
+          const { data: changed, error: updateError } = await supabaseAdmin
             .from("newsletter_subscribers")
-            .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
-            .eq("id", row.id);
+            .update({
+              status: "confirmed",
+              confirmed_at: new Date().toISOString(),
+            })
+            .eq("id", row.id)
+            .eq("confirm_token", token)
+            .eq("status", "pending")
+            .select("id")
+            .maybeSingle();
+          if (updateError)
+            return new Response("Unable to confirm right now.", {
+              status: 503,
+            });
+          if (!changed) return Response.redirect(`${base}/invalid`, 302);
           return Response.redirect(`${base}/confirmed`, 302);
         }
 

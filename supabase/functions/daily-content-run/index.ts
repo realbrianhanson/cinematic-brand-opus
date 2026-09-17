@@ -25,7 +25,12 @@ async function invoke(fn: string, body: any = {}): Promise<any> {
       body: JSON.stringify(body),
     });
     const text = await res.text();
-    let data: any; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
     return { status: res.status, data };
   } catch (e: any) {
     return { status: 0, data: { error: e.message } };
@@ -33,11 +38,12 @@ async function invoke(fn: string, body: any = {}): Promise<any> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
 
-  const body = await req.json().catch(() => ({} as any));
+  const body = await req.json().catch(() => ({}) as any);
   const skipPoll = !!body?.skip_poll;
   const skipCluster = !!body?.skip_cluster;
   const maxDrafts = Math.min(body?.max_drafts ?? MAX_DRAFTS_PER_RUN, 20);
@@ -46,6 +52,22 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  const { data: automationSettings, error: automationError } = await supabase
+    .from("site_settings_private")
+    .select("auto_publish_enabled")
+    .limit(1)
+    .maybeSingle();
+  if (automationError)
+    return new Response(
+      JSON.stringify({ error: "Automation settings unavailable" }),
+      { status: 503, headers: corsHeaders },
+    );
+  if (automationSettings?.auto_publish_enabled !== true)
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "automation disabled" }),
+      { headers: corsHeaders },
+    );
 
   const log: any = { started_at: new Date().toISOString(), steps: {} };
 
@@ -71,8 +93,14 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (settingsErr) {
     return new Response(
-      JSON.stringify({ error: "settings unavailable", detail: settingsErr.message }),
-      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({
+        error: "settings unavailable",
+        detail: settingsErr.message,
+      }),
+      {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
   const capRaw = Number(settingsRow?.auto_publish_daily_cap);
@@ -91,7 +119,10 @@ Deno.serve(async (req) => {
   if (claimErr) {
     return new Response(
       JSON.stringify({ error: "claim failed", detail: claimErr.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
   if (!queue || queue.length === 0) {
@@ -104,9 +135,20 @@ Deno.serve(async (req) => {
   }
 
   log.steps.drafts = [];
-  for (const opp of queue as Array<{ id: string; attempts: number }>) {
-    const draft = await invoke("draft-from-opportunity", { opportunity_id: opp.id });
-    const entry: any = { opportunity_id: opp.id, status: draft.status, ...draft.data };
+  for (const opp of queue as Array<{
+    id: string;
+    attempts: number;
+    claim_token: string;
+  }>) {
+    const draft = await invoke("draft-from-opportunity", {
+      opportunity_id: opp.id,
+      claim_token: opp.claim_token,
+    });
+    const entry: any = {
+      opportunity_id: opp.id,
+      status: draft.status,
+      ...draft.data,
+    };
     if (draft.status >= 200 && draft.status < 300 && draft.data?.post_id) {
       const postId = draft.data.post_id;
       try {
@@ -117,7 +159,8 @@ Deno.serve(async (req) => {
         // twice: fact_check.remediated=true blocks re-entry.
         const fcData = fc?.data || {};
         const needsRemediation =
-          (fcData.contradicted_count ?? 0) > 0 || (fcData.unverified_count ?? 0) >= 3;
+          (fcData.contradicted_count ?? 0) > 0 ||
+          (fcData.unverified_count ?? 0) >= 3;
         if (needsRemediation) {
           const rem = await invoke("remediate-post-facts", { post_id: postId });
           entry.remediation = { status: rem.status, ...rem.data };
@@ -135,14 +178,27 @@ Deno.serve(async (req) => {
     log.steps.drafts.push(entry);
     // If it failed non-terminally (server error), leave for next cron pass.
     if (draft.status >= 500) {
-      await supabase.from("content_opportunities").update({
-        last_error: (draft.data?.error || draft.data?.raw || "unknown error").toString().slice(0, 500),
-      }).eq("id", opp.id);
+      await supabase
+        .from("content_opportunities")
+        .update({
+          last_error: (draft.data?.error || draft.data?.raw || "unknown error")
+            .toString()
+            .slice(0, 500),
+        })
+        .eq("id", opp.id);
     }
   }
 
   log.finished_at = new Date().toISOString();
-  return new Response(JSON.stringify({ ok: true, drafted: log.steps.drafts.length, log }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      drafted: log.steps.drafts.filter((d: { post_id?: string }) => d.post_id)
+        .length,
+      log,
+    }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });

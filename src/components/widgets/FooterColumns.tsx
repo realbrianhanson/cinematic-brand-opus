@@ -1,4 +1,5 @@
-const FooterColumns = ({ config }: { config: any }) => {
+import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
+const FooterColumns = ({ config }: { config: WidgetConfig }) => {
   const columns = config.columns || 3;
   const content: { title?: string; text?: string }[] = config.content || [];
 
@@ -15,12 +16,26 @@ const FooterColumns = ({ config }: { config: any }) => {
       {content.slice(0, columns).map((col, i) => (
         <div key={i}>
           {col.title && (
-            <h4 className="font-body font-bold uppercase mb-3" style={{ fontSize: 10, letterSpacing: "0.2em", color: "hsl(var(--accent))" }}>
+            <h4
+              className="font-body font-bold uppercase mb-3"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                color: "hsl(var(--accent))",
+              }}
+            >
               {col.title}
             </h4>
           )}
           {col.text && (
-            <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.7 }}>
+            <p
+              className="font-body"
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.4)",
+                lineHeight: 1.7,
+              }}
+            >
               {col.text}
             </p>
           )}

@@ -15,10 +15,10 @@ const ITEM_NAME_KEYS = [
   "mistake",
 ];
 
-export function getItemTitle(item: any): string {
+export function getItemTitle(item: unknown): string {
   if (!item || typeof item !== "object") return "";
   for (const k of ITEM_NAME_KEYS) {
-    const v = item[k];
+    const v = (item as Record<string, unknown>)[k];
     if (typeof v === "string" && v.trim()) return v;
   }
   return "";

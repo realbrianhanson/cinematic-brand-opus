@@ -4,15 +4,14 @@ import { useReveal, revealStyle } from "@/hooks/useReveal";
 import { siteConfig } from "@/config/site";
 import type { ExpertiseCard } from "@/config/types";
 
-const ICONS = { brain: Brain, target: Target, code: Code2, users: Users } as const;
+const ICONS = {
+  brain: Brain,
+  target: Target,
+  code: Code2,
+  users: Users,
+} as const;
 
-const TiltCard = ({
-  card,
-  index,
-}: {
-  card: ExpertiseCard;
-  index: number;
-}) => {
+const TiltCard = ({ card, index }: { card: ExpertiseCard; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [glow, setGlow] = useState({ x: 50, y: 50 });
@@ -29,7 +28,7 @@ const TiltCard = ({
           obs.disconnect();
         }
       },
-      { threshold: 0.12 }
+      { threshold: 0.12 },
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -59,7 +58,7 @@ const TiltCard = ({
       className="relative overflow-hidden"
       style={{
         padding: 0,
-        border: `1px solid ${hovered ? "rgba(212,175,85,0.25)" : "rgba(255,255,255,0.06)"}`,
+        border: `1px solid ${hovered ? "rgba(var(--brand-accent-rgb),0.25)" : "rgba(255,255,255,0.06)"}`,
         opacity: visible ? 1 : 0,
         transform: visible
           ? `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`
@@ -78,7 +77,7 @@ const TiltCard = ({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(400px circle at ${glow.x}% ${glow.y}%, rgba(212,175,85,0.1), transparent 60%)`,
+            background: `radial-gradient(400px circle at ${glow.x}% ${glow.y}%, rgba(var(--brand-accent-rgb),0.1), transparent 60%)`,
           }}
         />
       )}
@@ -87,7 +86,7 @@ const TiltCard = ({
         <Icon
           size={24}
           strokeWidth={1.5}
-          color="#D4AF55"
+          color="var(--brand-accent)"
           className="mb-6"
         />
 
@@ -128,26 +127,40 @@ const Expertise = () => {
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(212,175,85,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,85,0.02) 1px, transparent 1px)",
+            "linear-gradient(rgba(var(--brand-accent-rgb),0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--brand-accent-rgb),0.02) 1px, transparent 1px)",
           backgroundSize: "80px 80px",
         }}
       />
 
-      <div className="relative mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
+      <div
+        className="relative mx-auto px-6 lg:px-14"
+        style={{ maxWidth: 1440 }}
+      >
         {/* Header */}
-        <div ref={headerRef} className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8">
+        <div
+          ref={headerRef}
+          className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8"
+        >
           <div>
-            <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
+            <div
+              className="flex items-center gap-4 mb-6"
+              style={revealStyle(headerVisible, 0)}
+            >
               <div
                 style={{
                   width: 60,
                   height: 2,
-                  background: "linear-gradient(90deg, #D4AF55, #E8C96A)",
+                  background:
+                    "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
                 }}
               />
               <span
                 className="font-body font-bold uppercase"
-                style={{ fontSize: 10, letterSpacing: "0.3em", color: "#D4AF55" }}
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.3em",
+                  color: "var(--brand-accent)",
+                }}
               >
                 {expertise.overline}
               </span>
@@ -165,7 +178,8 @@ const Expertise = () => {
               <em
                 style={{
                   fontStyle: "italic",
-                  background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
+                  background:
+                    "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                 }}

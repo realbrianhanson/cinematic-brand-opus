@@ -18,7 +18,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
               animation: "spin 0.8s linear infinite",
             }}
           />
-          <p className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>
+          <p
+            className="font-body"
+            style={{ color: "hsl(var(--admin-text-ghost))" }}
+          >
             Loading...
           </p>
         </div>

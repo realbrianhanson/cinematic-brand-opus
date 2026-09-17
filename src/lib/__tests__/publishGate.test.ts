@@ -21,14 +21,16 @@ function stubClient(opts: {
             limit: () => ({
               maybeSingle: async () => ({
                 data: opts.settings ?? null,
-                error: opts.settingsError ? { message: opts.settingsError } : null,
+                error: opts.settingsError
+                  ? { message: opts.settingsError }
+                  : null,
               }),
             }),
           }),
         };
       }
       // posts count chain
-      const chain: any = {
+      const chain = {
         select: () => chain,
         not: () => chain,
         in: () => chain,
@@ -153,9 +155,14 @@ describe("evaluateGate", () => {
   });
 
   it("skips the cap check when asked (manual publish)", async () => {
-    const r = await evaluateGate(stubClient({ countError: "timeout" }), goodPost, settings, {
-      ignoreDailyCap: true,
-    });
+    const r = await evaluateGate(
+      stubClient({ countError: "timeout" }),
+      goodPost,
+      settings,
+      {
+        ignoreDailyCap: true,
+      },
+    );
     expect(r.passed).toBe(true);
   });
 });

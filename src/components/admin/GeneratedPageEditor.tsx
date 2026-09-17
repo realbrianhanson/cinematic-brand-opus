@@ -1,10 +1,23 @@
+import { seoDocumentSchema } from "@/lib/contentDocument";
+import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import { z } from "zod";
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Loader2, RefreshCw, AlertTriangle, CheckCircle, Wand2, Sparkles } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Wand2,
+  Sparkles,
+} from "lucide-react";
 
 const GeneratedPageEditor = () => {
   const { id } = useParams();
@@ -23,7 +36,10 @@ const GeneratedPageEditor = () => {
   const [seoOpen, setSeoOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [scoring, setScoring] = useState(false);
-  const [qualityWarning, setQualityWarning] = useState<{ score: number; issues: string[] } | null>(null);
+  const [qualityWarning, setQualityWarning] = useState<{
+    score: number;
+    issues: string[];
+  } | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -33,7 +49,9 @@ const GeneratedPageEditor = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
+        .select(
+          "*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)",
+        )
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -46,13 +64,29 @@ const GeneratedPageEditor = () => {
     if (page) {
       setContentStr(JSON.stringify(page.content_json, null, 2));
       setStatus(page.status ?? "");
-      setQualityScore(page.quality_score != null ? String(page.quality_score) : "");
-      const seo = (page.seo_meta as any) || {};
+      setQualityScore(
+        page.quality_score != null ? String(page.quality_score) : "",
+      );
+      const seo = z
+        .object({
+          title: z.string().catch(""),
+          description: z.string().catch(""),
+          keywords: z.array(z.string()).catch([]),
+          og_image: z.string().catch(""),
+        })
+        .catch({ title: "", description: "", keywords: [], og_image: "" })
+        .parse(page.seo_meta);
       setMetaTitle(seo.title || "");
       setMetaDesc(seo.description || "");
-      setMetaKeywords(Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "");
+      setMetaKeywords(
+        Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "",
+      );
       setOgImage(seo.og_image || "");
-      if (seo.title || seo.description || (Array.isArray(seo.keywords) && seo.keywords.length > 0)) {
+      if (
+        seo.title ||
+        seo.description ||
+        (Array.isArray(seo.keywords) && seo.keywords.length > 0)
+      ) {
         setHasGenerated(true);
       }
     }
@@ -64,11 +98,19 @@ const GeneratedPageEditor = () => {
     let score = 0;
 
     const hasMeta = metaTitle.length > 0 && metaTitle.length <= 60;
-    criteria.push({ label: "Meta title (under 60 chars)", done: hasMeta, points: "+20" });
+    criteria.push({
+      label: "Meta title (under 60 chars)",
+      done: hasMeta,
+      points: "+20",
+    });
     if (hasMeta) score += 20;
 
     const hasDesc = metaDesc.length > 0 && metaDesc.length <= 160;
-    criteria.push({ label: "Meta description (under 160 chars)", done: hasDesc, points: "+20" });
+    criteria.push({
+      label: "Meta description (under 160 chars)",
+      done: hasDesc,
+      points: "+20",
+    });
     if (hasDesc) score += 20;
 
     const kwCount = metaKeywords
@@ -90,12 +132,20 @@ const GeneratedPageEditor = () => {
       /* ignore */
     }
     const hasWords = wordCount >= 300;
-    criteria.push({ label: "Content has 300+ words", done: hasWords, points: "+15" });
+    criteria.push({
+      label: "Content has 300+ words",
+      done: hasWords,
+      points: "+15",
+    });
     if (hasWords) score += 15;
 
     const titleStr = page?.title || "";
     const hasYear = /20\d{2}/.test(titleStr);
-    criteria.push({ label: "Title contains a year", done: hasYear, points: "+10" });
+    criteria.push({
+      label: "Title contains a year",
+      done: hasYear,
+      points: "+10",
+    });
     if (hasYear) score += 10;
 
     let hasFaq = false;
@@ -105,7 +155,11 @@ const GeneratedPageEditor = () => {
     } catch {
       /* ignore */
     }
-    criteria.push({ label: "Content has FAQ items", done: hasFaq, points: "+10" });
+    criteria.push({
+      label: "Content has FAQ items",
+      done: hasFaq,
+      points: "+10",
+    });
     if (hasFaq) score += 10;
 
     let hasIntro = false;
@@ -115,7 +169,11 @@ const GeneratedPageEditor = () => {
     } catch {
       /* ignore */
     }
-    criteria.push({ label: "Content has intro section", done: hasIntro, points: "+10" });
+    criteria.push({
+      label: "Content has intro section",
+      done: hasIntro,
+      points: "+10",
+    });
     if (hasIntro) score += 10;
 
     return { score, criteria };
@@ -126,17 +184,23 @@ const GeneratedPageEditor = () => {
     try {
       let excerpt = "";
       try {
-        excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
+        excerpt =
+          JSON.parse(contentStr)?.intro ||
+          JSON.parse(contentStr)?.description ||
+          "";
       } catch {
         // Content is not JSON, so there is no excerpt to pull out.
       }
-      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
-        body: {
-          title: page?.title || "",
-          content: contentStr.slice(0, 4000),
-          excerpt,
+      const { data, error } = await supabase.functions.invoke(
+        "generate-seo-aeo",
+        {
+          body: {
+            title: page?.title || "",
+            content: contentStr.slice(0, 4000),
+            excerpt,
+          },
         },
-      });
+      );
       if (error) throw error;
       if (data?.meta_title) setMetaTitle(data.meta_title);
       if (data?.meta_description) setMetaDesc(data.meta_description);
@@ -144,8 +208,12 @@ const GeneratedPageEditor = () => {
       setHasGenerated(true);
       setSeoOpen(true);
       toast({ title: "SEO fields generated!" });
-    } catch (e: any) {
-      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Generation failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setAiGenerating(false);
     }
@@ -154,30 +222,42 @@ const GeneratedPageEditor = () => {
   const handleEnhanceSeo = async () => {
     setEnhancing(true);
     try {
-      const missing = seoData.criteria.filter((c) => !c.done).map((c) => c.label);
+      const missing = seoData.criteria
+        .filter((c) => !c.done)
+        .map((c) => c.label);
       let excerpt = "";
       try {
-        excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
+        excerpt =
+          JSON.parse(contentStr)?.intro ||
+          JSON.parse(contentStr)?.description ||
+          "";
       } catch {
         // Content is not JSON, so there is no excerpt to pull out.
       }
-      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
-        body: {
-          title: page?.title || "",
-          content: contentStr.slice(0, 4000),
-          excerpt,
-          enhance: true,
-          missing_criteria: missing,
+      const { data, error } = await supabase.functions.invoke(
+        "generate-seo-aeo",
+        {
+          body: {
+            title: page?.title || "",
+            content: contentStr.slice(0, 4000),
+            excerpt,
+            enhance: true,
+            missing_criteria: missing,
+          },
         },
-      });
+      );
       if (error) throw error;
       if (data?.meta_title) setMetaTitle(data.meta_title);
       if (data?.meta_description) setMetaDesc(data.meta_description);
       if (data?.keywords) setMetaKeywords(data.keywords);
       setSeoOpen(true);
       toast({ title: "SEO enhanced!" });
-    } catch (e: any) {
-      toast({ title: "Enhancement failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Enhancement failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setEnhancing(false);
     }
@@ -185,7 +265,7 @@ const GeneratedPageEditor = () => {
 
   const doSave = (overrideReason?: string) =>
     safeMutation(async () => {
-      let parsed: any;
+      let parsed: Json;
       try {
         parsed = JSON.parse(contentStr);
       } catch {
@@ -211,7 +291,8 @@ const GeneratedPageEditor = () => {
         quality_score: qualityScore ? Number(qualityScore) : null,
         human_edited: true,
       };
-      const wasPublishing = status === "published" && page?.status !== "published";
+      const wasPublishing =
+        status === "published" && page?.status !== "published";
       if (wasPublishing) {
         updateData.published_at = new Date().toISOString();
       }
@@ -223,17 +304,26 @@ const GeneratedPageEditor = () => {
         updateData.publish_override_by = authData?.user?.id ?? null;
       }
 
-      const { error } = await supabase.from("generated_pages").update(updateData as never).eq("id", id!);
+      const { error } = await supabase
+        .from("generated_pages")
+        .update(updateData as never)
+        .eq("id", id!);
       if (error) throw error;
 
       // On publish transition: build silo links + submit IndexNow (fire-and-forget)
       if (wasPublishing && id) {
-        supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
-        supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
-        const schemaSlug = (page as any)?.content_schemas?.slug;
+        supabase.functions
+          .invoke("build-silo-links", { body: { page_id: id } })
+          .catch(() => {});
+        supabase.functions
+          .invoke("generate-og-image", { body: { page_id: id } })
+          .catch(() => {});
+        const schemaSlug = page?.content_schemas?.slug;
         if (schemaSlug && page?.slug) {
           supabase.functions
-            .invoke("submit-indexnow", { body: { urls: [`/resources/${schemaSlug}/${page.slug}`] } })
+            .invoke("submit-indexnow", {
+              body: { urls: [`/resources/${schemaSlug}/${page.slug}`] },
+            })
             .catch(() => {});
         }
       }
@@ -247,8 +337,12 @@ const GeneratedPageEditor = () => {
       toast({ title: "Saved!" });
       navigate("/admin/pages");
     },
-    onError: (e: any) => {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    onError: (e) => {
+      toast({
+        title: "Save failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     },
   });
 
@@ -259,9 +353,12 @@ const GeneratedPageEditor = () => {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
-        const { data, error } = await supabase.functions.invoke("score-content-quality", {
-          body: { page_id: id },
-        });
+        const { data, error } = await supabase.functions.invoke(
+          "score-content-quality",
+          {
+            body: { page_id: id },
+          },
+        );
         clearTimeout(timeout);
         if (error) throw error;
         if (data?.score != null) {
@@ -272,8 +369,8 @@ const GeneratedPageEditor = () => {
           setScoring(false);
           return;
         }
-      } catch (e: any) {
-        console.warn("Quality scoring failed:", e.message);
+      } catch (e) {
+        console.warn("Quality scoring failed:", errorMessage(e));
         toast({
           title: "Scoring failed",
           description: "Publish blocked until content can be scored.",
@@ -293,36 +390,54 @@ const GeneratedPageEditor = () => {
       const parsed = JSON.parse(contentStr);
       setContentStr(JSON.stringify(parsed, null, 2));
     } catch {
-      toast({ title: "Invalid JSON", description: "Fix JSON syntax before formatting.", variant: "destructive" });
+      toast({
+        title: "Invalid JSON",
+        description: "Fix JSON syntax before formatting.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRegenerate = async () => {
     if (!page) return;
-    const niche = (page as any).niches;
-    const schema = (page as any).content_schemas;
+    const niche = page.niches;
+    const schema = page.content_schemas;
     if (!niche?.slug || !schema?.slug) {
-      toast({ title: "Missing data", description: "Niche or content type not found.", variant: "destructive" });
+      toast({
+        title: "Missing data",
+        description: "Niche or content type not found.",
+        variant: "destructive",
+      });
       return;
     }
     setRegenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-content", {
-        body: {
-          niche_slugs: [niche.slug],
-          content_type_slug: schema.slug,
-          count_per_combination: 1,
-          dry_run: true,
+      const { data, error } = await supabase.functions.invoke(
+        "generate-content",
+        {
+          body: {
+            niche_slugs: [niche.slug],
+            content_type_slug: schema.slug,
+            count_per_combination: 1,
+            dry_run: true,
+          },
         },
-      });
+      );
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if (data?.content_json) {
         setContentStr(JSON.stringify(data.content_json, null, 2));
-        toast({ title: "Content regenerated!", description: "Review and save when ready." });
+        toast({
+          title: "Content regenerated!",
+          description: "Review and save when ready.",
+        });
       }
-    } catch (e: any) {
-      toast({ title: "Regeneration failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Regeneration failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setRegenerating(false);
     }
@@ -331,7 +446,11 @@ const GeneratedPageEditor = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center" style={{ padding: 64 }}>
-        <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+        <Loader2
+          size={24}
+          className="animate-spin"
+          style={{ color: "hsl(var(--admin-accent))" }}
+        />
       </div>
     );
   }
@@ -339,20 +458,28 @@ const GeneratedPageEditor = () => {
   if (!page) {
     return (
       <div style={{ padding: 64, textAlign: "center" }}>
-        <p className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>
+        <p
+          className="font-body"
+          style={{ color: "hsl(var(--admin-text-ghost))" }}
+        >
           Page not found.
         </p>
       </div>
     );
   }
 
-  const niche = (page as any).niches;
-  const schema = (page as any).content_schemas;
+  const niche = page.niches;
+  const schema = page.content_schemas;
 
   const { score: seoScore, criteria: seoCriteria } = seoData;
   const done = seoCriteria.filter((c) => c.done).length;
   const total = seoCriteria.length;
-  const scoreColor = seoScore >= 75 ? "admin-sage" : seoScore >= 40 ? "admin-accent" : "admin-danger";
+  const scoreColor =
+    seoScore >= 75
+      ? "admin-sage"
+      : seoScore >= 40
+        ? "admin-accent"
+        : "admin-danger";
 
   return (
     <div>
@@ -370,23 +497,48 @@ const GeneratedPageEditor = () => {
             backdropFilter: "blur(4px)",
           }}
         >
-          <div className="admin-card" style={{ maxWidth: 480, width: "90%", padding: 28 }}>
+          <div
+            className="admin-card"
+            style={{ maxWidth: 480, width: "90%", padding: 28 }}
+          >
             <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle size={22} style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }} />
-              <h3 className="font-heading" style={{ fontSize: 18, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
+              <AlertTriangle
+                size={22}
+                style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }}
+              />
+              <h3
+                className="font-heading"
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "hsl(var(--admin-text))",
+                }}
+              >
                 Low Quality Score: {qualityWarning.score}/100
               </h3>
             </div>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 16 }}>
-              This content scored below the publish threshold of 75. The database will reject the publish unless you
-              override.
+            <p
+              className="font-body"
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-text-soft))",
+                marginBottom: 16,
+              }}
+            >
+              This content scored below the publish threshold of 75. The
+              database will reject the publish unless you override.
             </p>
             <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
               {qualityWarning.issues.map((issue, i) => (
                 <li
                   key={i}
                   className="font-body"
-                  style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, listStyle: "disc" }}
+                  style={{
+                    fontSize: 12,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginBottom: 4,
+                    listStyle: "disc",
+                  }}
                 >
                   {issue}
                 </li>
@@ -422,15 +574,28 @@ const GeneratedPageEditor = () => {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>
+      <div
+        className="flex items-center justify-between flex-wrap gap-4"
+        style={{ marginBottom: 24 }}
+      >
+        <h1
+          className="font-heading italic"
+          style={{ fontSize: 28, fontWeight: 400 }}
+        >
           Edit Page
         </h1>
         <div className="flex gap-3">
-          <button onClick={() => navigate("/admin/pages")} className="admin-btn-ghost">
+          <button
+            onClick={() => navigate("/admin/pages")}
+            className="admin-btn-ghost"
+          >
             Cancel
           </button>
-          <button onClick={handleSave} disabled={saveMutation.isPending || scoring} className="admin-btn-primary">
+          <button
+            onClick={handleSave}
+            disabled={saveMutation.isPending || scoring}
+            className="admin-btn-primary"
+          >
             {scoring ? (
               <span className="flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" />
@@ -452,22 +617,37 @@ const GeneratedPageEditor = () => {
           <div className="admin-card" style={{ padding: 20 }}>
             <h2
               className="font-heading"
-              style={{ fontSize: 22, fontWeight: 500, color: "hsl(var(--admin-text))", marginBottom: 8 }}
+              style={{
+                fontSize: 22,
+                fontWeight: 500,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 8,
+              }}
             >
               {page.title}
             </h2>
-            <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+            <span
+              className="font-body"
+              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
+            >
               /{page.slug}
             </span>
           </div>
 
           {/* JSON editor */}
           <div>
-            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginBottom: 8 }}
+            >
               <span className="admin-label" style={{ marginBottom: 0 }}>
                 Content JSON
               </span>
-              <button onClick={handleFormat} className="admin-btn-ghost" style={{ fontSize: 11, padding: "4px 12px" }}>
+              <button
+                onClick={handleFormat}
+                className="admin-btn-ghost"
+                style={{ fontSize: 11, padding: "4px 12px" }}
+              >
                 Format JSON
               </button>
             </div>
@@ -498,7 +678,11 @@ const GeneratedPageEditor = () => {
           {/* Status */}
           <div className="admin-card" style={{ padding: 20 }}>
             <label className="admin-label">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="admin-input font-body w-full">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="admin-input font-body w-full"
+            >
               <option value="draft">Draft</option>
               <option value="review">Review</option>
               <option value="published">Published</option>
@@ -508,7 +692,10 @@ const GeneratedPageEditor = () => {
 
           {/* AI SEO Helper */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+            <div
+              className="flex items-center gap-2"
+              style={{ marginBottom: 12 }}
+            >
               <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
               <span className="admin-label" style={{ marginBottom: 0 }}>
                 AI. SEO Helper
@@ -516,16 +703,43 @@ const GeneratedPageEditor = () => {
             </div>
             <p
               className="font-body"
-              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 14, lineHeight: 1.5 }}
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 14,
+                lineHeight: 1.5,
+              }}
             >
-              Generate &amp; optimize SEO fields using AI based on your page content.
+              Generate &amp; optimize SEO fields using AI based on your page
+              content.
             </p>
 
             {/* Score Ring */}
             <div style={{ marginBottom: 16, textAlign: "center" }}>
-              <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 10px" }}>
-                <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--admin-surface-2))" strokeWidth="2.8" />
+              <div
+                style={{
+                  position: "relative",
+                  width: 100,
+                  height: 100,
+                  margin: "0 auto 10px",
+                }}
+              >
+                <svg
+                  viewBox="0 0 36 36"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    transform: "rotate(-90deg)",
+                  }}
+                >
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.9"
+                    fill="none"
+                    stroke="hsl(var(--admin-surface-2))"
+                    strokeWidth="2.8"
+                  />
                   <circle
                     cx="18"
                     cy="18"
@@ -550,11 +764,21 @@ const GeneratedPageEditor = () => {
                 >
                   <span
                     className="font-heading"
-                    style={{ fontSize: 24, color: `hsl(var(--${scoreColor}))`, lineHeight: 1 }}
+                    style={{
+                      fontSize: 24,
+                      color: `hsl(var(--${scoreColor}))`,
+                      lineHeight: 1,
+                    }}
                   >
                     {seoScore}
                   </span>
-                  <span className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 9,
+                      color: "hsl(var(--admin-text-ghost))",
+                    }}
+                  >
                     / 100
                   </span>
                 </div>
@@ -574,7 +798,10 @@ const GeneratedPageEditor = () => {
 
             {/* Checklist */}
             <div style={{ marginBottom: 14 }}>
-              <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>
+              <p
+                className="admin-label"
+                style={{ marginBottom: 10, fontSize: 10 }}
+              >
                 📈 Increase Your Score
               </p>
               <div
@@ -600,18 +827,29 @@ const GeneratedPageEditor = () => {
               </div>
               <p
                 className="font-body"
-                style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginBottom: 10, textAlign: "right" }}
+                style={{
+                  fontSize: 10,
+                  color: "hsl(var(--admin-text-ghost))",
+                  marginBottom: 10,
+                  textAlign: "right",
+                }}
               >
                 {done}/{total} completed
               </p>
               {seoCriteria.map((c, i) => (
-                <div key={i} className="flex items-start gap-2" style={{ marginBottom: 6 }}>
+                <div
+                  key={i}
+                  className="flex items-start gap-2"
+                  style={{ marginBottom: 6 }}
+                >
                   <span
                     style={{
                       fontSize: 13,
                       lineHeight: "18px",
                       flexShrink: 0,
-                      color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-text-ghost))",
+                      color: c.done
+                        ? "hsl(var(--admin-sage))"
+                        : "hsl(var(--admin-text-ghost))",
                     }}
                   >
                     {c.done ? "✓" : "○"}
@@ -622,7 +860,9 @@ const GeneratedPageEditor = () => {
                       fontSize: 11,
                       lineHeight: "18px",
                       flex: 1,
-                      color: c.done ? "hsl(var(--admin-text-ghost))" : "hsl(var(--admin-text-soft))",
+                      color: c.done
+                        ? "hsl(var(--admin-text-ghost))"
+                        : "hsl(var(--admin-text-soft))",
                       textDecoration: c.done ? "line-through" : "none",
                     }}
                   >
@@ -633,7 +873,9 @@ const GeneratedPageEditor = () => {
                     style={{
                       fontSize: 9,
                       lineHeight: "18px",
-                      color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))",
+                      color: c.done
+                        ? "hsl(var(--admin-sage))"
+                        : "hsl(var(--admin-accent))",
                       fontWeight: 600,
                     }}
                   >
@@ -708,7 +950,10 @@ const GeneratedPageEditor = () => {
 
           {/* Quality score */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginBottom: 8 }}
+            >
               <label className="admin-label" style={{ marginBottom: 0 }}>
                 Quality Score
               </label>
@@ -716,11 +961,15 @@ const GeneratedPageEditor = () => {
                 onClick={async () => {
                   setScoring(true);
                   try {
-                    const { data, error } = await supabase.functions.invoke("score-content-quality", {
-                      body: { page_id: id },
-                    });
+                    const { data, error } = await supabase.functions.invoke(
+                      "score-content-quality",
+                      {
+                        body: { page_id: id },
+                      },
+                    );
                     if (error) throw error;
-                    if (data?.score != null) setQualityScore(String(data.score));
+                    if (data?.score != null)
+                      setQualityScore(String(data.score));
                     if (data?.issues?.length > 0) {
                       toast({
                         title: `Score: ${data.score}/100`,
@@ -730,8 +979,12 @@ const GeneratedPageEditor = () => {
                     } else {
                       toast({ title: `Score: ${data.score}/100` });
                     }
-                  } catch (e: any) {
-                    toast({ title: "Scoring failed", description: e.message, variant: "destructive" });
+                  } catch (e) {
+                    toast({
+                      title: "Scoring failed",
+                      description: errorMessage(e),
+                      variant: "destructive",
+                    });
                   } finally {
                     setScoring(false);
                   }
@@ -740,7 +993,11 @@ const GeneratedPageEditor = () => {
                 className="admin-btn-ghost"
                 style={{ fontSize: 10, padding: "2px 8px" }}
               >
-                {scoring ? <Loader2 size={12} className="animate-spin" /> : "Run Score"}
+                {scoring ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  "Run Score"
+                )}
               </button>
             </div>
             <div className="flex items-center gap-2">
@@ -755,9 +1012,17 @@ const GeneratedPageEditor = () => {
               {qualityScore && (
                 <span style={{ flexShrink: 0 }}>
                   {Number(qualityScore) >= 60 ? (
-                    <CheckCircle size={16} style={{ color: "hsl(var(--admin-success, 142 71% 45%))" }} />
+                    <CheckCircle
+                      size={16}
+                      style={{
+                        color: "hsl(var(--admin-success, 142 71% 45%))",
+                      }}
+                    />
                   ) : (
-                    <AlertTriangle size={16} style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }} />
+                    <AlertTriangle
+                      size={16}
+                      style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }}
+                    />
                   )}
                 </span>
               )}
@@ -774,18 +1039,43 @@ const GeneratedPageEditor = () => {
                 ["Niche", niche?.name || "—"],
                 ["Content Type", schema?.name || "—"],
                 ["Model", page.generation_model || "—"],
-                ["Cost", page.generation_cost != null ? `$${Number(page.generation_cost).toFixed(4)}` : "—"],
-                ["Created", page.created_at ? new Date(page.created_at).toLocaleDateString() : "—"],
-                ["Last Refreshed", page.last_refreshed ? new Date(page.last_refreshed).toLocaleDateString() : "—"],
+                [
+                  "Cost",
+                  page.generation_cost != null
+                    ? `$${Number(page.generation_cost).toFixed(4)}`
+                    : "—",
+                ],
+                [
+                  "Created",
+                  page.created_at
+                    ? new Date(page.created_at).toLocaleDateString()
+                    : "—",
+                ],
+                [
+                  "Last Refreshed",
+                  page.last_refreshed
+                    ? new Date(page.last_refreshed).toLocaleDateString()
+                    : "—",
+                ],
                 ["Refresh Count", String(page.refresh_count ?? 0)],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between">
-                  <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 12,
+                      color: "hsl(var(--admin-text-ghost))",
+                    }}
+                  >
                     {label}
                   </span>
                   <span
                     className="font-body"
-                    style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))", fontWeight: 500 }}
+                    style={{
+                      fontSize: 12,
+                      color: "hsl(var(--admin-text-soft))",
+                      fontWeight: 500,
+                    }}
                   >
                     {value}
                   </span>
@@ -799,15 +1089,26 @@ const GeneratedPageEditor = () => {
             <button
               onClick={() => setSeoOpen(!seoOpen)}
               className="flex items-center justify-between w-full"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+              }}
             >
               <span className="admin-label" style={{ marginBottom: 0 }}>
                 SEO Meta
               </span>
               {seoOpen ? (
-                <ChevronUp size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
+                <ChevronUp
+                  size={14}
+                  style={{ color: "hsl(var(--admin-text-ghost))" }}
+                />
               ) : (
-                <ChevronDown size={14} style={{ color: "hsl(var(--admin-text-ghost))" }} />
+                <ChevronDown
+                  size={14}
+                  style={{ color: "hsl(var(--admin-text-ghost))" }}
+                />
               )}
             </button>
             {seoOpen && (
@@ -825,7 +1126,10 @@ const GeneratedPageEditor = () => {
                     className="font-body"
                     style={{
                       fontSize: 10,
-                      color: metaTitle.length > 60 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))",
+                      color:
+                        metaTitle.length > 60
+                          ? "hsl(var(--admin-danger))"
+                          : "hsl(var(--admin-text-ghost))",
                     }}
                   >
                     {metaTitle.length}/60
@@ -846,7 +1150,10 @@ const GeneratedPageEditor = () => {
                     className="font-body"
                     style={{
                       fontSize: 10,
-                      color: metaDesc.length > 160 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-text-ghost))",
+                      color:
+                        metaDesc.length > 160
+                          ? "hsl(var(--admin-danger))"
+                          : "hsl(var(--admin-text-ghost))",
                     }}
                   >
                     {metaDesc.length}/160
@@ -878,21 +1185,32 @@ const GeneratedPageEditor = () => {
                       onClick={async () => {
                         setGeneratingOg(true);
                         try {
-                          const { data, error } = await supabase.functions.invoke("generate-og-image", {
-                            body: { page_id: id },
-                          });
-                          if (error || data?.error) throw new Error(error?.message || data?.error);
+                          const { data, error } =
+                            await supabase.functions.invoke(
+                              "generate-og-image",
+                              {
+                                body: { page_id: id },
+                              },
+                            );
+                          if (error || data?.error)
+                            throw new Error(error?.message || data?.error);
                           // Refetch page to get updated og_image
                           const { data: updated } = await supabase
                             .from("generated_pages")
                             .select("seo_meta")
                             .eq("id", id!)
                             .single();
-                          const newOg = (updated?.seo_meta as any)?.og_image || "";
+                          const newOg =
+                            seoDocumentSchema.parse(updated?.seo_meta)
+                              .og_image || "";
                           setOgImage(newOg);
                           toast({ title: "OG image generated!" });
-                        } catch (e: any) {
-                          toast({ title: "Failed", description: e.message, variant: "destructive" });
+                        } catch (e) {
+                          toast({
+                            title: "Failed",
+                            description: errorMessage(e),
+                            variant: "destructive",
+                          });
                         } finally {
                           setGeneratingOg(false);
                         }
@@ -901,7 +1219,11 @@ const GeneratedPageEditor = () => {
                       className="admin-btn-ghost flex items-center gap-1 whitespace-nowrap"
                       style={{ fontSize: 11 }}
                     >
-                      {generatingOg ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                      {generatingOg ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Wand2 size={12} />
+                      )}
                       {generatingOg ? "Generating..." : "Generate"}
                     </button>
                   </div>
@@ -927,7 +1249,14 @@ const GeneratedPageEditor = () => {
             <label className="admin-label" style={{ marginBottom: 8 }}>
               Regenerate
             </label>
-            <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
+            <p
+              className="font-body"
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 12,
+              }}
+            >
               Re-generate content using AI. The slug and URL will stay the same.
             </p>
             <button
@@ -935,7 +1264,10 @@ const GeneratedPageEditor = () => {
               disabled={regenerating}
               className="admin-btn-ghost w-full flex items-center justify-center gap-2"
             >
-              <RefreshCw size={14} className={regenerating ? "animate-spin" : ""} />
+              <RefreshCw
+                size={14}
+                className={regenerating ? "animate-spin" : ""}
+              />
               {regenerating ? "Regenerating..." : "Regenerate Content"}
             </button>
           </div>

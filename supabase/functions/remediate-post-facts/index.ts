@@ -15,14 +15,16 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
 
   const { post_id } = await req.json().catch(() => ({}));
   if (!post_id) {
     return new Response(JSON.stringify({ error: "post_id required" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -35,17 +37,26 @@ Deno.serve(async (req) => {
   const voiceBlock = formatVoiceBlock(voice);
 
   const result = await remediatePostFacts({
-    supabase, apiKey, model: MAIN_MODEL, postId: post_id, voice, voiceBlock,
+    supabase,
+    apiKey,
+    model: MAIN_MODEL,
+    postId: post_id,
+    voice,
+    voiceBlock,
   });
   if (!result.ok) {
     return new Response(JSON.stringify({ ok: false, reason: result.reason }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   if (!result.changed) {
-    return new Response(JSON.stringify({ ok: true, changed: false, reason: result.reason }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, changed: false, reason: result.reason }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   // Re-run fact-check exactly once (fact_check.remediated=true blocks a second pass)
@@ -61,12 +72,18 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ post_id }),
     });
     const fcData = await fcRes.json().catch(() => ({}));
-    return new Response(JSON.stringify({ ok: true, changed: true, fact_check: fcData }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, changed: true, fact_check: fcData }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e: any) {
-    return new Response(JSON.stringify({ ok: true, changed: true, fact_check_error: e?.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, changed: true, fact_check_error: e?.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

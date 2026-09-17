@@ -65,7 +65,10 @@ export function buildPageHead(input: PageHeadInput): {
     meta.push({ name: "twitter:image", content: input.image });
   }
   if (input.publishedAt) {
-    meta.push({ property: "article:published_time", content: input.publishedAt });
+    meta.push({
+      property: "article:published_time",
+      content: input.publishedAt,
+    });
   }
   if (input.updatedAt) {
     meta.push({ property: "article:modified_time", content: input.updatedAt });
@@ -105,7 +108,9 @@ export interface JsonLdSiteSettings {
 }
 
 const usable = (value?: string | null): value is string =>
-  typeof value === "string" && value.trim().length > 0 && !value.includes("example.com");
+  typeof value === "string" &&
+  value.trim().length > 0 &&
+  !value.includes("example.com");
 
 export function articleJsonLd(opts: {
   headline: string;
@@ -133,7 +138,9 @@ export function articleJsonLd(opts: {
   };
 }
 
-export function personJsonLd(settings?: JsonLdSiteSettings | null): object | null {
+export function personJsonLd(
+  settings?: JsonLdSiteSettings | null,
+): object | null {
   if (!settings?.author_name) return null;
   const sameAs = Object.values(
     (settings.author_social_links as Record<string, unknown> | null) ?? {},
@@ -146,11 +153,15 @@ export function personJsonLd(settings?: JsonLdSiteSettings | null): object | nul
     ...(settings.author_bio ? { description: settings.author_bio } : {}),
     ...(usable(settings.site_url) ? { url: settings.site_url } : {}),
     ...(sameAs.length ? { sameAs } : {}),
-    ...(settings.author_credentials?.length ? { knowsAbout: settings.author_credentials } : {}),
+    ...(settings.author_credentials?.length
+      ? { knowsAbout: settings.author_credentials }
+      : {}),
   };
 }
 
-export function websiteJsonLd(settings?: JsonLdSiteSettings | null): object | null {
+export function websiteJsonLd(
+  settings?: JsonLdSiteSettings | null,
+): object | null {
   if (!usable(settings?.site_url)) return null;
   return {
     "@context": "https://schema.org",
@@ -160,7 +171,9 @@ export function websiteJsonLd(settings?: JsonLdSiteSettings | null): object | nu
   };
 }
 
-export function breadcrumbJsonLd(items: Array<{ name: string; url: string }>): object | null {
+export function breadcrumbJsonLd(
+  items: Array<{ name: string; url: string }>,
+): object | null {
   if (!items.length) return null;
   return {
     "@context": "https://schema.org",
@@ -219,7 +232,9 @@ export function speakableJsonLd(): object {
 }
 
 /** Drops nulls so callers can compose optional blocks inline. */
-export function compactJsonLd(blocks: Array<object | null | undefined>): object[] {
+export function compactJsonLd(
+  blocks: Array<object | null | undefined>,
+): object[] {
   return blocks.filter((b): b is object => !!b);
 }
 
@@ -247,7 +262,8 @@ export function generatedItemNames(content: unknown): string[] {
       (Array.isArray(s?.["items"]) && (s!["items"] as unknown[])) ||
       (Array.isArray(s?.["tools"]) && (s!["tools"] as unknown[])) ||
       (Array.isArray(s?.["templates"]) && (s!["templates"] as unknown[])) ||
-      (Array.isArray(s?.["checklist_items"]) && (s!["checklist_items"] as unknown[])) ||
+      (Array.isArray(s?.["checklist_items"]) &&
+        (s!["checklist_items"] as unknown[])) ||
       (Array.isArray(s?.["faqs"]) && (s!["faqs"] as unknown[])) ||
       [];
     for (const kid of kids) {

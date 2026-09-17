@@ -42,8 +42,15 @@ export async function evaluateGate(
   const failures: string[] = [];
   const minQuality = settings.auto_publish_min_quality ?? 85;
 
-  if (typeof post.quality_score !== "number" || post.quality_score < minQuality) {
-    failures.push(`quality_score ${post.quality_score ?? "null"} below ${minQuality}`);
+  if (
+    typeof post.quality_score !== "number" ||
+    !Number.isFinite(post.quality_score) ||
+    !Number.isFinite(minQuality) ||
+    post.quality_score < minQuality
+  ) {
+    failures.push(
+      `quality_score ${post.quality_score ?? "null"} below ${minQuality}`,
+    );
   }
 
   const lintFlags = post.lint_flags;
@@ -61,9 +68,12 @@ export async function evaluateGate(
       failures.push("fact_check counts are missing or not numbers");
     } else {
       const { verified, unverified, contradicted } = counts;
-      if (contradicted !== 0) failures.push(`${contradicted} contradicted claims`);
-      if (verified < 2) failures.push(`only ${verified} verified claims (need >= 2)`);
-      if (unverified > 2) failures.push(`${unverified} unverified claims (max 2)`);
+      if (contradicted !== 0)
+        failures.push(`${contradicted} contradicted claims`);
+      if (verified < 2)
+        failures.push(`only ${verified} verified claims (need >= 2)`);
+      if (unverified > 2)
+        failures.push(`${unverified} unverified claims (max 2)`);
     }
   }
 
@@ -93,14 +103,13 @@ function readFactCounts(
   fc: any,
 ): { verified: number; unverified: number; contradicted: number } | null {
   const read = (v: unknown): number | null => {
-    if (v === null || v === undefined) return 0;
-    const n = typeof v === "number" ? v : Number(v);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
   };
   const verified = read(fc.verified_count);
   const unverified = read(fc.unverified_count);
   const contradicted = read(fc.contradicted_count);
-  if (verified === null || unverified === null || contradicted === null) return null;
+  if (verified === null || unverified === null || contradicted === null)
+    return null;
   return { verified, unverified, contradicted };
 }
 
@@ -111,16 +120,25 @@ function readFactCounts(
 export async function loadGateSettings(supabase: any): Promise<GateSettings> {
   const { data, error } = await supabase
     .from("site_settings_private")
-    .select("auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality")
+    .select(
+      "auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality",
+    )
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`gate settings read failed: ${error.message}`);
-  const cap = Number(data?.auto_publish_daily_cap);
-  const minQuality = Number(data?.auto_publish_min_quality);
+  const cap = data?.auto_publish_daily_cap;
+  const minQuality = data?.auto_publish_min_quality;
   return {
     auto_publish_enabled: data?.auto_publish_enabled === true,
-    auto_publish_daily_cap: Number.isFinite(cap) && cap >= 0 ? cap : 0,
-    auto_publish_min_quality: Number.isFinite(minQuality) ? minQuality : 85,
+    auto_publish_daily_cap:
+      typeof cap === "number" && Number.isInteger(cap) && cap >= 0 ? cap : 0,
+    auto_publish_min_quality:
+      typeof minQuality === "number" &&
+      Number.isFinite(minQuality) &&
+      minQuality >= 0 &&
+      minQuality <= 100
+        ? minQuality
+        : 85,
   };
 }
 
@@ -138,8 +156,12 @@ export function computeQualityWithFacts(params: {
   const unverifiedPenalty = 5 * (params.unverifiedCount || 0);
   const contradictedPenalty = 20 * (params.contradictedCount || 0);
   const thinCitationsPenalty = (params.citationsCount || 0) < 2 ? 10 : 0;
-  const deductions = unverifiedPenalty + contradictedPenalty + thinCitationsPenalty;
-  const score = Math.max(0, Math.round((params.structuralScore || 0) - deductions));
+  const deductions =
+    unverifiedPenalty + contradictedPenalty + thinCitationsPenalty;
+  const score = Math.max(
+    0,
+    Math.round((params.structuralScore || 0) - deductions),
+  );
   return {
     score,
     deductions,

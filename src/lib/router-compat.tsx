@@ -12,18 +12,30 @@ import {
   Navigate as TSNavigate,
   Outlet as TSOutlet,
 } from "@tanstack/react-router";
-import { useMemo, useCallback, forwardRef, type ComponentProps, type ReactNode } from "react";
+import {
+  useMemo,
+  useCallback,
+  forwardRef,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 
 // ---------- shared URL parsing ----------
 
-function parseTo(to: string): { pathname: string; search?: Record<string, string>; hash?: string } {
+function parseTo(to: string): {
+  pathname: string;
+  search?: Record<string, string>;
+  hash?: string;
+} {
   const [beforeHash, hashStr] = (to ?? "").split("#");
   const [pathname, searchStr] = beforeHash.split("?");
   return {
     // react-router keeps the current path for search-only ("?a=1") and
     // hash-only ("#section") targets; TanStack's "." means current route.
     pathname: pathname || ".",
-    search: searchStr ? Object.fromEntries(new URLSearchParams(searchStr)) : undefined,
+    search: searchStr
+      ? Object.fromEntries(new URLSearchParams(searchStr))
+      : undefined,
     hash: hashStr || undefined,
   };
 }
@@ -35,11 +47,21 @@ export function normalizeSearch(searchStr: string | undefined | null): string {
   return raw ? `?${raw}` : "";
 }
 
-function isActivePath(locationPath: string, toPath: string, end: boolean): boolean {
+function isActivePath(
+  locationPath: string,
+  toPath: string,
+  end: boolean,
+): boolean {
   if (toPath === "/" || end) {
-    return locationPath === toPath || (toPath !== "/" && locationPath === toPath.replace(/\/$/, ""));
+    return (
+      locationPath === toPath ||
+      (toPath !== "/" && locationPath === toPath.replace(/\/$/, ""))
+    );
   }
-  return locationPath === toPath || locationPath.startsWith(toPath.replace(/\/$/, "") + "/");
+  return (
+    locationPath === toPath ||
+    locationPath.startsWith(toPath.replace(/\/$/, "") + "/")
+  );
 }
 
 // ---------- useNavigate ----------
@@ -54,20 +76,23 @@ type NavigateFn = {
 export function useNavigate(): NavigateFn {
   const tsNav = tsNavigate();
   const router = useRouter();
-  return useCallback((to: string | number, options?: NavigateOptions) => {
-    if (typeof to === "number") {
-      router.history.go(to);
-      return;
-    }
-    const { pathname, search, hash } = parseTo(to);
-    tsNav({
-      to: pathname,
-      search: search as never,
-      hash,
-      state: options?.state as never,
-      replace: options?.replace,
-    });
-  }, [tsNav, router]) as NavigateFn;
+  return useCallback(
+    (to: string | number, options?: NavigateOptions) => {
+      if (typeof to === "number") {
+        router.history.go(to);
+        return;
+      }
+      const { pathname, search, hash } = parseTo(to);
+      tsNav({
+        to: pathname,
+        search: search as never,
+        hash,
+        state: options?.state as never,
+        replace: options?.replace,
+      });
+    },
+    [tsNav, router],
+  ) as NavigateFn;
 }
 
 // ---------- useLocation ----------
@@ -88,21 +113,40 @@ export function useLocation() {
 
 // ---------- useParams ----------
 
-export function useParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
+export function useParams<
+  T extends Record<string, string | undefined> = Record<
+    string,
+    string | undefined
+  >,
+>(): T {
   return tsParams({ strict: false } as never) as T;
 }
 
-
 // ---------- useSearchParams (@/lib/router-compat compat) ----------
 
-export function useSearchParams(): [URLSearchParams, (init: URLSearchParams | Record<string, string> | ((prev: URLSearchParams) => URLSearchParams), opts?: { replace?: boolean }) => void] {
+export function useSearchParams(): [
+  URLSearchParams,
+  (
+    init:
+      | URLSearchParams
+      | Record<string, string>
+      | ((prev: URLSearchParams) => URLSearchParams),
+    opts?: { replace?: boolean },
+  ) => void,
+] {
   const loc = tsLocation();
   const nav = tsNavigate();
   const router = useRouter();
-  const params = useMemo(() => new URLSearchParams(loc.searchStr ?? ""), [loc.searchStr]);
+  const params = useMemo(
+    () => new URLSearchParams(loc.searchStr ?? ""),
+    [loc.searchStr],
+  );
   const setParams = useCallback(
     (
-      init: URLSearchParams | Record<string, string> | ((prev: URLSearchParams) => URLSearchParams),
+      init:
+        | URLSearchParams
+        | Record<string, string>
+        | ((prev: URLSearchParams) => URLSearchParams),
       opts?: { replace?: boolean },
     ) => {
       // Functional updaters read the router's live location, not the render
@@ -117,8 +161,14 @@ export function useSearchParams(): [URLSearchParams, (init: URLSearchParams | Re
             ? init
             : new URLSearchParams(init);
       const searchObj: Record<string, string> = {};
-      next.forEach((v, k) => { searchObj[k] = v; });
-      nav({ to: live.pathname, search: searchObj as never, replace: opts?.replace });
+      next.forEach((v, k) => {
+        searchObj[k] = v;
+      });
+      nav({
+        to: live.pathname,
+        search: searchObj as never,
+        replace: opts?.replace,
+      });
     },
     [nav, router],
   );
@@ -154,12 +204,27 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
   );
 });
 
-
 // ---------- Navigate ----------
 
-export function Navigate({ to, replace, state }: { to: string; replace?: boolean; state?: unknown }) {
+export function Navigate({
+  to,
+  replace,
+  state,
+}: {
+  to: string;
+  replace?: boolean;
+  state?: unknown;
+}) {
   const { pathname, search, hash } = parseTo(to);
-  return <TSNavigate to={pathname as never} search={search as never} hash={hash} state={state as never} replace={replace} />;
+  return (
+    <TSNavigate
+      to={pathname as never}
+      search={search as never}
+      hash={hash}
+      state={state as never}
+      replace={replace}
+    />
+  );
 }
 
 // ---------- Outlet ----------
@@ -173,31 +238,36 @@ export type NavLinkRenderProps = { isActive: boolean; isPending: boolean };
 export type NavLinkProps = Omit<LinkProps, "className" | "style"> & {
   end?: boolean;
   className?: string | ((props: NavLinkRenderProps) => string);
-  style?: React.CSSProperties | ((props: NavLinkRenderProps) => React.CSSProperties);
+  style?:
+    React.CSSProperties | ((props: NavLinkRenderProps) => React.CSSProperties);
   children?: ReactNode;
 };
 
-export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavLink(
-  { to, end, className, style, children, ...rest },
-  ref,
-) {
-  const { pathname } = useLocation();
-  const { pathname: toPath } = parseTo(to);
-  const active = isActivePath(pathname, toPath, !!end);
-  const renderProps: NavLinkRenderProps = { isActive: active, isPending: false };
+export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(
+  function NavLink({ to, end, className, style, children, ...rest }, ref) {
+    const { pathname } = useLocation();
+    const { pathname: toPath } = parseTo(to);
+    const active = isActivePath(pathname, toPath, !!end);
+    const renderProps: NavLinkRenderProps = {
+      isActive: active,
+      isPending: false,
+    };
 
-  const resolvedClassName = typeof className === "function" ? className(renderProps) : className;
-  const resolvedStyle = typeof style === "function" ? style(renderProps) : style;
+    const resolvedClassName =
+      typeof className === "function" ? className(renderProps) : className;
+    const resolvedStyle =
+      typeof style === "function" ? style(renderProps) : style;
 
-  return (
-    <Link
-      ref={ref}
-      to={to}
-      className={resolvedClassName}
-      style={resolvedStyle}
-      {...rest}
-    >
-      {children}
-    </Link>
-  );
-});
+    return (
+      <Link
+        ref={ref}
+        to={to}
+        className={resolvedClassName}
+        style={resolvedStyle}
+        {...rest}
+      >
+        {children}
+      </Link>
+    );
+  },
+);

@@ -77,12 +77,27 @@ const PageHead = ({
 
     setMeta('meta[name="description"]', "name", "description", description);
     setMeta('meta[property="og:title"]', "property", "og:title", title);
-    setMeta('meta[property="og:description"]', "property", "og:description", description);
+    setMeta(
+      'meta[property="og:description"]',
+      "property",
+      "og:description",
+      description,
+    );
     setMeta('meta[property="og:url"]', "property", "og:url", canonicalUrl);
     setMeta('meta[property="og:type"]', "property", "og:type", type);
-    setMeta('meta[name="twitter:card"]', "name", "twitter:card", "summary_large_image");
+    setMeta(
+      'meta[name="twitter:card"]',
+      "name",
+      "twitter:card",
+      "summary_large_image",
+    );
     setMeta('meta[name="twitter:title"]', "name", "twitter:title", title);
-    setMeta('meta[name="twitter:description"]', "name", "twitter:description", description);
+    setMeta(
+      'meta[name="twitter:description"]',
+      "name",
+      "twitter:description",
+      description,
+    );
 
     if (image) {
       setMeta('meta[property="og:image"]', "property", "og:image", image);
@@ -105,14 +120,21 @@ const PageHead = ({
       );
     }
     if (authorName) {
-      setMeta('meta[property="article:author"]', "property", "article:author", authorName);
+      setMeta(
+        'meta[property="article:author"]',
+        "property",
+        "article:author",
+        authorName,
+      );
     }
     if (robots) {
       setMeta('meta[name="robots"]', "name", "robots", robots);
     }
 
     // --- canonical: single link element
-    let canonicalEl = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    let canonicalEl = document.head.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]',
+    );
     const canonicalCreated = !canonicalEl;
     const canonicalPrevHref = canonicalEl?.getAttribute("href") ?? null;
     if (!canonicalEl) {
@@ -139,7 +161,17 @@ const PageHead = ({
         canonicalEl.setAttribute("href", canonicalPrevHref);
       }
     };
-  }, [title, description, url, image, type, publishedAt, updatedAt, authorName, robots]);
+  }, [
+    title,
+    description,
+    url,
+    image,
+    type,
+    publishedAt,
+    updatedAt,
+    authorName,
+    robots,
+  ]);
 
   return null;
 };

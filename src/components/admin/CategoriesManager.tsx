@@ -15,7 +15,10 @@ const CategoriesManager = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const slugify = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -38,15 +41,17 @@ const CategoriesManager = () => {
           .eq("category_id", cat.id);
         counts[cat.id] = count ?? 0;
       }
-      return (data ?? []).map((c: any) => ({ ...c, postCount: counts[c.id] ?? 0 }));
+      return (data ?? []).map((c) => ({ ...c, postCount: counts[c.id] ?? 0 }));
     },
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("categories")
-        .insert({ name, slug: slug || slugify(name), description: description || null } as any);
+      const { error } = await supabase.from("categories").insert({
+        name,
+        slug: slug || slugify(name),
+        description: description || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -61,7 +66,11 @@ const CategoriesManager = () => {
     mutationFn: async ({ id }: { id: string }) => {
       const { error } = await supabase
         .from("categories")
-        .update({ name: editName, slug: editSlug || slugify(editName), description: editDescription || null } as any)
+        .update({
+          name: editName,
+          slug: editSlug || slugify(editName),
+          description: editDescription || null,
+        })
         .eq("id", id);
       if (error) throw error;
     },
@@ -86,10 +95,20 @@ const CategoriesManager = () => {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>
+        <h1
+          className="font-heading italic"
+          style={{ fontSize: 28, fontWeight: 400 }}
+        >
           Categories
         </h1>
-        <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginTop: 4 }}>
+        <p
+          className="font-body"
+          style={{
+            fontSize: 13,
+            color: "hsl(var(--admin-text-ghost))",
+            marginTop: 4,
+          }}
+        >
           Organize your blog posts
         </p>
       </div>
@@ -98,12 +117,18 @@ const CategoriesManager = () => {
       <div className="grid gap-6" style={{ gridTemplateColumns: "1fr 1fr" }}>
         {/* Left: Add Category */}
         <div className="admin-card" style={{ padding: 28 }}>
-          <h2 className="font-heading" style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}>
+          <h2
+            className="font-heading"
+            style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}
+          >
             Add Category
           </h2>
 
           <div style={{ marginBottom: 20 }}>
-            <label className="admin-label font-body" style={{ display: "block", marginBottom: 8 }}>
+            <label
+              className="admin-label font-body"
+              style={{ display: "block", marginBottom: 8 }}
+            >
               Name
             </label>
             <input
@@ -116,7 +141,10 @@ const CategoriesManager = () => {
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label className="admin-label font-body" style={{ display: "block", marginBottom: 8 }}>
+            <label
+              className="admin-label font-body"
+              style={{ display: "block", marginBottom: 8 }}
+            >
               Slug
             </label>
             <input
@@ -129,7 +157,10 @@ const CategoriesManager = () => {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label className="admin-label font-body" style={{ display: "block", marginBottom: 8 }}>
+            <label
+              className="admin-label font-body"
+              style={{ display: "block", marginBottom: 8 }}
+            >
               Description (optional)
             </label>
             <input
@@ -145,7 +176,10 @@ const CategoriesManager = () => {
             onClick={() => name.trim() && addMutation.mutate()}
             disabled={!name.trim()}
             className="admin-btn-primary"
-            style={{ background: "hsl(var(--admin-accent))", color: "hsl(var(--admin-bg))" }}
+            style={{
+              background: "hsl(var(--admin-accent))",
+              color: "hsl(var(--admin-bg))",
+            }}
           >
             <Plus size={14} /> Add Category
           </button>
@@ -153,25 +187,36 @@ const CategoriesManager = () => {
 
         {/* Right: All Categories */}
         <div className="admin-card" style={{ padding: 28 }}>
-          <h2 className="font-heading" style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}>
+          <h2
+            className="font-heading"
+            style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}
+          >
             All Categories
           </h2>
 
           {isLoading && (
             <div style={{ padding: 32, textAlign: "center" }}>
-              <span className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>Loading...</span>
+              <span
+                className="font-body"
+                style={{ color: "hsl(var(--admin-text-ghost))" }}
+              >
+                Loading...
+              </span>
             </div>
           )}
 
           {categories?.length === 0 && !isLoading && (
             <div style={{ padding: 48, textAlign: "center" }}>
-              <p className="font-body" style={{ fontSize: 14, color: "hsl(var(--admin-text-ghost))" }}>
+              <p
+                className="font-body"
+                style={{ fontSize: 14, color: "hsl(var(--admin-text-ghost))" }}
+              >
                 No categories yet. Create your first one!
               </p>
             </div>
           )}
 
-          {categories?.map((cat: any) => (
+          {categories?.map((cat) => (
             <div
               key={cat.id}
               className="flex items-center justify-between"
@@ -181,14 +226,25 @@ const CategoriesManager = () => {
                 transition: "background-color 0.15s",
                 borderRadius: 4,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(var(--admin-surface-2))")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor =
+                  "hsl(var(--admin-surface-2))")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
             >
               {editId === cat.id ? (
-                <div className="flex-1" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div
+                  className="flex-1"
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
                   <input
                     value={editName}
-                    onChange={(e) => { setEditName(e.target.value); setEditSlug(slugify(e.target.value)); }}
+                    onChange={(e) => {
+                      setEditName(e.target.value);
+                      setEditSlug(slugify(e.target.value));
+                    }}
                     className="admin-input font-body"
                     placeholder="Name"
                     autoFocus
@@ -208,13 +264,23 @@ const CategoriesManager = () => {
                   <div className="flex gap-2" style={{ marginTop: 4 }}>
                     <button
                       onClick={() => updateMutation.mutate({ id: cat.id })}
-                      style={{ color: "hsl(var(--admin-sage))", background: "none", border: "none", cursor: "pointer" }}
+                      style={{
+                        color: "hsl(var(--admin-sage))",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       <Check size={16} />
                     </button>
                     <button
                       onClick={() => setEditId(null)}
-                      style={{ color: "hsl(var(--admin-text-ghost))", background: "none", border: "none", cursor: "pointer" }}
+                      style={{
+                        color: "hsl(var(--admin-text-ghost))",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       <X size={16} />
                     </button>
@@ -223,13 +289,29 @@ const CategoriesManager = () => {
               ) : (
                 <>
                   <div>
-                    <span className="font-body" style={{ fontSize: 14 }}>{cat.name}</span>
+                    <span className="font-body" style={{ fontSize: 14 }}>
+                      {cat.name}
+                    </span>
                     {cat.description && (
-                      <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginLeft: 10 }}>
+                      <span
+                        className="font-body"
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--admin-text-ghost))",
+                          marginLeft: 10,
+                        }}
+                      >
                         — {cat.description}
                       </span>
                     )}
-                    <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginLeft: 12 }}>
+                    <span
+                      className="font-body"
+                      style={{
+                        fontSize: 11,
+                        color: "hsl(var(--admin-text-ghost))",
+                        marginLeft: 12,
+                      }}
+                    >
                       {cat.postCount} posts
                     </span>
                   </div>
@@ -241,13 +323,23 @@ const CategoriesManager = () => {
                         setEditSlug(cat.slug);
                         setEditDescription(cat.description || "");
                       }}
-                      style={{ color: "hsl(var(--admin-accent))", background: "none", border: "none", cursor: "pointer" }}
+                      style={{
+                        color: "hsl(var(--admin-accent))",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => setDeleteId(cat.id)}
-                      style={{ color: "hsl(var(--admin-danger))", background: "none", border: "none", cursor: "pointer" }}
+                      style={{
+                        color: "hsl(var(--admin-danger))",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -261,11 +353,24 @@ const CategoriesManager = () => {
 
       {/* Delete confirmation */}
       {deleteId && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
-          <div className="admin-card" style={{ padding: 32, maxWidth: 380, width: "90%" }}>
-            <p className="font-body" style={{ fontSize: 15, marginBottom: 20 }}>Delete this category?</p>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 380, width: "90%" }}
+          >
+            <p className="font-body" style={{ fontSize: 15, marginBottom: 20 }}>
+              Delete this category?
+            </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteId(null)} className="admin-btn-ghost">Cancel</button>
+              <button
+                onClick={() => setDeleteId(null)}
+                className="admin-btn-ghost"
+              >
+                Cancel
+              </button>
               <button
                 onClick={() => deleteMutation.mutate(deleteId)}
                 className="admin-btn-primary"

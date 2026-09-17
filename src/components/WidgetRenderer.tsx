@@ -1,3 +1,8 @@
+import {
+  parseWidgetConfig,
+  type WidgetConfig,
+  type WidgetPageContext,
+} from "@/lib/widgetConfig";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import SidebarNewsletter from "@/components/widgets/SidebarNewsletter";
@@ -14,7 +19,10 @@ import PageReadingProgress from "@/components/widgets/PageReadingProgress";
 import PageBackToTop from "@/components/widgets/PageBackToTop";
 import FooterColumns from "@/components/widgets/FooterColumns";
 
-const WIDGET_MAP: Record<string, React.ComponentType<{ config: any; pageContext?: any }>> = {
+const WIDGET_MAP: Record<
+  string,
+  React.ComponentType<{ config: WidgetConfig; pageContext?: WidgetPageContext }>
+> = {
   "sidebar-newsletter": SidebarNewsletter,
   "sidebar-recent-posts": SidebarRecentPosts,
   "sidebar-popular-posts": SidebarPopularPosts,
@@ -54,11 +62,25 @@ const WidgetRenderer = ({ zone, pageContext }: WidgetRendererProps) => {
   if (!widgets || widgets.length === 0) return null;
 
   return (
-    <div className={zone === "sidebar" ? "flex flex-col gap-6" : zone === "footer" ? "" : "flex flex-col gap-8"}>
+    <div
+      className={
+        zone === "sidebar"
+          ? "flex flex-col gap-6"
+          : zone === "footer"
+            ? ""
+            : "flex flex-col gap-8"
+      }
+    >
       {widgets.map((widget) => {
         const Component = WIDGET_MAP[widget.widget_slug];
         if (!Component) return null;
-        return <Component key={widget.id} config={widget.config || {}} pageContext={pageContext} />;
+        return (
+          <Component
+            key={widget.id}
+            config={parseWidgetConfig(widget.config)}
+            pageContext={pageContext}
+          />
+        );
       })}
     </div>
   );

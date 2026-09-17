@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-ssr/
+.output/
+.wrangler/
+.tanstack/
+.vinxi/
+# Generated route manifest and platform-managed migration artifacts.
+src/routeTree.gen.ts
+.lovable/
+# Local QA harness, excluded from git.
+public/qa/

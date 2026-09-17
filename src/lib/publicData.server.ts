@@ -30,7 +30,10 @@ export function createPublicServerClient() {
       // Opaque sb_* keys are not JWTs; PostgREST rejects them as bearer tokens.
       fetch: (input, init) => {
         const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
+        if (
+          key.startsWith("sb_") &&
+          headers.get("Authorization") === `Bearer ${key}`
+        ) {
           headers.delete("Authorization");
         }
         headers.set("apikey", key);

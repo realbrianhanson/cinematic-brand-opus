@@ -3,22 +3,29 @@ import { interpretSubscribeResult } from "@/lib/newsletterClient";
 
 describe("subscribe UI states are truthful", () => {
   it("never reports success when email delivery is unavailable", () => {
-    const r = interpretSubscribeResult(503, { ok: false, state: "unavailable" });
+    const r = interpretSubscribeResult(503, {
+      ok: false,
+      state: "unavailable",
+    });
     expect(r.state).toBe("unavailable");
     expect(r.message).toMatch(/not configured/i);
   });
 
   it("surfaces rate limiting distinctly from success", () => {
-    const r = interpretSubscribeResult(429, { ok: false, state: "rate_limited" });
+    const r = interpretSubscribeResult(429, {
+      ok: false,
+      state: "rate_limited",
+    });
     expect(r.state).toBe("rate_limited");
   });
 
   it("distinguishes a fresh confirmation from a repeat request", () => {
-    expect(interpretSubscribeResult(200, { state: "confirmation_sent" }).state).toBe(
-      "confirmation_sent",
-    );
     expect(
-      interpretSubscribeResult(200, { state: "confirmation_already_requested" }).state,
+      interpretSubscribeResult(200, { state: "confirmation_sent" }).state,
+    ).toBe("confirmation_sent");
+    expect(
+      interpretSubscribeResult(200, { state: "confirmation_already_requested" })
+        .state,
     ).toBe("already_requested");
   });
 
@@ -29,7 +36,9 @@ describe("subscribe UI states are truthful", () => {
   });
 
   it("treats a provider failure as an error, not a success", () => {
-    expect(interpretSubscribeResult(502, { state: "send_failed" }).state).toBe("error");
+    expect(interpretSubscribeResult(502, { state: "send_failed" }).state).toBe(
+      "error",
+    );
   });
 
   it("falls back to a generic error on unknown or missing payloads", () => {
@@ -38,8 +47,8 @@ describe("subscribe UI states are truthful", () => {
   });
 
   it("flags an invalid address", () => {
-    expect(interpretSubscribeResult(400, { state: "invalid_email" }).state).toBe(
-      "invalid_email",
-    );
+    expect(
+      interpretSubscribeResult(400, { state: "invalid_email" }).state,
+    ).toBe("invalid_email");
   });
 });

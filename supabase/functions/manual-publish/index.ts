@@ -4,7 +4,11 @@
 // non-empty override_reason (recorded on the post for audit).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
-import { evaluateGate, loadGateSettings, type GatePost } from "../_shared/publishGate.ts";
+import {
+  evaluateGate,
+  loadGateSettings,
+  type GatePost,
+} from "../_shared/publishGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,21 +17,32 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
   if (auth.mode !== "admin" || !auth.userId) {
-    return new Response(JSON.stringify({ error: "manual-publish requires an admin user, not a cron secret" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "manual-publish requires an admin user, not a cron secret",
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const body = await req.json().catch(() => ({}));
   const post_id = body?.post_id;
-  const rawReason = typeof body?.override_reason === "string" ? body.override_reason.trim() : "";
+  const rawReason =
+    typeof body?.override_reason === "string"
+      ? body.override_reason.trim()
+      : "";
   if (!post_id) {
     return new Response(JSON.stringify({ error: "post_id required" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -43,7 +58,8 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (postErr || !post) {
     return new Response(JSON.stringify({ error: "post not found" }), {
-      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -58,7 +74,9 @@ Deno.serve(async (req) => {
   let failures: string[];
   try {
     const settings = await loadGateSettings(supabase);
-    const result = await evaluateGate(supabase, post as GatePost, settings, { ignoreDailyCap: true });
+    const result = await evaluateGate(supabase, post as GatePost, settings, {
+      ignoreDailyCap: true,
+    });
     failures = result.failures;
   } catch (e) {
     failures = [`gate evaluation failed: ${(e as Error).message}`];
@@ -66,12 +84,18 @@ Deno.serve(async (req) => {
 
   const hasOverride = rawReason.length >= 10;
   if (failures.length > 0 && !hasOverride) {
-    return new Response(JSON.stringify({
-      ok: false, decision: "blocked", failures,
-      hint: "Pass override_reason (10+ chars) to publish anyway.",
-    }), {
-      status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        decision: "blocked",
+        failures,
+        hint: "Pass override_reason (10+ chars) to publish anyway.",
+      }),
+      {
+        status: 422,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const update: any = {
@@ -86,25 +110,37 @@ Deno.serve(async (req) => {
     update.publish_override_by = auth.userId;
   }
 
-  const { error: upErr } = await supabase.from("posts").update(update).eq("id", post_id);
+  const { error: upErr } = await supabase
+    .from("posts")
+    .update(update)
+    .eq("id", post_id);
   if (upErr) {
     return new Response(JSON.stringify({ error: upErr.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (post.opportunity_id) {
-    const { error: oppErr } = await supabase.from("content_opportunities")
+    const { error: oppErr } = await supabase
+      .from("content_opportunities")
       .update({ status: "published" })
       .eq("id", post.opportunity_id);
     if (oppErr) {
-      console.error("opportunity status update failed", post.opportunity_id, oppErr.message);
+      console.error(
+        "opportunity status update failed",
+        post.opportunity_id,
+        oppErr.message,
+      );
     }
   }
 
-  return new Response(JSON.stringify({
-    ok: true,
-    decision: failures.length === 0 ? "published" : "published_with_override",
-    failures,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      decision: failures.length === 0 ? "published" : "published_with_override",
+      failures,
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 });

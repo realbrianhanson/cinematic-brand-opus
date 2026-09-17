@@ -13,7 +13,10 @@ const corsHeaders = {
 };
 
 function pemToBuffer(pem: string) {
-  const base64 = pem.replace(/\\n/g, "").replace(/-----BEGIN PRIVATE KEY-----/, "").replace(/-----END PRIVATE KEY-----/, "");
+  const base64 = pem
+    .replace(/\\n/g, "")
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "");
   const binary = atob(base64);
   const buf = new ArrayBuffer(binary.length);
   const view = new Uint8Array(buf);
@@ -21,7 +24,7 @@ function pemToBuffer(pem: string) {
   return buf;
 }
 
-function base64url(source: ArrayBuffer) {
+function base64url(source: ArrayBuffer | Uint8Array) {
   const str = String.fromCharCode.apply(null, new Uint8Array(source) as any);
   return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -47,7 +50,11 @@ async function getAccessToken(serviceAccountJson: string): Promise<string> {
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(data));
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(data),
+  );
   const jwt = `${data}.${base64url(sig)}`;
   const tokRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -65,7 +72,12 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function querySearchAnalytics(accessToken: string, siteUrl: string, start: string, end: string) {
+async function querySearchAnalytics(
+  accessToken: string,
+  siteUrl: string,
+  start: string,
+  end: string,
+) {
   const rows: any[] = [];
   let startRow = 0;
   const rowLimit = 25000;
@@ -74,7 +86,10 @@ async function querySearchAnalytics(accessToken: string, siteUrl: string, start:
       `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           startDate: start,
           endDate: end,
@@ -96,7 +111,8 @@ async function querySearchAnalytics(accessToken: string, siteUrl: string, start:
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
 
   const authResult = await authorizeCronOrAdmin(req, corsHeaders);
   if (authResult instanceof Response) return authResult;
@@ -104,19 +120,33 @@ Deno.serve(async (req) => {
   const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
   if (!serviceAccountJson) {
     return new Response(
-      JSON.stringify({ skipped: true, reason: "GOOGLE_SERVICE_ACCOUNT_JSON not configured — GSC sync is disabled." }),
+      JSON.stringify({
+        skipped: true,
+        reason:
+          "GOOGLE_SERVICE_ACCOUNT_JSON not configured — GSC sync is disabled.",
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
   // Resolve the site property from site_settings.site_url.
-  const { data: settings } = await supabase.from("site_settings").select("site_url").limit(1).maybeSingle();
+  const { data: settings } = await supabase
+    .from("site_settings")
+    .select("site_url")
+    .limit(1)
+    .maybeSingle();
   const siteUrl = (settings?.site_url || "").replace(/\/+$/, "") + "/";
   if (!siteUrl || siteUrl === "/") {
     return new Response(
-      JSON.stringify({ skipped: true, reason: "site_settings.site_url is empty." }),
+      JSON.stringify({
+        skipped: true,
+        reason: "site_settings.site_url is empty.",
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -129,18 +159,24 @@ Deno.serve(async (req) => {
     const rows = await querySearchAnalytics(accessToken, siteUrl, start, end);
 
     // Clear rows for this period, then insert fresh snapshot.
-    await supabase.from("gsc_performance").delete().eq("period_start", start).eq("period_end", end);
+    await supabase
+      .from("gsc_performance")
+      .delete()
+      .eq("period_start", start)
+      .eq("period_end", end);
 
-    const batch = rows.map((r: any) => ({
-      page_url: r.keys?.[0] || "",
-      query: r.keys?.[1] || "",
-      clicks: Math.round(r.clicks || 0),
-      impressions: Math.round(r.impressions || 0),
-      ctr: Number(r.ctr || 0),
-      position: Number(r.position || 0),
-      period_start: start,
-      period_end: end,
-    })).filter((r: any) => r.page_url && r.query);
+    const batch = rows
+      .map((r: any) => ({
+        page_url: r.keys?.[0] || "",
+        query: r.keys?.[1] || "",
+        clicks: Math.round(r.clicks || 0),
+        impressions: Math.round(r.impressions || 0),
+        ctr: Number(r.ctr || 0),
+        position: Number(r.position || 0),
+        period_start: start,
+        period_end: end,
+      }))
+      .filter((r: any) => r.page_url && r.query);
 
     // Insert in chunks
     const chunkSize = 1000;
@@ -151,14 +187,22 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, site: siteUrl, period: `${start} → ${end}`, rows: batch.length }),
+      JSON.stringify({
+        ok: true,
+        site: siteUrl,
+        period: `${start} → ${end}`,
+        rows: batch.length,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: any) {
     console.error("gsc-sync error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

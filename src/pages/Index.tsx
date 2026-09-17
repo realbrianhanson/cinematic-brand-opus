@@ -32,7 +32,9 @@ const Index = () => {
     const hash = window.location.hash.replace("#", "");
     if (!hash) return;
     const timer = window.setTimeout(() => {
-      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById(hash)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
     return () => window.clearTimeout(timer);
   }, []);
@@ -52,7 +54,9 @@ const Index = () => {
           <Divider />
           {sections.story && (
             <>
-              <SectionReveal><Story /></SectionReveal>
+              <SectionReveal>
+                <Story />
+              </SectionReveal>
               <Divider />
             </>
           )}
@@ -61,13 +65,17 @@ const Index = () => {
           <Divider />
           {sections.event && (
             <>
-              <SectionReveal><EventCTA /></SectionReveal>
+              <SectionReveal>
+                <EventCTA />
+              </SectionReveal>
               <Divider />
             </>
           )}
           {sections.speaking && (
             <>
-              <SectionReveal><Speaking /></SectionReveal>
+              <SectionReveal>
+                <Speaking />
+              </SectionReveal>
               <Divider />
             </>
           )}

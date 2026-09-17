@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderNewsMarkdown, safeHref } from "@/lib/newsMarkdown";
 
-const html = (md: string) => renderToStaticMarkup(<>{renderNewsMarkdown(md)}</>);
+const html = (md: string) =>
+  renderToStaticMarkup(<>{renderNewsMarkdown(md)}</>);
 
 describe("safeHref", () => {
   it("allows http, https and mailto", () => {
-    expect(safeHref("https://example.com/a?b=c")).toContain("https://example.com/a");
+    expect(safeHref("https://example.com/a?b=c")).toContain(
+      "https://example.com/a",
+    );
     expect(safeHref("http://example.com")).toContain("http://example.com");
     expect(safeHref("mailto:me@example.com")).toBe("mailto:me@example.com");
   });
@@ -23,6 +26,7 @@ describe("safeHref", () => {
       "data:text/html;base64,PHNjcmlwdD4=",
       "vbscript:msgbox(1)",
       "//evil.example.com",
+      "/\\evil.example.com",
       "#anchor",
       "",
       null,
@@ -49,7 +53,9 @@ describe("renderNewsMarkdown", () => {
   });
 
   it("never emits raw HTML from the source markdown", () => {
-    const out = html('<img src=x onerror="alert(1)">\n\n<script>alert(1)</script>');
+    const out = html(
+      '<img src=x onerror="alert(1)">\n\n<script>alert(1)</script>',
+    );
     expect(out).not.toContain("<script");
     expect(out).not.toContain("<img");
     expect(out).not.toContain('onerror="alert');
@@ -57,7 +63,9 @@ describe("renderNewsMarkdown", () => {
   });
 
   it("keeps safe links and strips unsafe ones to plain text", () => {
-    const out = html("[good](https://example.com) and [bad](javascript:alert(1))");
+    const out = html(
+      "[good](https://example.com) and [bad](javascript:alert(1))",
+    );
     expect(out).toContain('href="https://example.com/"');
     expect(out).not.toContain("javascript:");
     expect(out).toContain("bad");

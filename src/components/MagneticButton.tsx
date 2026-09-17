@@ -8,7 +8,13 @@ interface MagneticButtonProps {
   target?: string;
 }
 
-const MagneticButton = ({ children, href, className, style, target }: MagneticButtonProps) => {
+const MagneticButton = ({
+  children,
+  href,
+  className,
+  style,
+  target,
+}: MagneticButtonProps) => {
   const ref = useRef<HTMLAnchorElement>(null);
 
   const onMove = useCallback((e: React.MouseEvent) => {

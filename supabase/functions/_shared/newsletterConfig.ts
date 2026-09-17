@@ -28,17 +28,19 @@ export interface NewsletterConfig {
 }
 
 export type NewsletterConfigResult =
-  | { ok: true; config: NewsletterConfig }
-  | { ok: false; missing: string[] };
+  { ok: true; config: NewsletterConfig } | { ok: false; missing: string[] };
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
-const SENDER_RE = /^\s*(?:[^<>]{1,80}<\s*([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+)\s*>|([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+))\s*$/;
+const SENDER_RE =
+  /^\s*(?:[^<>]{1,80}<\s*([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+)\s*>|([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+))\s*$/;
 
 export function isValidEmail(value: unknown): boolean {
-  return typeof value === "string" &&
+  return (
+    typeof value === "string" &&
     value.length > 0 &&
     value.length <= 254 &&
-    EMAIL_RE.test(value);
+    EMAIL_RE.test(value)
+  );
 }
 
 /** Accepts `user@example.com` or `Display Name <user@example.com>`. */
@@ -78,7 +80,8 @@ export function resolveNewsletterConfig(
   if (!siteUrl) missing.push("site_settings.site_url");
 
   const from = (settings?.newsletter_from_address ?? "").trim();
-  if (!isValidSender(from)) missing.push("site_settings.newsletter_from_address");
+  if (!isValidSender(from))
+    missing.push("site_settings.newsletter_from_address");
 
   const replyTo = (settings?.newsletter_reply_to ?? "").trim();
   if (!isValidEmail(replyTo)) missing.push("site_settings.newsletter_reply_to");
@@ -88,7 +91,8 @@ export function resolveNewsletterConfig(
 
   if (missing.length > 0) return { ok: false, missing };
 
-  const siteName = (settings?.site_name ?? "").trim() || new URL(siteUrl!).hostname;
+  const siteName =
+    (settings?.site_name ?? "").trim() || new URL(siteUrl!).hostname;
   const authorName = (settings?.author_name ?? "").trim() || siteName;
   const postal = (settings?.newsletter_postal_address ?? "").trim() || null;
 
@@ -133,8 +137,7 @@ export function buildConfirmationEmail(
   const author = escapeHtml(config.authorName);
   const subject = `Confirm your subscription to ${config.siteName}`;
 
-  const html =
-    `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0b12;color:#f3f3f3;margin:0;padding:32px;">
+  const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0b12;color:#f3f3f3;margin:0;padding:32px;">
   <div style="max-width:560px;margin:0 auto;background:#12121a;padding:32px;border:1px solid rgba(255,255,255,0.08);">
     <h1 style="font-size:20px;margin:0 0 16px;color:#fff;">Confirm your subscription</h1>
     <p style="font-size:15px;line-height:1.6;color:#d8d8d8;">You (or someone using your email address) asked to receive the ${brand} newsletter. Confirm below and ${author} will start sending it your way.</p>
@@ -166,25 +169,27 @@ export interface SubscribeApiResponse {
 /**
  * Maps a DB subscribe outcome to a public response. Responses are deliberately
  * uniform for states that would otherwise leak whether an address is on the
- * list (suppressed / cooldown both read as "already requested").
+ * list (all successful states use the same response).
  */
-export function subscribeResponseFor(state: SubscribeState): SubscribeApiResponse {
+export function subscribeResponseFor(
+  state: SubscribeState,
+): SubscribeApiResponse {
   switch (state) {
     case "confirmation_due":
-      return { status: 200, body: { ok: true, state: "confirmation_sent" } };
     case "already_subscribed":
-      return { status: 200, body: { ok: true, state: "already_subscribed" } };
     case "suppressed":
     case "cooldown":
-      // No enumeration signal: identical shape either way.
-      return { status: 200, body: { ok: true, state: "confirmation_already_requested" } };
+      return { status: 200, body: { ok: true, state: "accepted" } };
     default:
       return { status: 500, body: { ok: false, state: "error" } };
   }
 }
 
 /** Stable provider idempotency key for one chunk of one week's digest. */
-export function buildBatchIdempotencyKey(base: string, chunkIndex: number): string {
+export function buildBatchIdempotencyKey(
+  base: string,
+  chunkIndex: number,
+): string {
   return `${base}-batch-${chunkIndex}`;
 }
 

@@ -23,7 +23,8 @@ const FilmGrain = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = 0, h = 0;
+    let w = 0,
+      h = 0;
     let prevScrollY = window.scrollY;
     let velocity = 0;
 

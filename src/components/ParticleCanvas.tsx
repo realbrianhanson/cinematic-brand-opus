@@ -19,7 +19,8 @@ const ParticleCanvas = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = 0, h = 0;
+    let w = 0,
+      h = 0;
     const resize = () => {
       w = canvas.parentElement?.clientWidth || window.innerWidth;
       h = canvas.parentElement?.clientHeight || window.innerHeight;
@@ -44,7 +45,10 @@ const ParticleCanvas = () => {
       mouse.current.x = e.clientX - rect.left;
       mouse.current.y = e.clientY - rect.top;
     };
-    const onLeave = () => { mouse.current.x = -9999; mouse.current.y = -9999; };
+    const onLeave = () => {
+      mouse.current.x = -9999;
+      mouse.current.y = -9999;
+    };
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mouseleave", onLeave);
 
@@ -58,7 +62,7 @@ const ParticleCanvas = () => {
         const dy = p.y - mouse.current.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 160 && dist > 0) {
-          const force = (160 - dist) / 160 * 0.8;
+          const force = ((160 - dist) / 160) * 0.8;
           p.vx += (dx / dist) * force;
           p.vy += (dy / dist) * force;
         }
@@ -69,7 +73,10 @@ const ParticleCanvas = () => {
 
         // Clamp velocity
         const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        if (speed > 2) { p.vx = (p.vx / speed) * 2; p.vy = (p.vy / speed) * 2; }
+        if (speed > 2) {
+          p.vx = (p.vx / speed) * 2;
+          p.vy = (p.vy / speed) * 2;
+        }
 
         p.x += p.vx;
         p.y += p.vy;

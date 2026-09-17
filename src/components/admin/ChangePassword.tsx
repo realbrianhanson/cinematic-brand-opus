@@ -10,13 +10,17 @@ const ChangePassword = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const passwordsMatch = newPass.length > 0 && confirmPass.length > 0 && newPass === confirmPass;
+  const passwordsMatch =
+    newPass.length > 0 && confirmPass.length > 0 && newPass === confirmPass;
   const passwordsMismatch = confirmPass.length > 0 && newPass !== confirmPass;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass.length < 8) {
-      toast({ title: "Password must be at least 8 characters", variant: "destructive" });
+      toast({
+        title: "Password must be at least 8 characters",
+        variant: "destructive",
+      });
       return;
     }
     if (newPass !== confirmPass) {
@@ -26,33 +30,44 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
       if (sessionError || !accessToken) {
-        toast({ title: "Your session expired. Please sign in again.", variant: "destructive" });
+        toast({
+          title: "Your session expired. Please sign in again.",
+          variant: "destructive",
+        });
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`, {
-        method: "PUT",
-        headers: {
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,
+        {
+          method: "PUT",
+          headers: {
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password: newPass }),
         },
-        body: JSON.stringify({ password: newPass }),
-      });
+      );
 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
         const backendMessage =
-          payload?.msg || payload?.error_description || payload?.error || "Unable to update password";
+          payload?.msg ||
+          payload?.error_description ||
+          payload?.error ||
+          "Unable to update password";
 
         toast({
           title:
-            backendMessage === "New password should be different from the old password."
+            backendMessage ===
+            "New password should be different from the old password."
               ? "Please choose a different password from your current one"
               : backendMessage,
           variant: "destructive",
@@ -75,13 +90,29 @@ const ChangePassword = () => {
     <div>
       <h2
         className="font-heading"
-        style={{ fontSize: 22, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 24 }}
+        style={{
+          fontSize: 22,
+          fontWeight: 600,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 24,
+        }}
       >
         Change Password
       </h2>
-      <form onSubmit={handleSubmit} style={{ maxWidth: 400, display: "flex", flexDirection: "column", gap: 16 }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          maxWidth: 400,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+          <label
+            className="font-body"
+            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+          >
             New Password
           </label>
           <div style={{ position: "relative" }}>
@@ -125,7 +156,10 @@ const ChangePassword = () => {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+          <label
+            className="font-body"
+            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+          >
             Confirm Password
           </label>
           <div style={{ position: "relative" }}>
@@ -168,16 +202,34 @@ const ChangePassword = () => {
             </button>
           </div>
           {confirmPass.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginTop: 2 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 12,
+                marginTop: 2,
+              }}
+            >
               {passwordsMatch ? (
                 <>
                   <Check size={14} style={{ color: "hsl(140 60% 40%)" }} />
-                  <span className="font-body" style={{ color: "hsl(140 60% 40%)" }}>Passwords match</span>
+                  <span
+                    className="font-body"
+                    style={{ color: "hsl(140 60% 40%)" }}
+                  >
+                    Passwords match
+                  </span>
                 </>
               ) : (
                 <>
                   <X size={14} style={{ color: "hsl(0 70% 50%)" }} />
-                  <span className="font-body" style={{ color: "hsl(0 70% 50%)" }}>Passwords do not match</span>
+                  <span
+                    className="font-body"
+                    style={{ color: "hsl(0 70% 50%)" }}
+                  >
+                    Passwords do not match
+                  </span>
                 </>
               )}
             </div>

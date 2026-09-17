@@ -30,7 +30,8 @@ function json(status: number, body: unknown) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
@@ -53,15 +54,41 @@ Deno.serve(async (req) => {
     )
     .limit(1)
     .maybeSingle();
-  const resolved = resolveNewsletterConfig(pubSettings, Deno.env.get("RESEND_API_KEY"));
+  const resolved = resolveNewsletterConfig(
+    pubSettings,
+    Deno.env.get("RESEND_API_KEY"),
+  );
   if (!resolved.ok) {
-    return json(503, { ok: false, state: "unavailable", missing: resolved.missing });
+    return json(503, {
+      ok: false,
+      state: "unavailable",
+      missing: resolved.missing,
+    });
   }
   const config = resolved.config;
 
+  const { data: existing, error: existingError } = await admin
+    .from("newsletter_sends")
+    .select("id,status,updated_at")
+    .eq("week_key", weekKey)
+    .maybeSingle();
+  if (existingError)
+    return json(503, { error: "Cannot read this week's preview" });
+  if (existing && existing.status !== "preview") {
+    return json(409, {
+      ok: false,
+      state: existing.status,
+      error: "This newsletter can no longer be regenerated.",
+    });
+  }
+
   const posts = await fetchRecentPosts(admin);
   if (posts.length === 0) {
-    return json(200, { ok: true, skipped: "no posts this week", week_key: weekKey });
+    return json(200, {
+      ok: true,
+      skipped: "no posts this week",
+      week_key: weekKey,
+    });
   }
 
   const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
@@ -70,17 +97,6 @@ Deno.serve(async (req) => {
     siteName: config.siteName,
     authorName: config.authorName,
   });
-
-  // Upsert preview row (Regenerate re-runs this same function).
-  const { data: existing } = await admin
-    .from("newsletter_sends")
-    .select("id, status")
-    .eq("week_key", weekKey)
-    .maybeSingle();
-
-  if (existing?.status === "sent") {
-    return json(200, { ok: true, skipped: "already sent this week", week_key: weekKey });
-  }
 
   const payload = {
     week_key: weekKey,
@@ -95,12 +111,20 @@ Deno.serve(async (req) => {
     claimed_at: null as string | null,
   };
 
-
   if (existing?.id) {
-    const { error } = await admin
+    const { data: updated, error } = await admin
       .from("newsletter_sends")
       .update(payload)
-      .eq("id", existing.id);
+      .eq("id", existing.id)
+      .eq("status", "preview")
+      .eq("updated_at", existing.updated_at)
+      .select("id")
+      .maybeSingle();
+    if (!error && !updated)
+      return json(409, {
+        error:
+          "Preview changed while composing. Reload to see the current version.",
+      });
     if (error) return json(500, { error: `update failed: ${error.message}` });
   } else {
     const { error } = await admin.from("newsletter_sends").insert(payload);
@@ -126,19 +150,33 @@ Deno.serve(async (req) => {
       subject: `[PREVIEW — sends Tuesday] ${composed.subject}`,
       html,
     };
+    const payloadHash = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(JSON.stringify(body)),
+        ),
+      ),
+    )
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(15000),
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
-          // One preview per week per composed subject, even if retried.
-          "Idempotency-Key": `nl-preview-${weekKey}`,
+          // Identical payloads reuse a key; regenerated content gets its own key.
+          "Idempotency-Key": `nl-preview-${weekKey}-${payloadHash}`,
         },
         body: JSON.stringify(body),
       });
       previewSent = res.ok;
-      if (!res.ok) console.error(`Preview send failed [${res.status}]: ${await res.text()}`);
+      if (!res.ok)
+        console.error(
+          `Preview send failed [${res.status}]: ${await res.text()}`,
+        );
     } catch (e) {
       console.error("Preview send threw:", e);
     }

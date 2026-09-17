@@ -16,7 +16,11 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-import { MAIN_MODEL as AI_MODEL, ANGLE_MODEL, IMAGE_MODEL } from "../_shared/models.ts";
+import {
+  MAIN_MODEL as AI_MODEL,
+  ANGLE_MODEL,
+  IMAGE_MODEL,
+} from "../_shared/models.ts";
 const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
 const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
@@ -29,7 +33,16 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function researchTopic(nicheName: string, schemaName: string, audience: string, currentYear: number): Promise<{ context: string; hasResearch: boolean; sources: { url: string; title?: string }[] }> {
+async function researchTopic(
+  nicheName: string,
+  schemaName: string,
+  audience: string,
+  currentYear: number,
+): Promise<{
+  context: string;
+  hasResearch: boolean;
+  sources: { url: string; title?: string }[];
+}> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
@@ -40,11 +53,17 @@ async function researchTopic(nicheName: string, schemaName: string, audience: st
       const query = `What are the most actively used and well-reviewed ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? List ONLY tools and platforms that are currently popular, actively maintained, and have recent user reviews or updates. Include specific names, pricing, and what makes each one stand out. Exclude any tools that have shut down, pivoted away from this space, or lost significant market share. Focus on what ${audience} are actually adopting right now in ${currentYear}.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
-        headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           model: "sonar-pro",
           messages: [
-            { role: "system", content: `You are a research assistant specializing in current technology trends. Return ONLY factual, verified information from ${currentYear}. Never mention tools that have shut down or are no longer actively maintained. Include specific names, numbers, pricing, and dates. No fluff.` },
+            {
+              role: "system",
+              content: `You are a research assistant specializing in current technology trends. Return ONLY factual, verified information from ${currentYear}. Never mention tools that have shut down or are no longer actively maintained. Include specific names, numbers, pricing, and dates. No fluff.`,
+            },
             { role: "user", content: query },
           ],
           search_recency_filter: "week",
@@ -55,47 +74,79 @@ async function researchTopic(nicheName: string, schemaName: string, audience: st
         const content = data.choices?.[0]?.message?.content || "";
         const citations = data.citations || [];
         if (content) {
-          researchParts.push(`LIVE RESEARCH (sourced ${currentYear}):\n${content}`);
-          if (citations.length > 0) researchParts.push(`Sources: ${citations.slice(0, 8).join(", ")}`);
+          researchParts.push(
+            `LIVE RESEARCH (sourced ${currentYear}):\n${content}`,
+          );
+          if (citations.length > 0)
+            researchParts.push(`Sources: ${citations.slice(0, 8).join(", ")}`);
         }
         for (const c of citations.slice(0, 8)) {
-          if (typeof c === "string" && c.startsWith("http")) sources.push({ url: c });
-          else if (c && typeof c === "object" && typeof c.url === "string") sources.push({ url: c.url, title: c.title });
+          if (typeof c === "string" && c.startsWith("http"))
+            sources.push({ url: c });
+          else if (c && typeof c === "object" && typeof c.url === "string")
+            sources.push({ url: c.url, title: c.title });
         }
-      } else { console.error("Perplexity failed:", resp.status); }
-    } catch (e: any) { console.error("Perplexity error:", e.message); }
+      } else {
+        console.error("Perplexity failed:", resp.status);
+      }
+    } catch (e: any) {
+      console.error("Perplexity error:", e.message);
+    }
   }
 
   if (FIRECRAWL_API_KEY) {
     try {
       const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear} review`, limit: 3, scrapeOptions: { formats: ["markdown"], onlyMainContent: true } }),
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: `best ${schemaName.toLowerCase()} ${nicheName} ${currentYear} review`,
+          limit: 3,
+          scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
+        }),
       });
       if (searchResp.ok) {
         const searchData = await searchResp.json();
         const results = searchData.data || [];
         if (results.length > 0) {
-          const snippets = results.map((r: any) => `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 600).trim()}`).join("\n\n");
-          researchParts.push(`SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`);
+          const snippets = results
+            .map(
+              (r: any) =>
+                `[${r.title || r.url}]: ${(r.markdown || "").slice(0, 600).trim()}`,
+            )
+            .join("\n\n");
+          researchParts.push(
+            `SCRAPED WEB CONTENT (${currentYear}):\n${snippets}`,
+          );
           for (const r of results) {
-            if (r?.url) sources.push({ url: r.url, title: r.title || undefined });
+            if (r?.url)
+              sources.push({ url: r.url, title: r.title || undefined });
           }
         }
-      } else { console.error("Firecrawl failed:", searchResp.status); }
-    } catch (e: any) { console.error("Firecrawl error:", e.message); }
+      } else {
+        console.error("Firecrawl failed:", searchResp.status);
+      }
+    } catch (e: any) {
+      console.error("Firecrawl error:", e.message);
+    }
   }
 
   const seen = new Set<string>();
-  const dedupedSources = sources.filter((s) => {
-    if (!s.url || seen.has(s.url)) return false;
-    seen.add(s.url);
-    return true;
-  }).slice(0, 8);
+  const dedupedSources = sources
+    .filter((s) => {
+      if (!s.url || seen.has(s.url)) return false;
+      seen.add(s.url);
+      return true;
+    })
+    .slice(0, 8);
 
   if (researchParts.length === 0) {
-    console.warn(`⚠️ No research data available for "${schemaName}" in "${nicheName}" — content will be conservative`);
+    console.warn(
+      `⚠️ No research data available for "${schemaName}" in "${nicheName}" — content will be conservative`,
+    );
     return { context: "", hasResearch: false, sources: dedupedSources };
   }
   return {
@@ -117,7 +168,10 @@ Deno.serve(async (req) => {
   if (!LOVABLE_API_KEY) {
     return new Response(
       JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 
@@ -131,38 +185,52 @@ Deno.serve(async (req) => {
     const batch_id = crypto.randomUUID();
     const explicitIds: string[] | null = Array.isArray(page_ids)
       ? page_ids
-      : (typeof page_id === "string" ? [page_id] : null);
+      : typeof page_id === "string"
+        ? [page_id]
+        : null;
 
     let pagesToRefresh: any[] = [];
-    const skippedHumanEdited: { id: string; slug: string; title: string }[] = [];
+    const skippedHumanEdited: { id: string; slug: string; title: string }[] =
+      [];
 
     if (all_stale) {
       let q = supabase
         .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
+        .select(
+          "*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)",
+        )
         .eq("performance_trend", "needs_refresh")
         .eq("status", "published")
         .order("last_refreshed", { ascending: true, nullsFirst: true });
-      if (typeof max_pages === "number" && max_pages > 0) q = q.limit(max_pages);
+      if (typeof max_pages === "number" && max_pages > 0)
+        q = q.limit(max_pages);
       const { data, error } = await q;
       if (error) throw new Error(`Query failed: ${error.message}`);
       const all = data || [];
       // Skip human-edited pages in all_stale (they require explicit page_id override)
       for (const p of all) {
-        if ((p as any).human_edited) skippedHumanEdited.push({ id: p.id, slug: p.slug, title: p.title });
+        if ((p as any).human_edited)
+          skippedHumanEdited.push({ id: p.id, slug: p.slug, title: p.title });
         else pagesToRefresh.push(p);
       }
     } else if (explicitIds && explicitIds.length > 0) {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)")
+        .select(
+          "*, niches!generated_pages_niche_id_fkey(id, name, slug, context), content_schemas(id, name, slug, schema_definition, title_template, description_template, items_per_section)",
+        )
         .in("id", explicitIds);
       if (error) throw new Error(`Query failed: ${error.message}`);
       pagesToRefresh = data || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Provide page_ids array, page_id, or all_stale: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Provide page_ids array, page_id, or all_stale: true",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -175,7 +243,7 @@ Deno.serve(async (req) => {
             : "No pages to refresh.",
           skipped_human_edited: skippedHumanEdited,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -229,7 +297,16 @@ Deno.serve(async (req) => {
       }
 
       // Research phase: gather real-time data
-      const { context: researchContext, hasResearch, sources } = await researchTopic(niche.name, schema.name, ctx.audience || "general", currentYear);
+      const {
+        context: researchContext,
+        hasResearch,
+        sources,
+      } = await researchTopic(
+        niche.name,
+        schema.name,
+        ctx.audience || "general",
+        currentYear,
+      );
 
       const researchConstraints = hasResearch
         ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
@@ -353,14 +430,21 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
       let lintFlags: any[] = [];
       try {
         const refined = await refineWithVoice({
-          apiKey: LOVABLE_API_KEY, model: AI_MODEL, voice, researchContext,
+          apiKey: LOVABLE_API_KEY,
+          model: AI_MODEL,
+          voice,
+          researchContext,
           draftJson: contentJson,
           schemaHint: `refreshed listicle content_json for ${schema.name}`,
         });
         tokensUsed += refined.tokensUsed;
         contentJson = refined.refined;
         lintFlags = refined.remainingViolations;
-        if (refined.errors.length) console.warn(`Refine warnings for ${page.slug}:`, refined.errors.join(" | "));
+        if (refined.errors.length)
+          console.warn(
+            `Refine warnings for ${page.slug}:`,
+            refined.errors.join(" | "),
+          );
       } catch (e: any) {
         console.error(`Refine threw for ${page.slug}:`, e.message);
       }
@@ -371,15 +455,23 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
       // Auto-score final content
       const { score: qualityScore } = scoreContent(contentJson, title);
 
-      const siteName = siteSettings?.publisher_name || siteSettings?.site_name || "";
+      const siteName =
+        siteSettings?.publisher_name || siteSettings?.site_name || "";
       const existingSeo = (page.seo_meta || {}) as any;
       const primaryKw = existingSeo.keywords?.[0] || niche.name;
-      const fallbackDesc = existingSeo.description && !existingSeo.description.startsWith("Discover")
-        ? existingSeo.description
-        : `${schema.name} for ${niche.name}, verified against ${currentYear} sources.`;
+      const fallbackDesc =
+        existingSeo.description &&
+        !existingSeo.description.startsWith("Discover")
+          ? existingSeo.description
+          : `${schema.name} for ${niche.name}, verified against ${currentYear} sources.`;
       const newMetaDesc = await writeMetaDescription({
-        apiKey: LOVABLE_API_KEY, model: AI_MODEL, voice, contentJson,
-        primaryKeyword: primaryKw, angle: schema.name, niche: niche.name,
+        apiKey: LOVABLE_API_KEY,
+        model: AI_MODEL,
+        voice,
+        contentJson,
+        primaryKeyword: primaryKw,
+        angle: schema.name,
+        niche: niche.name,
         fallback: fallbackDesc,
       });
       const seoMeta = {
@@ -387,7 +479,6 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
         title: composeTitle(title, siteName),
         description: newMetaDesc,
       };
-
 
       const { error: updateErr } = await supabase
         .from("generated_pages")
@@ -441,7 +532,10 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
     console.error("refresh-stale-content error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });
@@ -456,7 +550,7 @@ async function logGeneration(
     tokens_used: number;
     cost: number;
     duration_ms: number;
-  }
+  },
 ) {
   try {
     await supabase.from("generation_logs").insert(log);

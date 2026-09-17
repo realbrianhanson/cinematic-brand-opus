@@ -5,8 +5,10 @@
 // Returns absolute URL or null. Short timeout so it never stalls polling.
 import { fetchTextBounded, isPublicHttpUrl } from "./safeFetch.ts";
 
-
-export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
+export async function fetchOgImage(
+  pageUrl: string,
+  timeoutMs = 6000,
+): Promise<string | null> {
   // Article URLs arrive from remote feeds, so never fetch one that is not a
   // public https address.
   if (!isPublicHttpUrl(pageUrl)) return null;
@@ -15,7 +17,10 @@ export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<s
   return await tryFirecrawl(pageUrl);
 }
 
-async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | null> {
+async function tryDirect(
+  pageUrl: string,
+  timeoutMs: number,
+): Promise<string | null> {
   try {
     const res = await fetchTextBounded(pageUrl, {
       headers: {
@@ -23,7 +28,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
         // desktop Chrome UA so we can read the og:image meta tag.
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
       timeoutMs,
@@ -32,7 +38,6 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
     });
     if (!res.ok) return null;
     const html = res.body;
-
 
     const patterns: RegExp[] = [
       /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["']/i,
@@ -51,7 +56,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
     for (const tag of imgs) {
       const src = tag.match(/src=["']([^"']+)["']/i)?.[1];
       if (!src) continue;
-      if (/(sprite|logo|icon|1x1|pixel|blank|spacer|avatar)/i.test(src)) continue;
+      if (/(sprite|logo|icon|1x1|pixel|blank|spacer|avatar)/i.test(src))
+        continue;
       if (src.startsWith("data:")) continue;
       const abs = toAbsolute(src, pageUrl);
       if (abs) return abs;
@@ -70,8 +76,15 @@ async function tryFirecrawl(pageUrl: string): Promise<string | null> {
     const t = setTimeout(() => ctrl.abort(), 20_000);
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ url: pageUrl, formats: ["markdown"], onlyMainContent: false }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        url: pageUrl,
+        formats: ["markdown"],
+        onlyMainContent: false,
+      }),
       signal: ctrl.signal,
     });
     clearTimeout(t);
@@ -79,7 +92,11 @@ async function tryFirecrawl(pageUrl: string): Promise<string | null> {
     const json = await res.json();
     const meta = json?.data?.metadata || {};
     const candidate =
-      meta.ogImage || meta["og:image"] || meta.twitterImage || meta["twitter:image"] || null;
+      meta.ogImage ||
+      meta["og:image"] ||
+      meta.twitterImage ||
+      meta["twitter:image"] ||
+      null;
     return candidate ? toAbsolute(String(candidate), pageUrl) : null;
   } catch {
     return null;

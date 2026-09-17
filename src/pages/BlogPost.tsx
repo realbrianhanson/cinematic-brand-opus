@@ -1,3 +1,12 @@
+import { z } from "zod";
+import type {
+  PublicPost,
+  PublicPillar,
+  PublicGeneratedPage,
+  PublicSiteSettings,
+  PublicNewsItem,
+} from "@/lib/publicTypes";
+import type { Tables, Json } from "@/integrations/supabase/types";
 import { useParams, Link } from "@/lib/router-compat";
 import { safeHtml } from "@/lib/safeHtml";
 import { useQuery } from "@tanstack/react-query";
@@ -15,11 +24,15 @@ interface BlogPostProps {
   /** Enabled only inside an authenticated admin preview; RLS still applies. */
   preview?: boolean;
   /** Server-rendered article, so the body is in the initial HTML. */
-  initialPost?: Record<string, any> | null;
-  initialSettings?: Record<string, any> | null;
+  initialPost?: PublicPost | null;
+  initialSettings?: PublicSiteSettings | null;
 }
 
-const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostProps = {}) => {
+const BlogPost = ({
+  initialPost,
+  initialSettings,
+  preview = false,
+}: BlogPostProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
   const { data: post, isLoading } = useQuery({
@@ -35,24 +48,38 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
       return data;
     },
     enabled: !!slug,
-    ...(initialPost ? { initialData: initialPost as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialPost
+      ? { initialData: initialPost as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const { data: siteSettings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("site_settings")
+        .select(
+          "id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at",
+        )
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     staleTime: 60000,
-    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
+    ...(initialSettings
+      ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   // Fetch SEO keywords for matching
   const { data: seoMeta } = useQuery({
     queryKey: ["post-seo-meta", post?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("seo_metadata").select("keywords").eq("post_id", post!.id).maybeSingle();
+      const { data } = await supabase
+        .from("seo_metadata")
+        .select("keywords")
+        .eq("post_id", post!.id)
+        .maybeSingle();
       return data;
     },
     enabled: !!post?.id,
@@ -64,22 +91,26 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
   const { data: allNiches } = useQuery({
     queryKey: ["all-niches-for-crosslink"],
     queryFn: async () => {
-      const { data } = await supabase.from("niches").select("id, name, slug").eq("is_active", true);
+      const { data } = await supabase
+        .from("niches")
+        .select("id, name, slug")
+        .eq("is_active", true);
       return (data ?? []).map((n) => ({ ...n, context: null }));
     },
     staleTime: 120000,
   });
 
   // Find matching niches
-  const matchedNiches = post && allNiches
-    ? findRelatedNiches(
-        (seoMeta?.keywords as string[]) || [],
-        (post as any).categories?.name || "",
-        allNiches,
-        1,
-        3
-      )
-    : [];
+  const matchedNiches =
+    post && allNiches
+      ? findRelatedNiches(
+          (seoMeta?.keywords as string[]) || [],
+          post.categories?.name || "",
+          allNiches,
+          1,
+          3,
+        )
+      : [];
 
   // Fetch pillar + generated pages for matched niches
   const matchedNicheIds = matchedNiches.map((m) => m.nicheId);
@@ -93,7 +124,9 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
         .eq("status", "published");
       const { data: pages } = await supabase
         .from("generated_pages")
-        .select("id, title, slug, niche_id, content_schema_id, content_schemas(slug), niches(slug)")
+        .select(
+          "id, title, slug, niche_id, content_schema_id, content_schemas(slug), niches(slug)",
+        )
         .in("niche_id", matchedNicheIds)
         .eq("status", "published")
         .limit(6);
@@ -103,13 +136,16 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
     staleTime: 60000,
   });
 
-  const blogFaqs = post?.faq_items && Array.isArray(post.faq_items) ? (post.faq_items as any[]) : undefined;
+  const blogFaqs = z
+    .array(z.object({ question: z.string(), answer: z.string() }))
+    .catch([])
+    .parse(post?.faq_items);
 
   if (isLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "#07070E" }}
+        style={{ background: "var(--brand-backdrop)" }}
       >
         <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
           Loading...
@@ -122,7 +158,7 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-6"
-        style={{ background: "#07070E" }}
+        style={{ background: "var(--brand-backdrop)" }}
       >
         <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
           Post not found
@@ -130,7 +166,11 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
         <Link
           to="/blog"
           className="font-body uppercase"
-          style={{ fontSize: 12, letterSpacing: "0.15em", color: "#D4AF55" }}
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.15em",
+            color: "var(--brand-accent)",
+          }}
         >
           ← Back to Blog
         </Link>
@@ -139,7 +179,10 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "#0b0b10", color: "#fff" }}
+    >
       <Nav />
       <article
         id="main-content"
@@ -154,7 +197,9 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
             letterSpacing: "0.18em",
             color: "rgba(255,255,255,0.4)",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.color = "var(--brand-accent)")
+          }
           onMouseLeave={(e) =>
             (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
           }
@@ -165,12 +210,16 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
 
         {/* Meta */}
         <div className="flex items-center gap-4 mb-6">
-          {(post as any).categories?.name && (
+          {post.categories?.name && (
             <span
               className="font-body uppercase"
-              style={{ fontSize: 11, letterSpacing: "0.15em", color: "#D4AF55" }}
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.15em",
+                color: "var(--brand-accent)",
+              }}
             >
-              {(post as any).categories.name}
+              {post.categories.name}
             </span>
           )}
           <span
@@ -212,57 +261,60 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
             padding: "clamp(24px, 4vw, 40px)",
           }}
         >
-        {/* TL;DR */}
-        {post.tldr && (
-          <div
-            className="answer-block mb-10 p-6"
-            style={{
-              borderLeft: "3px solid #D4AF55",
-              background: "rgba(212,175,85,0.06)",
-            }}
-          >
-            <span
-              className="font-body uppercase block mb-2"
+          {/* TL;DR */}
+          {post.tldr && (
+            <div
+              className="answer-block mb-10 p-6"
               style={{
-                fontSize: 11,
-                letterSpacing: "0.15em",
-                color: "#D4AF55",
+                borderLeft: "3px solid var(--brand-accent)",
+                background: "rgba(var(--brand-accent-rgb),0.06)",
               }}
             >
-              TL;DR
-            </span>
-            <p
-              className="font-body"
-              style={{ fontSize: 17, color: "rgba(255,255,255,0.92)", lineHeight: 1.7 }}
-            >
-              {post.tldr}
-            </p>
-          </div>
-        )}
+              <span
+                className="font-body uppercase block mb-2"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.15em",
+                  color: "var(--brand-accent)",
+                }}
+              >
+                TL;DR
+              </span>
+              <p
+                className="font-body"
+                style={{
+                  fontSize: 17,
+                  color: "rgba(255,255,255,0.92)",
+                  lineHeight: 1.7,
+                }}
+              >
+                {post.tldr}
+              </p>
+            </div>
+          )}
 
-        {/* Featured image */}
-        {post.featured_image && (
-          <img
-            src={post.featured_image}
-            alt={(post as any).featured_image_alt || post.title}
-            loading="lazy"
-            className="w-full mb-10"
-            style={{ maxHeight: 450, objectFit: "cover" }}
+          {/* Featured image */}
+          {post.featured_image && (
+            <img
+              src={post.featured_image}
+              alt={post.featured_image_alt || post.title}
+              loading="lazy"
+              className="w-full mb-10"
+              style={{ maxHeight: 450, objectFit: "cover" }}
+            />
+          )}
+
+          {/* Content */}
+          <div
+            className="blog-content font-body"
+            style={{
+              fontSize: 17,
+              lineHeight: 1.85,
+              color: "rgba(255,255,255,0.9)",
+            }}
+            dangerouslySetInnerHTML={{ __html: safeHtml(post.content ?? "") }}
           />
-        )}
-
-        {/* Content */}
-        <div
-          className="blog-content font-body"
-          style={{
-            fontSize: 17,
-            lineHeight: 1.85,
-            color: "rgba(255,255,255,0.9)",
-          }}
-          dangerouslySetInnerHTML={{ __html: safeHtml(post.content ?? "") }}
-        />
         </div>
-
 
         {/* Key Takeaways */}
         {post.key_takeaways &&
@@ -271,13 +323,13 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
             <div
               className="mt-14 p-8"
               style={{
-                border: "1px solid rgba(212,175,85,0.15)",
-                background: "rgba(212,175,85,0.03)",
+                border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
+                background: "rgba(var(--brand-accent-rgb),0.03)",
               }}
             >
               <h3
                 className="font-display italic mb-5"
-                style={{ fontSize: 22, color: "#D4AF55" }}
+                style={{ fontSize: 22, color: "var(--brand-accent)" }}
               >
                 Key Takeaways
               </h3>
@@ -292,7 +344,11 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
                       lineHeight: 1.6,
                     }}
                   >
-                    <span style={{ color: "#D4AF55", marginTop: 2 }}>→</span>
+                    <span
+                      style={{ color: "var(--brand-accent)", marginTop: 2 }}
+                    >
+                      →
+                    </span>
                     {item}
                   </li>
                 ))}
@@ -303,7 +359,7 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
         {/* FAQ */}
         {post.faq_items &&
           Array.isArray(post.faq_items) &&
-          (post.faq_items as any[]).length > 0 && (
+          blogFaqs.length > 0 && (
             <div className="mt-14">
               <h3
                 className="font-display italic mb-6"
@@ -312,7 +368,7 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
                 FAQ
               </h3>
               <div className="flex flex-col gap-6">
-                {(post.faq_items as any[]).map((faq, i) => (
+                {blogFaqs.map((faq, i) => (
                   <div
                     key={i}
                     className="pb-6"
@@ -342,68 +398,128 @@ const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostPro
             </div>
           )}
 
-        <WidgetRenderer zone="page" pageContext={{ postId: post.id, categoryId: (post as any).categories?.id }} />
+        <WidgetRenderer
+          zone="page"
+          pageContext={{
+            postId: post.id,
+            categoryId: post.category_id ?? undefined,
+          }}
+        />
 
         {/* Cross-links into silo structure */}
-        {crossLinkData && (crossLinkData.pillars.length > 0 || crossLinkData.pages.length > 0) && (
-          <div className="mt-16">
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>Related Resources</h2>
+        {crossLinkData &&
+          (crossLinkData.pillars.length > 0 ||
+            crossLinkData.pages.length > 0) && (
+            <div className="mt-16">
+              <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+                Related Resources
+              </h2>
 
-            {/* Pillar links — prominent */}
-            {crossLinkData.pillars.map((p) => {
-              const niche = matchedNiches.find((m) => m.nicheId === p.niche_id);
-              return (
-                <a
-                  key={p.id}
-                  href={`/guides/${p.slug}`}
-                  className="group flex items-center gap-4 mb-4 p-5"
-                  style={{
-                    border: "1px solid rgba(212,175,85,0.15)",
-                    background: "rgba(212,175,85,0.04)",
-                    textDecoration: "none",
-                    transition: "border-color 0.3s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(212,175,85,0.35)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(212,175,85,0.15)")}
-                >
-                  <BookOpen size={20} style={{ color: "hsl(var(--accent))", flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <span className="font-body uppercase block" style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
-                      📖 Complete Guide{niche ? ` · ${niche.nicheName}` : ""}
-                    </span>
-                    <span className="font-body font-medium group-hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>
-                      {p.title}
-                    </span>
-                  </div>
-                  <ArrowRight size={16} className="shrink-0 group-hover:text-[#D4AF55] transition-colors" style={{ color: "rgba(255,255,255,0.2)" }} />
-                </a>
-              );
-            })}
-
-            {/* Generated page links */}
-            {crossLinkData.pages.length > 0 && (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                {crossLinkData.pages.slice(0, 3).map((pg: any) => (
+              {/* Pillar links — prominent */}
+              {crossLinkData.pillars.map((p) => {
+                const niche = matchedNiches.find(
+                  (m) => m.nicheId === p.niche_id,
+                );
+                return (
                   <a
-                    key={pg.id}
-                    href={`/resources/${pg.content_schemas?.slug}/${pg.slug}`}
-                    className="group block p-4"
-                    style={{ border: "1px solid rgba(255,255,255,0.06)", textDecoration: "none", transition: "border-color 0.3s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(212,175,85,0.2)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+                    key={p.id}
+                    href={`/guides/${p.slug}`}
+                    className="group flex items-center gap-4 mb-4 p-5"
+                    style={{
+                      border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
+                      background: "rgba(var(--brand-accent-rgb),0.04)",
+                      textDecoration: "none",
+                      transition: "border-color 0.3s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(var(--brand-accent-rgb),0.35)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(var(--brand-accent-rgb),0.15)")
+                    }
                   >
-                    <h3 className="font-body font-medium mb-1 group-hover:text-[#D4AF55] transition-colors" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
-                      {pg.title}
-                    </h3>
-                    <span className="font-body uppercase flex items-center gap-1 group-hover:text-[#D4AF55] transition-colors" style={{ fontSize: 10, letterSpacing: "0.1em", color: "rgba(255,255,255,0.25)" }}>
-                      View <ArrowRight size={10} />
-                    </span>
+                    <BookOpen
+                      size={20}
+                      style={{ color: "hsl(var(--accent))", flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <span
+                        className="font-body uppercase block"
+                        style={{
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          color: "rgba(255,255,255,0.35)",
+                          marginBottom: 4,
+                        }}
+                      >
+                        📖 Complete Guide{niche ? ` · ${niche.nicheName}` : ""}
+                      </span>
+                      <span
+                        className="font-body font-medium group-hover:text-[var(--brand-accent)] transition-colors"
+                        style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
+                      >
+                        {p.title}
+                      </span>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="shrink-0 group-hover:text-[var(--brand-accent)] transition-colors"
+                      style={{ color: "rgba(255,255,255,0.2)" }}
+                    />
                   </a>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                );
+              })}
+
+              {/* Generated page links */}
+              {crossLinkData.pages.length > 0 && (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                  {crossLinkData.pages.slice(0, 3).map((pg) => (
+                    <a
+                      key={pg.id}
+                      href={`/resources/${pg.content_schemas?.slug}/${pg.slug}`}
+                      className="group block p-4"
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        textDecoration: "none",
+                        transition: "border-color 0.3s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(var(--brand-accent-rgb),0.2)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(255,255,255,0.06)")
+                      }
+                    >
+                      <h3
+                        className="font-body font-medium mb-1 group-hover:text-[var(--brand-accent)] transition-colors"
+                        style={{
+                          fontSize: 13,
+                          color: "rgba(255,255,255,0.7)",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {pg.title}
+                      </h3>
+                      <span
+                        className="font-body uppercase flex items-center gap-1 group-hover:text-[var(--brand-accent)] transition-colors"
+                        style={{
+                          fontSize: 10,
+                          letterSpacing: "0.1em",
+                          color: "rgba(255,255,255,0.25)",
+                        }}
+                      >
+                        View <ArrowRight size={10} />
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         <PublicCTA variant="end" pageId={post.id} pageType="post" />
       </article>

@@ -1,7 +1,8 @@
+import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 
-const PageBackToTop = ({ config }: { config: any }) => {
+const PageBackToTop = ({ config }: { config: WidgetConfig }) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

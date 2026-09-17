@@ -13,7 +13,9 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, slug, content_schema_id, content_schemas(name, slug), niches(slug)")
+        .select(
+          "id, title, slug, content_schema_id, content_schemas(name, slug), niches(slug)",
+        )
         .eq("niche_id", nicheId)
         .eq("status", "published")
         .order("title");
@@ -23,19 +25,32 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
     staleTime: 30000,
   });
 
-  const grouped: Record<string, { name: string; pages: any[] }> = {};
-  (pages ?? []).forEach((pg: any) => {
+  const grouped: Record<
+    string,
+    { name: string; pages: NonNullable<typeof pages> }
+  > = {};
+  (pages ?? []).forEach((pg) => {
     const schemaSlug = pg.content_schemas?.slug ?? "other";
     const schemaName = pg.content_schemas?.name ?? "Other";
-    if (!grouped[schemaSlug]) grouped[schemaSlug] = { name: schemaName, pages: [] };
+    if (!grouped[schemaSlug])
+      grouped[schemaSlug] = { name: schemaName, pages: [] };
     grouped[schemaSlug].pages.push(pg);
   });
 
   if (Object.keys(grouped).length === 0) return null;
 
   return (
-    <section style={{ marginTop: 64, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-      <h2 className="font-display italic" style={{ fontSize: 28, marginBottom: 28 }}>
+    <section
+      style={{
+        marginTop: 64,
+        paddingTop: 40,
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <h2
+        className="font-display italic"
+        style={{ fontSize: 28, marginBottom: 28 }}
+      >
         Everything in This Guide
       </h2>
       {Object.entries(grouped).map(([schemaSlug, group]) => (
@@ -53,8 +68,16 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
           >
             {group.name}
           </h3>
-          <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-            {group.pages.map((pg: any) => {
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {group.pages.map((pg) => {
               const nSlug = pg.slug;
               return (
                 <li key={pg.id}>
@@ -67,8 +90,12 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
                       textDecoration: "none",
                       transition: "color 0.2s",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "hsl(var(--accent))")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "rgba(255,255,255,0.65)")
+                    }
                   >
                     → {pg.title}
                   </a>

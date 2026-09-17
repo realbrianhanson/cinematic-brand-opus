@@ -42,7 +42,13 @@ const Footer = () => {
     (e.currentTarget.style.color = "rgba(255,255,255,0.82)");
 
   return (
-    <footer className="relative py-16" style={{ background: "#050508", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+    <footer
+      className="relative py-16"
+      style={{
+        background: "#050508",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
       <div className="mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
         <div className="grid md:grid-cols-3 gap-12 mb-14">
           {/* Col 1 */}
@@ -50,18 +56,35 @@ const Footer = () => {
             <div className="flex items-center gap-3 mb-3">
               <div
                 className="flex items-center justify-center"
-                style={{ width: 32, height: 32, border: "1.5px solid rgba(212,175,85,0.6)" }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: "1.5px solid rgba(var(--brand-accent-rgb),0.6)",
+                }}
               >
-                <span className="font-display italic" style={{ fontSize: 14, color: brand.accent, lineHeight: 1 }}>
+                <span
+                  className="font-display italic"
+                  style={{ fontSize: 14, color: brand.accent, lineHeight: 1 }}
+                >
                   {identity.logoInitials}
                 </span>
               </div>
-              <span className="font-body font-medium uppercase" style={{ fontSize: 12, letterSpacing: "0.22em", color: "rgba(255,255,255,0.85)" }}>
+              <span
+                className="font-body font-medium uppercase"
+                style={{
+                  fontSize: 12,
+                  letterSpacing: "0.22em",
+                  color: "rgba(255,255,255,0.85)",
+                }}
+              >
                 {identity.name}
               </span>
             </div>
             {identity.tagline && (
-              <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+              <p
+                className="font-body"
+                style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+              >
                 {identity.tagline}
               </p>
             )}
@@ -69,7 +92,14 @@ const Footer = () => {
 
           {/* Col 2 */}
           <div>
-            <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: brand.accent }}>
+            <h4
+              className="font-body font-bold uppercase mb-5"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.2em",
+                color: brand.accent,
+              }}
+            >
               Navigate
             </h4>
             <div className="flex flex-col gap-3 items-start">
@@ -106,7 +136,14 @@ const Footer = () => {
           {/* Col 3 */}
           {(identity.contactEmail || footer.contactNote) && (
             <div>
-              <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: brand.accent }}>
+              <h4
+                className="font-body font-bold uppercase mb-5"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.2em",
+                  color: brand.accent,
+                }}
+              >
                 Contact
               </h4>
               {identity.contactEmail && (
@@ -115,14 +152,21 @@ const Footer = () => {
                   data-hover
                   className="font-body block mb-2 transition-colors duration-200"
                   style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = brand.accent)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = brand.accent)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "rgba(255,255,255,0.9)")
+                  }
                 >
                   {identity.contactEmail}
                 </a>
               )}
               {footer.contactNote && (
-                <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                <p
+                  className="font-body"
+                  style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+                >
                   {footer.contactNote}
                 </p>
               )}
@@ -137,7 +181,10 @@ const Footer = () => {
           className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8"
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+          <span
+            className="font-body"
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+          >
             {copyrightLine()}
           </span>
           {legalLinks.length > 0 && (
@@ -149,8 +196,12 @@ const Footer = () => {
                   data-hover
                   className="font-body transition-colors duration-200"
                   style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = brand.accent)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = brand.accent)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
+                  }
                 >
                   {l.label}
                 </a>

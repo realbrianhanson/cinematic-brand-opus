@@ -17,9 +17,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-
-
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +32,7 @@ Deno.serve(async (req) => {
   const anonClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } }
+    { global: { headers: { Authorization: authHeader } } },
   );
   const {
     data: { user },
@@ -55,7 +52,8 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!roleRow) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -64,7 +62,10 @@ Deno.serve(async (req) => {
     if (!topic || typeof topic !== "string" || topic.trim().length < 3) {
       return new Response(
         JSON.stringify({ error: "Please provide a topic (3+ characters)." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -72,7 +73,10 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       return new Response(
         JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -88,32 +92,49 @@ Deno.serve(async (req) => {
     if (PERPLEXITY_API_KEY) {
       try {
         console.log("Researching topic via Perplexity:", topic);
-        const researchRes = await fetch("https://api.perplexity.ai/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-            "Content-Type": "application/json",
+        const researchRes = await fetch(
+          "https://api.perplexity.ai/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "sonar-pro",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are a research assistant. Provide comprehensive, factual, up-to-date information about the given topic. Include statistics, expert opinions, recent developments, and practical insights. Focus on accuracy and depth.",
+                },
+                {
+                  role: "user",
+                  content: `Research the following topic thoroughly for a blog article: "${topic}". ${additional_context ? `Additional context: ${additional_context}` : ""}\n\nProvide key facts, statistics, expert quotes, recent trends, and actionable insights.`,
+                },
+              ],
+              search_recency_filter: "month",
+            }),
           },
-          body: JSON.stringify({
-            model: "sonar-pro",
-            messages: [
-              { role: "system", content: "You are a research assistant. Provide comprehensive, factual, up-to-date information about the given topic. Include statistics, expert opinions, recent developments, and practical insights. Focus on accuracy and depth." },
-              { role: "user", content: `Research the following topic thoroughly for a blog article: "${topic}". ${additional_context ? `Additional context: ${additional_context}` : ""}\n\nProvide key facts, statistics, expert quotes, recent trends, and actionable insights.` },
-            ],
-            search_recency_filter: "month",
-          }),
-        });
+        );
 
         if (researchRes.ok) {
           const researchData = await researchRes.json();
           researchContext = researchData.choices?.[0]?.message?.content || "";
           const citations = researchData.citations || [];
           if (citations.length > 0) {
-            researchContext += `\n\nSources:\n${citations.slice(0, 5).map((c: string) => `- ${c}`).join("\n")}`;
+            researchContext += `\n\nSources:\n${citations
+              .slice(0, 5)
+              .map((c: string) => `- ${c}`)
+              .join("\n")}`;
           }
           console.log("Research completed, length:", researchContext.length);
         } else {
-          console.warn("Perplexity research failed:", researchRes.status, await researchRes.text());
+          console.warn(
+            "Perplexity research failed:",
+            researchRes.status,
+            await researchRes.text(),
+          );
         }
       } catch (e) {
         console.warn("Perplexity research error:", e);
@@ -158,39 +179,56 @@ Return valid JSON ONLY with these fields:
       : `Write a comprehensive blog post about: "${topic}"${additional_context ? `\n\nAdditional guidance: ${additional_context}` : ""}`;
 
     console.log("Generating blog post via Lovable AI...");
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+    const aiResponse = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MAIN_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.8,
+          max_tokens: 32000,
+        }),
       },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.8,
-        max_tokens: 32000,
-      }),
-    });
+    );
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
       const errText = await aiResponse.text();
       console.error("AI gateway error:", status, errText);
       if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Rate limit exceeded. Please wait a moment and try again.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings > Workspace > Usage." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            error:
+              "AI credits exhausted. Please add funds in Settings > Workspace > Usage.",
+          }),
+          {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       return new Response(JSON.stringify({ error: "AI generation failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -200,9 +238,15 @@ Return valid JSON ONLY with these fields:
     const finishReason = aiData.choices?.[0]?.finish_reason;
     if (finishReason === "length" || finishReason === "max_tokens") {
       console.error("AI response truncated (finish_reason:", finishReason, ")");
-      return new Response(JSON.stringify({ error: "AI response was truncated. Please try a shorter topic." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "AI response was truncated. Please try a shorter topic.",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const raw = aiData.choices?.[0]?.message?.content || "";
@@ -227,9 +271,15 @@ Return valid JSON ONLY with these fields:
       result = JSON.parse(cleaned);
     } catch {
       console.error("Failed to parse AI response:", raw.slice(0, 500));
-      return new Response(JSON.stringify({ error: "Failed to parse AI response. Please try again." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to parse AI response. Please try again.",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Critique + revise pass — enforce voice, cut filler, ground in research.
@@ -242,7 +292,8 @@ Return valid JSON ONLY with these fields:
         voiceBlock,
         researchContext,
         draftJson: result,
-        schemaHint: "blog post fields (title, content HTML, excerpt, tldr, key_takeaways, faq_items, meta_title, meta_description, keywords)",
+        schemaHint:
+          "blog post fields (title, content HTML, excerpt, tldr, key_takeaways, faq_items, meta_title, meta_description, keywords)",
         maxTokens: 16000,
       });
       if (!revised.error) {
@@ -269,7 +320,9 @@ Return valid JSON ONLY with these fields:
         lintFlags = lintJson(result, voice.banned_phrases);
       }
       if (lintFlags.length) {
-        console.warn(`${lintFlags.length} lint violations remain in blog post "${result.title}"`);
+        console.warn(
+          `${lintFlags.length} lint violations remain in blog post "${result.title}"`,
+        );
       }
     } catch (e: any) {
       console.error("Refine pipeline threw:", e.message);
@@ -282,8 +335,17 @@ Return valid JSON ONLY with these fields:
         .select("cta_url")
         .limit(1)
         .maybeSingle();
-      if (result.content) result.content = linkifyEventMentions(result.content, ctaSettings?.cta_url);
-      if (result.excerpt) result.excerpt = linkifyEventMentions(result.excerpt, ctaSettings?.cta_url, { maxLinks: 1 });
+      if (result.content)
+        result.content = linkifyEventMentions(
+          result.content,
+          ctaSettings?.cta_url,
+        );
+      if (result.excerpt)
+        result.excerpt = linkifyEventMentions(
+          result.excerpt,
+          ctaSettings?.cta_url,
+          { maxLinks: 1 },
+        );
     } catch (e: any) {
       console.warn("linkifyEventMentions failed:", e?.message);
     }
@@ -299,7 +361,8 @@ Return valid JSON ONLY with these fields:
     });
     result.quality_score = qualityScore;
     result.lint_flags = lintFlags;
-    if (qualityIssues.length) console.log(`Blog quality: ${qualityScore}/100 —`, qualityIssues);
+    if (qualityIssues.length)
+      console.log(`Blog quality: ${qualityScore}/100 —`, qualityIssues);
 
     // Step 3: Generate featured image via Nano Banana 2
     const featuredImageUrl = await generateFeaturedImage(
@@ -319,8 +382,13 @@ Return valid JSON ONLY with these fields:
   } catch (err) {
     console.error("Edge function error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

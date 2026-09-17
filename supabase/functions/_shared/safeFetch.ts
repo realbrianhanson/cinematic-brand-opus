@@ -47,7 +47,8 @@ function isPrivateIPv6(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, "").toLowerCase();
   if (!h.includes(":")) return false;
   if (h === "::" || h === "::1") return true;
-  if (h.startsWith("fe80") || h.startsWith("fc") || h.startsWith("fd")) return true;
+  if (h.startsWith("fe80") || h.startsWith("fc") || h.startsWith("fd"))
+    return true;
   if (h.startsWith("::ffff:")) return isPrivateIPv4(h.slice("::ffff:".length));
   return false;
 }
@@ -61,7 +62,10 @@ export interface UrlCheckOptions {
  * Parses and validates a URL for outbound fetching. Throws UnsafeUrlError with
  * a specific reason; never returns an unvalidated URL.
  */
-export function assertPublicHttpUrl(raw: string, opts: UrlCheckOptions = {}): URL {
+export function assertPublicHttpUrl(
+  raw: string,
+  opts: UrlCheckOptions = {},
+): URL {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new UnsafeUrlError("url is empty");
   }
@@ -100,7 +104,10 @@ export function assertPublicHttpUrl(raw: string, opts: UrlCheckOptions = {}): UR
   return url;
 }
 
-export function isPublicHttpUrl(raw: string, opts: UrlCheckOptions = {}): boolean {
+export function isPublicHttpUrl(
+  raw: string,
+  opts: UrlCheckOptions = {},
+): boolean {
   try {
     assertPublicHttpUrl(raw, opts);
     return true;
@@ -166,7 +173,9 @@ export async function fetchTextBounded(
     const contentType = res!.headers.get("content-type") ?? "";
     if (
       opts.contentTypeIncludes &&
-      !contentType.toLowerCase().includes(opts.contentTypeIncludes.toLowerCase())
+      !contentType
+        .toLowerCase()
+        .includes(opts.contentTypeIncludes.toLowerCase())
     ) {
       return {
         ok: false,
@@ -224,7 +233,10 @@ async function readBounded(
     if (!value) continue;
     read += value.byteLength;
     if (read > maxBytes) {
-      const keep = value.subarray(0, Math.max(0, value.byteLength - (read - maxBytes)));
+      const keep = value.subarray(
+        0,
+        Math.max(0, value.byteLength - (read - maxBytes)),
+      );
       text += decoder.decode(keep);
       truncated = true;
       try {

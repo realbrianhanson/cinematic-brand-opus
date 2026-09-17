@@ -1,4 +1,9 @@
+import { z } from "zod";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import type { TablesInsert } from "@/integrations/supabase/types";
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { scheduledInstant, zonedInput } from "@/lib/scheduleTime";
 import { useAdminPreferences } from "@/hooks/useAdminPreferences";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,10 +31,18 @@ const wordCount = (html: string) => {
   return text ? text.split(" ").length : 0;
 };
 
-interface FaqItem {
-  question: string;
-  answer: string;
-}
+const faqSchema = z
+  .array(z.object({ question: z.string(), answer: z.string() }))
+  .catch([]);
+type FaqItem = z.infer<typeof faqSchema>[number];
+const publishResponseSchema = z
+  .object({
+    decision: z.string().optional(),
+    error: z.string().optional(),
+    failures: z.array(z.string()).optional(),
+    ok: z.boolean().optional(),
+  })
+  .catch({});
 
 const PostEditor = () => {
   const { id } = useParams();
@@ -37,6 +50,7 @@ const PostEditor = () => {
   const qc = useQueryClient();
   const { toast } = useToast();
   const isNew = !id;
+  const savedPostId = useRef<string | undefined>(id);
   const editorRef = useRef<Editor | null>(null);
 
   // Core state
@@ -46,11 +60,22 @@ const PostEditor = () => {
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
   const [initialStatus, setInitialStatus] = useState("draft");
-  const [publishBlock, setPublishBlock] = useState<{ postId: string; failures: string[] } | null>(null);
+  const [publishBlock, setPublishBlock] = useState<{
+    postId: string;
+    failures: string[];
+  } | null>(null);
   const [publishOverrideReason, setPublishOverrideReason] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const { prefs, updatePref } = useAdminPreferences();
   const [timezone, setTimezone] = useState(prefs.timezone);
+  const scheduleTouched = useRef(false);
+  useEffect(() => {
+    if (!scheduleTouched.current) setTimezone(prefs.timezone);
+  }, [prefs.timezone]);
+  useEffect(() => {
+    savedPostId.current = id;
+    scheduleTouched.current = false;
+  }, [id]);
   const [featuredImage, setFeaturedImage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
@@ -67,7 +92,9 @@ const PostEditor = () => {
   const [aeoOpen, setAeoOpen] = useState(false);
   const [tldr, setTldr] = useState("");
   const [keyTakeaways, setKeyTakeaways] = useState<string[]>([""]);
-  const [faqItems, setFaqItems] = useState<FaqItem[]>([{ question: "", answer: "" }]);
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([
+    { question: "", answer: "" },
+  ]);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -82,7 +109,11 @@ const PostEditor = () => {
   const { data: post, isLoading: postLoading } = useQuery({
     queryKey: ["admin-post", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("posts").select("*").eq("id", id!).maybeSingle();
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", id!)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -92,7 +123,12 @@ const PostEditor = () => {
   const { data: seo } = useQuery({
     queryKey: ["admin-seo", id],
     queryFn: async () => {
-      const { data } = await supabase.from("seo_metadata").select("*").eq("post_id", id!).maybeSingle();
+      const { data, error } = await supabase
+        .from("seo_metadata")
+        .select("*")
+        .eq("post_id", id!)
+        .maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!id,
@@ -101,7 +137,10 @@ const PostEditor = () => {
   const { data: categories } = useQuery({
     queryKey: ["admin-categories-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").order("name");
+      const { data } = await supabase
+        .from("categories")
+        .select("*")
+        .order("name");
       return data ?? [];
     },
   });
@@ -115,18 +154,32 @@ const PostEditor = () => {
       setCategoryId(post.category_id ?? "");
       setStatus(post.status);
       setInitialStatus(post.status);
-      setScheduledAt((post as any).scheduled_at ? new Date((post as any).scheduled_at).toISOString().slice(0, 16) : "");
+
       setFeaturedImage(post.featured_image ?? "");
       setSlugManual(true);
-      setTldr((post as any).tldr ?? "");
-      setKeyTakeaways((post as any).key_takeaways?.length ? (post as any).key_takeaways : [""]);
-      setFaqItems((post as any).faq_items?.length ? (post as any).faq_items : [{ question: "", answer: "" }]);
+      setTldr(post.tldr ?? "");
+      const parsedTakeaways = z
+        .array(z.string())
+        .catch([])
+        .parse(post.key_takeaways);
+      setKeyTakeaways(parsedTakeaways.length ? parsedTakeaways : [""]);
+      const parsedFaq = faqSchema.parse(post.faq_items);
+      setFaqItems(
+        parsedFaq.length ? parsedFaq : [{ question: "", answer: "" }],
+      );
       if (editorRef.current && post.content) {
         editorRef.current.commands.setContent(post.content);
       }
       setEditorContent(post.content ?? "");
     }
   }, [post]);
+
+  useEffect(() => {
+    if (!scheduleTouched.current)
+      setScheduledAt(
+        post?.scheduled_at ? zonedInput(post.scheduled_at, timezone) : "",
+      );
+  }, [post?.scheduled_at, timezone]);
 
   useEffect(() => {
     if (seo) {
@@ -149,13 +202,21 @@ const PostEditor = () => {
       setUploading(true);
       const ext = file.name.split(".").pop();
       const path = `${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("blog-images").upload(path, file);
+      const { error } = await supabase.storage
+        .from("blog-images")
+        .upload(path, file);
       if (error) {
-        toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+        toast({
+          title: "Upload failed",
+          description: error.message,
+          variant: "destructive",
+        });
         setUploading(false);
         return;
       }
-      const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(path);
+      const { data: urlData } = supabase.storage
+        .from("blog-images")
+        .getPublicUrl(path);
       setFeaturedImage(urlData.publicUrl);
       setUploading(false);
     },
@@ -163,17 +224,33 @@ const PostEditor = () => {
   );
 
   // FAQ & takeaway helpers
-  const addFaq = useCallback(() => setFaqItems((prev) => [...prev, { question: "", answer: "" }]), []);
-  const removeFaq = useCallback((i: number) => setFaqItems((prev) => prev.filter((_, idx) => idx !== i)), []);
-  const updateFaq = useCallback((i: number, field: keyof FaqItem, val: string) => {
-    setFaqItems((prev) => {
-      const u = [...prev];
-      u[i] = { ...u[i], [field]: val };
-      return u;
-    });
-  }, []);
-  const addTakeaway = useCallback(() => setKeyTakeaways((prev) => [...prev, ""]), []);
-  const removeTakeaway = useCallback((i: number) => setKeyTakeaways((prev) => prev.filter((_, idx) => idx !== i)), []);
+  const addFaq = useCallback(
+    () => setFaqItems((prev) => [...prev, { question: "", answer: "" }]),
+    [],
+  );
+  const removeFaq = useCallback(
+    (i: number) => setFaqItems((prev) => prev.filter((_, idx) => idx !== i)),
+    [],
+  );
+  const updateFaq = useCallback(
+    (i: number, field: keyof FaqItem, val: string) => {
+      setFaqItems((prev) => {
+        const u = [...prev];
+        u[i] = { ...u[i], [field]: val };
+        return u;
+      });
+    },
+    [],
+  );
+  const addTakeaway = useCallback(
+    () => setKeyTakeaways((prev) => [...prev, ""]),
+    [],
+  );
+  const removeTakeaway = useCallback(
+    (i: number) =>
+      setKeyTakeaways((prev) => prev.filter((_, idx) => idx !== i)),
+    [],
+  );
   const updateTakeaway = useCallback((i: number, val: string) => {
     setKeyTakeaways((prev) => {
       const u = [...prev];
@@ -197,7 +274,10 @@ const PostEditor = () => {
   const aeoScore = useMemo(() => {
     let s = 0;
     if (tldr && tldr.length >= 20) s++;
-    if (faqItems.filter((f) => f.question.trim() && f.answer.trim()).length >= 2) s++;
+    if (
+      faqItems.filter((f) => f.question.trim() && f.answer.trim()).length >= 2
+    )
+      s++;
     if (keyTakeaways.filter((t) => t.trim()).length >= 3) s++;
     if (/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent)) s++;
     if (/<(ul|ol)[^>]*>/i.test(currentContent)) s++;
@@ -206,12 +286,29 @@ const PostEditor = () => {
   }, [tldr, faqItems, keyTakeaways, currentContent]);
 
   const criteria = useMemo(() => {
-    const validFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
+    const validFaq = faqItems.filter(
+      (f) => f.question.trim() && f.answer.trim(),
+    );
     const validTakeaways = keyTakeaways.filter((t) => t.trim());
     return [
-      { label: "TL;DR summary (20+ chars)", done: !!(tldr && tldr.length >= 20), points: "+8", category: "AEO" },
-      { label: "2+ FAQ items", done: validFaq.length >= 2, points: "+8", category: "AEO" },
-      { label: "3+ key takeaways", done: validTakeaways.length >= 3, points: "+8", category: "AEO" },
+      {
+        label: "TL;DR summary (20+ chars)",
+        done: !!(tldr && tldr.length >= 20),
+        points: "+8",
+        category: "AEO",
+      },
+      {
+        label: "2+ FAQ items",
+        done: validFaq.length >= 2,
+        points: "+8",
+        category: "AEO",
+      },
+      {
+        label: "3+ key takeaways",
+        done: validTakeaways.length >= 3,
+        points: "+8",
+        category: "AEO",
+      },
       {
         label: "Question headings (H2/H3 with ?)",
         done: /<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent),
@@ -224,7 +321,12 @@ const PostEditor = () => {
         points: "+8",
         category: "AEO",
       },
-      { label: "800+ words", done: wordCount(currentContent) >= 800, points: "+8", category: "AEO" },
+      {
+        label: "800+ words",
+        done: wordCount(currentContent) >= 800,
+        points: "+8",
+        category: "AEO",
+      },
       {
         label: "Meta title (≤60 chars)",
         done: !!(metaTitle && metaTitle.length <= 60),
@@ -237,40 +339,78 @@ const PostEditor = () => {
         points: "+13",
         category: "SEO",
       },
-      { label: "Keywords added", done: !!keywords, points: "+12", category: "SEO" },
-      { label: "Featured or OG image", done: !!(featuredImage || ogImage), points: "+12", category: "SEO" },
+      {
+        label: "Keywords added",
+        done: !!keywords,
+        points: "+12",
+        category: "SEO",
+      },
+      {
+        label: "Featured or OG image",
+        done: !!(featuredImage || ogImage),
+        points: "+12",
+        category: "SEO",
+      },
     ];
-  }, [tldr, faqItems, keyTakeaways, currentContent, metaTitle, metaDesc, keywords, featuredImage, ogImage]);
+  }, [
+    tldr,
+    faqItems,
+    keyTakeaways,
+    currentContent,
+    metaTitle,
+    metaDesc,
+    keywords,
+    featuredImage,
+    ogImage,
+  ]);
 
   const aeoTips = useMemo(() => {
     const tips: string[] = [];
-    if (!tldr || tldr.length < 20) tips.push("Add a TL;DR summary (20+ chars) — LLMs often pull this as the answer");
+    if (!tldr || tldr.length < 20)
+      tips.push(
+        "Add a TL;DR summary (20+ chars) — LLMs often pull this as the answer",
+      );
     if (faqItems.filter((f) => f.question.trim() && f.answer.trim()).length < 2)
       tips.push("Add 2+ FAQ items — these generate FAQ schema for AI search");
     if (keyTakeaways.filter((t) => t.trim()).length < 3)
-      tips.push("Add 3+ key takeaways — bullet-point answers rank in AI overviews");
+      tips.push(
+        "Add 3+ key takeaways — bullet-point answers rank in AI overviews",
+      );
     if (!/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent))
-      tips.push("Use question-format headings (H2/H3 with ?) — LLMs match these to queries");
+      tips.push(
+        "Use question-format headings (H2/H3 with ?) — LLMs match these to queries",
+      );
     if (!/<(ul|ol)[^>]*>/i.test(currentContent))
-      tips.push("Add lists to your content — structured data is easier for LLMs to cite");
-    if (wordCount(currentContent) < 800) tips.push("Write 800+ words — comprehensive content is cited more by AI");
+      tips.push(
+        "Add lists to your content — structured data is easier for LLMs to cite",
+      );
+    if (wordCount(currentContent) < 800)
+      tips.push("Write 800+ words — comprehensive content is cited more by AI");
     return tips;
   }, [tldr, faqItems, keyTakeaways, currentContent]);
 
-  const scoreColor = (score: number, max: number) => (score >= max * 0.66 ? "admin-sage" : "admin-accent");
+  const scoreColor = (score: number, max: number) =>
+    score >= max * 0.66 ? "admin-sage" : "admin-accent";
 
   // AI generation
   const handleAiGenerate = useCallback(async () => {
     const content = editorRef.current?.getHTML() ?? editorContent;
     if (!title && !content) {
-      toast({ title: "Need content", description: "Add a title or some content first.", variant: "destructive" });
+      toast({
+        title: "Need content",
+        description: "Add a title or some content first.",
+        variant: "destructive",
+      });
       return;
     }
     setAiGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
-        body: { title, content, excerpt },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-seo-aeo",
+        {
+          body: { title, content, excerpt },
+        },
+      );
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.tldr) setTldr(data.tldr);
@@ -283,9 +423,16 @@ const PostEditor = () => {
       setAeoOpen(true);
       setSeoOpen(true);
       setHasGenerated(true);
-      toast({ title: "AI Generated!", description: "All SEO & AEO/GEO fields have been filled." });
-    } catch (e: any) {
-      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+      toast({
+        title: "AI Generated!",
+        description: "All SEO & AEO/GEO fields have been filled.",
+      });
+    } catch (e) {
+      toast({
+        title: "Generation failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setAiGenerating(false);
     }
@@ -295,14 +442,26 @@ const PostEditor = () => {
     const content = editorRef.current?.getHTML() ?? editorContent;
     const missing = criteria.filter((c) => !c.done).map((c) => c.label);
     if (missing.length === 0) {
-      toast({ title: "Perfect score! 🎉", description: "All criteria are already met." });
+      toast({
+        title: "Perfect score! 🎉",
+        description: "All criteria are already met.",
+      });
       return;
     }
     setEnhancing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
-        body: { title, content, excerpt, enhance: true, missing_criteria: missing },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-seo-aeo",
+        {
+          body: {
+            title,
+            content,
+            excerpt,
+            enhance: true,
+            missing_criteria: missing,
+          },
+        },
+      );
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.tldr) setTldr(data.tldr);
@@ -318,9 +477,16 @@ const PostEditor = () => {
       }
       setAeoOpen(true);
       setSeoOpen(true);
-      toast({ title: "Score boosted! 🚀", description: "Missing criteria have been filled by AI." });
-    } catch (e: any) {
-      toast({ title: "Enhancement failed", description: e.message, variant: "destructive" });
+      toast({
+        title: "Score boosted! 🚀",
+        description: "Missing criteria have been filled by AI.",
+      });
+    } catch (e) {
+      toast({
+        title: "Enhancement failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setEnhancing(false);
     }
@@ -338,12 +504,16 @@ const PostEditor = () => {
     }
     setAiWriting(true);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
-      const { data, error } = await supabase.functions.invoke("generate-blog-post", {
-        body: { topic: aiTopic.trim(), additional_context: aiContext.trim() || undefined },
-      });
-      clearTimeout(timeoutId);
+      const { data, error } = await supabase.functions.invoke(
+        "generate-blog-post",
+        {
+          body: {
+            topic: aiTopic.trim(),
+            additional_context: aiContext.trim() || undefined,
+          },
+          signal: AbortSignal.timeout(120000),
+        },
+      );
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
@@ -374,56 +544,89 @@ const PostEditor = () => {
       setAiContext("");
       toast({
         title: "Blog post generated! ✨",
-        description: "AI wrote your entire post. Review and edit before publishing.",
+        description:
+          "AI wrote your entire post. Review and edit before publishing.",
       });
-    } catch (e: any) {
-      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Generation failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setAiWriting(false);
     }
   }, [aiTopic, aiContext, toast]);
 
-  const runManualPublish = useCallback(async (postId: string, overrideReason?: string) => {
-    const body: any = { post_id: postId };
-    if (overrideReason && overrideReason.trim().length >= 10) body.override_reason = overrideReason.trim();
-    const { data, error } = await supabase.functions.invoke("manual-publish", { body });
-    if (error) {
-      const ctx: any = (error as any).context;
-      let parsed: any = null;
-      if (ctx && typeof ctx.text === "function") {
-        try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+  const runManualPublish = useCallback(
+    async (postId: string, overrideReason?: string) => {
+      const body: { post_id: string; override_reason?: string } = {
+        post_id: postId,
+      };
+      if (overrideReason && overrideReason.trim().length >= 10)
+        body.override_reason = overrideReason.trim();
+      const { data, error } = await supabase.functions.invoke(
+        "manual-publish",
+        { body },
+      );
+      if (error) {
+        let parsed = publishResponseSchema.parse(null);
+        if (
+          error instanceof FunctionsHttpError &&
+          error.context instanceof Response
+        ) {
+          try {
+            parsed = publishResponseSchema.parse(await error.context.json());
+          } catch {
+            /* Preserve the original error below. */
+          }
+        }
+        if (parsed?.decision === "blocked" && Array.isArray(parsed.failures)) {
+          return {
+            blocked: true as const,
+            failures: parsed.failures as string[],
+          };
+        }
+        throw new Error(parsed?.error || error.message);
       }
-      if (parsed?.decision === "blocked" && Array.isArray(parsed.failures)) {
-        return { blocked: true as const, failures: parsed.failures as string[] };
+      const response = publishResponseSchema.parse(data);
+      if (response.ok === false && response.failures) {
+        return { blocked: true as const, failures: response.failures };
       }
-      throw new Error(parsed?.error || error.message);
-    }
-    if (data?.ok === false && Array.isArray(data.failures)) {
-      return { blocked: true as const, failures: data.failures as string[] };
-    }
-    return { blocked: false as const };
-  }, []);
+      return { blocked: false as const };
+    },
+    [],
+  );
 
   const saveMutation = useMutation({
     mutationFn: (opts: { overrideReason?: string } = {}) =>
       safeMutation(async () => {
         const content = editorRef.current?.getHTML() ?? editorContent;
         const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
-        const cleanFaq = faqItems.filter((f) => f.question.trim() && f.answer.trim());
+        const cleanFaq = faqItems.filter(
+          (f) => f.question.trim() && f.answer.trim(),
+        );
         const cleanTakeaways = keyTakeaways.filter((t) => t.trim());
 
         // If moving to published (from anything else), route status change through manual-publish.
-        const wantsPublish = status === "published" && initialStatus !== "published";
+        const wantsPublish =
+          status === "published" && initialStatus !== "published";
         const persistStatus = wantsPublish ? "draft" : status;
 
-        const postData: Record<string, any> = {
+        const scheduledISO =
+          persistStatus === "scheduled"
+            ? scheduledInstant(scheduledAt, timezone)
+            : null;
+        if (scheduledISO && Date.parse(scheduledISO) <= Date.now())
+          throw new Error("Choose a future publish time.");
+        const postData: TablesInsert<"posts"> = {
           title,
           slug,
           content,
           excerpt: excerpt || null,
           category_id: categoryId || null,
           status: persistStatus,
-          scheduled_at: persistStatus === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          scheduled_at: scheduledISO,
           featured_image: featuredImage || null,
           reading_time,
           faq_items: cleanFaq.length ? cleanFaq : [],
@@ -431,20 +634,23 @@ const PostEditor = () => {
           tldr: tldr || null,
         };
 
-        let postId = id;
-        if (isNew) {
+        let postId = savedPostId.current ?? id;
+        if (!postId) {
           const { data, error } = await supabase
             .from("posts")
-            .insert(postData as any)
+            .insert(postData)
             .select("id")
             .single();
           if (error) throw error;
           postId = data.id;
+          savedPostId.current = postId;
         } else {
           const { error } = await supabase
             .from("posts")
-            .update(postData as any)
-            .eq("id", id!);
+            .update(postData)
+            .eq("id", postId!)
+            .select("id")
+            .single();
           if (error) throw error;
         }
 
@@ -453,16 +659,23 @@ const PostEditor = () => {
           meta_title: metaTitle || null,
           meta_description: metaDesc || null,
           keywords: keywords
-            ? keywords.split(",").map((k) => k.trim()).filter(Boolean)
+            ? keywords
+                .split(",")
+                .map((k) => k.trim())
+                .filter(Boolean)
             : null,
           og_image: ogImage || null,
         };
 
-        if (seo?.id) {
-          await supabase.from("seo_metadata").update(seoData).eq("id", seo.id);
-        } else {
-          await supabase.from("seo_metadata").insert(seoData);
-        }
+        const seoResult = await supabase
+          .from("seo_metadata")
+          .upsert(seoData, { onConflict: "post_id" })
+          .select("id")
+          .single();
+        if (seoResult.error)
+          throw new Error(
+            `Post saved, but SEO settings failed: ${seoResult.error.message}. Retry to finish saving this same post.`,
+          );
 
         // Now handle the publish transition through the gated edge function
         if (wantsPublish && postId) {
@@ -473,19 +686,31 @@ const PostEditor = () => {
         }
         return { postId };
       }),
-    onSuccess: (result: any) => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       if (result?.publishBlocked) {
-        setPublishBlock({ postId: result.postId, failures: result.publishBlocked });
+        setPublishBlock({
+          postId: result.postId,
+          failures: result.publishBlocked,
+        });
         setPublishOverrideReason("");
-        toast({ title: "Saved as draft — publish gate blocked", description: "Review failures and either fix them or supply an override reason.", variant: "destructive" });
+        toast({
+          title: "Saved as draft — publish gate blocked",
+          description:
+            "Review failures and either fix them or supply an override reason.",
+          variant: "destructive",
+        });
         return;
       }
       toast({ title: "Saved" });
       navigate("/admin/posts");
     },
-    onError: (err: any) => {
-      toast({ title: "Save failed", description: err?.message || "Unknown error", variant: "destructive" });
+    onError: (err) => {
+      toast({
+        title: "Save failed",
+        description: err?.message || "Unknown error",
+        variant: "destructive",
+      });
     },
   });
 
@@ -500,7 +725,11 @@ const PostEditor = () => {
   if (!isNew && postLoading) {
     return (
       <div className="flex items-center justify-center" style={{ padding: 64 }}>
-        <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+        <Loader2
+          size={24}
+          className="animate-spin"
+          style={{ color: "hsl(var(--admin-accent))" }}
+        />
       </div>
     );
   }
@@ -508,8 +737,14 @@ const PostEditor = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>
+      <div
+        className="flex items-center justify-between flex-wrap gap-4"
+        style={{ marginBottom: 24 }}
+      >
+        <h1
+          className="font-heading italic"
+          style={{ fontSize: 28, fontWeight: 400 }}
+        >
           {isNew ? "New Post" : "Edit Post"}
         </h1>
         <div className="flex gap-3">
@@ -518,7 +753,8 @@ const PostEditor = () => {
               onClick={() => setShowAiModal(true)}
               className="flex items-center gap-2 font-body"
               style={{
-                background: "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                background:
+                  "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
@@ -532,7 +768,10 @@ const PostEditor = () => {
               AI Write Post
             </button>
           )}
-          <button onClick={() => navigate("/admin/posts")} className="admin-btn-ghost">
+          <button
+            onClick={() => navigate("/admin/posts")}
+            className="admin-btn-ghost"
+          >
             Cancel
           </button>
           <button
@@ -553,10 +792,18 @@ const PostEditor = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="admin-input font-heading"
-            style={{ fontSize: 26, fontWeight: 400, padding: "16px 20px", borderRadius: 6 }}
+            style={{
+              fontSize: 26,
+              fontWeight: 400,
+              padding: "16px 20px",
+              borderRadius: 6,
+            }}
           />
           <div className="flex items-center gap-2">
-            <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+            <span
+              className="font-body"
+              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+            >
               /blog/
             </span>
             <input
@@ -582,11 +829,15 @@ const PostEditor = () => {
             setStatus={setStatus}
             timezone={timezone}
             setTimezone={(v: string) => {
+              scheduleTouched.current = true;
               setTimezone(v);
               updatePref("timezone", v);
             }}
             scheduledAt={scheduledAt}
-            setScheduledAt={setScheduledAt}
+            setScheduledAt={(value) => {
+              scheduleTouched.current = true;
+              setScheduledAt(value);
+            }}
             categoryId={categoryId}
             setCategoryId={setCategoryId}
             categories={categories ?? []}
@@ -624,7 +875,10 @@ const PostEditor = () => {
               }}
             >
               <span className="flex items-center gap-2">
-                <Sparkles size={14} style={{ color: "hsl(var(--admin-accent))" }} />
+                <Sparkles
+                  size={14}
+                  style={{ color: "hsl(var(--admin-accent))" }}
+                />
                 <span className="admin-label" style={{ marginBottom: 0 }}>
                   AEO / GEO
                 </span>
@@ -708,19 +962,33 @@ const PostEditor = () => {
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
         >
-          <div className="admin-card" style={{ padding: 32, maxWidth: 480, width: "90%" }}>
-            <div className="flex items-center gap-2" style={{ marginBottom: 16 }}>
+          <div
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 480, width: "90%" }}
+          >
+            <div
+              className="flex items-center gap-2"
+              style={{ marginBottom: 16 }}
+            >
               <Wand2 size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-              <h2 className="font-heading" style={{ fontSize: 20, fontWeight: 500 }}>
+              <h2
+                className="font-heading"
+                style={{ fontSize: 20, fontWeight: 500 }}
+              >
                 AI Write Post
               </h2>
             </div>
             <p
               className="font-body"
-              style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 20, lineHeight: 1.6 }}
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-text-soft))",
+                marginBottom: 20,
+                lineHeight: 1.6,
+              }}
             >
-              Enter a topic and AI will research it, then write a complete blog post with SEO metadata, FAQs, and key
-              takeaways.
+              Enter a topic and AI will research it, then write a complete blog
+              post with SEO metadata, FAQs, and key takeaways.
             </p>
             <div style={{ marginBottom: 16 }}>
               <label className="admin-label">Topic / Keyword *</label>
@@ -734,7 +1002,9 @@ const PostEditor = () => {
               />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label className="admin-label">Additional Context (optional)</label>
+              <label className="admin-label">
+                Additional Context (optional)
+              </label>
               <textarea
                 placeholder="e.g. Target audience is small business owners. Focus on practical tips."
                 value={aiContext}
@@ -747,7 +1017,11 @@ const PostEditor = () => {
             {aiWriting && (
               <div
                 className="flex items-center gap-3 font-body"
-                style={{ fontSize: 12, color: "hsl(var(--admin-accent))", marginBottom: 16 }}
+                style={{
+                  fontSize: 12,
+                  color: "hsl(var(--admin-accent))",
+                  marginBottom: 16,
+                }}
               >
                 <Loader2 size={14} className="animate-spin" />
                 <span>Researching &amp; writing… this takes 30-60 seconds</span>
@@ -788,35 +1062,103 @@ const PostEditor = () => {
       )}
 
       {publishBlock && (
-        <div onClick={() => setPublishBlock(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
-            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+        <div
+          onClick={() => setPublishBlock(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "hsl(var(--admin-surface))",
+              border: "1px solid hsl(var(--admin-border))",
+              borderRadius: 8,
+              padding: 24,
+              maxWidth: 520,
+              width: "90%",
+            }}
+          >
+            <h3
+              className="font-heading italic"
+              style={{
+                fontSize: 20,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 8,
+              }}
+            >
               Publish gate blocked this post
             </h3>
-            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
-              The post was saved as a draft. Fix the issues below, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            <p
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 12,
+              }}
+            >
+              The post was saved as a draft. Fix the issues below, or supply an
+              override reason (min 10 characters) to publish anyway. The reason
+              is recorded on the post.
             </p>
-            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
-              {publishBlock.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            <ul
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-danger))",
+                marginBottom: 16,
+                paddingLeft: 18,
+              }}
+            >
+              {publishBlock.failures.map((f, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {f}
+                </li>
+              ))}
             </ul>
             <label className="admin-label">Override reason</label>
-            <textarea value={publishOverrideReason} onChange={(e) => setPublishOverrideReason(e.target.value)}
-              rows={3} placeholder="Why is it OK to publish this despite the failures?"
-              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setPublishBlock(null)} className="admin-btn-ghost">Close</button>
+            <textarea
+              value={publishOverrideReason}
+              onChange={(e) => setPublishOverrideReason(e.target.value)}
+              rows={3}
+              placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full"
+              style={{ marginBottom: 12, resize: "vertical" as const }}
+            />
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
               <button
-                disabled={publishOverrideReason.trim().length < 10 || saveMutation.isPending}
+                onClick={() => setPublishBlock(null)}
+                className="admin-btn-ghost"
+              >
+                Close
+              </button>
+              <button
+                disabled={
+                  publishOverrideReason.trim().length < 10 ||
+                  saveMutation.isPending
+                }
                 onClick={async () => {
                   const target = publishBlock;
                   const reason = publishOverrideReason;
                   if (!target) return;
                   const result = await runManualPublish(target.postId, reason);
                   if (result.blocked) {
-                    setPublishBlock({ postId: target.postId, failures: result.failures });
-                    toast({ title: "Still blocked", description: "Provide a stronger override reason or fix the issues.", variant: "destructive" });
+                    setPublishBlock({
+                      postId: target.postId,
+                      failures: result.failures,
+                    });
+                    toast({
+                      title: "Still blocked",
+                      description:
+                        "Provide a stronger override reason or fix the issues.",
+                      variant: "destructive",
+                    });
                     return;
                   }
                   setPublishBlock(null);
@@ -825,7 +1167,13 @@ const PostEditor = () => {
                   navigate("/admin/posts");
                 }}
                 className="admin-btn-primary"
-                style={{ background: publishOverrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : undefined }}>
+                style={{
+                  background:
+                    publishOverrideReason.trim().length >= 10
+                      ? "hsl(var(--admin-danger))"
+                      : undefined,
+                }}
+              >
                 Publish anyway
               </button>
             </div>

@@ -1,3 +1,4 @@
+import type { WidgetConfig } from "@/lib/widgetConfig";
 import { useEffect, useState } from "react";
 
 const COLOR_MAP: Record<string, string> = {
@@ -7,7 +8,7 @@ const COLOR_MAP: Record<string, string> = {
   custom: "hsl(var(--accent))",
 };
 
-const PageReadingProgress = ({ config }: { config: any }) => {
+const PageReadingProgress = ({ config }: { config: WidgetConfig }) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -15,13 +16,35 @@ const PageReadingProgress = ({ config }: { config: any }) => {
       const h = document.documentElement.scrollHeight - window.innerHeight;
       setProgress(h > 0 ? (window.scrollY / h) * 100 : 0);
     };
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, []);
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: 3, zIndex: 9999, background: "transparent" }}>
-      <div style={{ height: "100%", width: `${progress}%`, background: COLOR_MAP[config.color] || COLOR_MAP.accent, transition: "width 0.1s linear" }} />
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: 3,
+        zIndex: 9999,
+        background: "transparent",
+      }}
+    >
+      <div
+        style={{
+          height: "100%",
+          width: `${progress}%`,
+          background: COLOR_MAP[config.color ?? "accent"] || COLOR_MAP.accent,
+          transition: "width 0.1s linear",
+        }}
+      />
     </div>
   );
 };

@@ -1,7 +1,16 @@
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, X, Loader2, Film, FolderOpen, Trash2, Code } from "lucide-react";
+import {
+  Upload,
+  X,
+  Loader2,
+  Film,
+  FolderOpen,
+  Trash2,
+  Code,
+} from "lucide-react";
 
 interface VideoPickerModalProps {
   open: boolean;
@@ -37,8 +46,12 @@ const TabButton = ({
       fontSize: 13,
       fontWeight: 500,
       backgroundColor: active ? "hsl(var(--admin-surface-2))" : "transparent",
-      color: active ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))",
-      borderBottom: active ? "2px solid hsl(var(--admin-accent))" : "2px solid transparent",
+      color: active
+        ? "hsl(var(--admin-accent))"
+        : "hsl(var(--admin-text-soft))",
+      borderBottom: active
+        ? "2px solid hsl(var(--admin-accent))"
+        : "2px solid transparent",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -49,7 +62,11 @@ const TabButton = ({
   </button>
 );
 
-const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) => {
+const VideoPickerModal = ({
+  open,
+  onClose,
+  onSelect,
+}: VideoPickerModalProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<"embed" | "library" | "upload">("embed");
@@ -70,8 +87,8 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
 
       if (error) throw error;
       setVideos((data as MediaItem[]) || []);
-    } catch (err: any) {
-      console.error("Failed to load videos:", err.message);
+    } catch (err) {
+      console.error("Failed to load videos:", errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -82,7 +99,9 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
   }, [open, tab, fetchVideos]);
 
   const buildEmbedHtml = (url: string): string | null => {
-    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)/);
+    const youtubeMatch = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)/,
+    );
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
 
     if (youtubeMatch) {
@@ -104,7 +123,11 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
       setEmbedUrl("");
       onClose();
     } else {
-      toast({ title: "Unsupported URL", description: "Please enter a YouTube or Vimeo URL.", variant: "destructive" });
+      toast({
+        title: "Unsupported URL",
+        description: "Please enter a YouTube or Vimeo URL.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -113,11 +136,19 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
     if (!file) return;
 
     if (!file.type.startsWith("video/")) {
-      toast({ title: "Invalid file", description: "Select a video file.", variant: "destructive" });
+      toast({
+        title: "Invalid file",
+        description: "Select a video file.",
+        variant: "destructive",
+      });
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 50 MB.", variant: "destructive" });
+      toast({
+        title: "File too large",
+        description: "Max 50 MB.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -127,10 +158,14 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
       const filePath = `videos/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from("blog-images").upload(filePath, file);
+      const { error: uploadError } = await supabase.storage
+        .from("blog-images")
+        .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from("blog-images").getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("blog-images").getPublicUrl(filePath);
 
       const { error: dbError } = await supabase.from("media").insert({
         name: file.name,
@@ -146,8 +181,12 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
       onSelect(`video:${publicUrl}`);
       onClose();
       onClose();
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({
+        title: "Upload failed",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -162,14 +201,23 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
   const handleDelete = async (item: MediaItem) => {
     setDeleting(item.id);
     try {
-      const { error: storageErr } = await supabase.storage.from("blog-images").remove([item.file_path]);
+      const { error: storageErr } = await supabase.storage
+        .from("blog-images")
+        .remove([item.file_path]);
       if (storageErr) throw storageErr;
-      const { error: dbErr } = await supabase.from("media").delete().eq("id", item.id);
+      const { error: dbErr } = await supabase
+        .from("media")
+        .delete()
+        .eq("id", item.id);
       if (dbErr) throw dbErr;
       setVideos((prev) => prev.filter((v) => v.id !== item.id));
       toast({ title: "Video deleted" });
-    } catch (err: any) {
-      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
     } finally {
       setDeleting(null);
     }
@@ -186,29 +234,68 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
       <div
         onClick={(e) => e.stopPropagation()}
         className="admin-card flex flex-col"
-        style={{ width: "90vw", maxWidth: 680, maxHeight: "80vh", overflow: "hidden" }}
+        style={{
+          width: "90vw",
+          maxWidth: 680,
+          maxHeight: "80vh",
+          overflow: "hidden",
+        }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between"
-          style={{ padding: "16px 20px", borderBottom: "1px solid hsl(var(--admin-border))" }}
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid hsl(var(--admin-border))",
+          }}
         >
-          <h3 style={{ color: "hsl(var(--admin-text))", fontSize: 16, fontWeight: 600, margin: 0 }}>
+          <h3
+            style={{
+              color: "hsl(var(--admin-text))",
+              fontSize: 16,
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
             Insert Video
           </h3>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "hsl(var(--admin-text-soft))", cursor: "pointer", padding: 4 }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "hsl(var(--admin-text-soft))",
+              cursor: "pointer",
+              padding: 4,
+            }}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex" style={{ borderBottom: "1px solid hsl(var(--admin-border))" }}>
-          <TabButton active={tab === "embed"} onClick={() => setTab("embed")} icon={<Code size={14} />} label="Embed" />
-          <TabButton active={tab === "library"} onClick={() => setTab("library")} icon={<FolderOpen size={14} />} label="Library" />
-          <TabButton active={tab === "upload"} onClick={() => setTab("upload")} icon={<Upload size={14} />} label="Upload" />
+        <div
+          className="flex"
+          style={{ borderBottom: "1px solid hsl(var(--admin-border))" }}
+        >
+          <TabButton
+            active={tab === "embed"}
+            onClick={() => setTab("embed")}
+            icon={<Code size={14} />}
+            label="Embed"
+          />
+          <TabButton
+            active={tab === "library"}
+            onClick={() => setTab("library")}
+            icon={<FolderOpen size={14} />}
+            label="Library"
+          />
+          <TabButton
+            active={tab === "upload"}
+            onClick={() => setTab("upload")}
+            icon={<Upload size={14} />}
+            label="Upload"
+          />
         </div>
 
         {/* Content */}
@@ -216,7 +303,14 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
           {/* Embed tab */}
           {tab === "embed" && (
             <div className="flex flex-col gap-4">
-              <p className="font-body" style={{ color: "hsl(var(--admin-text-soft))", fontSize: 13, margin: 0 }}>
+              <p
+                className="font-body"
+                style={{
+                  color: "hsl(var(--admin-text-soft))",
+                  fontSize: 13,
+                  margin: 0,
+                }}
+              >
                 Paste a YouTube or Vimeo URL to embed the video.
               </p>
               <input
@@ -226,7 +320,9 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
                 placeholder="https://www.youtube.com/watch?v=..."
                 className="admin-input font-body"
                 style={{ width: "100%" }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleEmbed(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleEmbed();
+                }}
               />
               <button
                 className="admin-btn-primary font-body self-end"
@@ -243,21 +339,52 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
           {tab === "upload" && (
             <div
               className="flex flex-col items-center justify-center gap-4"
-              style={{ border: "2px dashed hsl(var(--admin-border))", borderRadius: 4, padding: "48px 24px", cursor: "pointer" }}
+              style={{
+                border: "2px dashed hsl(var(--admin-border))",
+                borderRadius: 4,
+                padding: "48px 24px",
+                cursor: "pointer",
+              }}
               onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
-                <Loader2 size={32} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+                <Loader2
+                  size={32}
+                  className="animate-spin"
+                  style={{ color: "hsl(var(--admin-accent))" }}
+                />
               ) : (
-                <Upload size={32} style={{ color: "hsl(var(--admin-text-soft))" }} />
+                <Upload
+                  size={32}
+                  style={{ color: "hsl(var(--admin-text-soft))" }}
+                />
               )}
-              <p style={{ color: "hsl(var(--admin-text-soft))", fontSize: 14, margin: 0 }}>
+              <p
+                style={{
+                  color: "hsl(var(--admin-text-soft))",
+                  fontSize: 14,
+                  margin: 0,
+                }}
+              >
                 {uploading ? "Uploading..." : "Click to select a video"}
               </p>
-              <p style={{ color: "hsl(var(--admin-text-soft))", fontSize: 12, margin: 0, opacity: 0.6 }}>
+              <p
+                style={{
+                  color: "hsl(var(--admin-text-soft))",
+                  fontSize: 12,
+                  margin: 0,
+                  opacity: 0.6,
+                }}
+              >
                 Max 50 MB · MP4, WebM, OGG
               </p>
-              <input ref={fileInputRef} type="file" accept="video/*" onChange={handleUpload} className="hidden" />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleUpload}
+                className="hidden"
+              />
             </div>
           )}
 
@@ -265,26 +392,65 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
           {tab === "library" && (
             <>
               {loading ? (
-                <div className="flex items-center justify-center" style={{ padding: 48 }}>
-                  <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--admin-accent))" }} />
+                <div
+                  className="flex items-center justify-center"
+                  style={{ padding: 48 }}
+                >
+                  <Loader2
+                    size={24}
+                    className="animate-spin"
+                    style={{ color: "hsl(var(--admin-accent))" }}
+                  />
                 </div>
               ) : videos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2" style={{ padding: 48 }}>
-                  <Film size={32} style={{ color: "hsl(var(--admin-text-soft))", opacity: 0.4 }} />
-                  <p style={{ color: "hsl(var(--admin-text-soft))", fontSize: 14 }}>No videos yet. Upload one first.</p>
+                <div
+                  className="flex flex-col items-center justify-center gap-2"
+                  style={{ padding: 48 }}
+                >
+                  <Film
+                    size={32}
+                    style={{
+                      color: "hsl(var(--admin-text-soft))",
+                      opacity: 0.4,
+                    }}
+                  />
+                  <p
+                    style={{
+                      color: "hsl(var(--admin-text-soft))",
+                      fontSize: 14,
+                    }}
+                  >
+                    No videos yet. Upload one first.
+                  </p>
                 </div>
               ) : (
-                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+                <div
+                  className="grid gap-3"
+                  style={{
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(160px, 1fr))",
+                  }}
+                >
                   {videos.map((vid) => (
                     <div
                       key={vid.id}
                       className="group relative"
-                      style={{ aspectRatio: "16/9", borderRadius: 4, overflow: "hidden", cursor: "pointer", border: "1px solid hsl(var(--admin-border))" }}
+                      style={{
+                        aspectRatio: "16/9",
+                        borderRadius: 4,
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        border: "1px solid hsl(var(--admin-border))",
+                      }}
                       onClick={() => handleLibrarySelect(vid)}
                     >
                       <video
                         src={vid.url}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
                         muted
                         preload="metadata"
                       />
@@ -296,18 +462,44 @@ const VideoPickerModal = ({ open, onClose, onSelect }: VideoPickerModalProps) =>
                       </div>
                       <div
                         className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between"
-                        style={{ background: "rgba(0,0,0,0.7)", padding: "4px 8px" }}
+                        style={{
+                          background: "rgba(0,0,0,0.7)",
+                          padding: "4px 8px",
+                        }}
                       >
-                        <span style={{ color: "#fff", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
+                        <span
+                          style={{
+                            color: "#fff",
+                            fontSize: 10,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "70%",
+                          }}
+                        >
                           {vid.name}
                         </span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(vid); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(vid);
+                          }}
                           disabled={deleting === vid.id}
-                          style={{ background: "rgba(220,38,38,0.8)", border: "none", borderRadius: 2, padding: 3, cursor: "pointer", color: "#fff" }}
+                          style={{
+                            background: "rgba(220,38,38,0.8)",
+                            border: "none",
+                            borderRadius: 2,
+                            padding: 3,
+                            cursor: "pointer",
+                            color: "#fff",
+                          }}
                           title="Delete"
                         >
-                          {deleting === vid.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          {deleting === vid.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={12} />
+                          )}
                         </button>
                       </div>
                     </div>
