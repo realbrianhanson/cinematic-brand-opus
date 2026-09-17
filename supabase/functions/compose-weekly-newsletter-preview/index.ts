@@ -13,6 +13,7 @@ import {
   loadVoiceBlock,
   type PostRow,
 } from "../_shared/newsletter-compose.ts";
+import { resolveNewsletterConfig } from "../_shared/newsletterConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
