@@ -1,19 +1,6 @@
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import WidgetRenderer from "@/components/WidgetRenderer";
-
-const hashLinks = [
-  { label: "Story", hash: "#story" },
-  { label: "Expertise", hash: "#expertise" },
-  { label: "Speaking", hash: "#speaking" },
-  { label: "Results", hash: "#results" },
-];
-
-const routeLinks = [
-  { label: "Blog", to: "/blog" },
-  { label: "News", to: "/news" },
-  { label: "Resources", to: "/resources" },
-  { label: "Sitemap", to: "/sitemap" },
-];
+import { siteConfig, copyrightLine } from "@/config/site";
 
 const linkStyle: React.CSSProperties = {
   fontSize: 15,
@@ -31,6 +18,13 @@ const Footer = () => {
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
 
+  const { identity, footer, brand } = siteConfig;
+
+  const legalLinks = [
+    footer.privacyUrl ? { label: "Privacy", href: footer.privacyUrl } : null,
+    footer.termsUrl ? { label: "Terms", href: footer.termsUrl } : null,
+  ].filter((l): l is { label: string; href: string } => l !== null);
+
   const goToHash = (hash: string) => {
     const id = hash.replace("#", "");
     if (isHome) {
@@ -43,7 +37,7 @@ const Footer = () => {
   };
 
   const hoverIn = (e: React.MouseEvent<HTMLElement>) =>
-    (e.currentTarget.style.color = "#D4AF55");
+    (e.currentTarget.style.color = brand.accent);
   const hoverOut = (e: React.MouseEvent<HTMLElement>) =>
     (e.currentTarget.style.color = "rgba(255,255,255,0.82)");
 
@@ -58,29 +52,33 @@ const Footer = () => {
                 className="flex items-center justify-center"
                 style={{ width: 32, height: 32, border: "1.5px solid rgba(212,175,85,0.6)" }}
               >
-                <span className="font-display italic" style={{ fontSize: 14, color: "#D4AF55", lineHeight: 1 }}>B</span>
+                <span className="font-display italic" style={{ fontSize: 14, color: brand.accent, lineHeight: 1 }}>
+                  {identity.logoInitials}
+                </span>
               </div>
               <span className="font-body font-medium uppercase" style={{ fontSize: 12, letterSpacing: "0.22em", color: "rgba(255,255,255,0.85)" }}>
-                Brian Hanson
+                {identity.name}
               </span>
             </div>
-            <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-              AI · Marketing · Business Growth
-            </p>
+            {identity.tagline && (
+              <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                {identity.tagline}
+              </p>
+            )}
           </div>
 
           {/* Col 2 */}
           <div>
-            <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: "#D4AF55" }}>
+            <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: brand.accent }}>
               Navigate
             </h4>
             <div className="flex flex-col gap-3 items-start">
-              {hashLinks.map((l) => (
+              {footer.hashLinks.map((l) => (
                 <button
                   key={l.label}
                   type="button"
                   data-hover
-                  onClick={() => goToHash(l.hash)}
+                  onClick={() => goToHash(l.href)}
                   className="font-body transition-colors duration-200"
                   style={linkStyle}
                   onMouseEnter={hoverIn}
@@ -89,10 +87,10 @@ const Footer = () => {
                   {l.label}
                 </button>
               ))}
-              {routeLinks.map((l) => (
+              {footer.routeLinks.map((l) => (
                 <Link
                   key={l.label}
-                  to={l.to}
+                  to={l.href}
                   data-hover
                   className="font-body transition-colors duration-200"
                   style={linkStyle}
@@ -106,24 +104,30 @@ const Footer = () => {
           </div>
 
           {/* Col 3 */}
-          <div>
-            <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: "#D4AF55" }}>
-              Contact
-            </h4>
-            <a
-              href="mailto:brian@brianhanson.com"
-              data-hover
-              className="font-body block mb-2 transition-colors duration-200"
-              style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
-            >
-              brian@brianhanson.com
-            </a>
-            <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-              Speaking · Partnerships · Media
-            </p>
-          </div>
+          {(identity.contactEmail || footer.contactNote) && (
+            <div>
+              <h4 className="font-body font-bold uppercase mb-5" style={{ fontSize: 11, letterSpacing: "0.2em", color: brand.accent }}>
+                Contact
+              </h4>
+              {identity.contactEmail && (
+                <a
+                  href={`mailto:${identity.contactEmail}`}
+                  data-hover
+                  className="font-body block mb-2 transition-colors duration-200"
+                  style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = brand.accent)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
+                >
+                  {identity.contactEmail}
+                </a>
+              )}
+              {footer.contactNote && (
+                <p className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                  {footer.contactNote}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <WidgetRenderer zone="footer" />
@@ -134,23 +138,25 @@ const Footer = () => {
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
         >
           <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-            © 2026 Brian Hanson. All rights reserved.
+            {copyrightLine()}
           </span>
-          <div className="flex gap-6">
-            {["Privacy", "Terms"].map((t) => (
-              <a
-                key={t}
-                href="#"
-                data-hover
-                className="font-body transition-colors duration-200"
-                style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF55")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
-              >
-                {t}
-              </a>
-            ))}
-          </div>
+          {legalLinks.length > 0 && (
+            <div className="flex gap-6">
+              {legalLinks.map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  data-hover
+                  className="font-body transition-colors duration-200"
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = brand.accent)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </footer>
