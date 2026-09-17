@@ -3,6 +3,8 @@
 // Falls back to Firecrawl (residential proxy) when the direct fetch is blocked
 // by a CDN like Akamai or Cloudflare — common on major news sites.
 // Returns absolute URL or null. Short timeout so it never stalls polling.
+import { fetchTextBounded, isPublicHttpUrl } from "./safeFetch.ts";
+
 
 export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
   // Article URLs arrive from remote feeds, so never fetch one that is not a
