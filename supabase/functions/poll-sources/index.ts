@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { embedText, toPgVector } from "../_shared/embeddings.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
+import { fetchTextBounded } from "../_shared/safeFetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
