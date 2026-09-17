@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import { siteConfig } from "@/config/site";
@@ -190,10 +191,14 @@ const Nav = ({ loaded = true }: NavProps) => {
 
           {/* Mobile hamburger */}
           <button
-            className="lg:hidden"
+            type="button"
+            className="lg:hidden inline-flex items-center justify-center"
             onClick={() => setMenuOpen(true)}
             data-hover
             aria-label="Open menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-site-menu"
+            style={{ minWidth: 44, minHeight: 44 }}
           >
             <Menu size={24} color="rgba(255,255,255,0.7)" />
           </button>
