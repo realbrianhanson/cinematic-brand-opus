@@ -127,7 +127,9 @@ const GeneratedPageEditor = () => {
       let excerpt = "";
       try {
         excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
-      } catch {}
+      } catch {
+        // Content is not JSON, so there is no excerpt to pull out.
+      }
       const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
         body: {
           title: page?.title || "",
@@ -156,7 +158,9 @@ const GeneratedPageEditor = () => {
       let excerpt = "";
       try {
         excerpt = JSON.parse(contentStr)?.intro || JSON.parse(contentStr)?.description || "";
-      } catch {}
+      } catch {
+        // Content is not JSON, so there is no excerpt to pull out.
+      }
       const { data, error } = await supabase.functions.invoke("generate-seo-aeo", {
         body: {
           title: page?.title || "",

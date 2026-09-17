@@ -232,7 +232,8 @@ const GenerationControls = () => {
   const toggleNiche = (slug: string) => {
     setSelectedNiches((prev) => {
       const next = new Set(prev);
-      next.has(slug) ? next.delete(slug) : next.add(slug);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
       return next;
     });
   };
