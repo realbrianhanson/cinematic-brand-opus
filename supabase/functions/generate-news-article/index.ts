@@ -87,7 +87,31 @@ Deno.serve(async (req) => {
     if (error || !item) {
       return json({ error: "not found" }, 404);
     }
-...
+
+    if (item.full_content && !force) {
+      // Cached path: opportunistically backfill a missing image.
+      let cachedImage = item.image_url as string | null;
+      if (!cachedImage) {
+        cachedImage = await fetchOgImage(item.url);
+        if (cachedImage) {
+          const { error: imgError } = await supabase
+            .from("source_items")
+            .update({ image_url: cachedImage.slice(0, 1000) })
+            .eq("id", item.id);
+          if (imgError) console.error("image backfill failed:", imgError.message);
+        }
+      }
+      return json({
+        id: item.id,
+        title: item.ai_title || item.title,
+        summary: item.ai_summary || item.raw_excerpt,
+        content: item.full_content,
+        image_url: cachedImage,
+        cached: true,
+      });
+    }
+
+    // Global cap on generation volume per hour.
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count: recentCount, error: rateError } = await supabase
       .from("source_items")
