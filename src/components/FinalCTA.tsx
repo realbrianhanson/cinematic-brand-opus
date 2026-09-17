@@ -6,6 +6,7 @@ import {
   interpretSubscribeResult,
   type SubscribeUiState,
 } from "@/lib/newsletterClient";
+import { siteConfig } from "@/config/site";
 
 const FinalCTA = () => {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ const FinalCTA = () => {
   const [message, setMessage] = useState("");
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: formRef, visible: formVisible } = useReveal();
+  const newsletter = siteConfig.newsletter;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,19 +67,19 @@ const FinalCTA = () => {
       <div className="relative mx-auto px-6 lg:px-14 max-w-2xl text-center">
         <div ref={headerRef}>
           <h2 className="font-display mb-5" style={{ fontSize: "clamp(2rem, 4.5vw, 3.5rem)", lineHeight: 1.1, color: "#fff", ...revealStyle(headerVisible, 0) }}>
-            Ready for Your{" "}
+            {newsletter.headingLead}{" "}
             <em style={{
               fontStyle: "italic",
               background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}>
-              Unfair Advantage?
+              {newsletter.headingAccent}
             </em>
           </h2>
 
           <p className="font-body mb-10" style={{ fontSize: "1.1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.85)", ...revealStyle(headerVisible, 0.1) }}>
-            Weekly AI strategies, tools, and frameworks from the front lines. No spam. No fluff. Just what moves the needle.
+            {newsletter.intro}
           </p>
         </div>
 
@@ -145,7 +147,9 @@ const FinalCTA = () => {
             ))}
           </div>
 
+          {newsletter.secondaryCta && (
           <div className="mt-14">
+            {newsletter.secondaryCtaLabel && (
             <div
               className="inline-block font-body font-semibold uppercase mb-3"
               style={{
@@ -157,22 +161,24 @@ const FinalCTA = () => {
                 padding: "5px 14px",
               }}
             >
-              Or skip ahead
+              {newsletter.secondaryCtaLabel}
             </div>
+            )}
             <div>
               <a
-                href="https://aiforbeginners.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href={newsletter.secondaryCta.href}
+                target={newsletter.secondaryCta.external ? "_blank" : undefined}
+                rel={newsletter.secondaryCta.external ? "noopener noreferrer" : undefined}
                 data-hover
                 className="inline-flex items-center gap-1.5 font-display italic group"
                 style={{ fontSize: "1rem", color: "#D4AF55" }}
               >
-                Join the Free 3-Day AI Event
+                {newsletter.secondaryCta.label}
                 <ArrowUpRight size={15} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
             </div>
           </div>
+          )}
         </div>
       </div>
     </section>
