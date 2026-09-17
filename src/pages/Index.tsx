@@ -17,32 +17,28 @@ import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
 import PageHead from "@/components/PageHead";
+import { siteConfig, absoluteUrl } from "@/config/site";
+
+const { identity, metadata, sections } = siteConfig;
 
 const HOMEPAGE_LD = [
   {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: "Brian Hanson",
-    jobTitle: "Keynote Speaker, Advisor & Operator",
-    url: "https://brianhanson.com/",
-    description:
-      "Brian Hanson helps founders and executives build authority, lead with clarity, and grow durable businesses through applied A.I., marketing, and leadership strategy.",
-    knowsAbout: [
-      "Artificial Intelligence",
-      "Leadership",
-      "Marketing Strategy",
-      "Business Growth",
-      "Personal Branding",
-    ],
+    name: identity.name,
+    jobTitle: identity.role,
+    url: absoluteUrl("/"),
+    description: metadata.socialDescription,
+    knowsAbout: identity.knowsAbout,
   },
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Brian Hanson",
-    url: "https://brianhanson.com/",
+    name: identity.name,
+    url: absoluteUrl("/"),
     potentialAction: {
       "@type": "SearchAction",
-      target: "https://brianhanson.com/resources?q={search_term_string}",
+      target: `${absoluteUrl("/resources")}?q={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   },
@@ -82,7 +78,12 @@ const Index = () => {
 
   return (
     <>
-      <PageHead title="Brian Hanson | Authority, Leadership, Legacy" description="Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership." url="https://brianhanson.com/" type="website" />
+      <PageHead
+        title={metadata.defaultTitle}
+        description={metadata.defaultDescription}
+        url={absoluteUrl("/")}
+        type="website"
+      />
       {!loaded && <Loader onComplete={handleLoaderComplete} />}
       <div
         className="public-site min-h-screen"
@@ -97,18 +98,30 @@ const Index = () => {
         <ScrollProgress />
         <Nav loaded={loaded} />
         <Hero loaded={loaded} />
-        <ProofBar />
+        {sections.proofBar && <ProofBar />}
         <Divider />
-        <SectionReveal><Story /></SectionReveal>
+        {sections.story && (
+          <>
+            <SectionReveal><Story /></SectionReveal>
+            <Divider />
+          </>
+        )}
+        {sections.expertise && <Expertise />}
+        {sections.results && <Stats />}
         <Divider />
-        <Expertise />
-        <Stats />
-        <Divider />
-        <SectionReveal><EventCTA /></SectionReveal>
-        <Divider />
-        <SectionReveal><Speaking /></SectionReveal>
-        <Divider />
-        <FinalCTA />
+        {sections.event && (
+          <>
+            <SectionReveal><EventCTA /></SectionReveal>
+            <Divider />
+          </>
+        )}
+        {sections.speaking && (
+          <>
+            <SectionReveal><Speaking /></SectionReveal>
+            <Divider />
+          </>
+        )}
+        {sections.newsletter && <FinalCTA />}
         <Footer />
       </div>
     </>
