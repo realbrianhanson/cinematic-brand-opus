@@ -22,48 +22,75 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionResolved, setSessionResolved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roleResolved, setRoleResolved] = useState(false);
 
-  const checkAdmin = async (userId: string) => {
-    const { data } = await supabase
+  // Session state only. The auth callback must stay synchronous: awaiting any
+  // Supabase call inside it can deadlock the client's internal lock.
+  useEffect(() => {
+    let active = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      setUser(session?.user ?? null);
+      setSessionResolved(true);
+    });
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
+        setUser(session?.user ?? null);
+      })
+      .catch((e) => {
+        console.error("Session load error:", e);
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        if (active) setSessionResolved(true);
+      });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Role lookup happens outside the auth callback, keyed to the current user,
+  // so privileges never carry across a user switch or a sign-out.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (!userId) {
+      setIsAdmin(false);
+      setRoleResolved(true);
+      return;
+    }
+
+    let stale = false;
+    setIsAdmin(false);
+    setRoleResolved(false);
+
+    supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .eq("role", "admin")
-      .maybeSingle();
-    setIsAdmin(!!data);
-  };
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (stale) return;
+        if (error) console.error("Role check error:", error.message);
+        setIsAdmin(!error && !!data);
+        setRoleResolved(true);
+      });
 
-  useEffect(() => {
-    let initialized = false;
+    return () => {
+      stale = true;
+    };
+  }, [userId]);
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      initialized = true;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        await checkAdmin(u.id);
-      }
-      setLoading(false);
-    });
+  const loading = !sessionResolved || !roleResolved;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!initialized) return; // skip the initial event, getSession handles it
-        const u = session?.user ?? null;
-        setUser(u);
-        if (u) {
-          await checkAdmin(u.id);
-        } else {
-          setIsAdmin(false);
-        }
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
