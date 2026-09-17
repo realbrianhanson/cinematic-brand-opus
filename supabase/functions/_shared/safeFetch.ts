@@ -47,9 +47,16 @@ function isPrivateIPv6(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, "").toLowerCase();
   if (!h.includes(":")) return false;
   if (h === "::" || h === "::1") return true;
-  if (h.startsWith("fe80") || h.startsWith("fc") || h.startsWith("fd"))
+  if (
+    /^fe[89ab]/.test(h) ||
+    h.startsWith("fc") ||
+    h.startsWith("fd") ||
+    h.startsWith("ff")
+  )
     return true;
-  if (h.startsWith("::ffff:")) return isPrivateIPv4(h.slice("::ffff:".length));
+  // URL normalizes mapped IPv4 to hexadecimal (e.g. ::ffff:7f00:1).
+  // Reject mapped literals rather than misclassifying them as public IPv6.
+  if (h.startsWith("::ffff:")) return true;
   return false;
 }
 
@@ -214,7 +221,7 @@ export async function fetchTextBounded(
   }
 }
 
-async function readBounded(
+export async function readBounded(
   res: Response,
   maxBytes: number,
 ): Promise<{ text: string; truncated: boolean }> {

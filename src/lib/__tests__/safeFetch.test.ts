@@ -39,6 +39,9 @@ describe("assertPublicHttpUrl", () => {
       "https://printer.local/x",
       "https://[::1]/x",
       "https://[fd00::1]/x",
+      "https://[::ffff:127.0.0.1]/x",
+      "https://[fe90::1]/x",
+      "https://[ff02::1]/x",
     ]) {
       expect(isPublicHttpUrl(url), url).toBe(false);
     }

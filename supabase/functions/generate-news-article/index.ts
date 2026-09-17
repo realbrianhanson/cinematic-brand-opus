@@ -1,3 +1,4 @@
+import { fetchSourceMarkdown } from "../_shared/sourceArticle.ts";
 // Generates a full AI-rewritten news article for a source_items row and stores
 // it on the row. Idempotent: if full_content already exists and force!=true,
 // returns the stored content.
@@ -14,48 +15,6 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-
-async function fetchSourceMarkdown(url: string): Promise<string> {
-  // Prefer Firecrawl if available; fall back to plain fetch + strip.
-  if (FIRECRAWL_API_KEY) {
-    try {
-      const r = await fetch("https://api.firecrawl.dev/v1/scrape", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url,
-          formats: ["markdown"],
-          onlyMainContent: true,
-        }),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        const md = j?.data?.markdown || j?.markdown;
-        if (md && md.length > 200) return md.slice(0, 12000);
-      }
-    } catch (_) {
-      /* fall through */
-    }
-  }
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 NewsRewriter/1.0" },
-    });
-    const html = await r.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return text.slice(0, 12000);
-  } catch {
-    return "";
-  }
-}
 
 const json = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), {
@@ -148,7 +107,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const sourceText = await fetchSourceMarkdown(item.url);
+    const sourceText = await fetchSourceMarkdown(item.url, FIRECRAWL_API_KEY);
     const voice = await loadVoiceConfig(supabase);
     const voiceBlock = formatVoiceBlock(voice);
 
@@ -193,6 +152,7 @@ Return STRICT JSON only, no prose, no code fences:
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
