@@ -5,6 +5,7 @@ import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
 import { siteConfig } from "@/config/site";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 
 interface HeroProps {
   loaded?: boolean;
@@ -21,27 +22,28 @@ const Hero = ({ loaded = true }: HeroProps) => {
   const { headlineLines } = hero;
   const headlineText = headlineLines.map((l) => l.text).join(" ");
 
-  // Lazy-load hero video: only kick in after the page's initial load event.
+  // Lazy-load the decorative hero video after first paint. Skipped entirely for
+  // reduced-motion or data-saver visitors; the poster image carries the design.
   useEffect(() => {
-    if (!hero.videoSrc) return;
+    if (!hero.videoSrc || lightMode || !resolved) return;
     const start = () => {
       const v = videoRef.current;
       if (!v) return;
       if (!v.src) {
         v.src = hero.videoSrc!;
         v.load();
-        v.play().catch(() => {});
+        // videoReady flips on the `playing` event, so the poster stays put if
+        // playback never actually starts.
+        v.play().catch(() => setVideoReady(false));
       }
-      setVideoReady(true);
     };
     if (document.readyState === "complete") {
-      // Delay slightly so it never fights first paint.
       const t = window.setTimeout(start, 400);
       return () => window.clearTimeout(t);
     }
     window.addEventListener("load", start, { once: true });
     return () => window.removeEventListener("load", start);
-  }, [hero.videoSrc]);
+  }, [hero.videoSrc, lightMode, resolved]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -72,7 +74,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
             style={{ opacity: videoReady ? 0 : 0.55, transition: "opacity 0.6s ease" }}
           />
         )}
-        {hero.videoSrc && (
+        {hero.videoSrc && !lightMode && (
           <video
             ref={videoRef}
             muted
@@ -80,6 +82,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
             playsInline
             preload="none"
             poster={hero.posterSrc ?? undefined}
+            aria-hidden="true"
+            onPlaying={() => setVideoReady(true)}
+            onError={() => setVideoReady(false)}
+            onStalled={() => setVideoReady(false)}
             className="absolute w-full h-full object-cover"
             style={{ opacity: videoReady ? 1 : 0, transition: "opacity 0.8s ease" }}
           />
