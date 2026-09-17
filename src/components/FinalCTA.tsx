@@ -83,7 +83,11 @@ const FinalCTA = () => {
 
         <div ref={formRef} style={revealStyle(formVisible, 0)}>
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-6">
+            <label htmlFor="final-cta-email" className="sr-only">
+              Email address
+            </label>
             <input
+              id="final-cta-email"
               type="email"
               required
               maxLength={255}
@@ -118,14 +122,14 @@ const FinalCTA = () => {
             </button>
           </form>
 
-          {message && (
-            <p
-              className="font-body mb-4"
-              style={{ fontSize: 13, color: status === "error" ? "#ff8080" : "#D4AF55" }}
-            >
-              {message}
-            </p>
-          )}
+          <p
+            className="font-body mb-4"
+            role="status"
+            aria-live="polite"
+            style={{ fontSize: 13, color: isProblem ? "#ff8080" : "#D4AF55", minHeight: message ? undefined : 0 }}
+          >
+            {message}
+          </p>
 
 
           <div className="flex justify-center gap-6 flex-wrap">

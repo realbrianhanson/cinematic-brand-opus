@@ -62,12 +62,16 @@ const SidebarNewsletter = ({ config }: { config: any }) => {
         {config.description || "Get the latest tips delivered to your inbox."}
       </p>
       {isDone ? (
-        <p className="font-body" style={{ fontSize: 13, color: tone }} role="status">
+        <p className="font-body" style={{ fontSize: 13, color: tone }} role="status" aria-live="polite">
           {message}
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+          <label htmlFor="sidebar-newsletter-email" className="sr-only">
+            Email address
+          </label>
           <input
+            id="sidebar-newsletter-email"
             type="email"
             placeholder="your@email.com"
             value={email}
@@ -86,7 +90,7 @@ const SidebarNewsletter = ({ config }: { config: any }) => {
             {state === "loading" ? "Subscribing…" : "Subscribe"}
           </button>
           {message && (
-            <p className="font-body" style={{ fontSize: 12, color: tone }} role="status">
+            <p className="font-body" style={{ fontSize: 12, color: tone }} role="status" aria-live="polite">
               {message}
             </p>
           )}
