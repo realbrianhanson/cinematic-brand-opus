@@ -122,6 +122,7 @@ first public visitor an administrator. Sign in at `/admin/login`.
 - [ ] Replace the hero background video and its poster image in `public/videos/`,
       or ask for the video removed entirely.
 - [ ] Replace the portrait and event photo in `src/assets/`.
+- [ ] Add your own favicon to `public/` and set `metadata.faviconHref` in your preset. Replace `public/favicon.ico` too (browser fallback). For saved home-screen shortcuts, add a 180px PNG and set `metadata.appleTouchIconHref`. Use new filenames when changing icons so browsers refresh cached branding.
 - [ ] Replace the browser icon.
 - [ ] Adjust the accent colour in your preset if you want a different palette.
 

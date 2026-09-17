@@ -48,7 +48,8 @@ export const brianPreset: SiteConfig = {
     socialDescription:
       "Keynote speaker and advisor Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses through applied A.I. and modern leadership.",
     socialImageUrl: "https://brianhanson.com/og-default.png",
-    faviconHref: "/brian-headshot.webp",
+    faviconHref: "/brian-favicon-v1.png",
+    appleTouchIconHref: "/brian-touch-icon-v1.png",
     rssTitle: "Brian Hanson — Blog",
   },
 

@@ -47,8 +47,10 @@ export interface SiteMetadata {
   socialDescription: string;
   /** Absolute URL of the default social share image, or null to omit it. */
   socialImageUrl: string | null;
-  /** Favicon path served from /public, or null for the platform default. */
+  /** Favicon path served from /public, or null to omit a branded icon. */
   faviconHref: string | null;
+  /** Optional 180px PNG for saved home-screen shortcuts. */
+  appleTouchIconHref?: string | null;
   /** Label for the RSS <link rel="alternate">. */
   rssTitle: string;
 }

@@ -205,11 +205,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           ? [
               {
                 rel: "icon",
-                type: "image/webp",
                 href: siteConfig.metadata.faviconHref,
               },
             ]
           : [{ rel: "icon", href: "data:," }]),
+        ...(siteConfig.metadata.appleTouchIconHref
+          ? [
+              {
+                rel: "apple-touch-icon",
+                sizes: "180x180",
+                href: siteConfig.metadata.appleTouchIconHref,
+              },
+            ]
+          : []),
         {
           rel: "alternate",
           type: "application/rss+xml",
