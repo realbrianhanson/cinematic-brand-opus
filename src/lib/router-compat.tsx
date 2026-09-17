@@ -70,10 +70,10 @@ export function useLocation() {
   return useMemo(
     () => ({
       pathname: loc.pathname,
-      search: loc.searchStr ? `?${loc.searchStr}` : "",
+      search: normalizeSearch(loc.searchStr),
       hash: loc.hash ?? "",
       state: (loc.state ?? null) as unknown,
-      key: loc.pathname + (loc.searchStr ?? ""),
+      key: loc.pathname + normalizeSearch(loc.searchStr),
     }),
     [loc.pathname, loc.searchStr, loc.hash, loc.state],
   );
