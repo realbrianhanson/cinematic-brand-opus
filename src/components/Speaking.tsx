@@ -2,24 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Star } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
-import brianHeadshot from "@/assets/brian-headshot.jpeg";
+import { siteConfig } from "@/config/site";
 
-const topics = [
-  {
-    title: "AI for Business Leaders",
-    desc: "Making AI profitable and actionable for non-technical executives. Walk away knowing exactly what to implement Monday morning.",
-  },
-  {
-    title: "The Unfair Advantage",
-    desc: "How to build systems that let you compete against anyone, regardless of size or budget. Technology, psychology, and strategy combined.",
-  },
-  {
-    title: "From Burnout to Breakthrough",
-    desc: "The story of losing everything, choosing to rebuild, and using AI as the foundation. Resilience, reinvention, and reclaiming your life.",
-  },
-];
-
-const TopicCard = ({ topic, index }: { topic: (typeof topics)[0]; index: number }) => {
+const TopicCard = ({ topic, index }: { topic: { title: string; desc: string }; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -65,45 +50,49 @@ const TopicCard = ({ topic, index }: { topic: (typeof topics)[0]; index: number 
 const Speaking = () => {
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: rightRef, visible: rightVisible } = useReveal();
+  const speaking = siteConfig.speaking;
+  const hasVisual = Boolean(speaking.portraitSrc || speaking.testimonial);
 
   return (
     <section id="speaking" className="relative py-36 lg:py-44" style={{ background: "#0A0B12" }}>
       <div className="relative mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
         <div className="grid lg:grid-cols-12 gap-16 lg:gap-20">
           {/* Left */}
-          <div className="lg:col-span-7">
+          <div className={hasVisual ? "lg:col-span-7" : "lg:col-span-12"}>
             <div ref={headerRef}>
               <div className="flex items-center gap-4 mb-6" style={revealStyle(headerVisible, 0)}>
                 <div style={{ width: 60, height: 2, background: "linear-gradient(90deg, #D4AF55, #E8C96A)" }} />
                 <span className="font-body font-bold uppercase" style={{ fontSize: 10, letterSpacing: "0.3em", color: "#D4AF55" }}>
-                  Keynotes & Workshops
+                  {speaking.overline}
                 </span>
               </div>
 
               <h2 className="font-display mb-5" style={{ fontSize: "clamp(2.2rem, 4.5vw, 3.8rem)", lineHeight: 1.08, color: "#fff", ...revealStyle(headerVisible, 0.1) }}>
-                Bring Brian{" "}
+                {speaking.headingLead}{" "}
                 <em style={{
                   fontStyle: "italic",
                   background: "linear-gradient(135deg, #D4AF55, #E8C96A)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                 }}>
-                  to Your Stage
+                  {speaking.headingAccent}
                 </em>
               </h2>
 
               <p className="font-body mb-12" style={{ fontSize: "1.1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.85)", maxWidth: 540, ...revealStyle(headerVisible, 0.2) }}>
-                On stage, I make complex AI simple. I blend hard-won lessons with humor and deliver frameworks audiences use immediately. No recycled TED talks.
+                {speaking.intro}
               </p>
             </div>
 
             <div className="space-y-4">
-              {topics.map((t, i) => <TopicCard key={i} topic={t} index={i} />)}
+              {speaking.topics.map((t, i) => <TopicCard key={i} topic={t} index={i} />)}
             </div>
 
+            {speaking.bookingCta && (
             <div className="mt-10">
               <MagneticButton
-                href="mailto:brian@brianhanson.com?subject=Speaking%20Inquiry"
+                href={speaking.bookingCta.href}
+                target={speaking.bookingCta.external ? "_blank" : undefined}
                 className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase"
                 style={{
                   fontSize: 13,
@@ -113,17 +102,20 @@ const Speaking = () => {
                   padding: "18px 36px",
                 }}
               >
-                Inquire About Booking
+                {speaking.bookingCta.label}
                 <ArrowRight size={15} strokeWidth={2.5} />
                 <div className="hero-cta-shine" />
               </MagneticButton>
             </div>
+            )}
           </div>
 
           {/* Right */}
+          {hasVisual && (
           <div ref={rightRef} className="lg:col-span-5 flex items-center" style={revealStyle(rightVisible, 0.2)}>
             <div className="relative w-full">
-              {/* Photo placeholder */}
+              {/* Portrait */}
+              {speaking.portraitSrc && (
               <div
                 className="relative w-full overflow-hidden"
                 style={{
@@ -131,8 +123,8 @@ const Speaking = () => {
                 }}
               >
                 <img
-                  src={brianHeadshot}
-                  alt="Brian Hanson"
+                  src={speaking.portraitSrc}
+                  alt={speaking.portraitAlt}
                   loading="lazy"
                   className="w-full h-full object-cover"
                 />
@@ -145,8 +137,10 @@ const Speaking = () => {
                   <div style={{ position: "absolute", bottom: 0, left: 0, width: 2, height: 16, background: "rgba(212,175,85,0.3)" }} />
                 </div>
               </div>
+              )}
 
               {/* Testimonial card */}
+              {speaking.testimonial && (
               <div
                 className="relative lg:absolute lg:-bottom-16 lg:-right-10 mt-6 lg:mt-0 p-6"
                 style={{
@@ -163,14 +157,16 @@ const Speaking = () => {
                   ))}
                 </div>
                 <p className="font-display italic" style={{ fontSize: 15, lineHeight: 1.6, color: "rgba(255,255,255,0.92)" }}>
-                  "Brian's keynote was the highlight of our entire conference."
+                  "{speaking.testimonial.quote}"
                 </p>
                 <span className="font-body block mt-3" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  Event Director, Fortune 500 Company
+                  {speaking.testimonial.attribution}
                 </span>
               </div>
+              )}
             </div>
           </div>
+          )}
         </div>
       </div>
     </section>
