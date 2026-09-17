@@ -102,17 +102,20 @@ async function parseRss(xml: string): Promise<Item[]> {
 
 async function fetchRss(url: string): Promise<Item[]> {
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "BrianHansonBot/1.0 (+https://brianhanson.com)" },
+    // Source URLs are operator-supplied, so validate the host, bound the body
+    // and revalidate every redirect hop before parsing.
+    const res = await fetchTextBounded(url, {
+      headers: { "User-Agent": "PushTenBot/1.0" },
+      timeoutMs: 12_000,
+      maxBytes: 2 * 1024 * 1024,
     });
     if (!res.ok) {
       console.warn("RSS fetch failed", url, res.status);
       return [];
     }
-    const xml = await res.text();
-    return parseRss(xml);
+    return parseRss(res.body);
   } catch (e) {
-    console.warn("RSS fetch threw", url, e);
+    console.warn("RSS fetch rejected", url, (e as Error).message);
     return [];
   }
 }

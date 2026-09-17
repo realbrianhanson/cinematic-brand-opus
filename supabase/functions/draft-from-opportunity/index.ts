@@ -64,12 +64,24 @@ Deno.serve(async (req) => {
     });
   }
 
-  const currentAttempts = (opp.attempts ?? 0) + 1;
-  await supabase.from("content_opportunities").update({
-    status: "drafting",
-    attempts: currentAttempts,
-    last_attempt_at: new Date().toISOString(),
-  }).eq("id", opportunity_id);
+  // Atomic claim: only one concurrent run may hold an opportunity. A claim that
+  // is already held (and not stale) returns no row, so we stop instead of
+  // generating a duplicate draft.
+  const { data: claimed, error: claimErr } = await supabase.rpc(
+    "content_claim_opportunity",
+    { _id: opportunity_id, _stale_seconds: 600 },
+  );
+  if (claimErr) {
+    return new Response(JSON.stringify({ error: `claim failed: ${claimErr.message}` }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (!claimed || claimed.length === 0) {
+    return new Response(JSON.stringify({ error: "already being drafted" }), {
+      status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const currentAttempts = claimed[0].attempts as number;
 
   // PRE-DRAFT originality gate: embed the opportunity brief and compare to existing
   // posts before spending on a full draft+critique cycle.

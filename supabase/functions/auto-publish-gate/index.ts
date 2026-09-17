@@ -30,7 +30,16 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const settings = await loadGateSettings(supabase);
+  let settings;
+  try {
+    settings = await loadGateSettings(supabase);
+  } catch (e) {
+    // Fail closed: without readable settings nothing gets scheduled.
+    return new Response(
+      JSON.stringify({ error: "gate settings unavailable", detail: (e as Error).message }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   if (!settings.auto_publish_enabled) {
     return new Response(
@@ -79,21 +88,34 @@ Deno.serve(async (req) => {
   const latestMs = latest?.scheduled_at ? new Date(latest.scheduled_at).getTime() + 90 * 60 * 1000 : 0;
   const scheduled_at = new Date(Math.max(nowPlus10, latestMs)).toISOString();
 
-  const { error: upErr } = await supabase
+  // Conditional update: only a post that is still a draft can be scheduled, so
+  // two overlapping gate runs cannot both consume a slot for the same post.
+  const { data: updated, error: upErr } = await supabase
     .from("posts")
     .update({ status: "scheduled", scheduled_at })
-    .eq("id", post_id);
+    .eq("id", post_id)
+    .eq("status", "draft")
+    .select("id");
   if (upErr) {
     return new Response(JSON.stringify({ error: upErr.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  if (!updated || updated.length === 0) {
+    return new Response(
+      JSON.stringify({ ok: true, decision: "skipped", reason: "already scheduled" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
-  await supabase
+  const { error: oppErr } = await supabase
     .from("content_opportunities")
     .update({ status: "approved" })
     .eq("id", post.opportunity_id);
+  if (oppErr) {
+    console.error("opportunity status update failed", post.opportunity_id, oppErr.message);
+  }
 
   return new Response(
     JSON.stringify({ ok: true, decision: "scheduled", scheduled_at }),

@@ -1361,6 +1361,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      content_claim_opportunities: {
+        Args: {
+          _daily_cap: number
+          _max: number
+          _max_attempts?: number
+          _stale_seconds?: number
+        }
+        Returns: {
+          attempts: number
+          id: string
+        }[]
+      }
+      content_claim_opportunity: {
+        Args: { _id: string; _stale_seconds?: number }
+        Returns: {
+          attempts: number
+          id: string
+        }[]
+      }
       get_cron_invocation_secret: { Args: never; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       match_posts: {

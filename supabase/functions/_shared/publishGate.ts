@@ -55,39 +55,72 @@ export async function evaluateGate(
   if (!fc || !Array.isArray(fc.claims) || fc.claims.length < 2) {
     failures.push("fact_check missing or has fewer than 2 claims");
   } else {
-    const verified = Number(fc.verified_count ?? 0);
-    const unverified = Number(fc.unverified_count ?? 0);
-    const contradicted = Number(fc.contradicted_count ?? 0);
-    if (contradicted !== 0) failures.push(`${contradicted} contradicted claims`);
-    if (verified < 2) failures.push(`only ${verified} verified claims (need >= 2)`);
-    if (unverified > 2) failures.push(`${unverified} unverified claims (max 2)`);
+    // Non-numeric counts must fail the gate, not slip through a NaN comparison.
+    const counts = readFactCounts(fc);
+    if (!counts) {
+      failures.push("fact_check counts are missing or not numbers");
+    } else {
+      const { verified, unverified, contradicted } = counts;
+      if (contradicted !== 0) failures.push(`${contradicted} contradicted claims`);
+      if (verified < 2) failures.push(`only ${verified} verified claims (need >= 2)`);
+      if (unverified > 2) failures.push(`${unverified} unverified claims (max 2)`);
+    }
   }
 
   if (!opts.ignoreDailyCap) {
     const dailyCap = settings.auto_publish_daily_cap ?? 8;
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: recentCount } = await supabase
+    const { count: recentCount, error: countError } = await supabase
       .from("posts")
       .select("id", { count: "exact", head: true })
       .not("opportunity_id", "is", null)
       .in("status", ["scheduled", "published"])
       .gt("updated_at", dayAgo);
-    if ((recentCount ?? 0) >= dailyCap) failures.push("daily cap reached");
+    // A failed count must never read as "nothing published today".
+    if (countError || typeof recentCount !== "number") {
+      failures.push(
+        `daily cap check failed: ${countError?.message ?? "count unavailable"}`,
+      );
+    } else if (recentCount >= dailyCap) {
+      failures.push("daily cap reached");
+    }
   }
 
   return { passed: failures.length === 0, failures };
 }
 
+function readFactCounts(
+  fc: any,
+): { verified: number; unverified: number; contradicted: number } | null {
+  const read = (v: unknown): number | null => {
+    if (v === null || v === undefined) return 0;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const verified = read(fc.verified_count);
+  const unverified = read(fc.unverified_count);
+  const contradicted = read(fc.contradicted_count);
+  if (verified === null || unverified === null || contradicted === null) return null;
+  return { verified, unverified, contradicted };
+}
+
+/**
+ * Loads the publish-gate settings. Fails CLOSED: a missing settings row or a
+ * failed read disables auto-publishing rather than enabling it by default.
+ */
 export async function loadGateSettings(supabase: any): Promise<GateSettings> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("site_settings_private")
     .select("auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality")
     .limit(1)
     .maybeSingle();
+  if (error) throw new Error(`gate settings read failed: ${error.message}`);
+  const cap = Number(data?.auto_publish_daily_cap);
+  const minQuality = Number(data?.auto_publish_min_quality);
   return {
-    auto_publish_enabled: data?.auto_publish_enabled ?? true,
-    auto_publish_daily_cap: data?.auto_publish_daily_cap ?? 8,
-    auto_publish_min_quality: data?.auto_publish_min_quality ?? 85,
+    auto_publish_enabled: data?.auto_publish_enabled === true,
+    auto_publish_daily_cap: Number.isFinite(cap) && cap >= 0 ? cap : 0,
+    auto_publish_min_quality: Number.isFinite(minQuality) ? minQuality : 85,
   };
 }
 

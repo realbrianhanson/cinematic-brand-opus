@@ -46,15 +46,42 @@ const isoDate = (d: string | null | undefined) =>
 export const rfc822 = (d: string | null | undefined) =>
   new Date(d || Date.now()).toUTCString();
 
+const PAGE_SIZE = 1000;
+
+/**
+ * Reads every row of a query in pages. The Data API caps a single response at
+ * 1000 rows, so an unpaged feed silently truncates once a site grows past it.
+ * Query errors are thrown, never turned into an empty feed.
+ */
+export async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 0; ; page += 1) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${label} read failed: ${error.message}`);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+    // Guard against an unbounded loop if the backend ignores the range.
+    if (page > 200) return rows;
+  }
+}
+
 export async function getSiteSettings() {
   const supabase = publicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("site_settings")
     .select(
       "site_name, site_url, author_name, author_title, author_bio, publisher_name",
     )
     .limit(1)
     .maybeSingle();
+  // A failed read must not silently fall back to the template's own identity —
+  // that would publish this site's branding inside somebody else's feed.
+  if (error) throw new Error(`site_settings read failed: ${error.message}`);
   const s = (data ?? {}) as {
     site_name?: string | null;
     site_url?: string | null;
@@ -104,29 +131,49 @@ ${urls}
 async function loadPublished() {
   const supabase = publicClient();
   const [posts, schemas, pages, pillars] = await Promise.all([
-    supabase
-      .from("posts")
-      .select("slug, title, excerpt, tldr, content, created_at, updated_at")
-      .eq("status", "published")
-      .order("created_at", { ascending: false }),
-    supabase.from("content_schemas").select("id, slug").eq("is_active", true),
-    supabase
-      .from("generated_pages")
-      .select("slug, title, content_json, seo_meta, content_schema_id, updated_at")
-      .eq("status", "published")
-      .order("title"),
-    supabase
-      .from("pillar_pages")
-      .select("slug, title, content, seo_meta, updated_at")
-      .eq("status", "published")
-      .order("title"),
+    fetchAllRows(
+      (from, to) =>
+        supabase
+          .from("posts")
+          .select("slug, title, excerpt, tldr, content, published_at, created_at, updated_at")
+          .eq("status", "published")
+          .order("published_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .range(from, to),
+      "posts",
+    ),
+    fetchAllRows(
+      (from, to) =>
+        supabase
+          .from("content_schemas")
+          .select("id, slug")
+          .eq("is_active", true)
+          .order("slug")
+          .range(from, to),
+      "content_schemas",
+    ),
+    fetchAllRows(
+      (from, to) =>
+        supabase
+          .from("generated_pages")
+          .select("slug, title, content_json, seo_meta, content_schema_id, updated_at")
+          .eq("status", "published")
+          .order("title")
+          .range(from, to),
+      "generated_pages",
+    ),
+    fetchAllRows(
+      (from, to) =>
+        supabase
+          .from("pillar_pages")
+          .select("slug, title, content, seo_meta, updated_at")
+          .eq("status", "published")
+          .order("title")
+          .range(from, to),
+      "pillar_pages",
+    ),
   ]);
-  return {
-    posts: posts.data ?? [],
-    schemas: schemas.data ?? [],
-    pages: pages.data ?? [],
-    pillars: pillars.data ?? [],
-  };
+  return { posts, schemas, pages, pillars };
 }
 
 export async function buildSitemapXml(): Promise<string> {
@@ -187,12 +234,14 @@ export async function buildSitemapXml(): Promise<string> {
 export async function buildRssXml(): Promise<string> {
   const s = await getSiteSettings();
   const supabase = publicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("posts")
-    .select("slug, title, excerpt, tldr, content, created_at, updated_at")
+    .select("slug, title, excerpt, tldr, content, published_at, created_at, updated_at")
     .eq("status", "published")
+    .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(50);
+  if (error) throw new Error(`posts read failed: ${error.message}`);
   const posts = data ?? [];
 
   const brandName = s.site_name || s.publisher_name || "Blog";
@@ -212,8 +261,8 @@ export async function buildRssXml(): Promise<string> {
       <title>${escXml(p.title)}</title>
       <link>${escXml(link)}</link>
       <guid isPermaLink="true">${escXml(link)}</guid>
-      <pubDate>${escXml(rfc822(p.created_at))}</pubDate>
-      ${author ? `<author>${escXml(author)}</author>` : ""}
+      <pubDate>${escXml(rfc822(p.published_at || p.created_at))}</pubDate>
+      ${author ? `<dc:creator>${escXml(author)}</dc:creator>` : ""}
       <description>${escXml(desc)}</description>
     </item>`;
     })
@@ -222,7 +271,7 @@ export async function buildRssXml(): Promise<string> {
   const lastBuild = rfc822(posts[0]?.updated_at || posts[0]?.created_at);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>${escXml(channelTitle)}</title>
     <link>${escXml(s.siteUrl)}</link>
