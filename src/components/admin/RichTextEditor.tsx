@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeHref } from "@/lib/newsMarkdown";
 import { useEditor, EditorContent, Editor, ReactNodeViewRenderer } from "@tiptap/react";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
@@ -60,12 +61,17 @@ const MenuBar = ({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
   const applyLink = () => {
-    if (linkUrl) {
+    const href = safeHref(linkUrl);
+    if (href) {
       const { from, to } = editor.state.selection;
       if (from === to) {
-        editor.chain().focus().insertContent(`<a href="${linkUrl}">${linkUrl}</a>`).run();
+        editor.chain().focus().insertContent({
+          type: "text",
+          text: href,
+          marks: [{ type: "link", attrs: { href } }],
+        }).run();
       } else {
-        editor.chain().focus().setLink({ href: linkUrl }).run();
+        editor.chain().focus().setLink({ href }).run();
       }
     }
     setLinkUrl(""); setLinkOpen(false);

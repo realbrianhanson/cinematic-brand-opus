@@ -8,10 +8,11 @@ import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import { validateNewsRequest } from "../_shared/newsRequest.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
 async function fetchSourceMarkdown(url: string): Promise<string> {
@@ -48,26 +49,36 @@ async function fetchSourceMarkdown(url: string): Promise<string> {
   }
 }
 
+const json = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const { id, force } = body as { id?: string; force?: boolean };
-    if (!id) {
-      return new Response(JSON.stringify({ error: "id required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Authorization first: this endpoint reads private source rows and triggers
+    // paid AI generation, so every call (cached or not) requires admin or cron
+    // credentials. Public news pages read published content through RLS instead.
+    const authResult = await authorizeCronOrAdmin(req, corsHeaders);
+    if (authResult instanceof Response) return authResult;
+
+    const rawBody = await req.text().catch(() => "");
+    const validated = validateNewsRequest(rawBody);
+    if (!validated.ok) return json({ error: validated.error }, validated.status);
+    const { id, force } = validated;
+
+    if (!LOVABLE_API_KEY) {
+      return json(
+        { error: "ai_unavailable", message: "AI generation is not configured." },
+        503,
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
-
-    // force: true requires admin or cron auth. Unauthenticated first-time
-    // generation stays public so /news/:id pages can lazily hydrate.
-    if (force) {
-      const authResult = await authorizeCronOrAdmin(req, corsHeaders);
-      if (authResult instanceof Response) return authResult;
-    }
 
     const { data: item, error } = await supabase
       .from("source_items")
@@ -75,45 +86,46 @@ Deno.serve(async (req) => {
       .eq("id", id)
       .maybeSingle();
     if (error || !item) {
-      return new Response(JSON.stringify({ error: "not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "not found" }, 404);
     }
 
     if (item.full_content && !force) {
-      // Even on the cached path, opportunistically backfill a missing image so
-      // articles that were generated before the OG fallback shipped get a picture.
+      // Cached path: opportunistically backfill a missing image.
       let cachedImage = item.image_url as string | null;
       if (!cachedImage) {
         cachedImage = await fetchOgImage(item.url);
         if (cachedImage) {
-          await supabase
+          const { error: imgError } = await supabase
             .from("source_items")
             .update({ image_url: cachedImage.slice(0, 1000) })
             .eq("id", item.id);
+          if (imgError) console.error("image backfill failed:", imgError.message);
         }
       }
-      return new Response(JSON.stringify({
+      return json({
         id: item.id,
         title: item.ai_title || item.title,
         summary: item.ai_summary || item.raw_excerpt,
         content: item.full_content,
         image_url: cachedImage,
         cached: true,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      });
     }
 
-    // Global rate limit for unauthenticated first-time generation.
+    // Global cap on generation volume per hour.
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentCount } = await supabase
+    const { count: recentCount, error: rateError } = await supabase
       .from("source_items")
       .select("id", { count: "exact", head: true })
-      .not("full_content", "is", null)
-      .gt("updated_at", oneHourAgo);
+      .gt("full_content_generated_at", oneHourAgo);
+    if (rateError) {
+      console.error("rate limit check failed:", rateError.message);
+      return json({ error: "rate_check_failed" }, 500);
+    }
     if ((recentCount ?? 0) >= 20) {
-      return new Response(
-        JSON.stringify({ error: "rate_limited", message: "Full article available soon" }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      return json(
+        { error: "rate_limited", message: "Generation limit reached, try again later." },
+        429,
       );
     }
 
@@ -216,10 +228,14 @@ Return STRICT JSON only, no prose, no code fences:
     };
     if (backfilledImage) updatePayload.image_url = backfilledImage.slice(0, 1000);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("source_items")
       .update(updatePayload)
       .eq("id", item.id);
+    if (updateError) {
+      console.error("source_items update failed:", updateError.message);
+      return json({ error: "save_failed", message: "Could not store the article." }, 500);
+    }
 
     return new Response(JSON.stringify({
       id: item.id, title, summary, content, cached: false,
