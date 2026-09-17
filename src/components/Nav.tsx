@@ -281,8 +281,9 @@ const Nav = ({ loaded = true }: NavProps) => {
               </a>
             </div>
           )}
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </>
   );
 };
