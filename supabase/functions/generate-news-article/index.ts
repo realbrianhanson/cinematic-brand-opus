@@ -228,10 +228,14 @@ Return STRICT JSON only, no prose, no code fences:
     };
     if (backfilledImage) updatePayload.image_url = backfilledImage.slice(0, 1000);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("source_items")
       .update(updatePayload)
       .eq("id", item.id);
+    if (updateError) {
+      console.error("source_items update failed:", updateError.message);
+      return json({ error: "save_failed", message: "Could not store the article." }, 500);
+    }
 
     return new Response(JSON.stringify({
       id: item.id, title, summary, content, cached: false,
