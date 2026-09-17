@@ -2,52 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Flame, Zap, Award, Sparkles, Quote } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
 import DrawLine from "./DrawLine";
+import { siteConfig } from "@/config/site";
+import type { StoryEntry } from "@/config/types";
 
-const timelineData = [
-  {
-    icon: Flame,
-    tag: "The Beginning",
-    time: "Small-Town Iowa",
-    accent: false,
-    text: "No money. No connections. No degree. Just necessity and an obsession with figuring out what actually works.",
-  },
-  {
-    icon: Zap,
-    tag: "First Bet",
-    time: "Mid-20s",
-    accent: false,
-    text: "Built one of the largest engine and transmission companies in the US, without knowing how to change my own oil. Systems and selling beat credentials every time.",
-  },
-  {
-    icon: Award,
-    tag: "The Scale",
-    time: "Real Advisors",
-    accent: true,
-    text: "Earned 4× Inc. 5000 recognition, highest ranking #80 in the nation. Mastered direct response marketing from the legends: Halbert, Schwartz, Kennedy, Cialdini.",
-  },
-  {
-    icon: Flame,
-    tag: "The Fire",
-    time: "2020",
-    accent: false,
-    text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn, then build something better from the ashes.",
-  },
-  {
-    icon: Sparkles,
-    tag: "The Rebuild",
-    time: "Now · Age 46",
-    accent: true,
-    text: "Built AI For Business, 150,000+ members strong. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
-  },
-];
+const ICONS = { flame: Flame, zap: Zap, award: Award, sparkles: Sparkles } as const;
 
-const TimelineEntry = ({
-  entry,
-  index,
-}: {
-  entry: (typeof timelineData)[0];
-  index: number;
-}) => {
+const TimelineEntry = ({ entry, index }: { entry: StoryEntry; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -62,7 +22,7 @@ const TimelineEntry = ({
     return () => obs.disconnect();
   }, []);
 
-  const Icon = entry.icon;
+  const Icon = ICONS[entry.icon];
 
   return (
     <div
@@ -144,6 +104,7 @@ const TimelineEntry = ({
 const Story = () => {
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: quoteRef, visible: quoteVisible } = useReveal();
+  const story = siteConfig.story;
 
   return (
     <section
@@ -189,7 +150,7 @@ const Story = () => {
                   color: "#D4AF55",
                 }}
               >
-                The Story
+                {story.overline}
               </span>
             </div>
             <h2
@@ -201,7 +162,7 @@ const Story = () => {
                 ...revealStyle(headerVisible, 0.1),
               }}
             >
-              From Nothing to{" "}
+              {story.headingLead}{" "}
               <em
                 style={{
                   fontStyle: "italic",
@@ -210,24 +171,25 @@ const Story = () => {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                150,000 Strong
+                {story.headingAccent}
               </em>
             </h2>
           </div>
 
-          <div className="lg:col-span-5 flex items-end" style={revealStyle(headerVisible, 0.2)}>
-            <p
-              className="font-body"
-              style={{
-                fontSize: "1rem",
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.85)",
-              }}
-            >
-              Every chapter taught me one thing: the rules only apply if you
-              accept them. I never did.
-            </p>
-          </div>
+          {story.intro && (
+            <div className="lg:col-span-5 flex items-end" style={revealStyle(headerVisible, 0.2)}>
+              <p
+                className="font-body"
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: 1.7,
+                  color: "rgba(255,255,255,0.85)",
+                }}
+              >
+                {story.intro}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Timeline */}
@@ -241,36 +203,37 @@ const Story = () => {
             }}
           />
 
-          {timelineData.map((entry, i) => (
+          {story.timeline.map((entry, i) => (
             <TimelineEntry key={i} entry={entry} index={i} />
           ))}
         </div>
 
         {/* Pull quote */}
-        <div ref={quoteRef} className="mt-24 flex flex-col items-center text-center max-w-2xl mx-auto">
-          <div
-            style={{
-              width: 48,
-              height: 1,
-              background: "linear-gradient(90deg, transparent, #D4AF55, transparent)",
-              marginBottom: 24,
-              ...revealStyle(quoteVisible, 0),
-            }}
-          />
-          <Quote size={28} color="rgba(212,175,85,0.4)" className="mb-5" style={revealStyle(quoteVisible, 0.1)} />
-          <blockquote
-            className="font-display italic"
-            style={{
-              fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.92)",
-              ...revealStyle(quoteVisible, 0.2),
-            }}
-          >
-            "I didn't come from money, connections, or a degree. I came from
-            necessity and a refusal to stay stuck."
-          </blockquote>
-        </div>
+        {story.pullQuote && (
+          <div ref={quoteRef} className="mt-24 flex flex-col items-center text-center max-w-2xl mx-auto">
+            <div
+              style={{
+                width: 48,
+                height: 1,
+                background: "linear-gradient(90deg, transparent, #D4AF55, transparent)",
+                marginBottom: 24,
+                ...revealStyle(quoteVisible, 0),
+              }}
+            />
+            <Quote size={28} color="rgba(212,175,85,0.4)" className="mb-5" style={revealStyle(quoteVisible, 0.1)} />
+            <blockquote
+              className="font-display italic"
+              style={{
+                fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)",
+                lineHeight: 1.5,
+                color: "rgba(255,255,255,0.92)",
+                ...revealStyle(quoteVisible, 0.2),
+              }}
+            >
+              "{story.pullQuote}"
+            </blockquote>
+          </div>
+        )}
       </div>
     </section>
   );
