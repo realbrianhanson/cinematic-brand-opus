@@ -43,7 +43,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
     ];
     for (const re of patterns) {
       const m = html.match(re);
-      if (m && m[1]) return toAbsolute(m[1], pageUrl);
+      const abs = m && m[1] ? toAbsolute(m[1], pageUrl) : null;
+      if (abs) return abs;
     }
     // Fallback: first <img> with a plausible src
     const imgs = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
@@ -52,7 +53,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
       if (!src) continue;
       if (/(sprite|logo|icon|1x1|pixel|blank|spacer|avatar)/i.test(src)) continue;
       if (src.startsWith("data:")) continue;
-      return toAbsolute(src, pageUrl);
+      const abs = toAbsolute(src, pageUrl);
+      if (abs) return abs;
     }
     return null;
   } catch {
