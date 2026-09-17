@@ -188,7 +188,7 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
   };
 
   // Merge lint_flags: only mark fact_check as a lint flag when the new gate would fail
-  let newLintFlags = Array.isArray(post.lint_flags)
+  const newLintFlags = Array.isArray(post.lint_flags)
     ? (post.lint_flags as any[]).filter((f) => !(f && f.type === "fact_check"))
     : [];
   const gateWouldFailFacts = contradicted_count > 0 || verified_count < 2 || unverified_count > 2;

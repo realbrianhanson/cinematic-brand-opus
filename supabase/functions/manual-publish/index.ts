@@ -53,8 +53,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  const settings = await loadGateSettings(supabase);
-  const { failures } = await evaluateGate(supabase, post as GatePost, settings, { ignoreDailyCap: true });
+  // Fail closed: if the gate cannot be evaluated, treat it as a failure so
+  // publishing still requires an explicit override reason.
+  let failures: string[];
+  try {
+    const settings = await loadGateSettings(supabase);
+    const result = await evaluateGate(supabase, post as GatePost, settings, { ignoreDailyCap: true });
+    failures = result.failures;
+  } catch (e) {
+    failures = [`gate evaluation failed: ${(e as Error).message}`];
+  }
 
   const hasOverride = rawReason.length >= 10;
   if (failures.length > 0 && !hasOverride) {
@@ -86,9 +94,12 @@ Deno.serve(async (req) => {
   }
 
   if (post.opportunity_id) {
-    await supabase.from("content_opportunities")
+    const { error: oppErr } = await supabase.from("content_opportunities")
       .update({ status: "published" })
       .eq("id", post.opportunity_id);
+    if (oppErr) {
+      console.error("opportunity status update failed", post.opportunity_id, oppErr.message);
+    }
   }
 
   return new Response(JSON.stringify({

@@ -3,8 +3,13 @@
 // Falls back to Firecrawl (residential proxy) when the direct fetch is blocked
 // by a CDN like Akamai or Cloudflare — common on major news sites.
 // Returns absolute URL or null. Short timeout so it never stalls polling.
+import { fetchTextBounded, isPublicHttpUrl } from "./safeFetch.ts";
+
 
 export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
+  // Article URLs arrive from remote feeds, so never fetch one that is not a
+  // public https address.
+  if (!isPublicHttpUrl(pageUrl)) return null;
   const direct = await tryDirect(pageUrl, timeoutMs);
   if (direct) return direct;
   return await tryFirecrawl(pageUrl);
@@ -12,9 +17,7 @@ export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<s
 
 async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | null> {
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(pageUrl, {
+    const res = await fetchTextBounded(pageUrl, {
       headers: {
         // Many news CDNs (Akamai, Cloudflare) 403 obvious bot UAs. Use a realistic
         // desktop Chrome UA so we can read the og:image meta tag.
@@ -23,14 +26,13 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-      signal: ctrl.signal,
-      redirect: "follow",
+      timeoutMs,
+      maxBytes: 200_000,
+      contentTypeIncludes: "html",
     });
-    clearTimeout(t);
     if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("html")) return null;
-    const html = (await res.text()).slice(0, 200_000);
+    const html = res.body;
+
 
     const patterns: RegExp[] = [
       /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["']/i,
@@ -41,7 +43,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
     ];
     for (const re of patterns) {
       const m = html.match(re);
-      if (m && m[1]) return toAbsolute(m[1], pageUrl);
+      const abs = m && m[1] ? toAbsolute(m[1], pageUrl) : null;
+      if (abs) return abs;
     }
     // Fallback: first <img> with a plausible src
     const imgs = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
@@ -50,7 +53,8 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
       if (!src) continue;
       if (/(sprite|logo|icon|1x1|pixel|blank|spacer|avatar)/i.test(src)) continue;
       if (src.startsWith("data:")) continue;
-      return toAbsolute(src, pageUrl);
+      const abs = toAbsolute(src, pageUrl);
+      if (abs) return abs;
     }
     return null;
   } catch {
@@ -82,10 +86,13 @@ async function tryFirecrawl(pageUrl: string): Promise<string | null> {
   }
 }
 
-function toAbsolute(src: string, base: string): string {
+// Resolves a candidate image reference and only accepts a public http(s) result,
+// so a scraped page can never plant an internal or javascript: URL in the DB.
+function toAbsolute(src: string, base: string): string | null {
   try {
-    return new URL(src, base).toString();
+    const abs = new URL(src, base).toString();
+    return isPublicHttpUrl(abs, { allowHttp: true }) ? abs : null;
   } catch {
-    return src;
+    return null;
   }
 }

@@ -18,6 +18,7 @@ export function safeHref(raw: unknown): string | null {
   const url = raw.trim();
   if (!url) return null;
   // Reject control characters and whitespace used to smuggle schemes.
+  // eslint-disable-next-line no-control-regex -- blocking control characters is the point
   if (/[\u0000-\u001f\u007f<>"']/.test(url)) return null;
   if (url.startsWith("//")) return null; // protocol-relative
   if (url.startsWith("/")) return url;

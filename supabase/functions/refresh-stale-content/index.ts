@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       : (typeof page_id === "string" ? [page_id] : null);
 
     let pagesToRefresh: any[] = [];
-    let skippedHumanEdited: { id: string; slug: string; title: string }[] = [];
+    const skippedHumanEdited: { id: string; slug: string; title: string }[] = [];
 
     if (all_stale) {
       let q = supabase

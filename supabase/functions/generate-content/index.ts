@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
       batch_id = crypto.randomUUID(),
     } = body;
 
-    let resolvedSlugs: string[] = content_type_slugs
+    const resolvedSlugs: string[] = content_type_slugs
       ? (Array.isArray(content_type_slugs) ? content_type_slugs : [content_type_slugs])
       : (content_type_slug ? [content_type_slug] : ["all_active"]);
 
@@ -538,7 +538,7 @@ async function handleStepProcessing(
 
   let successCount = prevSuccess;
   let failedCount = prevFailed;
-  let skippedCount = prevSkipped;
+  const skippedCount = prevSkipped;
   const pages = [...prevPages];
   const completedCount = current_index; // pages processed before this one
 

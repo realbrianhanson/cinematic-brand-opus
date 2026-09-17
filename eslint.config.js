@@ -36,5 +36,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  // Formatting is owned by Prettier (`npm run format:check`), not by the
+  // correctness lint, so `npm run lint` reports only real code problems.
   eslintPluginPrettier,
+  { rules: { "prettier/prettier": "off" } },
+  {
+    // Deno edge functions parse untyped third-party JSON payloads. `any` is a
+    // warning there so its volume cannot hide real errors in src/.
+    files: ["supabase/functions/**/*.ts"],
+    languageOptions: { globals: globals.node },
+    rules: { "@typescript-eslint/no-explicit-any": "warn" },
+  },
 );

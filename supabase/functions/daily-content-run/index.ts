@@ -61,47 +61,50 @@ Deno.serve(async (req) => {
     log.steps.cluster = { status: cluster.status, ...cluster.data };
   }
 
-  // Daily draft budget check: hard-cap runaway spend if we've drafted way more than cap
-  const { data: settingsRow } = await supabase
+  // 3. Atomic claim. The DB reserves opportunities, releases stale claims and
+  //    enforces the remaining daily budget in one statement, so overlapping runs
+  //    can never select the same rows or exceed the cap between read and write.
+  const { data: settingsRow, error: settingsErr } = await supabase
     .from("site_settings_private")
     .select("auto_publish_daily_cap")
     .limit(1)
     .maybeSingle();
-  const dailyCap = settingsRow?.auto_publish_daily_cap ?? 8;
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: draftsLast24h } = await supabase
-    .from("posts")
-    .select("id", { count: "exact", head: true })
-    .not("opportunity_id", "is", null)
-    .gt("created_at", dayAgo);
-  if ((draftsLast24h ?? 0) >= dailyCap + 1) {
+  if (settingsErr) {
+    return new Response(
+      JSON.stringify({ error: "settings unavailable", detail: settingsErr.message }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  const capRaw = Number(settingsRow?.auto_publish_daily_cap);
+  // Fail closed: an unreadable cap means no drafting on this run.
+  const dailyCap = Number.isFinite(capRaw) && capRaw >= 0 ? capRaw : 0;
+
+  const { data: queue, error: claimErr } = await supabase.rpc(
+    "content_claim_opportunities",
+    {
+      _max: maxDrafts,
+      _daily_cap: dailyCap,
+      _max_attempts: MAX_ATTEMPTS,
+      _stale_seconds: 600,
+    },
+  );
+  if (claimErr) {
+    return new Response(
+      JSON.stringify({ error: "claim failed", detail: claimErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (!queue || queue.length === 0) {
     log.steps.drafts = [];
-    log.skipped_reason = "daily draft budget exhausted";
+    log.skipped_reason = "no claimable opportunities within the daily budget";
     log.finished_at = new Date().toISOString();
     return new Response(JSON.stringify({ ok: true, drafted: 0, log }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // 3. Drain queue: every "proposed" opp with attempts < MAX gets a draft attempt.
-  //    Also retries any stuck "drafting" opp older than 10 minutes.
-  const staleCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  await supabase
-    .from("content_opportunities")
-    .update({ status: "proposed" })
-    .eq("status", "drafting")
-    .lt("last_attempt_at", staleCutoff);
-
-  const { data: queue } = await supabase
-    .from("content_opportunities")
-    .select("id, attempts")
-    .eq("status", "proposed")
-    .lt("attempts", MAX_ATTEMPTS)
-    .order("opportunity_score", { ascending: false })
-    .limit(maxDrafts);
-
   log.steps.drafts = [];
-  for (const opp of queue || []) {
+  for (const opp of queue as Array<{ id: string; attempts: number }>) {
     const draft = await invoke("draft-from-opportunity", { opportunity_id: opp.id });
     const entry: any = { opportunity_id: opp.id, status: draft.status, ...draft.data };
     if (draft.status >= 200 && draft.status < 300 && draft.data?.post_id) {
