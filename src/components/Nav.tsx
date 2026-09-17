@@ -69,6 +69,14 @@ const Nav = ({ loaded = true }: NavProps) => {
 
   return (
     <>
+      {/* Keyboard users can jump straight past the fixed header. */}
+      <a
+        href="#main-content"
+        className="skip-to-content font-body font-bold uppercase"
+        style={{ letterSpacing: "0.08em" }}
+      >
+        Skip to content
+      </a>
       <nav
         className="fixed top-0 left-0 w-full transition-all duration-500 ease-out"
         style={{
