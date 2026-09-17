@@ -200,18 +200,28 @@ const Nav = ({ loaded = true }: NavProps) => {
         </div>
       </nav>
 
-      {/* Mobile overlay */}
-      {menuOpen && (
-        <div
-          className="fixed inset-0 flex flex-col"
-          style={{ zIndex: 100, background: brand.backdrop }}
-        >
-          {/* Close */}
-          <div className="flex justify-end px-6 pt-5">
-            <button onClick={() => setMenuOpen(false)} aria-label="Close menu" data-hover>
-              <X size={28} color="rgba(255,255,255,0.6)" />
-            </button>
-          </div>
+      {/* Mobile menu: a real dialog, so focus is trapped, Escape closes it and
+          focus returns to the hamburger on close. */}
+      <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Content
+            aria-label="Site menu"
+            id="mobile-site-menu"
+            className="fixed inset-0 flex flex-col overflow-y-auto focus:outline-none"
+            style={{ zIndex: 100, background: brand.backdrop }}
+          >
+            <DialogPrimitive.Title className="sr-only">Site menu</DialogPrimitive.Title>
+            {/* Close */}
+            <div className="flex justify-end px-6 pt-5">
+              <DialogPrimitive.Close
+                aria-label="Close menu"
+                data-hover
+                className="inline-flex items-center justify-center"
+                style={{ minWidth: 44, minHeight: 44 }}
+              >
+                <X size={28} color="rgba(255,255,255,0.6)" />
+              </DialogPrimitive.Close>
+            </div>
 
           {/* Links */}
           <div className="flex-1 flex flex-col justify-center px-8">
