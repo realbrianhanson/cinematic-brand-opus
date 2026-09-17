@@ -1,5 +1,26 @@
+// Public double-opt-in subscribe endpoint.
+//
+// Safety properties:
+//  - All brand/URL/sender values come from validated site_settings. Nothing is
+//    hardcoded, so the theme is portable across PushTen client sites.
+//  - Fails closed: when sender / reply-to / site URL / RESEND_API_KEY are not
+//    configured we return a truthful "unavailable" response BEFORE touching the
+//    subscribers table. We never claim success without sending.
+//  - Durable atomic throttling in Postgres (per email + per IP) plus a DB-side
+//    cooldown, so repeat requests cannot spam confirmation emails.
+//  - Suppressed recipients (bounced / complained) are never reactivated here.
+//  - Concurrent requests for the same address are serialized by the DB function.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import {
+  buildConfirmationEmail,
+  isValidEmail,
+  type NewsletterConfig,
+  resolveNewsletterConfig,
+  type SubscribeState,
+  subscribeResponseFor,
+} from "../_shared/newsletterConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,107 +29,129 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CONFIRM_BASE =
-  "https://brianhanson.com/api/public/newsletter/confirm";
+const MAX_BODY_BYTES = 2048;
+const EMAIL_LIMIT = 3; // confirmation requests per address...
+const EMAIL_WINDOW_SECONDS = 24 * 60 * 60; // ...per 24h
+const IP_LIMIT = 8; // requests per IP...
+const IP_WINDOW_SECONDS = 60 * 60; // ...per hour
+const RESEND_COOLDOWN_SECONDS = 15 * 60; // min gap between confirmations
 
-interface SiteSettings {
-  newsletter_from_address: string | null;
-  newsletter_reply_to: string | null;
-  newsletter_postal_address: string | null;
+function json(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
-function buildEmailHtml(confirmUrl: string, postalAddress: string | null) {
-  return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0b12;color:#f3f3f3;margin:0;padding:32px;">
-  <div style="max-width:560px;margin:0 auto;background:#12121a;padding:32px;border:1px solid rgba(255,255,255,0.08);">
-    <h1 style="font-size:20px;margin:0 0 16px;color:#fff;">Confirm your subscription</h1>
-    <p style="font-size:15px;line-height:1.6;color:#d8d8d8;">You (or someone with your email) asked for my weekly AI brief. Click below to confirm and I'll start sending it your way.</p>
-    <p style="margin:28px 0;"><a href="${confirmUrl}" style="display:inline-block;background:linear-gradient(135deg,#D4AF55,#B8962E);color:#07070E;padding:14px 28px;text-decoration:none;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;font-size:13px;">Confirm Subscription</a></p>
-    <p style="font-size:13px;color:#8a8a8a;">If you didn't request this, ignore this email.</p>
-    ${postalAddress ? `<p style="font-size:11px;color:#666;margin-top:32px;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">${postalAddress}</p>` : ""}
-  </div></body></html>`;
+async function readBoundedJson(req: Request): Promise<Record<string, unknown> | null> {
+  const raw = await req.text();
+  if (raw.length === 0 || raw.length > MAX_BODY_BYTES) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
-async function sendConfirmationEmail(
-  apiKey: string,
-  settings: SiteSettings,
+async function hashed(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .slice(0, 16)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for") ?? "";
+  const first = fwd.split(",")[0]?.trim();
+  return first || req.headers.get("cf-connecting-ip") || "unknown";
+}
+
+async function allowed(
+  admin: ReturnType<typeof createClient>,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("newsletter_rate_limit_hit", {
+    _key: key,
+    _limit: limit,
+    _window_seconds: windowSeconds,
+  });
+  // Fail closed: if the limiter is unavailable we refuse rather than allow.
+  if (error) {
+    console.error("rate limiter failed:", error.message);
+    return false;
+  }
+  return data === true;
+}
+
+async function sendConfirmation(
+  config: NewsletterConfig,
   email: string,
   token: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const from = settings.newsletter_from_address ||
-    "Brian Hanson <brian@m.brianhanson.com>";
-  const confirmUrl = `${CONFIRM_BASE}?token=${token}`;
-  const payload: Record<string, unknown> = {
-    from,
-    to: [email],
-    subject: "Confirm your subscription to Brian Hanson's AI Brief",
-    html: buildEmailHtml(confirmUrl, settings.newsletter_postal_address),
-  };
-  if (settings.newsletter_reply_to) {
-    payload.reply_to = settings.newsletter_reply_to;
-  }
+  const { subject, html } = buildConfirmationEmail(config, token);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
       "Content-Type": "application/json",
+      // Same address + same token must never produce two emails.
+      "Idempotency-Key": `nl-confirm-${token}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      from: config.fromAddress,
+      to: [email],
+      reply_to: config.replyTo,
+      subject,
+      html,
+    }),
   });
-  if (!res.ok) {
-    return { ok: false, error: `Resend ${res.status}: ${await res.text()}` };
-  }
+  if (!res.ok) return { ok: false, error: `Resend ${res.status}: ${await res.text()}` };
   return { ok: true };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json(405, { ok: false, error: "Method not allowed" });
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let body: { email?: string; source?: string; resend_pending?: boolean } = {};
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const resendKey = Deno.env.get("RESEND_API_KEY");
+  const body = await readBoundedJson(req);
+  if (!body) return json(400, { ok: false, error: "Invalid request body" });
 
   const { data: settingsRow } = await admin
     .from("site_settings")
-    .select("newsletter_from_address, newsletter_reply_to, newsletter_postal_address")
+    .select(
+      "site_url, site_name, author_name, newsletter_from_address, newsletter_reply_to, newsletter_postal_address",
+    )
     .limit(1)
     .maybeSingle();
-  const settings: SiteSettings = settingsRow ?? {
-    newsletter_from_address: null,
-    newsletter_reply_to: null,
-    newsletter_postal_address: null,
-  };
 
-  // Admin-only: resend pending confirmations
+  const resolved = resolveNewsletterConfig(
+    settingsRow,
+    Deno.env.get("RESEND_API_KEY"),
+  );
+
+  // ---- Admin-only: resend pending confirmations -----------------------------
   if (body.resend_pending === true) {
     const authz = await authorizeCronOrAdmin(req, corsHeaders);
     if (authz instanceof Response) return authz;
-    if (!resendKey) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "RESEND_API_KEY not configured" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!resolved.ok) {
+      return json(503, {
+        ok: false,
+        state: "unavailable",
+        missing: resolved.missing,
+      });
     }
     const { data: pending } = await admin
       .from("newsletter_subscribers")
@@ -118,113 +161,74 @@ Deno.serve(async (req) => {
     let sent = 0;
     let failed = 0;
     for (const p of pending ?? []) {
-      const r = await sendConfirmationEmail(resendKey, settings, p.email, p.confirm_token);
-      if (r.ok) sent++;
-      else failed++;
+      const r = await sendConfirmation(resolved.config, p.email, p.confirm_token);
+      if (r.ok) {
+        sent++;
+        await admin
+          .from("newsletter_subscribers")
+          .update({ last_confirmation_sent_at: new Date().toISOString() })
+          .eq("email", p.email);
+      } else {
+        failed++;
+        console.error("resend_pending failed:", r.error);
+      }
     }
-    return new Response(JSON.stringify({ ok: true, sent, failed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(200, { ok: true, sent, failed });
   }
 
-  // Public subscribe
-  const rawEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!rawEmail || rawEmail.length > 254 || !EMAIL_RE.test(rawEmail)) {
-    return new Response(JSON.stringify({ error: "Invalid email" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  // ---- Public subscribe ----------------------------------------------------
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!isValidEmail(email)) {
+    return json(400, { ok: false, state: "invalid_email" });
   }
   const source = typeof body.source === "string" ? body.source.slice(0, 64) : null;
 
-  // Rate limit: >100 new subs in last hour
-  const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await admin
-    .from("newsletter_subscribers")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", hourAgo);
-  if ((count ?? 0) > 100) {
-    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-      status: 429,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  // Fail closed BEFORE any subscriber mutation.
+  if (!resolved.ok) {
+    console.error("newsletter unavailable, missing:", resolved.missing.join(", "));
+    return json(503, { ok: false, state: "unavailable" });
+  }
+  const config = resolved.config;
+
+  const ipKey = `ip:${await hashed(clientIp(req))}`;
+  const emailKey = `email:${await hashed(email)}`;
+
+  if (!(await allowed(admin, ipKey, IP_LIMIT, IP_WINDOW_SECONDS))) {
+    return json(429, { ok: false, state: "rate_limited" });
+  }
+  if (!(await allowed(admin, emailKey, EMAIL_LIMIT, EMAIL_WINDOW_SECONDS))) {
+    return json(429, { ok: false, state: "rate_limited" });
   }
 
-  const { data: existing } = await admin
-    .from("newsletter_subscribers")
-    .select("id, status, confirm_token")
-    .eq("email", rawEmail)
-    .maybeSingle();
-
-  let confirmToken: string;
-
-  if (existing) {
-    if (existing.status === "confirmed") {
-      return new Response(JSON.stringify({ ok: true, state: "already_subscribed" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (existing.status === "unsubscribed") {
-      confirmToken = crypto.randomUUID();
-      const { error: updErr } = await admin
-        .from("newsletter_subscribers")
-        .update({
-          status: "pending",
-          confirm_token: confirmToken,
-          unsubscribed_at: null,
-          source: source ?? undefined,
-        })
-        .eq("id", existing.id);
-      if (updErr) {
-        return new Response(JSON.stringify({ error: updErr.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } else {
-      // pending / bounced / complained — reuse or refresh token
-      confirmToken = existing.confirm_token ?? crypto.randomUUID();
-      if (!existing.confirm_token || existing.status !== "pending") {
-        await admin
-          .from("newsletter_subscribers")
-          .update({ status: "pending", confirm_token: confirmToken })
-          .eq("id", existing.id);
-      }
-    }
-  } else {
-    confirmToken = crypto.randomUUID();
-    const { error: insErr } = await admin
-      .from("newsletter_subscribers")
-      .insert({
-        email: rawEmail,
-        status: "pending",
-        confirm_token: confirmToken,
-        source,
-      });
-    if (insErr) {
-      return new Response(JSON.stringify({ error: insErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  }
-
-  if (!resendKey) {
-    return new Response(JSON.stringify({ ok: true, state: "pending_email_setup" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const sendRes = await sendConfirmationEmail(resendKey, settings, rawEmail, confirmToken);
-  if (!sendRes.ok) {
-    console.error("newsletter-subscribe send failed:", sendRes.error);
-    return new Response(
-      JSON.stringify({ ok: false, error: "Failed to send confirmation email" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  return new Response(JSON.stringify({ ok: true, state: "confirmation_sent" }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  const { data: rows, error: rpcErr } = await admin.rpc("newsletter_public_subscribe", {
+    _email: email,
+    _source: source,
+    _cooldown_seconds: RESEND_COOLDOWN_SECONDS,
   });
+  if (rpcErr) {
+    console.error("newsletter_public_subscribe failed:", rpcErr.message);
+    return json(500, { ok: false, state: "error" });
+  }
+
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  const state = (row?.state ?? "error") as SubscribeState;
+
+  if (state !== "confirmation_due") {
+    const mapped = subscribeResponseFor(state);
+    return json(mapped.status, mapped.body);
+  }
+
+  const sendRes = await sendConfirmation(config, email, row!.token as string);
+  if (!sendRes.ok) {
+    console.error("newsletter confirmation send failed:", sendRes.error);
+    // Allow another attempt after the provider problem is resolved.
+    await admin
+      .from("newsletter_subscribers")
+      .update({ last_confirmation_sent_at: null })
+      .eq("email", email);
+    return json(502, { ok: false, state: "send_failed" });
+  }
+
+  const mapped = subscribeResponseFor("confirmation_due");
+  return json(mapped.status, { ...mapped.body, site_name: config.siteName });
 });

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -686,10 +686,33 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_rate_limits: {
+        Row: {
+          bucket_key: string
+          hits: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          hits?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          hits?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       newsletter_sends: {
         Row: {
+          claimed_at: string | null
           created_at: string
           id: string
+          idempotency_key: string | null
           intro: string | null
           post_blurbs: Json | null
           post_ids: string[]
@@ -701,8 +724,10 @@ export type Database = {
           week_key: string
         }
         Insert: {
+          claimed_at?: string | null
           created_at?: string
           id?: string
+          idempotency_key?: string | null
           intro?: string | null
           post_blurbs?: Json | null
           post_ids?: string[]
@@ -714,8 +739,10 @@ export type Database = {
           week_key: string
         }
         Update: {
+          claimed_at?: string | null
           created_at?: string
           id?: string
+          idempotency_key?: string | null
           intro?: string | null
           post_blurbs?: Json | null
           post_ids?: string[]
@@ -731,10 +758,12 @@ export type Database = {
       newsletter_subscribers: {
         Row: {
           confirm_token: string
+          confirmation_send_count: number
           confirmed_at: string | null
           created_at: string
           email: string
           id: string
+          last_confirmation_sent_at: string | null
           source: string | null
           status: string
           unsubscribed_at: string | null
@@ -742,10 +771,12 @@ export type Database = {
         }
         Insert: {
           confirm_token?: string
+          confirmation_send_count?: number
           confirmed_at?: string | null
           created_at?: string
           email: string
           id?: string
+          last_confirmation_sent_at?: string | null
           source?: string | null
           status?: string
           unsubscribed_at?: string | null
@@ -753,10 +784,12 @@ export type Database = {
         }
         Update: {
           confirm_token?: string
+          confirmation_send_count?: number
           confirmed_at?: string | null
           created_at?: string
           email?: string
           id?: string
+          last_confirmation_sent_at?: string | null
           source?: string | null
           status?: string
           unsubscribed_at?: string | null
@@ -1344,6 +1377,28 @@ export type Database = {
           similarity: number
         }[]
       }
+      newsletter_claim_send: {
+        Args: { _stale_seconds?: number; _week_key: string }
+        Returns: {
+          id: string
+          idempotency_key: string
+          intro: string
+          post_blurbs: Json
+          post_ids: string[]
+          subject: string
+        }[]
+      }
+      newsletter_public_subscribe: {
+        Args: { _cooldown_seconds: number; _email: string; _source: string }
+        Returns: {
+          state: string
+          token: string
+        }[]
+      }
+      newsletter_rate_limit_hit: {
+        Args: { _key: string; _limit: number; _window_seconds: number }
+        Returns: boolean
+      }
       top_pages_by_views: {
         Args: { limit_count?: number }
         Returns: {
@@ -1369,12 +1424,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1398,11 +1453,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1423,11 +1478,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1448,11 +1503,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1465,11 +1520,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

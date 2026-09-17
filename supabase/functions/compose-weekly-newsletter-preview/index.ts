@@ -13,6 +13,7 @@ import {
   loadVoiceBlock,
   type PostRow,
 } from "../_shared/newsletter-compose.ts";
+import { resolveNewsletterConfig } from "../_shared/newsletterConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,20 @@ Deno.serve(async (req) => {
   // same ISO week, so today's key is correct).
   const weekKey = isoWeekKey(new Date());
 
+  // Fail closed on incomplete email configuration before doing any work.
+  const { data: pubSettings } = await admin
+    .from("site_settings")
+    .select(
+      "site_url, site_name, author_name, newsletter_from_address, newsletter_reply_to, newsletter_postal_address",
+    )
+    .limit(1)
+    .maybeSingle();
+  const resolved = resolveNewsletterConfig(pubSettings, Deno.env.get("RESEND_API_KEY"));
+  if (!resolved.ok) {
+    return json(503, { ok: false, state: "unavailable", missing: resolved.missing });
+  }
+  const config = resolved.config;
+
   const posts = await fetchRecentPosts(admin);
   if (posts.length === 0) {
     return json(200, { ok: true, skipped: "no posts this week", week_key: weekKey });
@@ -51,7 +66,10 @@ Deno.serve(async (req) => {
 
   const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
   const voiceBlock = await loadVoiceBlock(admin);
-  const composed = await composeFromPosts(lovableKey, voiceBlock, posts);
+  const composed = await composeFromPosts(lovableKey, voiceBlock, posts, {
+    siteName: config.siteName,
+    authorName: config.authorName,
+  });
 
   // Upsert preview row (Regenerate re-runs this same function).
   const { data: existing } = await admin
@@ -73,7 +91,10 @@ Deno.serve(async (req) => {
     recipient_count: 0,
     sent_count: 0,
     status: "preview" as const,
+    idempotency_key: `nl-${weekKey}`,
+    claimed_at: null as string | null,
   };
+
 
   if (existing?.id) {
     const { error } = await admin
@@ -94,34 +115,25 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const adminEmail = (privateSettings?.report_email || "").trim();
 
-  const { data: pubSettings } = await admin
-    .from("site_settings")
-    .select("newsletter_from_address, newsletter_reply_to, newsletter_postal_address")
-    .limit(1)
-    .maybeSingle();
-  const fromAddr =
-    pubSettings?.newsletter_from_address || "Brian Hanson <brian@m.brianhanson.com>";
-  const replyTo = pubSettings?.newsletter_reply_to || null;
-  const postal = pubSettings?.newsletter_postal_address || null;
-
-  const html = buildHtml(composed, posts as PostRow[], null, postal);
-  const resendKey = Deno.env.get("RESEND_API_KEY");
+  const html = buildHtml(composed, posts as PostRow[], null, config);
   let previewSent = false;
 
-  if (resendKey && adminEmail) {
+  if (adminEmail) {
     const body: Record<string, unknown> = {
-      from: fromAddr,
+      from: config.fromAddress,
       to: [adminEmail],
+      reply_to: config.replyTo,
       subject: `[PREVIEW — sends Tuesday] ${composed.subject}`,
       html,
     };
-    if (replyTo) body.reply_to = replyTo;
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${resendKey}`,
+          Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
+          // One preview per week per composed subject, even if retried.
+          "Idempotency-Key": `nl-preview-${weekKey}`,
         },
         body: JSON.stringify(body),
       });

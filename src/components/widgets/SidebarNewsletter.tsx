@@ -1,35 +1,57 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  interpretSubscribeResult,
+  type SubscribeUiState,
+} from "@/lib/newsletterClient";
 
 const SidebarNewsletter = ({ config }: { config: any }) => {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [state, setState] = useState<SubscribeUiState>("idle");
   const [message, setMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    setStatus("loading");
+    setState("loading");
+    setMessage("");
+
+    let status = 200;
+    let payload: unknown = null;
     try {
       const { data, error } = await supabase.functions.invoke("newsletter-subscribe", {
         body: { email, source: "sidebar" },
       });
-      if (error) throw error;
-      const state = (data as any)?.state;
-      if (state === "confirmation_sent" || state === "pending_email_setup") {
-        setStatus("success");
-        setMessage("Check your inbox to confirm!");
-      } else if (state === "already_subscribed") {
-        setStatus("success");
-        setMessage("You're already on the list.");
+      if (error) {
+        const res = (error as any)?.context as Response | undefined;
+        if (res) {
+          status = res.status;
+          payload = await res.clone().json().catch(() => null);
+        } else {
+          status = 0;
+        }
       } else {
-        throw new Error("Unexpected response");
+        payload = data;
       }
-    } catch (err: any) {
-      setStatus("error");
-      setMessage(err?.message || "Something went wrong. Please try again.");
+    } catch {
+      status = 0;
     }
+
+    const result = interpretSubscribeResult(status, payload);
+    setState(result.state);
+    setMessage(result.message);
+    if (result.state === "confirmation_sent") setEmail("");
   };
+
+  const isDone =
+    state === "confirmation_sent" ||
+    state === "already_subscribed" ||
+    state === "already_requested";
+
+  const tone =
+    state === "unavailable" || state === "rate_limited" || state === "error"
+      ? "#ff6b6b"
+      : "hsl(var(--accent))";
 
   return (
     <div style={{ padding: 24, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
@@ -39,8 +61,10 @@ const SidebarNewsletter = ({ config }: { config: any }) => {
       <p className="font-body mb-4" style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
         {config.description || "Get the latest tips delivered to your inbox."}
       </p>
-      {status === "success" ? (
-        <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--accent))" }}>{message}</p>
+      {isDone ? (
+        <p className="font-body" style={{ fontSize: 13, color: tone }} role="status">
+          {message}
+        </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <input
@@ -55,14 +79,16 @@ const SidebarNewsletter = ({ config }: { config: any }) => {
           />
           <button
             type="submit"
-            disabled={status === "loading"}
+            disabled={state === "loading"}
             className="font-body uppercase"
-            style={{ padding: "10px", fontSize: 11, letterSpacing: "0.1em", background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", border: "none", cursor: status === "loading" ? "wait" : "pointer", fontWeight: 600, opacity: status === "loading" ? 0.7 : 1 }}
+            style={{ padding: "10px", fontSize: 11, letterSpacing: "0.1em", background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", border: "none", cursor: state === "loading" ? "wait" : "pointer", fontWeight: 600, opacity: state === "loading" ? 0.7 : 1 }}
           >
-            {status === "loading" ? "Subscribing…" : "Subscribe"}
+            {state === "loading" ? "Subscribing…" : "Subscribe"}
           </button>
-          {status === "error" && (
-            <p className="font-body" style={{ fontSize: 12, color: "#ff6b6b" }}>{message}</p>
+          {message && (
+            <p className="font-body" style={{ fontSize: 12, color: tone }} role="status">
+              {message}
+            </p>
           )}
         </form>
       )}
