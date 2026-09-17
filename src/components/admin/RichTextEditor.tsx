@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeHref } from "@/lib/newsMarkdown";
 import { useEditor, EditorContent, Editor, ReactNodeViewRenderer } from "@tiptap/react";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
