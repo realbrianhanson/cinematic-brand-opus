@@ -31,10 +31,6 @@ export function safeHref(raw: unknown): string | null {
   }
 }
 
-interface Inline {
-  key: string;
-}
-
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   // Bold and links, processed in one pass.
