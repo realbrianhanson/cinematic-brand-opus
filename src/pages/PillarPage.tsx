@@ -18,7 +18,13 @@ const wordCount = (html: string) => {
   return text ? text.split(" ").length : 0;
 };
 
-const PillarPage = () => {
+interface PillarPageProps {
+  /** Server-rendered guide so the body is in the initial HTML. */
+  initialPillar?: Record<string, any> | null;
+  initialSettings?: Record<string, any> | null;
+}
+
+const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
   const { data: pillar, isLoading } = useQuery({
@@ -35,6 +41,7 @@ const PillarPage = () => {
     },
     enabled: !!slug,
     staleTime: 30000,
+    ...(initialPillar ? { initialData: initialPillar as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: siteSettings } = useQuery({
@@ -44,6 +51,7 @@ const PillarPage = () => {
       return data;
     },
     staleTime: 60000,
+    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const nicheId = (pillar as any)?.niches?.id ?? pillar?.niche_id;
@@ -124,30 +132,7 @@ const PillarPage = () => {
   return (
     <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <Nav />
-      <PageHead
-        title={((pillar.seo_meta as any)?.title) || pillar.title}
-        description={((pillar.seo_meta as any)?.description) || ""}
-        url={`${siteSettings?.site_url || ""}/guides/${slug}`}
-        image={(pillar.seo_meta as any)?.og_image}
-        publishedAt={pillar.published_at || pillar.created_at || ""}
-        updatedAt={pillar.updated_at || ""}
-        authorName={siteSettings?.author_name}
-      />
       <article id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 800 }}>
-        <StructuredData
-          pageType="pillar"
-          title={pillar.title}
-          description={((pillar.seo_meta as any)?.description) || ""}
-          url={`${siteSettings?.site_url || ""}/guides/${slug}`}
-          publishedAt={pillar.published_at || pillar.created_at || ""}
-          updatedAt={pillar.updated_at || ""}
-          breadcrumbs={[
-            { name: "Home", url: siteSettings?.site_url || "/" },
-            { name: "Guides", url: `${siteSettings?.site_url || ""}/resources` },
-            { name: pillar.title, url: `${siteSettings?.site_url || ""}/guides/${slug}` },
-          ]}
-          siteSettings={siteSettings}
-        />
         <Breadcrumbs items={[
           { label: "Home", href: "/" },
           { label: "Guides", href: "/resources" },

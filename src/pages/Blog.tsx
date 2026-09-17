@@ -3,8 +3,6 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
-import { siteConfig, absoluteUrl, pageTitle } from "@/config/site";
-import PageHead from "@/components/PageHead";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import CustomCursor from "@/components/CustomCursor";
@@ -96,7 +94,12 @@ const CardSkeleton = () => (
 const CARD_COLUMNS =
   "id, slug, title, excerpt, featured_image, featured_image_alt, reading_time, created_at, categories(name, slug)";
 
-const Blog = () => {
+interface BlogProps {
+  /** First page rendered on the server so the list is in the initial HTML. */
+  initialPage?: { items: unknown[]; nextPage: number | null } | null;
+}
+
+const Blog = ({ initialPage }: BlogProps = {}) => {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -127,6 +130,17 @@ const Blog = () => {
     getNextPageParam: (last) => last.nextPage,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    ...(initialPage
+      ? {
+          initialData: {
+            pages: [{ items: initialPage.items as never[], nextPage: initialPage.nextPage }],
+            pageParams: [0],
+          },
+          // Treat server data as immediately stale so signed-in admins and
+          // fresh publishes still refetch after hydration.
+          initialDataUpdatedAt: 0,
+        }
+      : {}),
   });
 
   useEffect(() => {
@@ -157,12 +171,6 @@ const Blog = () => {
 
   return (
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
-      <PageHead
-        title={pageTitle("Articles & Playbooks")}
-        description={`AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from ${siteConfig.identity.name}.`}
-        url={absoluteUrl("/blog")}
-        type="website"
-      />
       <CustomCursor />
       <Nav />
       <header className="pt-32 pb-16 px-6 lg:px-14 mx-auto" style={{ maxWidth: 1440 }}>

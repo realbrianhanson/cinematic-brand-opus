@@ -11,7 +11,13 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import PublicCTA from "@/components/PublicCTA";
 
-const BlogPost = () => {
+interface BlogPostProps {
+  /** Server-rendered article, so the body is in the initial HTML. */
+  initialPost?: Record<string, any> | null;
+  initialSettings?: Record<string, any> | null;
+}
+
+const BlogPost = ({ initialPost, initialSettings }: BlogPostProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
   const { data: post, isLoading } = useQuery({
@@ -27,6 +33,7 @@ const BlogPost = () => {
       return data;
     },
     enabled: !!slug,
+    ...(initialPost ? { initialData: initialPost as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   const { data: siteSettings } = useQuery({
@@ -36,6 +43,7 @@ const BlogPost = () => {
       return data;
     },
     staleTime: 60000,
+    ...(initialSettings ? { initialData: initialSettings as never, initialDataUpdatedAt: 0 } : {}),
   });
 
   // Fetch SEO keywords for matching
@@ -131,35 +139,11 @@ const BlogPost = () => {
   return (
     <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
-      <PageHead
-        title={post.title}
-        description={post.excerpt || post.tldr || ""}
-        url={`${siteSettings?.site_url || ""}/blog/${slug}`}
-        image={post.featured_image || undefined}
-        publishedAt={post.created_at}
-        updatedAt={post.updated_at}
-        authorName={siteSettings?.author_name}
-      />
       <article
         id="main-content"
         className="mx-auto px-6 lg:px-14 pt-32 pb-24"
         style={{ maxWidth: 820 }}
       >
-        <StructuredData
-          pageType="blog"
-          title={post.title}
-          description={post.excerpt || post.tldr || ""}
-          url={`${siteSettings?.site_url || ""}/blog/${slug}`}
-          publishedAt={post.created_at}
-          updatedAt={post.updated_at}
-          breadcrumbs={[
-            { name: "Home", url: siteSettings?.site_url || "/" },
-            { name: "Blog", url: `${siteSettings?.site_url || ""}/blog` },
-            { name: post.title, url: `${siteSettings?.site_url || ""}/blog/${slug}` },
-          ]}
-          faqs={blogFaqs}
-          siteSettings={siteSettings}
-        />
         <Link
           to="/blog"
           className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
