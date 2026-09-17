@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Search } from "lucide-react";
+import { absoluteUrl, pageTitle } from "@/config/site";
 import PageHead from "@/components/PageHead";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -240,9 +241,9 @@ const News = () => {
   return (
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <PageHead
-        title="Latest News | Brian Hanson"
+        title={pageTitle("Latest News")}
         description="Global AI, marketing, and sales news — curated and summarized daily."
-        url="https://brianhanson.com/news"
+        url={absoluteUrl("/news")}
         type="website"
         robots="noindex, follow"
       />

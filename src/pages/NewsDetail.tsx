@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, ExternalLink, Share2, Twitter, Linkedin, Facebook, Link as LinkIcon } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { pageTitle } from "@/config/site";
 import PageHead from "@/components/PageHead";
 import { toast } from "@/hooks/use-toast";
 
@@ -116,7 +117,7 @@ const NewsDetail = () => {
     <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
       <PageHead
-        title={`${title} | Brian Hanson`}
+        title={pageTitle(title)}
         description={summary || ""}
         url={shareUrl}
         image={item.image_url || undefined}

@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 import { useState } from "react";
 import { useAdminPreferences } from "@/hooks/useAdminPreferences";
 import { NavLink, Outlet, useNavigate } from "@/lib/router-compat";
@@ -116,7 +117,7 @@ const AdminLayout = () => {
                 textDecorationColor: "hsl(var(--admin-accent))",
               }}
             >
-              Brian Hanson
+              {siteConfig.identity.name}
             </span>
           ) : (
             <span

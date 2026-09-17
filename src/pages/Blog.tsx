@@ -3,6 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
+import { siteConfig, absoluteUrl, pageTitle } from "@/config/site";
 import PageHead from "@/components/PageHead";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -157,9 +158,9 @@ const Blog = () => {
   return (
     <div className="public-site min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
       <PageHead
-        title="Articles & Playbooks | Brian Hanson"
-        description="AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from Brian Hanson."
-        url="https://brianhanson.com/blog"
+        title={pageTitle("Articles & Playbooks")}
+        description={`AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from ${siteConfig.identity.name}.`}
+        url={absoluteUrl("/blog")}
         type="website"
       />
       <CustomCursor />

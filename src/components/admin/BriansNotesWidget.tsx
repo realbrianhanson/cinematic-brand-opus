@@ -51,7 +51,7 @@ export default function BriansNotesWidget() {
       padding: 20,
     }}>
       <h3 className="font-heading italic" style={{ fontSize: 18, color: "hsl(var(--admin-text))", marginBottom: 4 }}>
-        Brian's Notes
+        Expert Notes
       </h3>
       <p className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
         Drop 1-3 sentences. The autonomous engine weaves the freshest matching note into every draft's "From the trenches" callout.
