@@ -45,6 +45,20 @@ Deno.serve(async (req) => {
   // same ISO week, so today's key is correct).
   const weekKey = isoWeekKey(new Date());
 
+  // Fail closed on incomplete email configuration before doing any work.
+  const { data: pubSettings } = await admin
+    .from("site_settings")
+    .select(
+      "site_url, site_name, author_name, newsletter_from_address, newsletter_reply_to, newsletter_postal_address",
+    )
+    .limit(1)
+    .maybeSingle();
+  const resolved = resolveNewsletterConfig(pubSettings, Deno.env.get("RESEND_API_KEY"));
+  if (!resolved.ok) {
+    return json(503, { ok: false, state: "unavailable", missing: resolved.missing });
+  }
+  const config = resolved.config;
+
   const posts = await fetchRecentPosts(admin);
   if (posts.length === 0) {
     return json(200, { ok: true, skipped: "no posts this week", week_key: weekKey });
@@ -52,7 +66,10 @@ Deno.serve(async (req) => {
 
   const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
   const voiceBlock = await loadVoiceBlock(admin);
-  const composed = await composeFromPosts(lovableKey, voiceBlock, posts);
+  const composed = await composeFromPosts(lovableKey, voiceBlock, posts, {
+    siteName: config.siteName,
+    authorName: config.authorName,
+  });
 
   // Upsert preview row (Regenerate re-runs this same function).
   const { data: existing } = await admin
