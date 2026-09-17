@@ -91,7 +91,10 @@ Deno.serve(async (req) => {
     recipient_count: 0,
     sent_count: 0,
     status: "preview" as const,
+    idempotency_key: `nl-${weekKey}`,
+    claimed_at: null as string | null,
   };
+
 
   if (existing?.id) {
     const { error } = await admin
@@ -112,34 +115,25 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const adminEmail = (privateSettings?.report_email || "").trim();
 
-  const { data: pubSettings } = await admin
-    .from("site_settings")
-    .select("newsletter_from_address, newsletter_reply_to, newsletter_postal_address")
-    .limit(1)
-    .maybeSingle();
-  const fromAddr =
-    pubSettings?.newsletter_from_address || "Brian Hanson <brian@m.brianhanson.com>";
-  const replyTo = pubSettings?.newsletter_reply_to || null;
-  const postal = pubSettings?.newsletter_postal_address || null;
-
-  const html = buildHtml(composed, posts as PostRow[], null, postal);
-  const resendKey = Deno.env.get("RESEND_API_KEY");
+  const html = buildHtml(composed, posts as PostRow[], null, config);
   let previewSent = false;
 
-  if (resendKey && adminEmail) {
+  if (adminEmail) {
     const body: Record<string, unknown> = {
-      from: fromAddr,
+      from: config.fromAddress,
       to: [adminEmail],
+      reply_to: config.replyTo,
       subject: `[PREVIEW — sends Tuesday] ${composed.subject}`,
       html,
     };
-    if (replyTo) body.reply_to = replyTo;
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${resendKey}`,
+          Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
+          // One preview per week per composed subject, even if retried.
+          "Idempotency-Key": `nl-preview-${weekKey}`,
         },
         body: JSON.stringify(body),
       });
