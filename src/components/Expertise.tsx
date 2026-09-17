@@ -1,39 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Brain, Target, Code2, Users } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
+import { siteConfig } from "@/config/site";
+import type { ExpertiseCard } from "@/config/types";
 
-const cards = [
-  {
-    icon: Brain,
-    num: "01",
-    title: "AI Implementation",
-    text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD. Just results.",
-  },
-  {
-    icon: Target,
-    num: "02",
-    title: "Direct Response Marketing",
-    text: "20+ years of frameworks that convert strangers into customers. The psychology behind $50M+ in revenue influenced.",
-  },
-  {
-    icon: Code2,
-    num: "03",
-    title: "No-Code Building",
-    text: "I built Revven, a full SaaS platform with 3,000+ users, without writing a single line of code. I teach others to do the same.",
-  },
-  {
-    icon: Users,
-    num: "04",
-    title: "Community & Education",
-    text: "150,000+ business owners trained through live events, workshops, and virtual summits. Real education that creates immediate ROI.",
-  },
-];
+const ICONS = { brain: Brain, target: Target, code: Code2, users: Users } as const;
 
 const TiltCard = ({
   card,
   index,
 }: {
-  card: (typeof cards)[0];
+  card: ExpertiseCard;
   index: number;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -74,7 +51,7 @@ const TiltCard = ({
     setTilt({ rx: 0, ry: 0 });
   }, []);
 
-  const Icon = card.icon;
+  const Icon = ICONS[card.icon];
 
   return (
     <div
@@ -107,13 +84,6 @@ const TiltCard = ({
       )}
 
       <div className="relative p-8 lg:p-10">
-        <span
-          className="absolute top-4 right-6 font-display italic select-none"
-          style={{ fontSize: 70, color: "rgba(212,175,85,0.04)", lineHeight: 1 }}
-        >
-          {card.num}
-        </span>
-
         <Icon
           size={24}
           strokeWidth={1.5}
@@ -145,6 +115,8 @@ const TiltCard = ({
 
 const Expertise = () => {
   const { ref: headerRef, visible: headerVisible } = useReveal();
+  const expertise = siteConfig.expertise;
+  const cards = expertise.cards;
 
   return (
     <section
@@ -177,7 +149,7 @@ const Expertise = () => {
                 className="font-body font-bold uppercase"
                 style={{ fontSize: 10, letterSpacing: "0.3em", color: "#D4AF55" }}
               >
-                Core Expertise
+                {expertise.overline}
               </span>
             </div>
             <h2
@@ -189,7 +161,7 @@ const Expertise = () => {
                 ...revealStyle(headerVisible, 0.1),
               }}
             >
-              Where AI Meets{" "}
+              {expertise.headingLead}{" "}
               <em
                 style={{
                   fontStyle: "italic",
@@ -198,7 +170,7 @@ const Expertise = () => {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                Real Results
+                {expertise.headingAccent}
               </em>
             </h2>
           </div>
@@ -213,8 +185,7 @@ const Expertise = () => {
               ...revealStyle(headerVisible, 0.2),
             }}
           >
-            Four disciplines. One unfair advantage. The intersection most
-            &lsquo;experts&rsquo; can&rsquo;t touch.
+            {expertise.intro}
           </p>
         </div>
 
