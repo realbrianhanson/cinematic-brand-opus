@@ -72,7 +72,9 @@ export async function composeFromPosts(
   lovableKey: string,
   voiceBlock: string,
   posts: PostRow[],
+  brand?: { siteName: string; authorName: string },
 ): Promise<Composed> {
+  const authorName = brand?.authorName || "the site author";
   if (!lovableKey || posts.length === 0) return fallbackCompose(posts);
 
   try {
