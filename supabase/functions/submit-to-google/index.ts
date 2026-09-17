@@ -26,7 +26,7 @@ function pemToBuffer(pem: string) {
 
 function base64url(source: ArrayBuffer) {
   // Convert the buffer to a string
-  let string = String.fromCharCode.apply(null, new Uint8Array(source) as any);
+  const string = String.fromCharCode.apply(null, new Uint8Array(source) as any);
 
   // Base64 encode the string
   let base64 = btoa(string);

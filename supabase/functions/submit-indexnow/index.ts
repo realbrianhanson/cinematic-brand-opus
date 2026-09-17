@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const indexNowKey = Deno.env.get("INDEXNOW_KEY");
 
     let urlList: string[] = [];
-    let pageIdMap: Record<string, string> = {};
+    const pageIdMap: Record<string, string> = {};
 
     if (all_unsubmitted) {
       const { data: pages } = await supabase
