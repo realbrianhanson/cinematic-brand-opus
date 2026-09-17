@@ -1,21 +1,35 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+// Public unsubscribe endpoint. Redirect target comes from site_settings.site_url.
 
-const REDIRECT = "https://brianhanson.com/newsletter/unsubscribed";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
 
 Deno.serve(async (req) => {
-  const url = new URL(req.url);
-  const token = url.searchParams.get("token");
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  const { data: settings } = await admin
+    .from("site_settings")
+    .select("site_url")
+    .limit(1)
+    .maybeSingle();
+
+  const siteUrl = normalizeSiteUrl(settings?.site_url);
+  if (!siteUrl) {
+    return new Response("Newsletter is not configured.", { status: 503 });
+  }
+  const base = `${siteUrl}/newsletter`;
+
+  const token = new URL(req.url).searchParams.get("token");
   if (token) {
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
     const { data: row } = await admin
       .from("newsletter_subscribers")
-      .select("id")
+      .select("id, status")
       .eq("confirm_token", token)
       .maybeSingle();
-    if (row) {
+    // Suppressed rows keep their status; only active ones move to unsubscribed.
+    if (row && (row.status === "confirmed" || row.status === "pending")) {
       await admin
         .from("newsletter_subscribers")
         .update({
@@ -25,5 +39,5 @@ Deno.serve(async (req) => {
         .eq("id", row.id);
     }
   }
-  return Response.redirect(REDIRECT, 302);
+  return Response.redirect(`${base}/unsubscribed`, 302);
 });
