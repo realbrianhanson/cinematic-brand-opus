@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { siteConfig } from "@/config/site";
+import type { ResultStat } from "@/config/types";
 
-const stats = [
-  { end: 4, prefix: "", suffix: "×", label: "Inc. 5000", sub: "Highest: #80 in the nation", duration: 1000 },
-  { end: 150, prefix: "", suffix: "K+", label: "Community", sub: "Business owners trained", duration: 2000 },
-  { end: 50, prefix: "$", suffix: "M+", label: "Revenue", sub: "Influenced across ventures", duration: 2000 },
-  { end: 3000, prefix: "", suffix: "+", label: "Revven Users", sub: "Built with zero code", duration: 2200, locale: true },
-];
+/** Longer counts get a longer run so the animation reads at a similar speed. */
+const durationFor = (end: number) => (end >= 1000 ? 2200 : end >= 50 ? 2000 : 1000);
 
 const useCounter = (end: number, duration: number, start: boolean) => {
   const [val, setVal] = useState(0);
@@ -25,7 +23,7 @@ const useCounter = (end: number, duration: number, start: boolean) => {
   return val;
 };
 
-const StatItem = ({ stat, index }: { stat: (typeof stats)[0]; index: number }) => {
+const StatItem = ({ stat, index }: { stat: ResultStat; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -40,7 +38,7 @@ const StatItem = ({ stat, index }: { stat: (typeof stats)[0]; index: number }) =
     return () => obs.disconnect();
   }, []);
 
-  const count = useCounter(stat.end, stat.duration, visible);
+  const count = useCounter(stat.end, durationFor(stat.end), visible);
   const display = stat.locale ? count.toLocaleString() : String(count);
 
   return (
@@ -63,7 +61,7 @@ const StatItem = ({ stat, index }: { stat: (typeof stats)[0]; index: number }) =
           WebkitTextFillColor: "transparent",
         }}
       >
-        {stat.prefix}{display}{stat.suffix}
+        {stat.prefix ?? ""}{display}{stat.suffix ?? ""}
       </div>
       <div
         className="font-body font-semibold uppercase mt-3"
@@ -81,7 +79,11 @@ const StatItem = ({ stat, index }: { stat: (typeof stats)[0]; index: number }) =
   );
 };
 
-const Stats = () => (
+const Stats = () => {
+  const stats = siteConfig.results;
+  if (stats.length === 0) return null;
+
+  return (
   <section id="results" className="relative py-28" style={{ background: "#09090F" }}>
     <div className="absolute top-0 left-0 w-full h-px" style={{
       background: "linear-gradient(90deg, transparent 10%, rgba(212,175,85,0.25) 50%, transparent 90%)",
@@ -93,6 +95,7 @@ const Stats = () => (
       {stats.map((s, i) => <StatItem key={i} stat={s} index={i} />)}
     </div>
   </section>
-);
+  );
+};
 
 export default Stats;
