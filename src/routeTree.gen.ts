@@ -21,13 +21,9 @@ import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
-import { Route as AdminContentTypesRouteImport } from './routes/admin.content-types'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
 import { Route as AdminLibraryRouteImport } from './routes/admin.library'
 import { Route as AdminNichesRouteImport } from './routes/admin.niches'
-import { Route as AdminPagesRouteImport } from './routes/admin.pages'
-import { Route as AdminPillarsRouteImport } from './routes/admin.pillars'
-import { Route as AdminPostsRouteImport } from './routes/admin.posts'
 import { Route as AdminPseoDashboardRouteImport } from './routes/admin.pseo-dashboard'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -44,8 +40,12 @@ import { Route as NewsletterInvalidRouteImport } from './routes/newsletter.inval
 import { Route as NewsletterUnsubscribedRouteImport } from './routes/newsletter.unsubscribed'
 import { Route as ResourcesIndexRouteImport } from './routes/resources.index'
 import { Route as ResourcesContentTypeRouteImport } from './routes/resources.$contentType'
+import { Route as AdminContentTypesIndexRouteImport } from './routes/admin.content-types.index'
 import { Route as AdminContentTypesNewRouteImport } from './routes/admin.content-types.new'
+import { Route as AdminPagesIndexRouteImport } from './routes/admin.pages.index'
+import { Route as AdminPillarsIndexRouteImport } from './routes/admin.pillars.index'
 import { Route as AdminPillarsNewRouteImport } from './routes/admin.pillars.new'
+import { Route as AdminPostsIndexRouteImport } from './routes/admin.posts.index'
 import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
 import { Route as ResourcesContentTypeIndexRouteImport } from './routes/resources.$contentType.index'
 import { Route as ResourcesContentTypePageSlugRouteImport } from './routes/resources.$contentType.$pageSlug'
@@ -116,11 +116,6 @@ const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   path: '/categories',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminContentTypesRoute = AdminContentTypesRouteImport.update({
-  id: '/content-types',
-  path: '/content-types',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminGenerateRoute = AdminGenerateRouteImport.update({
   id: '/generate',
   path: '/generate',
@@ -134,21 +129,6 @@ const AdminLibraryRoute = AdminLibraryRouteImport.update({
 const AdminNichesRoute = AdminNichesRouteImport.update({
   id: '/niches',
   path: '/niches',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPagesRoute = AdminPagesRouteImport.update({
-  id: '/pages',
-  path: '/pages',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPillarsRoute = AdminPillarsRouteImport.update({
-  id: '/pillars',
-  path: '/pillars',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPostsRoute = AdminPostsRouteImport.update({
-  id: '/posts',
-  path: '/posts',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPseoDashboardRoute = AdminPseoDashboardRouteImport.update({
@@ -231,20 +211,40 @@ const ResourcesContentTypeRoute = ResourcesContentTypeRouteImport.update({
   path: '/$contentType',
   getParentRoute: () => ResourcesRoute,
 } as any)
+const AdminContentTypesIndexRoute = AdminContentTypesIndexRouteImport.update({
+  id: '/content-types/',
+  path: '/content-types/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminContentTypesNewRoute = AdminContentTypesNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminContentTypesRoute,
+  id: '/content-types/new',
+  path: '/content-types/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPagesIndexRoute = AdminPagesIndexRouteImport.update({
+  id: '/pages/',
+  path: '/pages/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPillarsIndexRoute = AdminPillarsIndexRouteImport.update({
+  id: '/pillars/',
+  path: '/pillars/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminPillarsNewRoute = AdminPillarsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminPillarsRoute,
+  id: '/pillars/new',
+  path: '/pillars/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
+  id: '/posts/',
+  path: '/posts/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminPostsRoute,
+  id: '/posts/new',
+  path: '/posts/new',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ResourcesContentTypeIndexRoute =
   ResourcesContentTypeIndexRouteImport.update({
@@ -259,24 +259,24 @@ const ResourcesContentTypePageSlugRoute =
     getParentRoute: () => ResourcesContentTypeRoute,
   } as any)
 const AdminContentTypesIdEditRoute = AdminContentTypesIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => AdminContentTypesRoute,
+  id: '/content-types/$id/edit',
+  path: '/content-types/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminPagesIdEditRoute = AdminPagesIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => AdminPagesRoute,
+  id: '/pages/$id/edit',
+  path: '/pages/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminPillarsIdEditRoute = AdminPillarsIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => AdminPillarsRoute,
+  id: '/pillars/$id/edit',
+  path: '/pillars/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminPostsIdEditRoute = AdminPostsIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => AdminPostsRoute,
+  id: '/posts/$id/edit',
+  path: '/posts/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ApiPublicNewsletterConfirmRoute =
   ApiPublicNewsletterConfirmRouteImport.update({
@@ -303,13 +303,9 @@ export interface FileRoutesByFullPath {
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
-  '/admin/pages': typeof AdminPagesRouteWithChildren
-  '/admin/pillars': typeof AdminPillarsRouteWithChildren
-  '/admin/posts': typeof AdminPostsRouteWithChildren
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -331,6 +327,10 @@ export interface FileRoutesByFullPath {
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/admin/content-types/': typeof AdminContentTypesIndexRoute
+  '/admin/pages/': typeof AdminPagesIndexRoute
+  '/admin/pillars/': typeof AdminPillarsIndexRoute
+  '/admin/posts/': typeof AdminPostsIndexRoute
   '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
@@ -347,13 +347,9 @@ export interface FileRoutesByTo {
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
-  '/admin/pages': typeof AdminPagesRouteWithChildren
-  '/admin/pillars': typeof AdminPillarsRouteWithChildren
-  '/admin/posts': typeof AdminPostsRouteWithChildren
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -374,6 +370,10 @@ export interface FileRoutesByTo {
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/admin/content-types': typeof AdminContentTypesIndexRoute
+  '/admin/pages': typeof AdminPagesIndexRoute
+  '/admin/pillars': typeof AdminPillarsIndexRoute
+  '/admin/posts': typeof AdminPostsIndexRoute
   '/resources/$contentType': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
@@ -395,13 +395,9 @@ export interface FileRoutesById {
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
-  '/admin/pages': typeof AdminPagesRouteWithChildren
-  '/admin/pillars': typeof AdminPillarsRouteWithChildren
-  '/admin/posts': typeof AdminPostsRouteWithChildren
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -423,6 +419,10 @@ export interface FileRoutesById {
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
+  '/admin/content-types/': typeof AdminContentTypesIndexRoute
+  '/admin/pages/': typeof AdminPagesIndexRoute
+  '/admin/pillars/': typeof AdminPillarsIndexRoute
+  '/admin/posts/': typeof AdminPostsIndexRoute
   '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
@@ -445,13 +445,9 @@ export interface FileRouteTypes {
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
-    | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
     | '/admin/niches'
-    | '/admin/pages'
-    | '/admin/pillars'
-    | '/admin/posts'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
@@ -473,6 +469,10 @@ export interface FileRouteTypes {
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/admin/content-types/'
+    | '/admin/pages/'
+    | '/admin/pillars/'
+    | '/admin/posts/'
     | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
@@ -489,13 +489,9 @@ export interface FileRouteTypes {
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
-    | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
     | '/admin/niches'
-    | '/admin/pages'
-    | '/admin/pillars'
-    | '/admin/posts'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
@@ -516,6 +512,10 @@ export interface FileRouteTypes {
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/admin/content-types'
+    | '/admin/pages'
+    | '/admin/pillars'
+    | '/admin/posts'
     | '/resources/$contentType'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
@@ -536,13 +536,9 @@ export interface FileRouteTypes {
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
-    | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
     | '/admin/niches'
-    | '/admin/pages'
-    | '/admin/pillars'
-    | '/admin/posts'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
@@ -564,6 +560,10 @@ export interface FileRouteTypes {
     | '/admin/pillars/new'
     | '/admin/posts/new'
     | '/resources/$contentType/$pageSlug'
+    | '/admin/content-types/'
+    | '/admin/pages/'
+    | '/admin/pillars/'
+    | '/admin/posts/'
     | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
     | '/admin/pages/$id/edit'
@@ -679,13 +679,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/content-types': {
-      id: '/admin/content-types'
-      path: '/content-types'
-      fullPath: '/admin/content-types'
-      preLoaderRoute: typeof AdminContentTypesRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/generate': {
       id: '/admin/generate'
       path: '/generate'
@@ -705,27 +698,6 @@ declare module '@tanstack/react-router' {
       path: '/niches'
       fullPath: '/admin/niches'
       preLoaderRoute: typeof AdminNichesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/pages': {
-      id: '/admin/pages'
-      path: '/pages'
-      fullPath: '/admin/pages'
-      preLoaderRoute: typeof AdminPagesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/pillars': {
-      id: '/admin/pillars'
-      path: '/pillars'
-      fullPath: '/admin/pillars'
-      preLoaderRoute: typeof AdminPillarsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/posts': {
-      id: '/admin/posts'
-      path: '/posts'
-      fullPath: '/admin/posts'
-      preLoaderRoute: typeof AdminPostsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/pseo-dashboard': {
@@ -840,26 +812,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResourcesContentTypeRouteImport
       parentRoute: typeof ResourcesRoute
     }
+    '/admin/content-types/': {
+      id: '/admin/content-types/'
+      path: '/content-types'
+      fullPath: '/admin/content-types/'
+      preLoaderRoute: typeof AdminContentTypesIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/content-types/new': {
       id: '/admin/content-types/new'
-      path: '/new'
+      path: '/content-types/new'
       fullPath: '/admin/content-types/new'
       preLoaderRoute: typeof AdminContentTypesNewRouteImport
-      parentRoute: typeof AdminContentTypesRoute
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pages/': {
+      id: '/admin/pages/'
+      path: '/pages'
+      fullPath: '/admin/pages/'
+      preLoaderRoute: typeof AdminPagesIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pillars/': {
+      id: '/admin/pillars/'
+      path: '/pillars'
+      fullPath: '/admin/pillars/'
+      preLoaderRoute: typeof AdminPillarsIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/pillars/new': {
       id: '/admin/pillars/new'
-      path: '/new'
+      path: '/pillars/new'
       fullPath: '/admin/pillars/new'
       preLoaderRoute: typeof AdminPillarsNewRouteImport
-      parentRoute: typeof AdminPillarsRoute
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/posts/': {
+      id: '/admin/posts/'
+      path: '/posts'
+      fullPath: '/admin/posts/'
+      preLoaderRoute: typeof AdminPostsIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/posts/new': {
       id: '/admin/posts/new'
-      path: '/new'
+      path: '/posts/new'
       fullPath: '/admin/posts/new'
       preLoaderRoute: typeof AdminPostsNewRouteImport
-      parentRoute: typeof AdminPostsRoute
+      parentRoute: typeof AdminRoute
     }
     '/resources/$contentType/': {
       id: '/resources/$contentType/'
@@ -877,31 +877,31 @@ declare module '@tanstack/react-router' {
     }
     '/admin/content-types/$id/edit': {
       id: '/admin/content-types/$id/edit'
-      path: '/$id/edit'
+      path: '/content-types/$id/edit'
       fullPath: '/admin/content-types/$id/edit'
       preLoaderRoute: typeof AdminContentTypesIdEditRouteImport
-      parentRoute: typeof AdminContentTypesRoute
+      parentRoute: typeof AdminRoute
     }
     '/admin/pages/$id/edit': {
       id: '/admin/pages/$id/edit'
-      path: '/$id/edit'
+      path: '/pages/$id/edit'
       fullPath: '/admin/pages/$id/edit'
       preLoaderRoute: typeof AdminPagesIdEditRouteImport
-      parentRoute: typeof AdminPagesRoute
+      parentRoute: typeof AdminRoute
     }
     '/admin/pillars/$id/edit': {
       id: '/admin/pillars/$id/edit'
-      path: '/$id/edit'
+      path: '/pillars/$id/edit'
       fullPath: '/admin/pillars/$id/edit'
       preLoaderRoute: typeof AdminPillarsIdEditRouteImport
-      parentRoute: typeof AdminPillarsRoute
+      parentRoute: typeof AdminRoute
     }
     '/admin/posts/$id/edit': {
       id: '/admin/posts/$id/edit'
-      path: '/$id/edit'
+      path: '/posts/$id/edit'
       fullPath: '/admin/posts/$id/edit'
       preLoaderRoute: typeof AdminPostsIdEditRouteImport
-      parentRoute: typeof AdminPostsRoute
+      parentRoute: typeof AdminRoute
     }
     '/api/public/newsletter/confirm': {
       id: '/api/public/newsletter/confirm'
@@ -920,91 +920,52 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AdminContentTypesRouteChildren {
-  AdminContentTypesNewRoute: typeof AdminContentTypesNewRoute
-  AdminContentTypesIdEditRoute: typeof AdminContentTypesIdEditRoute
-}
-
-const AdminContentTypesRouteChildren: AdminContentTypesRouteChildren = {
-  AdminContentTypesNewRoute: AdminContentTypesNewRoute,
-  AdminContentTypesIdEditRoute: AdminContentTypesIdEditRoute,
-}
-
-const AdminContentTypesRouteWithChildren =
-  AdminContentTypesRoute._addFileChildren(AdminContentTypesRouteChildren)
-
-interface AdminPagesRouteChildren {
-  AdminPagesIdEditRoute: typeof AdminPagesIdEditRoute
-}
-
-const AdminPagesRouteChildren: AdminPagesRouteChildren = {
-  AdminPagesIdEditRoute: AdminPagesIdEditRoute,
-}
-
-const AdminPagesRouteWithChildren = AdminPagesRoute._addFileChildren(
-  AdminPagesRouteChildren,
-)
-
-interface AdminPillarsRouteChildren {
-  AdminPillarsNewRoute: typeof AdminPillarsNewRoute
-  AdminPillarsIdEditRoute: typeof AdminPillarsIdEditRoute
-}
-
-const AdminPillarsRouteChildren: AdminPillarsRouteChildren = {
-  AdminPillarsNewRoute: AdminPillarsNewRoute,
-  AdminPillarsIdEditRoute: AdminPillarsIdEditRoute,
-}
-
-const AdminPillarsRouteWithChildren = AdminPillarsRoute._addFileChildren(
-  AdminPillarsRouteChildren,
-)
-
-interface AdminPostsRouteChildren {
-  AdminPostsNewRoute: typeof AdminPostsNewRoute
-  AdminPostsIdEditRoute: typeof AdminPostsIdEditRoute
-}
-
-const AdminPostsRouteChildren: AdminPostsRouteChildren = {
-  AdminPostsNewRoute: AdminPostsNewRoute,
-  AdminPostsIdEditRoute: AdminPostsIdEditRoute,
-}
-
-const AdminPostsRouteWithChildren = AdminPostsRoute._addFileChildren(
-  AdminPostsRouteChildren,
-)
-
 interface AdminRouteChildren {
   AdminCategoriesRoute: typeof AdminCategoriesRoute
-  AdminContentTypesRoute: typeof AdminContentTypesRouteWithChildren
   AdminGenerateRoute: typeof AdminGenerateRoute
   AdminLibraryRoute: typeof AdminLibraryRoute
   AdminNichesRoute: typeof AdminNichesRoute
-  AdminPagesRoute: typeof AdminPagesRouteWithChildren
-  AdminPillarsRoute: typeof AdminPillarsRouteWithChildren
-  AdminPostsRoute: typeof AdminPostsRouteWithChildren
   AdminPseoDashboardRoute: typeof AdminPseoDashboardRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSiteSettingsRoute: typeof AdminSiteSettingsRoute
   AdminWidgetsRoute: typeof AdminWidgetsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminContentTypesNewRoute: typeof AdminContentTypesNewRoute
+  AdminPillarsNewRoute: typeof AdminPillarsNewRoute
+  AdminPostsNewRoute: typeof AdminPostsNewRoute
+  AdminContentTypesIndexRoute: typeof AdminContentTypesIndexRoute
+  AdminPagesIndexRoute: typeof AdminPagesIndexRoute
+  AdminPillarsIndexRoute: typeof AdminPillarsIndexRoute
+  AdminPostsIndexRoute: typeof AdminPostsIndexRoute
+  AdminContentTypesIdEditRoute: typeof AdminContentTypesIdEditRoute
+  AdminPagesIdEditRoute: typeof AdminPagesIdEditRoute
+  AdminPillarsIdEditRoute: typeof AdminPillarsIdEditRoute
+  AdminPostsIdEditRoute: typeof AdminPostsIdEditRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCategoriesRoute: AdminCategoriesRoute,
-  AdminContentTypesRoute: AdminContentTypesRouteWithChildren,
   AdminGenerateRoute: AdminGenerateRoute,
   AdminLibraryRoute: AdminLibraryRoute,
   AdminNichesRoute: AdminNichesRoute,
-  AdminPagesRoute: AdminPagesRouteWithChildren,
-  AdminPillarsRoute: AdminPillarsRouteWithChildren,
-  AdminPostsRoute: AdminPostsRouteWithChildren,
   AdminPseoDashboardRoute: AdminPseoDashboardRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSiteSettingsRoute: AdminSiteSettingsRoute,
   AdminWidgetsRoute: AdminWidgetsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminContentTypesNewRoute: AdminContentTypesNewRoute,
+  AdminPillarsNewRoute: AdminPillarsNewRoute,
+  AdminPostsNewRoute: AdminPostsNewRoute,
+  AdminContentTypesIndexRoute: AdminContentTypesIndexRoute,
+  AdminPagesIndexRoute: AdminPagesIndexRoute,
+  AdminPillarsIndexRoute: AdminPillarsIndexRoute,
+  AdminPostsIndexRoute: AdminPostsIndexRoute,
+  AdminContentTypesIdEditRoute: AdminContentTypesIdEditRoute,
+  AdminPagesIdEditRoute: AdminPagesIdEditRoute,
+  AdminPillarsIdEditRoute: AdminPillarsIdEditRoute,
+  AdminPostsIdEditRoute: AdminPostsIdEditRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

@@ -567,7 +567,7 @@ const GenerationControls = () => {
               </div>
               {job.status === "completed" && (
                 <a
-                  href="/admin/generated-pages"
+                  href="/admin/pages"
                   className="font-body"
                   style={{
                     fontSize: 12,
@@ -1141,7 +1141,7 @@ const GenerationControls = () => {
                   </div>
                   {job.status === "completed" && (
                     <a
-                      href="/admin/generated-pages"
+                      href="/admin/pages"
                       className="font-body"
                       style={{
                         fontSize: 12,

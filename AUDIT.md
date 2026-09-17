@@ -44,3 +44,9 @@
 - The 13 old Lovable coding prompts remain paused. Direct GitHub changes replace that workflow. Brian's existing custom-domain Cloudflare Worker routing is preserved.
 
 This is a measured audit, not a guarantee that every possible integration and future content payload is bug-free.
+
+## Admin navigation follow-up — September 17, 2026
+
+A user-reported live check reproduced `/admin/posts/new` displaying the posts list instead of the editor. The posts, content-types, pillars, and generated-page list routes were parent routes without outlets, swallowing their editor children. Converted the four lists to index routes so all seven new/edit destinations render directly under the protected admin layout. URLs remain unchanged.
+
+The Generate sidebar link successfully opened `/admin/generate` during the live reproduction. Two completed-job links inside that screen still pointed to nonexistent `/admin/generated-pages`; both now target `/admin/pages`. Regression coverage uses the actual generated route tree to check all eight affected destinations, list URLs with/without trailing slashes, and every literal admin link in the admin components. No production content or generation jobs were created for this check.

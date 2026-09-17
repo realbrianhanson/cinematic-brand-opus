@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
-import PillarPagesManager from "@/components/admin/PillarPagesManager";
+import GeneratedPagesManager from "@/components/admin/GeneratedPagesManager";
 
-export const Route = createFileRoute("/admin/pillars")({
+export const Route = createFileRoute("/admin/pages/")({
   component: () => (
     <Suspense fallback={<AdminPageSkeleton />}>
-      <PillarPagesManager />
+      <GeneratedPagesManager />
     </Suspense>
   ),
 });

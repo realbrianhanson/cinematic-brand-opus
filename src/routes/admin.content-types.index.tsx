@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import AdminPageSkeleton from "@/components/admin/AdminPageSkeleton";
 import ContentTypesManager from "@/components/admin/ContentTypesManager";
 
-export const Route = createFileRoute("/admin/content-types")({
+export const Route = createFileRoute("/admin/content-types/")({
   component: () => (
     <Suspense fallback={<AdminPageSkeleton />}>
       <ContentTypesManager />
