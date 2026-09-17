@@ -1,3 +1,4 @@
+import { formatPublicDate } from "@/lib/publicDate";
 import { fetchNewsPage } from "@/lib/publicLists";
 import { siteConfig } from "@/config/site";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -497,14 +498,11 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   <span className="flex items-center gap-1">
                     <Clock size={11} />
                     {featured.published_at
-                      ? new Date(featured.published_at).toLocaleDateString(
-                          undefined,
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          },
-                        )
+                      ? formatPublicDate(featured.published_at, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
                       : "Recent"}
                   </span>
                 </div>
@@ -605,7 +603,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   <span className="flex items-center gap-1">
                     <Clock size={11} />
                     {n.published_at
-                      ? new Date(n.published_at).toLocaleDateString(undefined, {
+                      ? formatPublicDate(n.published_at, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",

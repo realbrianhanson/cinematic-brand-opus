@@ -1,3 +1,4 @@
+import { formatPublicDate } from "@/lib/publicDate";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import {
@@ -346,7 +347,7 @@ const GeneratedPage = ({
             {page.last_refreshed && (
               <span className="font-body flex items-center gap-1">
                 <Calendar size={12} /> Last verified{" "}
-                {new Date(page.last_refreshed).toLocaleDateString("en-US", {
+                {formatPublicDate(page.last_refreshed, {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
@@ -362,12 +363,9 @@ const GeneratedPage = ({
               fontStyle: "italic",
             }}
           >
-            {(() => {
-              const d = new Date(
-                page.last_refreshed || page.created_at || Date.now(),
-              );
-              return `Researched with live web data, reviewed against ${d.toLocaleString("en-US", { month: "long" })} ${d.getFullYear()} sources.`;
-            })()}
+            {page.last_refreshed || page.created_at
+              ? `Researched with live web data, reviewed against ${formatPublicDate(page.last_refreshed || page.created_at, { month: "long", year: "numeric" })} sources.`
+              : "Researched with live web data and reviewed against public sources."}
           </p>
 
           <div className="flex items-center gap-3 mb-10">
@@ -898,7 +896,7 @@ const AuthorBox = ({
           style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}
         >
           Last verified{" "}
-          {new Date(lastVerified).toLocaleDateString("en-US", {
+          {formatPublicDate(lastVerified, {
             month: "long",
             day: "numeric",
             year: "numeric",

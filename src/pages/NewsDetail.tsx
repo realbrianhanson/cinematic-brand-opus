@@ -1,3 +1,4 @@
+import { formatPublicDate } from "@/lib/publicDate";
 import { newsDisplay } from "@/lib/newsDisplay";
 import type {
   PublicPost,
@@ -204,7 +205,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           >
             <Clock size={12} />
             {item.published_at
-              ? new Date(item.published_at).toLocaleDateString(undefined, {
+              ? formatPublicDate(item.published_at, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -406,10 +407,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                       style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
                     >
                       {r.published_at
-                        ? new Date(r.published_at).toLocaleDateString(
-                            undefined,
-                            { month: "short", day: "numeric" },
-                          )
+                        ? formatPublicDate(r.published_at, {
+                            month: "short",
+                            day: "numeric",
+                          })
                         : ""}
                     </span>
                   </div>

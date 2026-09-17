@@ -1,3 +1,4 @@
+import { formatPublicDate } from "@/lib/publicDate";
 import { z } from "zod";
 import type {
   PublicPost,
@@ -227,7 +228,7 @@ const BlogPost = ({
             style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
           >
             <Calendar size={12} />
-            {new Date(post.created_at).toLocaleDateString("en-US", {
+            {formatPublicDate(post.created_at, {
               year: "numeric",
               month: "long",
               day: "numeric",

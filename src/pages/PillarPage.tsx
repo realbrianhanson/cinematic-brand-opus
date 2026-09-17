@@ -1,3 +1,4 @@
+import { formatPublicDate } from "@/lib/publicDate";
 import type {
   PublicPost,
   PublicPillar,
@@ -216,9 +217,7 @@ const PillarPage = ({
             style={{ fontSize: 12 }}
           >
             <Calendar size={12} />
-            {new Date(
-              pillar.published_at || pillar.created_at!,
-            ).toLocaleDateString("en-US", {
+            {formatPublicDate(pillar.published_at || pillar.created_at!, {
               month: "long",
               day: "numeric",
               year: "numeric",
