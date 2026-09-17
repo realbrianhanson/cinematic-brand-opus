@@ -117,7 +117,7 @@ const NewsDetail = () => {
     <div className="min-h-screen" style={{ background: "#0b0b10", color: "#fff" }}>
       <Nav />
       <PageHead
-        title={pageTitle(title)}
+        title={pageTitle(title ?? "News")}
         description={summary || ""}
         url={shareUrl}
         image={item.image_url || undefined}

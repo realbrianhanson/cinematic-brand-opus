@@ -166,7 +166,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         : []),
       { rel: "alternate", type: "application/rss+xml", title: siteConfig.metadata.rssTitle, href: "/rss.xml" },
       ...(siteConfig.hero.posterSrc
-        ? [{ rel: "preload", as: "image", href: siteConfig.hero.posterSrc, fetchPriority: "high" }]
+        ? [{ rel: "preload", as: "image", href: siteConfig.hero.posterSrc, fetchPriority: "high" as const }]
         : []),
       { rel: "preconnect", href: "https://pwjdotliwsulqktavyxf.supabase.co", crossOrigin: "anonymous" },
       { rel: "dns-prefetch", href: "https://pwjdotliwsulqktavyxf.supabase.co" },
