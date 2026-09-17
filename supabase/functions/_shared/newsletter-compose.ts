@@ -6,9 +6,7 @@
 import { MAIN_MODEL } from "./models.ts";
 import { loadVoiceConfig, formatVoiceBlock } from "./voice.ts";
 
-export const UNSUB_BASE =
-  "https://brianhanson.com/api/public/newsletter/unsubscribe";
-export const POST_BASE = "https://brianhanson.com/blog";
+import type { NewsletterConfig } from "./newsletterConfig.ts";
 
 export interface PostRow {
   id: string;
@@ -147,12 +145,13 @@ export function buildHtml(
   composed: Composed,
   posts: PostRow[],
   unsubscribeToken: string | null,
-  postalAddress: string | null,
+  config: NewsletterConfig,
 ): string {
+  const postalAddress = config.postalAddress;
   const bySlug = new Map(composed.post_blurbs.map((b) => [b.slug, b.blurb]));
   const items = posts
     .map((p) => {
-      const url = `${POST_BASE}/${p.slug}`;
+      const url = `${config.postBase}/${p.slug}`;
       const blurb = escapeHtml(bySlug.get(p.slug) || p.excerpt || "");
       return `
         <div style="margin:0 0 28px;">
