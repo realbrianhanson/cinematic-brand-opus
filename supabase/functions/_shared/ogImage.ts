@@ -5,6 +5,9 @@
 // Returns absolute URL or null. Short timeout so it never stalls polling.
 
 export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<string | null> {
+  // Article URLs arrive from remote feeds, so never fetch one that is not a
+  // public https address.
+  if (!isPublicHttpUrl(pageUrl)) return null;
   const direct = await tryDirect(pageUrl, timeoutMs);
   if (direct) return direct;
   return await tryFirecrawl(pageUrl);
@@ -12,9 +15,7 @@ export async function fetchOgImage(pageUrl: string, timeoutMs = 6000): Promise<s
 
 async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | null> {
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(pageUrl, {
+    const res = await fetchTextBounded(pageUrl, {
       headers: {
         // Many news CDNs (Akamai, Cloudflare) 403 obvious bot UAs. Use a realistic
         // desktop Chrome UA so we can read the og:image meta tag.
@@ -23,14 +24,13 @@ async function tryDirect(pageUrl: string, timeoutMs: number): Promise<string | n
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-      signal: ctrl.signal,
-      redirect: "follow",
+      timeoutMs,
+      maxBytes: 200_000,
+      contentTypeIncludes: "html",
     });
-    clearTimeout(t);
     if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("html")) return null;
-    const html = (await res.text()).slice(0, 200_000);
+    const html = res.body;
+
 
     const patterns: RegExp[] = [
       /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["']/i,
