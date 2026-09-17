@@ -8,10 +8,11 @@ import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import { validateNewsRequest } from "../_shared/newsRequest.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
 async function fetchSourceMarkdown(url: string): Promise<string> {
