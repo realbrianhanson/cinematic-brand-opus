@@ -29,16 +29,23 @@ export interface Composed {
 }
 
 export function isoWeekKey(d: Date): string {
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const t = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+  );
   const day = t.getUTCDay() || 7;
   t.setUTCDate(t.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const week = Math.ceil(
+    ((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 function stripFences(s: string): string {
-  return s.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+  return s
+    .replace(/```json\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
 }
 
 function safeParseJson(raw: string): Composed | null {
@@ -48,7 +55,8 @@ function safeParseJson(raw: string): Composed | null {
     const last = s.lastIndexOf("}");
     if (first !== -1 && last !== -1) s = s.slice(first, last + 1);
     const obj = JSON.parse(s);
-    if (typeof obj?.subject !== "string" || typeof obj?.intro !== "string") return null;
+    if (typeof obj?.subject !== "string" || typeof obj?.intro !== "string")
+      return null;
     if (!Array.isArray(obj?.post_blurbs)) return null;
     return obj as Composed;
   } catch {
@@ -58,7 +66,10 @@ function safeParseJson(raw: string): Composed | null {
 
 function fallbackCompose(posts: PostRow[]): Composed {
   return {
-    subject: `This week in AI: ${posts[0]?.title || "your weekly brief"}`.slice(0, 90),
+    subject: `This week in AI: ${posts[0]?.title || "your weekly brief"}`.slice(
+      0,
+      90,
+    ),
     intro:
       "A few things worth your attention this week. Practical, no fluff — pick the one that maps to what you're building right now.",
     post_blurbs: posts.map((p) => ({
@@ -100,20 +111,23 @@ Posts to cover (use these exact slugs):
 
 ${list}`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": lovableKey,
+    const res = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Lovable-API-Key": lovableKey,
+        },
+        body: JSON.stringify({
+          model: MAIN_MODEL,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
+    );
     if (!res.ok) return fallbackCompose(posts);
     const j = await res.json();
     const raw = j?.choices?.[0]?.message?.content || "";
@@ -123,7 +137,9 @@ ${list}`;
     const bySlug = new Map(parsed.post_blurbs.map((b) => [b.slug, b.blurb]));
     const filled: Blurb[] = posts.map((p) => ({
       slug: p.slug,
-      blurb: (bySlug.get(p.slug) || p.tldr || p.excerpt || "").toString().slice(0, 400),
+      blurb: (bySlug.get(p.slug) || p.tldr || p.excerpt || "")
+        .toString()
+        .slice(0, 400),
     }));
     return {
       subject: parsed.subject.slice(0, 90) || fallbackCompose(posts).subject,

@@ -1,3 +1,7 @@
+import {
+  digestResponseFormat,
+  parseNewsDigest,
+} from "../_shared/newsDigest.ts";
 // Polls all active content_sources (RSS + Perplexity daily digests),
 // dedupes by url, embeds, upserts into source_items.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,10 +28,14 @@ interface Item {
 
 function extractImage(block: string): string | undefined {
   // <media:content url="..."> or <media:thumbnail url="...">
-  const media = block.match(/<media:(?:content|thumbnail)[^>]*url=["']([^"']+)["']/i);
+  const media = block.match(
+    /<media:(?:content|thumbnail)[^>]*url=["']([^"']+)["']/i,
+  );
   if (media) return media[1];
   // <enclosure url="..." type="image/*"/>
-  const enc = block.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*type=["']image\//i);
+  const enc = block.match(
+    /<enclosure[^>]*url=["']([^"']+)["'][^>]*type=["']image\//i,
+  );
   if (enc) return enc[1];
   // <image><url>...</url></image>
   const imgUrl = block.match(/<image[^>]*>[\s\S]*?<url>([^<]+)<\/url>/i);
@@ -38,9 +46,11 @@ function extractImage(block: string): string | undefined {
   return undefined;
 }
 
-
 function stripTags(s: string): string {
-  return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractBetween(xml: string, tag: string): string | null {
@@ -96,7 +106,6 @@ async function parseRss(xml: string): Promise<Item[]> {
       raw_excerpt: excerpt ? stripTags(excerpt).slice(0, 800) : undefined,
       image_url: extractImage(block),
     });
-
   }
   return items;
 }
@@ -124,6 +133,7 @@ async function fetchRss(url: string): Promise<Item[]> {
 async function fetchPerplexityDigest(
   topicLane: string,
   perplexityKey: string,
+  sourceName: string,
 ): Promise<Item[]> {
   const promptByLane: Record<string, string> = {
     ai_tools:
@@ -135,10 +145,14 @@ async function fetchPerplexityDigest(
     industry:
       "List the 5 most notable news items from the last 48 hours about AI adoption in specific service industries (dentists, plumbers, roofers, contractors, med spas, real estate, law firms, local retail). For each: headline, source URL, publisher, one-sentence factual summary. Only real news with real URLs.",
   };
-  const prompt = promptByLane[topicLane] || promptByLane.ai_tools;
+  const prompt =
+    (promptByLane[topicLane] ||
+      `Find up to five recent, verifiable news stories about ${sourceName}. Use real source URLs and factual summaries.`) +
+    " Return plain-text headlines, publisher names, URLs and summaries in the requested JSON structure. Omit unsupported stories.";
 
   try {
-    const res = await fetch("https://api.perplexity.ai/chat/completions", {
+    const res = await fetch("https://api.perplexity.ai/v1/sonar", {
+      signal: AbortSignal.timeout(60000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${perplexityKey}`,
@@ -147,10 +161,15 @@ async function fetchPerplexityDigest(
       body: JSON.stringify({
         model: "sonar-pro",
         messages: [
-          { role: "system", content: "You surface real, verifiable news with sources. No speculation." },
+          {
+            role: "system",
+            content:
+              "You surface real, verifiable news with sources. No speculation.",
+          },
           { role: "user", content: prompt },
         ],
         search_recency_filter: "day",
+        response_format: digestResponseFormat,
       }),
     });
     if (!res.ok) {
@@ -159,36 +178,7 @@ async function fetchPerplexityDigest(
     }
     const data = await res.json();
     const content: string = data?.choices?.[0]?.message?.content || "";
-    const citations: string[] = data?.citations || data?.search_results?.map((s: any) => s.url) || [];
-
-    // Extract items: match each citation URL to a nearby line for the title.
-    const items: Item[] = [];
-    const lines = content.split("\n").filter((l) => l.trim());
-    for (const c of citations.slice(0, 5)) {
-      if (!c || !/^https?:\/\//i.test(c)) continue;
-      let domain: string;
-      try {
-        domain = new URL(c).hostname.replace(/^www\./, "");
-      } catch {
-        continue;
-      }
-      const line = lines.find((l) => l.includes(c) || l.toLowerCase().includes(domain));
-      let title = line
-        ? line.replace(c, "").replace(/^[-*\d.\s]+/, "").replace(/\[.*?\]/g, "").slice(0, 200).trim()
-        : undefined;
-      if (title) {
-        title = title.replace(/^[\s*`:\-]+/, "").replace(/[\s*`:\-]+$/, "").trim();
-      }
-      if (!title || title.trim().length < 15) continue;
-      if (/source url|^\W+$|```/i.test(title)) continue;
-      items.push({
-        url: c,
-        title,
-        raw_excerpt: line?.slice(0, 500),
-        published_at: new Date().toISOString(),
-      });
-    }
-    return items;
+    return parseNewsDigest(content);
   } catch (e) {
     console.warn("Perplexity digest threw", e);
     return [];
@@ -199,9 +189,12 @@ async function fetchReddit(subreddit: string): Promise<Item[]> {
   try {
     const res = await fetch(
       `https://www.reddit.com/r/${subreddit}/top.json?t=day&limit=15`,
-      { headers: { "User-Agent": "brianhanson-content-bot/1.0" } },
+      { headers: { "User-Agent": "PushTenBot/1.0" } },
     );
-    if (!res.ok) { console.warn("reddit fetch failed", subreddit, res.status); return []; }
+    if (!res.ok) {
+      console.warn("reddit fetch failed", subreddit, res.status);
+      return [];
+    }
     const data = await res.json();
     const items: Item[] = [];
     for (const child of data?.data?.children || []) {
@@ -209,13 +202,19 @@ async function fetchReddit(subreddit: string): Promise<Item[]> {
       if (!p) continue;
       if (p.stickied) continue;
       if ((p.ups || 0) < 100) continue;
-      const ext = typeof p.url_overridden_by_dest === "string" && /^https?:\/\//i.test(p.url_overridden_by_dest);
-      const url = ext ? p.url_overridden_by_dest : `https://www.reddit.com${p.permalink}`;
+      const ext =
+        typeof p.url_overridden_by_dest === "string" &&
+        /^https?:\/\//i.test(p.url_overridden_by_dest);
+      const url = ext
+        ? p.url_overridden_by_dest
+        : `https://www.reddit.com${p.permalink}`;
       items.push({
         url,
         title: p.title,
-        published_at: p.created_utc ? new Date(p.created_utc * 1000).toISOString() : undefined,
-        raw_excerpt: ((p.selftext || p.title) || "").slice(0, 500),
+        published_at: p.created_utc
+          ? new Date(p.created_utc * 1000).toISOString()
+          : undefined,
+        raw_excerpt: (p.selftext || p.title || "").slice(0, 500),
         author: p.author,
         engagement: (p.ups || 0) + (p.num_comments || 0),
       });
@@ -232,7 +231,10 @@ async function fetchHackerNews(query: string): Promise<Item[]> {
     const since = Math.floor(Date.now() / 1000) - 48 * 3600;
     const url = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(query)}&tags=story&numericFilters=points>100,created_at_i>${since}`;
     const res = await fetch(url);
-    if (!res.ok) { console.warn("hn fetch failed", query, res.status); return []; }
+    if (!res.ok) {
+      console.warn("hn fetch failed", query, res.status);
+      return [];
+    }
     const data = await res.json();
     const items: Item[] = [];
     for (const hit of data?.hits || []) {
@@ -252,7 +254,8 @@ async function fetchHackerNews(query: string): Promise<Item[]> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
 
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
@@ -270,7 +273,8 @@ Deno.serve(async (req) => {
     .eq("active", true);
   if (srcErr) {
     return new Response(JSON.stringify({ error: srcErr.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -283,7 +287,11 @@ Deno.serve(async (req) => {
     if (src.kind === "rss" && src.url) {
       items = await fetchRss(src.url);
     } else if (src.kind === "perplexity_topic" && perplexityKey) {
-      items = await fetchPerplexityDigest(src.topic_lane, perplexityKey);
+      items = await fetchPerplexityDigest(
+        src.topic_lane,
+        perplexityKey,
+        src.name,
+      );
     } else if (src.kind === "reddit" && src.url) {
       items = await fetchReddit(src.url);
     } else if (src.kind === "hackernews" && src.url) {
@@ -311,7 +319,9 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) continue;
 
-      const embeddingText = [item.title, item.raw_excerpt].filter(Boolean).join(" — ");
+      const embeddingText = [item.title, item.raw_excerpt]
+        .filter(Boolean)
+        .join(" — ");
       const vec = await embedText(embeddingText, lovableKey);
 
       // If RSS didn't include an image, try to pull og:image from the article.
@@ -353,7 +363,10 @@ Deno.serve(async (req) => {
     .from("source_items")
     .update({ status: "archived", pipeline_status: "stale" })
     .in("status", ["new", "published"])
-    .lt("published_at", new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString());
+    .lt(
+      "published_at",
+      new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString(),
+    );
 
   return new Response(
     JSON.stringify({ ok: true, totalScanned, totalInserted, perSource }),

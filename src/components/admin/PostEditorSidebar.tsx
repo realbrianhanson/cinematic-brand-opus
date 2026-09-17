@@ -1,4 +1,5 @@
 import React from "react";
+import { zonedInput } from "@/lib/scheduleTime";
 
 interface PostEditorSidebarProps {
   status: string;
@@ -19,13 +20,21 @@ interface PostEditorSidebarProps {
 }
 
 const PostEditorSidebar = ({
-  status, setStatus,
-  timezone, setTimezone,
-  scheduledAt, setScheduledAt,
-  categoryId, setCategoryId, categories,
-  featuredImage, setFeaturedImage,
-  uploading, onFeaturedUpload,
-  excerpt, setExcerpt,
+  status,
+  setStatus,
+  timezone,
+  setTimezone,
+  scheduledAt,
+  setScheduledAt,
+  categoryId,
+  setCategoryId,
+  categories,
+  featuredImage,
+  setFeaturedImage,
+  uploading,
+  onFeaturedUpload,
+  excerpt,
+  setExcerpt,
 }: PostEditorSidebarProps) => (
   <>
     {/* Status */}
@@ -43,7 +52,9 @@ const PostEditorSidebar = ({
 
       {status === "scheduled" && (
         <div style={{ marginTop: 12 }}>
-          <label className="admin-label" style={{ fontSize: 10 }}>Timezone</label>
+          <label className="admin-label" style={{ fontSize: 10 }}>
+            Timezone
+          </label>
           <select
             value={timezone}
             onChange={(e) => {
@@ -80,18 +91,27 @@ const PostEditorSidebar = ({
             </optgroup>
           </select>
 
-          <label className="admin-label" style={{ fontSize: 10 }}>Publish Date & Time</label>
+          <label className="admin-label" style={{ fontSize: 10 }}>
+            Publish Date & Time
+          </label>
           <input
             type="datetime-local"
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
-            min={new Date().toLocaleString("sv-SE", { timeZone: timezone }).slice(0, 16)}
+            min={zonedInput(new Date(), timezone)}
             className="admin-input font-body w-full"
             style={{ colorScheme: "dark" }}
           />
           {scheduledAt && (
-            <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginTop: 6 }}>
-              Will publish on {new Date(scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: timezone, timeZoneName: "short" })}
+            <p
+              className="font-body"
+              style={{
+                fontSize: 10,
+                color: "hsl(var(--admin-text-ghost))",
+                marginTop: 6,
+              }}
+            >
+              Scheduled for {scheduledAt.replace("T", " at ")} ({timezone}).
             </p>
           )}
         </div>
@@ -107,7 +127,11 @@ const PostEditorSidebar = ({
         className="admin-input font-body w-full"
       >
         <option value="">No category</option>
-        {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {categories?.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
       </select>
     </div>
 
@@ -116,14 +140,30 @@ const PostEditorSidebar = ({
       <label className="admin-label">Featured Image</label>
       {featuredImage && (
         <div className="relative" style={{ marginBottom: 12 }}>
-          <img src={featuredImage} alt="" style={{ width: "100%", borderRadius: 4, aspectRatio: "16/9", objectFit: "cover" }} />
+          <img
+            src={featuredImage}
+            alt=""
+            style={{
+              width: "100%",
+              borderRadius: 4,
+              aspectRatio: "16/9",
+              objectFit: "cover",
+            }}
+          />
           <button
             onClick={() => setFeaturedImage("")}
             style={{
-              position: "absolute", top: 6, right: 6,
-              backgroundColor: "rgba(0,0,0,0.6)", color: "#FFF",
-              border: "none", borderRadius: "50%", width: 22, height: 22,
-              cursor: "pointer", fontSize: 11,
+              position: "absolute",
+              top: 6,
+              right: 6,
+              backgroundColor: "rgba(0,0,0,0.6)",
+              color: "#FFF",
+              border: "none",
+              borderRadius: "50%",
+              width: 22,
+              height: 22,
+              cursor: "pointer",
+              fontSize: 11,
             }}
           >
             ×
@@ -141,7 +181,12 @@ const PostEditorSidebar = ({
         }}
       >
         {uploading ? "Uploading..." : "Upload Image"}
-        <input type="file" accept="image/*" onChange={onFeaturedUpload} className="hidden" />
+        <input
+          type="file"
+          accept="image/*"
+          onChange={onFeaturedUpload}
+          className="hidden"
+        />
       </label>
     </div>
 

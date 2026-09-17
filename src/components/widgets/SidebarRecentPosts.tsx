@@ -1,7 +1,8 @@
+import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const SidebarRecentPosts = ({ config }: { config: any }) => {
+const SidebarRecentPosts = ({ config }: { config: WidgetConfig }) => {
   const count = config.count || 5;
   const { data: posts } = useQuery({
     queryKey: ["widget-recent-posts", count],
@@ -21,14 +22,34 @@ const SidebarRecentPosts = ({ config }: { config: any }) => {
 
   return (
     <div style={{ padding: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
-      <h3 className="font-body uppercase mb-4" style={{ fontSize: 10, letterSpacing: "0.15em", color: "hsl(var(--accent))", fontWeight: 700 }}>
+      <h3
+        className="font-body uppercase mb-4"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          color: "hsl(var(--accent))",
+          fontWeight: 700,
+        }}
+      >
         Recent Posts
       </h3>
       <div className="flex flex-col gap-3">
         {posts.map((post) => (
-          <a key={post.id} href={`/blog/${post.slug}`} className="font-body block transition-colors" style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+          <a
+            key={post.id}
+            href={`/blog/${post.slug}`}
+            className="font-body block transition-colors"
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "hsl(var(--accent))")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+            }
           >
             {post.title}
           </a>

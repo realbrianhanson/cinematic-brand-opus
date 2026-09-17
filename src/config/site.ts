@@ -22,7 +22,9 @@ export type PresetName = keyof typeof PRESETS;
 /** Live site preset. Members switch this to their own preset. */
 export const ACTIVE_PRESET: PresetName = "brian";
 
-export const siteConfig: SiteConfig = validateSiteConfig(PRESETS[ACTIVE_PRESET]);
+export const siteConfig: SiteConfig = validateSiteConfig(
+  PRESETS[ACTIVE_PRESET],
+);
 
 /** Absolute canonical URL for a site-relative path. */
 export const absoluteUrl = (path = "/"): string => {
@@ -33,7 +35,9 @@ export const absoluteUrl = (path = "/"): string => {
 
 /** "Page title | Site Name", avoiding a duplicated suffix. */
 export const pageTitle = (title: string): string =>
-  title.endsWith(siteConfig.identity.name) ? title : `${title} | ${siteConfig.identity.name}`;
+  title.endsWith(siteConfig.identity.name)
+    ? title
+    : `${title} | ${siteConfig.identity.name}`;
 
 export const copyrightLine = (): string => {
   const holder = siteConfig.identity.legalName || siteConfig.identity.name;

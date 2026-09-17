@@ -9,7 +9,8 @@ const PublicPageSkeleton = () => (
         width: 48,
         height: 48,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, rgba(212,175,85,0.15), rgba(212,175,85,0.05))",
+        background:
+          "linear-gradient(135deg, rgba(var(--brand-accent-rgb),0.15), rgba(var(--brand-accent-rgb),0.05))",
       }}
     />
   </div>

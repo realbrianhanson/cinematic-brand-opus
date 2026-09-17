@@ -1,3 +1,8 @@
+import {
+  parseContentDocument,
+  type ContentDocument,
+} from "@/lib/contentDocument";
+import type { Json } from "@/integrations/supabase/types";
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { getItemTitle } from "@/lib/itemTitle";
 import { useState, useMemo } from "react";
@@ -5,15 +10,45 @@ import { RotateCcw, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProTips } from "./IdeaListRenderer";
 
-const priorityColors: Record<string, { bg: string; color: string; border: string }> = {
-  high: { bg: "rgba(184,150,46,0.18)", color: "#B8962E", border: "rgba(184,150,46,0.45)" },
-  medium: { bg: "rgba(212,175,85,0.14)", color: "#D4AF55", border: "rgba(212,175,85,0.4)" },
-  low: { bg: "rgba(232,201,106,0.10)", color: "#E8C96A", border: "rgba(232,201,106,0.35)" },
+const priorityColors: Record<
+  string,
+  { bg: string; color: string; border: string }
+> = {
+  high: {
+    bg: "rgba(184,150,46,0.18)",
+    color: "var(--brand-accent-dark)",
+    border: "rgba(184,150,46,0.45)",
+  },
+  medium: {
+    bg: "rgba(var(--brand-accent-rgb),0.14)",
+    color: "var(--brand-accent)",
+    border: "rgba(var(--brand-accent-rgb),0.4)",
+  },
+  low: {
+    bg: "rgba(232,201,106,0.10)",
+    color: "var(--brand-accent-light)",
+    border: "rgba(232,201,106,0.35)",
+  },
 };
 
-const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: any; nicheName: string; pageId: string }) => {
-  const phases: any[] = contentJson?.sections || contentJson?.phases || [];
-  const allSteps = useMemo(() => phases.flatMap((p) => p.items || p.steps || []), [phases]);
+const ChecklistRenderer = ({
+  contentJson: rawContent,
+  nicheName,
+  pageId,
+}: {
+  contentJson: unknown;
+  nicheName: string;
+  pageId: string;
+}) => {
+  const contentJson = useMemo(
+    () => parseContentDocument(rawContent),
+    [rawContent],
+  );
+  const phases = contentJson?.sections || contentJson?.phases || [];
+  const allSteps = useMemo(
+    () => phases.flatMap((p) => p.items || p.steps || []),
+    [phases],
+  );
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   const total = allSteps.length;
@@ -22,9 +57,17 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
 
   const toggle = (key: string) => {
     const next = new Set(checked);
-    if (next.has(key)) next.delete(key); else next.add(key);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
     setChecked(next);
-    supabase.from("page_engagement").insert({ page_id: pageId, event_type: "checkbox_click", metadata: { step: key, checked: !checked.has(key) } }).then(() => {});
+    supabase
+      .from("page_engagement")
+      .insert({
+        page_id: pageId,
+        event_type: "checkbox_click",
+        metadata: { step: key, checked: !checked.has(key) },
+      })
+      .then(() => {});
   };
 
   return (
@@ -32,41 +75,104 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
       {/* Progress */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-body" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+          <span
+            className="font-body"
+            style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}
+          >
             {done} of {total} completed ({pct}%)
           </span>
           <div className="flex gap-2">
-            <button onClick={() => setChecked(new Set())} aria-label="Reset checklist" className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+            <button
+              onClick={() => setChecked(new Set())}
+              aria-label="Reset checklist"
+              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.3)",
+                background: "none",
+                border: "1px solid rgba(255,255,255,0.08)",
+                cursor: "pointer",
+              }}
+            >
               <RotateCcw size={12} /> Reset
             </button>
-            <button onClick={() => window.print()} aria-label="Print checklist" data-print-hide className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[#D4AF55]" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+            <button
+              onClick={() => window.print()}
+              aria-label="Print checklist"
+              data-print-hide
+              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.3)",
+                background: "none",
+                border: "1px solid rgba(255,255,255,0.08)",
+                cursor: "pointer",
+              }}
+            >
               <Printer size={12} /> Print
             </button>
           </div>
         </div>
-        <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${pct}%`, background: "#D4AF55", transition: "width 0.3s", borderRadius: 2 }} />
+        <div
+          style={{
+            height: 4,
+            background: "rgba(255,255,255,0.06)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${pct}%`,
+              background: "var(--brand-accent)",
+              transition: "width 0.3s",
+              borderRadius: 2,
+            }}
+          />
         </div>
       </div>
 
       {/* Phases */}
       {phases.map((phase, pi) => (
         <div key={pi} className="mb-10">
-          <h2 className="font-display italic mb-2" style={{ fontSize: 20, color: "#fff" }}>{phase.title || phase.name || `Phase ${pi + 1}`}</h2>
-          {phase.description && <p className="font-body mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{renderInlineMarkdown(phase.description)}</p>}
+          <h2
+            className="font-display italic mb-2"
+            style={{ fontSize: 20, color: "#fff" }}
+          >
+            {phase.title || phase.name || `Phase ${pi + 1}`}
+          </h2>
+          {phase.description && (
+            <p
+              className="font-body mb-5"
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.35)",
+                lineHeight: 1.6,
+              }}
+            >
+              {renderInlineMarkdown(phase.description)}
+            </p>
+          )}
           <div className="flex flex-col gap-3">
-            {(phase.items || phase.steps || []).map((step: any, si: number) => {
+            {(phase.items || phase.steps || []).map((step, si: number) => {
               const key = `${pi}-${si}`;
               const isChecked = checked.has(key);
-              const pc = priorityColors[step.priority?.toLowerCase()] || priorityColors.medium;
+              const pc =
+                priorityColors[step.priority?.toLowerCase() || "medium"] ||
+                priorityColors.medium;
               return (
                 <label
                   key={key}
                   className="flex items-start gap-4 p-4 cursor-pointer transition-all"
                   style={{
                     border: "1px solid",
-                    borderColor: isChecked ? "rgba(212,175,85,0.2)" : "rgba(255,255,255,0.06)",
-                    background: isChecked ? "rgba(212,175,85,0.03)" : "transparent",
+                    borderColor: isChecked
+                      ? "rgba(var(--brand-accent-rgb),0.2)"
+                      : "rgba(255,255,255,0.06)",
+                    background: isChecked
+                      ? "rgba(var(--brand-accent-rgb),0.03)"
+                      : "transparent",
                     opacity: isChecked ? 0.6 : 1,
                   }}
                 >
@@ -74,22 +180,58 @@ const ChecklistRenderer = ({ contentJson, nicheName, pageId }: { contentJson: an
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggle(key)}
-                    className="mt-1 accent-[#D4AF55]"
+                    className="mt-1 accent-[var(--brand-accent)]"
                     style={{ width: 16, height: 16 }}
                   />
                   <div className="flex-1">
-                    <h3 className="font-body font-semibold mb-1" style={{ fontSize: 18, color: "rgba(255,255,255,0.95)", textDecoration: isChecked ? "line-through" : "none", lineHeight: 1.4 }}>
+                    <h3
+                      className="font-body font-semibold mb-1"
+                      style={{
+                        fontSize: 18,
+                        color: "rgba(255,255,255,0.95)",
+                        textDecoration: isChecked ? "line-through" : "none",
+                        lineHeight: 1.4,
+                      }}
+                    >
                       {getItemTitle(step)}
                     </h3>
-                    {step.description && <p className="font-body" style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>{renderInlineMarkdown(step.description)}</p>}
+                    {step.description && (
+                      <p
+                        className="font-body"
+                        style={{
+                          fontSize: 16,
+                          color: "rgba(255,255,255,0.85)",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {renderInlineMarkdown(step.description)}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-2">
                       {step.priority && (
-                        <span className="font-body uppercase px-2 py-0.5" style={{ fontSize: 10, letterSpacing: "0.1em", background: pc.bg, color: pc.color, border: `1px solid ${pc.border}` }}>
+                        <span
+                          className="font-body uppercase px-2 py-0.5"
+                          style={{
+                            fontSize: 10,
+                            letterSpacing: "0.1em",
+                            background: pc.bg,
+                            color: pc.color,
+                            border: `1px solid ${pc.border}`,
+                          }}
+                        >
                           {step.priority}
                         </span>
                       )}
                       {step.estimated_time && (
-                        <span className="font-body" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{step.estimated_time}</span>
+                        <span
+                          className="font-body"
+                          style={{
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.7)",
+                          }}
+                        >
+                          {step.estimated_time}
+                        </span>
                       )}
                     </div>
                   </div>

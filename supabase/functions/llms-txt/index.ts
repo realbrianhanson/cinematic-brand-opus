@@ -1,3 +1,4 @@
+import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
 // Public, no auth. Generates llms.txt (or llms-full.txt with ?type=full).
 // Format: https://llmstxt.org — plain-text index of the site for LLMs.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -17,7 +18,10 @@ const truncate = (s: string, n: number) => {
 };
 
 const stripHtml = (html: string) =>
-  (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  (html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -31,17 +35,20 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: settings } = await supabase
       .from("site_settings")
-      .select("site_name, site_url, author_name, author_title, author_bio, publisher_name")
+      .select(
+        "site_name, site_url, author_name, author_title, author_bio, publisher_name",
+      )
       .limit(1)
       .maybeSingle();
 
     const s: any = settings || {};
-    const siteUrl = (s.site_url || "https://brianhanson.com").replace(/\/+$/, "");
+    const siteUrl = normalizeSiteUrl(s.site_url);
+    if (!siteUrl) throw new Error("Configure site_settings.site_url");
     const siteName = s.site_name || s.publisher_name || "Website";
     const brand =
       s.author_bio ||
@@ -49,31 +56,34 @@ Deno.serve(async (req) => {
         ? `${s.author_name}${s.author_title ? ", " + s.author_title : ""}`
         : "");
 
-    const [{ data: pillars }, { data: pages }, { data: schemas }, { data: posts }] =
-      await Promise.all([
-        supabase
-          .from("pillar_pages")
-          .select("slug, title, content, seo_meta, updated_at")
-          .eq("status", "published")
-          .order("title"),
-        supabase
-          .from("generated_pages")
-          .select("slug, title, content_json, seo_meta, content_schema_id, updated_at")
-          .eq("status", "published")
-          .order("title"),
-        supabase
-          .from("content_schemas")
-          .select("id, slug")
-          .eq("is_active", true),
-        supabase
-          .from("posts")
-          .select("slug, title, excerpt, tldr, content, updated_at")
-          .eq("status", "published")
-          .order("created_at", { ascending: false }),
-      ]);
+    const [
+      { data: pillars },
+      { data: pages },
+      { data: schemas },
+      { data: posts },
+    ] = await Promise.all([
+      supabase
+        .from("pillar_pages")
+        .select("slug, title, content, seo_meta, updated_at")
+        .eq("status", "published")
+        .order("title"),
+      supabase
+        .from("generated_pages")
+        .select(
+          "slug, title, content_json, seo_meta, content_schema_id, updated_at",
+        )
+        .eq("status", "published")
+        .order("title"),
+      supabase.from("content_schemas").select("id, slug").eq("is_active", true),
+      supabase
+        .from("posts")
+        .select("slug, title, excerpt, tldr, content, updated_at")
+        .eq("status", "published")
+        .order("created_at", { ascending: false }),
+    ]);
 
     const schemaMap = new Map<string, string>(
-      (schemas || []).map((x: any) => [x.id, x.slug])
+      (schemas || []).map((x: any) => [x.id, x.slug]),
     );
 
     const out: string[] = [];
@@ -94,10 +104,10 @@ Deno.serve(async (req) => {
       for (const p of pillars) {
         const seo = (p.seo_meta ?? {}) as any;
         const desc =
-          seo.meta_description ||
-          seo.description ||
-          stripHtml(p.content || "");
-        out.push(`- [${p.title}](${siteUrl}/guides/${p.slug}): ${truncate(desc, 160)}`);
+          seo.meta_description || seo.description || stripHtml(p.content || "");
+        out.push(
+          `- [${p.title}](${siteUrl}/guides/${p.slug}): ${truncate(desc, 160)}`,
+        );
         if (full) {
           const body = stripHtml(p.content || "");
           if (body) {
@@ -126,7 +136,7 @@ Deno.serve(async (req) => {
           (typeof content.summary === "string" ? content.summary : "") ||
           "";
         out.push(
-          `- [${pg.title}](${siteUrl}/resources/${typeSlug}/${pg.slug}): ${truncate(intro, 120)}`
+          `- [${pg.title}](${siteUrl}/resources/${typeSlug}/${pg.slug}): ${truncate(intro, 120)}`,
         );
         if (full && intro) {
           out.push("");
@@ -143,7 +153,9 @@ Deno.serve(async (req) => {
       out.push("");
       for (const p of posts) {
         const desc = p.excerpt || p.tldr || stripHtml(p.content || "");
-        out.push(`- [${p.title}](${siteUrl}/blog/${p.slug}): ${truncate(desc, 160)}`);
+        out.push(
+          `- [${p.title}](${siteUrl}/blog/${p.slug}): ${truncate(desc, 160)}`,
+        );
         if (full) {
           const body = p.tldr || stripHtml(p.content || "");
           if (body) {

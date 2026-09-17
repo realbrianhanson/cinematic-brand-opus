@@ -60,7 +60,10 @@ const AdminLayout = () => {
   };
 
   return (
-    <div data-admin-shell className={`admin-shell flex min-h-screen ${lightMode ? "admin-light" : ""}`}>
+    <div
+      data-admin-shell
+      className={`admin-shell flex min-h-screen ${lightMode ? "admin-light" : ""}`}
+    >
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -251,7 +254,11 @@ const AdminLayout = () => {
               (e.currentTarget.style.color = "hsl(var(--admin-text-ghost))")
             }
           >
-            {lightMode ? <Moon size={16} strokeWidth={1.5} /> : <Sun size={16} strokeWidth={1.5} />}
+            {lightMode ? (
+              <Moon size={16} strokeWidth={1.5} />
+            ) : (
+              <Sun size={16} strokeWidth={1.5} />
+            )}
             {!collapsed && (lightMode ? "Dark Mode" : "Light Mode")}
           </button>
           <button

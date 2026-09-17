@@ -1,3 +1,4 @@
+import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
 // Public, no auth. RSS 2.0 feed of the 50 most recent published blog posts.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,7 +17,10 @@ const esc = (s: unknown) =>
     .replace(/'/g, "&apos;");
 
 const stripHtml = (html: string) =>
-  (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  (html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const truncate = (s: string, n: number) => {
   const t = (s || "").trim();
@@ -37,19 +41,24 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: settings } = await supabase
       .from("site_settings")
-      .select("site_name, site_url, author_name, author_bio, author_title, publisher_name")
+      .select(
+        "site_name, site_url, author_name, author_bio, author_title, publisher_name",
+      )
       .limit(1)
       .maybeSingle();
 
     const s: any = settings || {};
-    const siteUrl = (s.site_url || "https://brianhanson.com").replace(/\/+$/, "");
+    const siteUrl = normalizeSiteUrl(s.site_url);
+    if (!siteUrl) throw new Error("Configure site_settings.site_url");
     const brandName = s.site_name || s.publisher_name || "Blog";
-    const channelTitle = /blog$/i.test(brandName) ? brandName : `${brandName} Blog`;
+    const channelTitle = /blog$/i.test(brandName)
+      ? brandName
+      : `${brandName} Blog`;
     const description =
       s.author_bio ||
       (s.author_name
@@ -69,7 +78,7 @@ Deno.serve(async (req) => {
         const link = `${siteUrl}/blog/${p.slug}`;
         const desc = truncate(
           p.excerpt || p.tldr || stripHtml(p.content || ""),
-          500
+          500,
         );
         return `    <item>
       <title>${esc(p.title)}</title>
@@ -108,7 +117,10 @@ ${items}
     console.error("rss error:", error);
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?><error>${esc(error.message || String(error))}</error>`,
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/xml" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/xml" },
+      },
     );
   }
 });

@@ -15,6 +15,14 @@ import type { SiteConfig } from "../types";
 export const memberPreset: SiteConfig = {
   preset: "member",
 
+  content: {
+    blogDescription: "Practical guides, ideas, and insights from our work.",
+    newsDescription:
+      "The latest stories and developments in our field, curated in one place.",
+    resourceDescription:
+      "In-depth guides and resources to help you take the next step.",
+    newsBuckets: [],
+  },
   identity: {
     name: "Your Name",
     role: "Your Role",
@@ -26,9 +34,12 @@ export const memberPreset: SiteConfig = {
   },
 
   metadata: {
+    googleSiteVerification: null,
     defaultTitle: "Your Name | Your Positioning",
-    defaultDescription: "One sentence describing who you help and the result you deliver.",
-    socialDescription: "One or two sentences for social previews describing who you help and how.",
+    defaultDescription:
+      "One sentence describing who you help and the result you deliver.",
+    socialDescription:
+      "One or two sentences for social previews describing who you help and how.",
     socialImageUrl: null,
     faviconHref: null,
     rssTitle: "Your Name — Blog",
@@ -58,7 +69,8 @@ export const memberPreset: SiteConfig = {
       { text: "Your Headline" },
       { text: "Goes Here.", gold: true, italic: true },
     ],
-    subtitle: "One or two sentences describing who you help and what changes for them.",
+    subtitle:
+      "One or two sentences describing who you help and what changes for them.",
     primaryCta: null,
     secondaryCta: null,
     socialProof: null,

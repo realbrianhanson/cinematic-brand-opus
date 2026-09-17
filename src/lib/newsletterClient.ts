@@ -51,6 +51,11 @@ export function interpretSubscribeResult(
   }
 
   switch (state) {
+    case "accepted":
+      return {
+        state: "confirmation_sent",
+        message: "If confirmation is needed, check your inbox for a link.",
+      };
     case "confirmation_sent":
       return {
         state: "confirmation_sent",

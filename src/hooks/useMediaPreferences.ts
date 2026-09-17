@@ -26,7 +26,9 @@ const readSaveData = (): boolean => {
   ).connection;
   if (!connection) return false;
   if (connection.saveData) return true;
-  return connection.effectiveType === "slow-2g" || connection.effectiveType === "2g";
+  return (
+    connection.effectiveType === "slow-2g" || connection.effectiveType === "2g"
+  );
 };
 
 /**

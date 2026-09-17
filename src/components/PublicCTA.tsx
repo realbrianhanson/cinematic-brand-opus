@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { siteConfig } from "@/config/site";
+import { safeHref } from "@/lib/newsMarkdown";
 import { X, ArrowRight } from "lucide-react";
 
 interface PublicCTAProps {
@@ -12,11 +14,24 @@ interface PublicCTAProps {
   pageType?: string;
 }
 
-const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pageType }: PublicCTAProps) => {
+const PublicCTA = ({
+  variant,
+  nicheSlug,
+  contentTypeSlug,
+  nicheName,
+  pageId,
+  pageType,
+}: PublicCTAProps) => {
   const { data: settings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("site_settings").select("id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("site_settings")
+        .select(
+          "id, site_name, site_url, author_name, author_title, author_bio, author_credentials, author_social_links, cta_url, cta_headline, cta_subtext, cta_button_text, cta_social_proof, publisher_name, publisher_url, updated_at",
+        )
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     staleTime: 60000,
@@ -28,7 +43,9 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
   useEffect(() => {
     if (variant !== "sticky") return;
     const onScroll = () => {
-      const scrollPct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
+      const scrollPct =
+        window.scrollY /
+        (document.documentElement.scrollHeight - window.innerHeight);
       setStickyVisible(scrollPct > 0.5);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -36,48 +53,76 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
   }, [variant]);
 
   const buildUrl = useCallback(() => {
-    if (!settings?.cta_url) return "";
+    if (!safeHref(settings?.cta_url)) return "";
     try {
-      const url = new URL(settings.cta_url);
-      url.searchParams.set("utm_source", window.location.hostname);
+      const url = new URL(settings!.cta_url!, siteConfig.identity.siteUrl);
+      url.searchParams.set(
+        "utm_source",
+        new URL(siteConfig.identity.siteUrl).hostname,
+      );
       url.searchParams.set("utm_medium", "pseo");
-      if (contentTypeSlug) url.searchParams.set("utm_campaign", contentTypeSlug);
+      if (contentTypeSlug)
+        url.searchParams.set("utm_campaign", contentTypeSlug);
       if (nicheSlug) url.searchParams.set("utm_content", nicheSlug);
       return url.toString();
     } catch {
-      return settings.cta_url;
+      return "";
     }
   }, [settings?.cta_url, nicheSlug, contentTypeSlug]);
 
   const logClick = () => {
-    supabase.from("cta_events").insert({
-      page_id: pageId || null,
-      page_type: pageType || null,
-      cta_variant: variant,
-      event_type: "click",
-      niche_slug: nicheSlug || null,
-      content_type_slug: contentTypeSlug || null,
-    }).then(() => {});
+    supabase
+      .from("cta_events")
+      .insert({
+        page_id: pageId || null,
+        page_type: pageType || null,
+        cta_variant: variant,
+        event_type: "click",
+        niche_slug: nicheSlug || null,
+        content_type_slug: contentTypeSlug || null,
+      })
+      .then(() => {});
   };
 
   if (!settings?.cta_url) return null;
 
-  const subtext = nicheName && settings.cta_subtext
-    ? settings.cta_subtext.replace(/your business/gi, `your ${nicheName} business`)
-    : settings.cta_subtext;
+  const subtext =
+    nicheName && settings.cta_subtext
+      ? settings.cta_subtext.replace(
+          /your business/gi,
+          `your ${nicheName} business`,
+        )
+      : settings.cta_subtext;
 
   const href = buildUrl();
+  if (!href) return null;
 
   // === INLINE ===
   if (variant === "inline") {
     return (
-      <div className="my-12 p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5" style={{ background: "rgba(212,175,85,0.05)", border: "1px solid rgba(212,175,85,0.1)" }}>
+      <div
+        className="my-12 p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5"
+        style={{
+          background: "rgba(var(--brand-accent-rgb),0.05)",
+          border: "1px solid rgba(var(--brand-accent-rgb),0.1)",
+        }}
+      >
         <div>
-          <p className="font-body font-bold mb-1" style={{ fontSize: 18, color: "rgba(255,255,255,0.85)" }}>
+          <p
+            className="font-body font-bold mb-1"
+            style={{ fontSize: 18, color: "rgba(255,255,255,0.85)" }}
+          >
             {settings.cta_headline || "Get Started"}
           </p>
           {subtext && (
-            <p className="font-body" style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
+            <p
+              className="font-body"
+              style={{
+                fontSize: 14,
+                color: "rgba(255,255,255,0.4)",
+                lineHeight: 1.5,
+              }}
+            >
               {subtext}
             </p>
           )}
@@ -92,13 +137,17 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
             fontSize: 11,
             letterSpacing: "0.12em",
             fontWeight: 600,
-            background: "#D4AF55",
-            color: "#07070E",
+            background: "var(--brand-accent)",
+            color: "var(--brand-backdrop)",
             border: "none",
             textDecoration: "none",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#E8C96A")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#D4AF55")}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = "var(--brand-accent-light)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "var(--brand-accent)")
+          }
         >
           {settings.cta_button_text || "Learn More"} <ArrowRight size={14} />
         </a>
@@ -114,14 +163,17 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
         className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-10"
         style={{
           height: 56,
-          background: "rgba(7,7,14,0.95)",
-          borderTop: "1px solid rgba(212,175,85,0.15)",
+          background: "rgba(var(--brand-backdrop-rgb),0.95)",
+          borderTop: "1px solid rgba(var(--brand-accent-rgb),0.15)",
           backdropFilter: "blur(12px)",
           animation: "slideUp 0.3s ease-out",
         }}
       >
         <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
-        <p className="font-body truncate mr-4" style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+        <p
+          className="font-body truncate mr-4"
+          style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}
+        >
           {settings.cta_headline || "Get Started"} →
         </p>
         <div className="flex items-center gap-3 shrink-0">
@@ -131,16 +183,33 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
             rel="noopener noreferrer"
             onClick={logClick}
             className="font-body uppercase px-4 py-1.5 transition-all"
-            style={{ fontSize: 10, letterSpacing: "0.1em", fontWeight: 600, background: "#D4AF55", color: "#07070E", textDecoration: "none" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#E8C96A")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#D4AF55")}
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              fontWeight: 600,
+              background: "var(--brand-accent)",
+              color: "var(--brand-backdrop)",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "var(--brand-accent-light)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "var(--brand-accent)")
+            }
           >
             {settings.cta_button_text || "Learn More"}
           </a>
           <button
             onClick={() => setDismissed(true)}
             aria-label="Dismiss notification"
-            style={{ color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: 4 }}
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+            }}
           >
             <X size={16} />
           </button>
@@ -151,12 +220,30 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
 
   // === END ===
   return (
-    <div className="my-16 p-10 lg:p-14 text-center" style={{ background: "linear-gradient(135deg, rgba(212,175,85,0.12), rgba(212,175,85,0.04))", border: "1px solid rgba(212,175,85,0.15)" }}>
-      <h3 className="font-display italic mb-4" style={{ fontSize: 24, color: "#fff" }}>
+    <div
+      className="my-16 p-10 lg:p-14 text-center"
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(var(--brand-accent-rgb),0.12), rgba(var(--brand-accent-rgb),0.04))",
+        border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
+      }}
+    >
+      <h3
+        className="font-display italic mb-4"
+        style={{ fontSize: 24, color: "#fff" }}
+      >
         {settings.cta_headline || "Get Started"}
       </h3>
       {subtext && (
-        <p className="font-body mb-6 mx-auto" style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, maxWidth: 480 }}>
+        <p
+          className="font-body mb-6 mx-auto"
+          style={{
+            fontSize: 15,
+            color: "rgba(255,255,255,0.5)",
+            lineHeight: 1.6,
+            maxWidth: 480,
+          }}
+        >
           {subtext}
         </p>
       )}
@@ -170,17 +257,24 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
           fontSize: 12,
           letterSpacing: "0.12em",
           fontWeight: 600,
-          background: "#D4AF55",
-          color: "#07070E",
+          background: "var(--brand-accent)",
+          color: "var(--brand-backdrop)",
           textDecoration: "none",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#E8C96A")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "#D4AF55")}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.background = "var(--brand-accent-light)")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.background = "var(--brand-accent)")
+        }
       >
         {settings.cta_button_text || "Learn More"} <ArrowRight size={14} />
       </a>
       {settings.cta_social_proof && (
-        <p className="font-body mt-5" style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+        <p
+          className="font-body mt-5"
+          style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}
+        >
           {settings.cta_social_proof}
         </p>
       )}

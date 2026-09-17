@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     // Get site settings
@@ -35,19 +35,22 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const reqBody = await req.json().catch(() => ({} as any));
-    if (!privateSettings?.report_enabled && !reqBody?.manual && !reqBody?.cron) {
-      return new Response(
-        JSON.stringify({ message: "Reports are disabled" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const reqBody = await req.json().catch(() => ({}) as any);
+    if (
+      !privateSettings?.report_enabled &&
+      !reqBody?.manual &&
+      !reqBody?.cron
+    ) {
+      return new Response(JSON.stringify({ message: "Reports are disabled" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const reportEmail = privateSettings?.report_email;
     if (!reportEmail) {
       return new Response(
         JSON.stringify({ message: "No report email configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -78,7 +81,9 @@ Deno.serve(async (req) => {
     const vl = viewsLastWeek ?? 0;
     const changePercent = vl > 0 ? (((vt - vl) / vl) * 100).toFixed(1) : "N/A";
 
-    const { data: topPages } = await supabase.rpc("top_pages_by_views", { limit_count: 5 });
+    const { data: topPages } = await supabase.rpc("top_pages_by_views", {
+      limit_count: 5,
+    });
 
     const { count: ctaClicks } = await supabase
       .from("cta_events")
@@ -120,11 +125,15 @@ Deno.serve(async (req) => {
       </div>
       <h3 style="font-size: 14px; font-weight: 600; color: #0a0a0a; margin: 0 0 12px;">Top Pages</h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-        ${(topPages ?? []).map((p, i) => `
+        ${(topPages ?? [])
+          .map(
+            (p: { title: string; view_count: number | null }, i: number) => `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 8px 0; color: #333;">${i + 1}. ${p.title}</td>
           <td style="padding: 8px 0; color: #999; text-align: right;">${(p.view_count ?? 0).toLocaleString()} views</td>
-        </tr>`).join("")}
+        </tr>`,
+          )
+          .join("")}
       </table>
       ${(refreshNeeded ?? 0) > 0 ? `<p style="margin-top: 20px; padding: 12px; background: #fff8e1; border-radius: 6px; font-size: 13px; color: #795548;">⚠️ ${refreshNeeded} pages need content refresh</p>` : ""}
     </div>
@@ -154,26 +163,41 @@ Deno.serve(async (req) => {
       if (!sendResp.ok) {
         console.error("Resend error:", sendResult);
         return new Response(
-          JSON.stringify({ message: "Report generated but email failed", error: sendResult }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({
+            message: "Report generated but email failed",
+            error: sendResult,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     } else {
-      console.log("No RESEND_API_KEY, report HTML generated but not sent. Email:", reportEmail);
+      console.log(
+        "No RESEND_API_KEY, report HTML generated but not sent. Email:",
+        reportEmail,
+      );
     }
 
     return new Response(
       JSON.stringify({
-        message: resendKey ? "Report sent successfully" : "Report generated (no email service configured — add RESEND_API_KEY to send)",
-        stats: { newPages, viewsThisWeek: vt, viewsLastWeek: vl, changePercent, ctaClicks, refreshNeeded },
+        message: resendKey
+          ? "Report sent successfully"
+          : "Report generated (no email service configured — add RESEND_API_KEY to send)",
+        stats: {
+          newPages,
+          viewsThisWeek: vt,
+          viewsLastWeek: vl,
+          changePercent,
+          ctaClicks,
+          refreshNeeded,
+        },
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: any) {
     console.error("Weekly report error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

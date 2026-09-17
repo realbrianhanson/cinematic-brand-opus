@@ -38,21 +38,32 @@ function extractJson(raw: string): string {
 
 function esc(s: unknown): string {
   if (s === null || s === undefined) return "";
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // Convert refined content_json into HTML for storage in pillar_pages.content
 function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
   const parts: string[] = [];
   if (cj.intro) {
-    parts.push(`<div class="answer-block"><p><strong>The short version:</strong> ${esc(cj.intro)}</p></div>`);
+    parts.push(
+      `<div class="answer-block"><p><strong>The short version:</strong> ${esc(cj.intro)}</p></div>`,
+    );
   }
-  if (cj.fastest_wins && Array.isArray(cj.fastest_wins) && cj.fastest_wins.length) {
+  if (
+    cj.fastest_wins &&
+    Array.isArray(cj.fastest_wins) &&
+    cj.fastest_wins.length
+  ) {
     parts.push(`<h2>The fastest wins</h2><ul>`);
     for (const w of cj.fastest_wins) {
       const label = w?.title || w?.name || "";
       const desc = w?.description || w?.detail || "";
-      parts.push(`<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`);
+      parts.push(
+        `<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`,
+      );
     }
     parts.push(`</ul>`);
   }
@@ -65,9 +76,16 @@ function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
       if (items.length) {
         parts.push(`<ul>`);
         for (const it of items) {
-          const label = it?.name || it?.tool_name || it?.title || it?.step || "";
-          const desc = it?.description || it?.detail || it?.explanation || (typeof it === "string" ? it : "");
-          parts.push(`<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`);
+          const label =
+            it?.name || it?.tool_name || it?.title || it?.step || "";
+          const desc =
+            it?.description ||
+            it?.detail ||
+            it?.explanation ||
+            (typeof it === "string" ? it : "");
+          parts.push(
+            `<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`,
+          );
         }
         parts.push(`</ul>`);
       }
@@ -78,19 +96,25 @@ function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
     for (const step of cj.roadmap_30_day) {
       const label = step?.week || step?.day || step?.phase || step?.title || "";
       const desc = step?.description || step?.detail || "";
-      parts.push(`<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`);
+      parts.push(
+        `<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`,
+      );
     }
     parts.push(`</ol>`);
   }
   if (cj.costs_and_roi) {
-    parts.push(`<h2>Costs and ROI expectations</h2><p>${esc(cj.costs_and_roi)}</p>`);
+    parts.push(
+      `<h2>Costs and ROI expectations</h2><p>${esc(cj.costs_and_roi)}</p>`,
+    );
   }
   if (Array.isArray(cj.common_mistakes) && cj.common_mistakes.length) {
     parts.push(`<h2>Common mistakes</h2><ul>`);
     for (const m of cj.common_mistakes) {
       const label = m?.mistake || m?.title || "";
       const desc = m?.fix || m?.description || "";
-      parts.push(`<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`);
+      parts.push(
+        `<li>${label ? `<strong>${esc(label)}:</strong> ` : ""}${esc(desc)}</li>`,
+      );
     }
     parts.push(`</ul>`);
   }
@@ -99,7 +123,10 @@ function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
       `<aside class="expert-callout" style="border-left:3px solid #D4AF55;background:#fbf6e8;padding:1rem 1.25rem;margin:1.5rem 0"><p style="font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:#8a6a1a;margin:0 0 .5rem">From the trenches</p><p style="font-style:italic;margin:0">${esc(cj.expert_callout.quote)}</p></aside>`,
     );
   }
-  if (Array.isArray(cj.frequently_asked_questions) && cj.frequently_asked_questions.length) {
+  if (
+    Array.isArray(cj.frequently_asked_questions) &&
+    cj.frequently_asked_questions.length
+  ) {
     parts.push(`<h2>Frequently asked questions</h2>`);
     for (const f of cj.frequently_asked_questions) {
       if (f?.question) {
@@ -113,13 +140,18 @@ function contentJsonToHtml(cj: any, niche: any, currentYear: number): string {
   return parts.join("\n");
 }
 
-async function fetchSerp(headTerm: string): Promise<{ top_titles: string[]; paa: string[] } | null> {
+async function fetchSerp(
+  headTerm: string,
+): Promise<{ top_titles: string[]; paa: string[] } | null> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return null;
   try {
     const resp = await fetch(`${FIRECRAWL_API}/search`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ query: headTerm, limit: 10 }),
     });
     if (!resp.ok) return null;
@@ -129,10 +161,17 @@ async function fetchSerp(headTerm: string): Promise<{ top_titles: string[]; paa:
       .slice(0, 10)
       .map((r: any) => String(r.title || "").trim())
       .filter(Boolean);
-    const paaRaw = data.paa || data.peopleAlsoAsk || data.relatedQuestions || data.related_questions || [];
+    const paaRaw =
+      data.paa ||
+      data.peopleAlsoAsk ||
+      data.relatedQuestions ||
+      data.related_questions ||
+      [];
     const paa: string[] = Array.isArray(paaRaw)
       ? paaRaw
-          .map((q: any) => (typeof q === "string" ? q : q?.question || q?.text || ""))
+          .map((q: any) =>
+            typeof q === "string" ? q : q?.question || q?.text || "",
+          )
           .filter(Boolean)
           .slice(0, 10)
       : [];
@@ -155,7 +194,10 @@ async function researchPillar(
       const query = `Provide a comprehensive ${currentYear} guide on "${targetKeyword}". Cover: where AI fits in ${nicheName} operations, marketing, sales, and customer service; current AI tool categories with specific product names actually used by ${nicheName} today (pricing where known); typical costs; realistic ROI expectations; common implementation mistakes; and a practical 30-day rollout. Only include tools and companies still active in ${currentYear}. Be specific, quantitative where possible, and cite sources.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
-        headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           model: "sonar-pro",
           messages: [
@@ -174,7 +216,8 @@ async function researchPillar(
         const citations = data.citations || [];
         if (content) parts.push(`LIVE RESEARCH (${currentYear}):\n${content}`);
         for (const c of citations.slice(0, 8)) {
-          if (typeof c === "string" && c.startsWith("http")) sources.push({ url: c });
+          if (typeof c === "string" && c.startsWith("http"))
+            sources.push({ url: c });
           else if (c && typeof c === "object" && typeof c.url === "string")
             sources.push({ url: c.url, title: c.title });
         }
@@ -203,15 +246,24 @@ async function generatePillarForNiche(
   apiKey: string,
   supabaseUrl: string,
   serviceRoleKey: string,
-): Promise<{ success: boolean; pillar_id?: string; error?: string; score?: number }> {
+): Promise<{
+  success: boolean;
+  pillar_id?: string;
+  error?: string;
+  score?: number;
+}> {
   const ctx = (niche.context || {}) as Record<string, any>;
-  const targetKeyword: string = (ctx.target_keyword || `AI training for ${niche.name}`).toString();
+  const targetKeyword: string = (
+    ctx.target_keyword || `AI training for ${niche.name}`
+  ).toString();
   const currentYear = new Date().getFullYear();
 
   // Title composition: "AI Training for Dentists: The Complete 2026 Guide"
   const kwCapped = targetKeyword
     .split(" ")
-    .map((w) => (w.toLowerCase() === "ai" ? "AI" : w.charAt(0).toUpperCase() + w.slice(1)))
+    .map((w) =>
+      w.toLowerCase() === "ai" ? "AI" : w.charAt(0).toUpperCase() + w.slice(1),
+    )
     .join(" ")
     .replace(/\bAi\b/g, "AI")
     .replace(/\bA\.i\.\b/gi, "AI");
@@ -219,8 +271,16 @@ async function generatePillarForNiche(
   const pageSlug = slugify(kwCapped);
 
   // Check duplicate
-  const { data: existing } = await supabase.from("pillar_pages").select("id, slug").eq("slug", pageSlug).maybeSingle();
-  if (existing) return { success: false, error: `Pillar already exists at slug ${pageSlug}` };
+  const { data: existing } = await supabase
+    .from("pillar_pages")
+    .select("id, slug")
+    .eq("slug", pageSlug)
+    .maybeSingle();
+  if (existing)
+    return {
+      success: false,
+      error: `Pillar already exists at slug ${pageSlug}`,
+    };
 
   // Research
   const [{ context: researchContext, sources }, serp] = await Promise.all([
@@ -235,7 +295,10 @@ async function generatePillarForNiche(
 
   // Site settings (for expert POV fallback) — admin-only private table.
   const { data: privateSettings } = await supabase
-    .from("site_settings_private").select("default_expert_pov").limit(1).maybeSingle();
+    .from("site_settings_private")
+    .select("default_expert_pov")
+    .limit(1)
+    .maybeSingle();
   const expertPov: string =
     typeof niche.expert_pov === "string" && niche.expert_pov.trim()
       ? niche.expert_pov.trim()
@@ -245,7 +308,10 @@ async function generatePillarForNiche(
 
   // Public site identity (non-sensitive display fields) — used for meta title.
   const { data: siteSettings } = await supabase
-    .from("site_settings").select("site_name, publisher_name").limit(1).maybeSingle();
+    .from("site_settings")
+    .select("site_name, publisher_name")
+    .limit(1)
+    .maybeSingle();
 
   // Child pages we'll link to at close
   const { data: childPages } = await supabase
@@ -256,7 +322,10 @@ async function generatePillarForNiche(
     .limit(10);
   const childLinks: { title: string; url: string }[] = (childPages ?? [])
     .filter((p: any) => p.content_schemas?.slug)
-    .map((p: any) => ({ title: p.title, url: `/resources/${p.content_schemas.slug}/${p.slug}` }));
+    .map((p: any) => ({
+      title: p.title,
+      url: `/resources/${p.content_schemas.slug}/${p.slug}`,
+    }));
 
   const paaBlock = paa.length
     ? `\nPEOPLE ALSO ASK (seed FAQ from these first, then add 2 more original ones):\n${paa.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
@@ -317,14 +386,20 @@ Return ONLY the JSON object.`;
     try {
       const aiResp = await fetch(AI_GATEWAY, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
           model: AI_MODEL,
           messages: [
             { role: "system", content: systemMessage },
             {
               role: "user",
-              content: attempt === 0 ? userMessage : userMessage + "\n\nCRITICAL: Return ONLY valid JSON.",
+              content:
+                attempt === 0
+                  ? userMessage
+                  : userMessage + "\n\nCRITICAL: Return ONLY valid JSON.",
             },
           ],
           temperature: 0.7,
@@ -375,7 +450,8 @@ Return ONLY the JSON object.`;
   console.log(`Pillar "${displayTitle}" score: ${score}/100. Issues:`, issues);
 
   // Compose meta
-  const siteName = siteSettings?.publisher_name || siteSettings?.site_name || "";
+  const siteName =
+    siteSettings?.publisher_name || siteSettings?.site_name || "";
   const metaTitle = composeTitle(displayTitle, siteName);
   const fallbackDesc = `${targetKeyword}: what it means, where AI fits in ${niche.name} operations, marketing, and sales, plus a 30-day rollout, costs, and common mistakes.`;
   const metaDesc = await writeMetaDescription({
@@ -393,7 +469,8 @@ Return ONLY the JSON object.`;
   let html = contentJsonToHtml(contentJson, niche, currentYear);
   if (childLinks.length) {
     html += `\n<h2>Resources for ${esc(niche.name)}</h2><ul>`;
-    for (const l of childLinks) html += `<li><a href="${esc(l.url)}">${esc(l.title)}</a></li>`;
+    for (const l of childLinks)
+      html += `<li><a href="${esc(l.url)}">${esc(l.title)}</a></li>`;
     html += `</ul>`;
   }
   if (sources.length) {
@@ -403,7 +480,9 @@ Return ONLY the JSON object.`;
     html += `</ul>`;
   }
 
-  const faqs = Array.isArray(contentJson.frequently_asked_questions) ? contentJson.frequently_asked_questions : [];
+  const faqs = Array.isArray(contentJson.frequently_asked_questions)
+    ? contentJson.frequently_asked_questions
+    : [];
   const seoMeta = {
     title: metaTitle,
     description: metaDesc,
@@ -437,7 +516,10 @@ Return ONLY the JSON object.`;
   if (shouldPublish) {
     fetch(`${supabaseUrl}/functions/v1/build-silo-links`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
       body: JSON.stringify({ rebuild_all: true }),
     }).catch((e) => console.warn("silo build fail:", e.message));
 
@@ -450,7 +532,8 @@ Return ONLY the JSON object.`;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
 
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -470,9 +553,13 @@ Deno.serve(async (req) => {
 
   const bearer = authHeader.slice(7).trim();
   const isInternal = bearer === SUPABASE_SERVICE_ROLE_KEY;
-  const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const anonClient = createClient(
+    SUPABASE_URL,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      global: { headers: { Authorization: authHeader } },
+    },
+  );
   if (!isInternal) {
     const {
       data: { user },
@@ -500,17 +587,33 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { niche_id, all_missing } = body as { niche_id?: string; all_missing?: boolean };
+    const { niche_id, all_missing } = body as {
+      niche_id?: string;
+      all_missing?: boolean;
+    };
 
     if (all_missing) {
-      const { data: niches } = await supabase.from("niches").select("*").eq("is_active", true);
-      const { data: existing } = await supabase.from("pillar_pages").select("niche_id");
-      const withPillar = new Set((existing ?? []).map((p: any) => p.niche_id).filter(Boolean));
+      const { data: niches } = await supabase
+        .from("niches")
+        .select("*")
+        .eq("is_active", true);
+      const { data: existing } = await supabase
+        .from("pillar_pages")
+        .select("niche_id");
+      const withPillar = new Set(
+        (existing ?? []).map((p: any) => p.niche_id).filter(Boolean),
+      );
       const targets = (niches ?? []).filter((n: any) => !withPillar.has(n.id));
       const results: any[] = [];
       for (const n of targets) {
         try {
-          const r = await generatePillarForNiche(supabase, n, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const r = await generatePillarForNiche(
+            supabase,
+            n,
+            LOVABLE_API_KEY,
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY,
+          );
           results.push({ niche: n.name, ...r });
         } catch (e: any) {
           results.push({ niche: n.name, success: false, error: e.message });
@@ -522,12 +625,19 @@ Deno.serve(async (req) => {
     }
 
     if (!niche_id)
-      return new Response(JSON.stringify({ error: "Provide niche_id or all_missing:true" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Provide niche_id or all_missing:true" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
 
-    const { data: niche } = await supabase.from("niches").select("*").eq("id", niche_id).maybeSingle();
+    const { data: niche } = await supabase
+      .from("niches")
+      .select("*")
+      .eq("id", niche_id)
+      .maybeSingle();
     if (!niche)
       return new Response(JSON.stringify({ error: "Niche not found" }), {
         status: 404,

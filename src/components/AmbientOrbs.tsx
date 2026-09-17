@@ -1,22 +1,26 @@
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useEffect, useState } from "react";
 
 const AmbientOrbs = () => {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  );
+  const prefs = useMediaPreferences();
+  const [isMobile, setIsMobile] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  if (isMobile) return null;
+  if (isMobile || !prefs.resolved || prefs.lightMode) return null;
 
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+    <div
+      className="fixed inset-0 overflow-hidden pointer-events-none"
+      style={{ zIndex: 0 }}
+    >
       <div
         className="absolute animate-[orbFloat0_25s_ease-in-out_infinite]"
         style={{
@@ -24,7 +28,8 @@ const AmbientOrbs = () => {
           top: "20%",
           width: 300,
           height: 300,
-          background: "radial-gradient(circle, #D4AF55 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)",
           opacity: 0.03,
           filter: "blur(60px)",
           transform: "translate(-50%, -50%)",
@@ -37,7 +42,8 @@ const AmbientOrbs = () => {
           top: "60%",
           width: 400,
           height: 400,
-          background: "radial-gradient(circle, #B8962E 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, var(--brand-accent-dark) 0%, transparent 70%)",
           opacity: 0.025,
           filter: "blur(60px)",
           transform: "translate(-50%, -50%)",
@@ -50,7 +56,8 @@ const AmbientOrbs = () => {
           top: "80%",
           width: 250,
           height: 250,
-          background: "radial-gradient(circle, #D4AF55 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)",
           opacity: 0.02,
           filter: "blur(60px)",
           transform: "translate(-50%, -50%)",

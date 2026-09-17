@@ -1,7 +1,8 @@
 # PushTen Setup Guide
 
 How to turn this template into your own authority site. Written for PushTen
-members. You do not need to write code to complete it.
+members. Use the guided rebrand prompt or edit the preset directly in GitHub.
+An assistant can perform the setup steps; verify the destination is your own copy.
 
 Permission note: this template is provided for use by PushTen members on their
 own sites. It carries no public open-source license, and this document does not
@@ -61,18 +62,38 @@ Rules
 Work top to bottom. Nothing later works properly if an earlier step is skipped.
 
 **A. Get your own copy**
-- [ ] Remix this project into your own workspace. A remix copies the **code**
-      only. It does not copy the original site's database rows, uploaded media,
-      subscribers, secrets or connected domain.
-- [ ] Confirm your remix has its own backend (Lovable Cloud). Each project gets
-      its own database, so nothing you do can touch the source site.
+
+- [ ] Remix this project into your own workspace. A Cloud remix copies **code and database schema**, but not records, users,
+      secrets, custom domains, connected integrations or the GitHub connection.
+      Referenced public media may still be owner-specific: replace those assets.
+- [ ] Verify the remix has its own Cloud backend and that its public environment
+      URL points to that backend before using the admin or running setup.
+- [ ] Run `setup/member-bootstrap.sql` in the **empty remix** Cloud SQL editor.
+      It refuses populated databases and existing active scheduled jobs. It seeds
+      neutral settings and one guide format, with automated publishing, reports
+      and paid image generation disabled. Re-running it does not overwrite edits.
 
 **B. Make yourself the admin**
-- [ ] Sign up on your own site's `/admin` login with your email.
-- [ ] Ask in chat: "give my account the admin role". Do this before anything
-      else — the admin area is closed until you have it.
+
+- [ ] In your remix's Cloud **Users** panel, create/invite your own account and
+      complete the invitation/password setup. `/admin/login` is a login page;
+      it does not offer public registration.
+- [ ] Copy that account's user ID, then use the remix's SQL editor to explicitly
+      grant it the admin role:
+
+Use this SQL with the user ID you just verified:
+
+```sql
+insert into public.user_roles(user_id,role)
+values ('YOUR-VERIFIED-USER-UUID'::uuid,'admin')
+on conflict (user_id,role) do nothing;
+```
+
+Replace the placeholder with your own verified account ID. Never make the
+first public visitor an administrator. Sign in at `/admin/login`.
 
 **C. Core settings**
+
 - [ ] Admin > Settings: site name, site URL, author name, title, bio, credentials.
 - [ ] Calls to action: headline, sub-text, button text, destination URL.
 - [ ] Voice profile and banned phrases (the wording rules every draft must follow).
@@ -82,10 +103,12 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
 - [ ] Widgets: which extras appear in sidebars and the footer.
 
 **D. Public config**
+
 - [ ] Run the rebrand prompt in Section 1, or edit your preset file directly.
 - [ ] Check the homepage: nothing should mention anyone but you.
 
 **E. Email**
+
 - [ ] Connect your own mail provider credentials in Project Settings > Secrets.
       Ask in chat which secret names the project expects; do not guess values.
 - [ ] Set the newsletter from-address, reply-to, and postal mailing address in
@@ -95,6 +118,7 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
 - [ ] Send a test to yourself before switching the weekly digest on.
 
 **F. Branding and media**
+
 - [ ] Replace the hero background video and its poster image in `public/videos/`,
       or ask for the video removed entirely.
 - [ ] Replace the portrait and event photo in `src/assets/`.
@@ -102,12 +126,14 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
 - [ ] Adjust the accent colour in your preset if you want a different palette.
 
 **G. Turn on the content engine (only when the above is done)**
+
 - [ ] Add your news and research sources in Admin.
 - [ ] Set the daily publishing cap (the template ships conservative: 3/day).
 - [ ] Leave automatic publishing off until you have reviewed several drafts
       by hand and are happy with the voice.
 
 **H. Launch**
+
 - [ ] Connect your domain in Project Settings > Domains.
 - [ ] Publish.
 - [ ] Check the homepage, one article, `/sitemap.xml` and `/rss.xml` on the
@@ -116,32 +142,27 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
 
 ---
 
-## 3. Clean-install path (what the database should start with)
+## 3. Supported installation path
 
-Every historical migration in `supabase/migrations/` was reviewed. What is in
-there:
+Use a **Lovable Cloud remix** of the source project, which copies its complete
+current schema. The historical SQL directory is an upgrade history, not a
+verified fresh-install baseline: some tables were provisioned outside those
+files, and historical migrations contain source-site configuration. Do not
+replay that directory into a fresh database or copy the owner's scheduling setup.
 
-- Schema: tables, access rules, validation triggers, helper functions. Safe and
-  required on a fresh install.
-- Neutral seeds: the content formats (schemas), a starter settings row, and a
-  starter list of public news feeds.
-- A handful of **content patches** written for the original site: removing a
-  city name from old copy, fixing link formatting in old articles, and inserting
-  the original settings rows. These are harmless on an empty database — they
-  update rows that do not exist yet — but they are not something you need.
+`setup/member-bootstrap.sql` adds neutral records to an empty remixed schema.
+It creates no accounts, role assignments, schedules, subscribers, public content
+or provider secrets. It does not enable newsletter sends. Set up your own
+credentials and review each automation before enabling it.
 
-What is **not** in the migrations, and must never be added to them:
+Source project: [Brian Hanson Authority](https://lovable.dev/projects/aad54f9f-2dc1-4e99-9396-88f3e07eb70c).
+Public remixing was verified enabled on September 17, 2026. Anyone with that link
+can remix; this is not a paid-membership access gate. Editor access remains
+separate. See [Lovable's remix documentation](https://docs.lovable.dev/features/projects/remix).
 
-- No subscriber lists, private notes, or article content.
-- No admin/user role assignments. You create your own admin (Step B).
-- No hardcoded automation secret. The scheduling secret is read at runtime from
-  the project's own secure store.
-- No scheduled-job definitions. Automation is opt-in per project.
-
-So the safe order for a fresh install is: apply the schema, keep the neutral
-seeds, create your own admin, fill in your own settings, then switch automation
-on deliberately. **Never re-run the original site's scheduling migrations
-against another project's backend.**
+The bootstrap is tested on an isolated schema fixture. A newly provisioned Cloud
+remix still needs its own end-to-end launch check; no production copy was created
+or populated as a QA side effect.
 
 ---
 
@@ -149,10 +170,10 @@ against another project's backend.**
 
 Two places hold "who this site is", on purpose:
 
-| Where | Drives | Edited by |
-| --- | --- | --- |
-| `src/config/presets/*.ts` | Everything a visitor reads on the homepage, navigation, footer, and the default page titles and social previews | You or the chat, in code |
-| `site_settings` in the database | Article generation, publishing, feeds, newsletter sending, structured data on generated pages | Admin > Settings, in the browser |
+| Where                           | Drives                                                                                                          | Edited by                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `src/config/presets/*.ts`       | Everything a visitor reads on the homepage, navigation, footer, and the default page titles and social previews | You or the chat, in code         |
+| `site_settings` in the database | Article generation, publishing, feeds, newsletter sending, structured data on generated pages                   | Admin > Settings, in the browser |
 
 They must agree on four values: **site name, site URL, author name, contact /
 sender email**. If they drift, visitors see one name while emails and feeds use
@@ -161,4 +182,3 @@ another.
 Rule of thumb: change it in Admin > Settings first, then ask in chat to "sync
 my public config to the settings I just saved". The rebrand prompt in Section 1
 does both at once.
-

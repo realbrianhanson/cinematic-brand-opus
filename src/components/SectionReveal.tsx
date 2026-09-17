@@ -11,11 +11,10 @@ const prefersReduced = () =>
 const SectionReveal = ({ children }: SectionRevealProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [forceVisible, setForceVisible] = useState(false);
-  const [style, setStyle] = useState<React.CSSProperties>(() =>
-    prefersReduced()
-      ? { clipPath: "inset(0)", opacity: 1 }
-      : { clipPath: "inset(4% 0 0 0)", opacity: 0.6 }
-  );
+  const [style, setStyle] = useState<React.CSSProperties>({
+    clipPath: "inset(0)",
+    opacity: 1,
+  });
 
   useEffect(() => {
     if (prefersReduced()) {
@@ -35,10 +34,12 @@ const SectionReveal = ({ children }: SectionRevealProps) => {
       const rect = ref.current.getBoundingClientRect();
       const vh = window.innerHeight;
       // Start revealing when 15% into view.
-      const progress = Math.max(0, Math.min(1, 1 - (rect.top - vh * 0.85) / (vh * 0.2)));
+      const progress = Math.max(
+        0,
+        Math.min(1, 1 - (rect.top - vh * 0.85) / (vh * 0.2)),
+      );
       // If more than 30% in viewport, force fully visible.
-      const inView =
-        rect.top < vh * 0.7 && rect.bottom > vh * 0.3;
+      const inView = rect.top < vh * 0.7 && rect.bottom > vh * 0.3;
       if (inView || progress > 0.98) {
         setStyle({ clipPath: "inset(0)", opacity: 1 });
         return;
@@ -62,7 +63,10 @@ const SectionReveal = ({ children }: SectionRevealProps) => {
       style={
         forceVisible
           ? { clipPath: "inset(0)", opacity: 1 }
-          : { ...style, transition: "clip-path 0.15s linear, opacity 0.15s linear" }
+          : {
+              ...style,
+              transition: "clip-path 0.15s linear, opacity 0.15s linear",
+            }
       }
     >
       {children}

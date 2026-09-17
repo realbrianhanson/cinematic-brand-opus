@@ -8,13 +8,19 @@ import {
 
 describe("assertPublicHttpUrl", () => {
   it("accepts ordinary public https URLs", () => {
-    expect(assertPublicHttpUrl("https://example.com/feed.xml").hostname).toBe("example.com");
+    expect(assertPublicHttpUrl("https://example.com/feed.xml").hostname).toBe(
+      "example.com",
+    );
     expect(isPublicHttpUrl("https://news.example.co.uk/rss")).toBe(true);
   });
 
   it("rejects non-https schemes unless http is opted in", () => {
-    expect(() => assertPublicHttpUrl("http://example.com")).toThrow(UnsafeUrlError);
-    expect(isPublicHttpUrl("http://example.com", { allowHttp: true })).toBe(true);
+    expect(() => assertPublicHttpUrl("http://example.com")).toThrow(
+      UnsafeUrlError,
+    );
+    expect(isPublicHttpUrl("http://example.com", { allowHttp: true })).toBe(
+      true,
+    );
     expect(isPublicHttpUrl("javascript:alert(1)")).toBe(false);
     expect(isPublicHttpUrl("file:///etc/passwd")).toBe(false);
     expect(isPublicHttpUrl("data:text/html,<b>x</b>")).toBe(false);
@@ -48,7 +54,10 @@ describe("assertPublicHttpUrl", () => {
 function textResponse(body: string, init: ResponseInit = {}) {
   return new Response(body, {
     status: 200,
-    headers: { "content-type": "text/html", ...(init.headers as Record<string, string>) },
+    headers: {
+      "content-type": "text/html",
+      ...(init.headers as Record<string, string>),
+    },
     ...init,
   });
 }
@@ -59,7 +68,10 @@ afterEach(() => {
 
 describe("fetchTextBounded", () => {
   it("returns the body for a valid public URL", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => textResponse("<html>ok</html>")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => textResponse("<html>ok</html>")),
+    );
     const res = await fetchTextBounded("https://example.com/page");
     expect(res.ok).toBe(true);
     expect(res.body).toContain("ok");
@@ -68,21 +80,24 @@ describe("fetchTextBounded", () => {
   it("refuses to fetch a private URL at all", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    await expect(fetchTextBounded("https://127.0.0.1/x")).rejects.toBeInstanceOf(UnsafeUrlError);
+    await expect(
+      fetchTextBounded("https://127.0.0.1/x"),
+    ).rejects.toBeInstanceOf(UnsafeUrlError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("revalidates redirect targets and blocks an internal hop", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(null, {
-        status: 302,
-        headers: { location: "http://169.254.169.254/latest/meta-data" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "http://169.254.169.254/latest/meta-data" },
+        }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await expect(fetchTextBounded("https://example.com/redir")).rejects.toBeInstanceOf(
-      UnsafeUrlError,
-    );
+    await expect(
+      fetchTextBounded("https://example.com/redir"),
+    ).rejects.toBeInstanceOf(UnsafeUrlError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -105,8 +120,13 @@ describe("fetchTextBounded", () => {
 
   it("truncates an oversized body instead of buffering it", async () => {
     const big = "x".repeat(5000);
-    vi.stubGlobal("fetch", vi.fn(async () => textResponse(big)));
-    const res = await fetchTextBounded("https://example.com/big", { maxBytes: 100 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => textResponse(big)),
+    );
+    const res = await fetchTextBounded("https://example.com/big", {
+      maxBytes: 100,
+    });
     expect(res.truncated).toBe(true);
     expect(res.body.length).toBeLessThanOrEqual(100);
   });
@@ -114,9 +134,13 @@ describe("fetchTextBounded", () => {
   it("rejects an unexpected content type", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => textResponse("{}", { headers: { "content-type": "application/json" } })),
+      vi.fn(async () =>
+        textResponse("{}", { headers: { "content-type": "application/json" } }),
+      ),
     );
-    const res = await fetchTextBounded("https://example.com/x", { contentTypeIncludes: "html" });
+    const res = await fetchTextBounded("https://example.com/x", {
+      contentTypeIncludes: "html",
+    });
     expect(res.ok).toBe(false);
     expect(res.body).toBe("");
   });

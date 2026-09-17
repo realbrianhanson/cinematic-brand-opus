@@ -22,7 +22,7 @@ const NewsletterStatus = () => {
   return (
     <main
       className="min-h-screen flex items-center justify-center px-6"
-      style={{ background: "#07070E" }}
+      style={{ background: "var(--brand-backdrop)" }}
     >
       <div className="text-center max-w-md">
         <h1
@@ -48,8 +48,9 @@ const NewsletterStatus = () => {
             fontSize: 13,
             letterSpacing: "0.08em",
             padding: "14px 32px",
-            background: "linear-gradient(135deg, #D4AF55, #B8962E)",
-            color: "#07070E",
+            background:
+              "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
+            color: "var(--brand-backdrop)",
           }}
         >
           Back to Home

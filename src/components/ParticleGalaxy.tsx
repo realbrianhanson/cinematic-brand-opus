@@ -63,7 +63,12 @@ const ParticleGalaxy = () => {
 
     // Scene setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100,
+    );
     camera.position.set(0, 1.8, 5.5);
     camera.lookAt(0, 0, 0);
 
@@ -130,7 +135,8 @@ const ParticleGalaxy = () => {
     scene.add(points);
 
     // Mouse interactivity
-    let mouseX = 0, mouseY = 0;
+    let mouseX = 0,
+      mouseY = 0;
     const onMouseMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
       mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;

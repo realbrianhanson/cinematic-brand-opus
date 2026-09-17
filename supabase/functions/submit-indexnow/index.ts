@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const body = await req.json();
@@ -30,7 +30,10 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
+    const siteUrl = (settings?.site_url || "https://example.com").replace(
+      /\/$/,
+      "",
+    );
     const host = siteUrl.replace(/^https?:\/\//, "");
 
     const indexNowKey = Deno.env.get("INDEXNOW_KEY");
@@ -41,7 +44,9 @@ Deno.serve(async (req) => {
     if (all_unsubmitted) {
       const { data: pages } = await supabase
         .from("generated_pages")
-        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)")
+        .select(
+          "id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)",
+        )
         .eq("status", "published");
 
       const { data: existingLogs } = await supabase
@@ -49,7 +54,9 @@ Deno.serve(async (req) => {
         .select("page_id")
         .neq("status", "error");
 
-      const submittedIds = new Set((existingLogs || []).map((l: any) => l.page_id));
+      const submittedIds = new Set(
+        (existingLogs || []).map((l: any) => l.page_id),
+      );
 
       for (const pg of pages || []) {
         if (submittedIds.has(pg.id)) continue;
@@ -70,7 +77,9 @@ Deno.serve(async (req) => {
         .select("page_url")
         .neq("status", "error");
 
-      const submittedUrls = new Set((pillarLogs || []).map((l: any) => l.page_url));
+      const submittedUrls = new Set(
+        (pillarLogs || []).map((l: any) => l.page_url),
+      );
 
       for (const pp of pillars || []) {
         const url = `${siteUrl}/guides/${pp.slug}`;
@@ -79,18 +88,25 @@ Deno.serve(async (req) => {
         pageIdMap[url] = pp.id;
       }
     } else if (urls && Array.isArray(urls)) {
-      urlList = urls.map((u: string) => u.startsWith("http") ? u : `${siteUrl}${u}`);
+      urlList = urls.map((u: string) =>
+        u.startsWith("http") ? u : `${siteUrl}${u}`,
+      );
     } else {
       return new Response(
-        JSON.stringify({ error: "Provide urls array or all_unsubmitted: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Provide urls array or all_unsubmitted: true",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (urlList.length === 0) {
       return new Response(
         JSON.stringify({ submitted_count: 0, indexnow_status: "no_urls" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -115,7 +131,9 @@ Deno.serve(async (req) => {
           });
           await resp.text(); // consume body to prevent resource leak
           indexnowStatus = resp.ok ? "ok" : `error_${resp.status}`;
-          console.log(`IndexNow response: ${resp.status} for ${batch.length} URLs`);
+          console.log(
+            `IndexNow response: ${resp.status} for ${batch.length} URLs`,
+          );
         }
       } catch (e: any) {
         console.error("IndexNow error:", e);
@@ -129,7 +147,6 @@ Deno.serve(async (req) => {
     // Google shut down google.com/ping?sitemap= in 2023 (now 404s). Discovery
     // now happens through the sitemap referenced in robots.txt + IndexNow
     // (Bing/Yandex/others). Google reads the sitemap on its own schedule.
-
 
     const logEntries = urlList.map((url) => ({
       page_id: pageIdMap[url] || null,
@@ -149,13 +166,13 @@ Deno.serve(async (req) => {
         submitted_count: urlList.length,
         indexnow_status: indexnowStatus,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: any) {
     console.error("submit-indexnow error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -2,7 +2,10 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import GeneratedPage from "@/pages/GeneratedPage";
 import PublicRouteError from "@/components/PublicRouteError";
-import { getPublicGeneratedPage, getPublicSiteSettings } from "@/lib/publicData.functions";
+import {
+  getPublicGeneratedPage,
+  getPublicSiteSettings,
+} from "@/lib/publicData.functions";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
@@ -33,8 +36,11 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
     const { page, settings } = loaderData;
     const seo = (page.seo_meta ?? {}) as Record<string, string | undefined>;
     const content = page.content_json as Record<string, unknown> | null;
-    const url = absoluteUrl(`/resources/${params.contentType}/${params.pageSlug}`);
-    const description = seo["description"] || (content?.["intro"] as string) || "";
+    const url = absoluteUrl(
+      `/resources/${params.contentType}/${params.pageSlug}`,
+    );
+    const description =
+      seo["description"] || (content?.["intro"] as string) || "";
     const publishedAt = page.published_at ?? page.created_at;
     const faqs = Array.isArray(content?.["faqs"])
       ? (content["faqs"] as Array<{ question?: unknown; answer?: unknown }>)
@@ -76,7 +82,9 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
     });
   },
   component: GeneratedPageRoute,
-  errorComponent: () => <PublicRouteError message="This resource could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="This resource could not be loaded." />
+  ),
   notFoundComponent: () => <GeneratedPage />,
 });
 

@@ -15,8 +15,12 @@ describe("buildPageHead", () => {
       url: "https://brianhanson.com/blog/a-post",
     });
     expect(head.meta?.[0]).toEqual({ title: "A Post" });
-    expect(find(head.meta ?? [], "name", "description")?.content).toBe("What it says.");
-    expect(find(head.meta ?? [], "property", "og:title")?.content).toBe("A Post");
+    expect(find(head.meta ?? [], "name", "description")?.content).toBe(
+      "What it says.",
+    );
+    expect(find(head.meta ?? [], "property", "og:title")?.content).toBe(
+      "A Post",
+    );
     expect(find(head.meta ?? [], "property", "og:url")?.content).toBe(
       "https://brianhanson.com/blog/a-post",
     );
@@ -41,7 +45,9 @@ describe("buildPageHead", () => {
       url: "https://brianhanson.com/news",
       robots: "noindex, follow",
     });
-    expect(find(head.meta ?? [], "name", "robots")?.content).toBe("noindex, follow");
+    expect(find(head.meta ?? [], "name", "robots")?.content).toBe(
+      "noindex, follow",
+    );
   });
 });
 

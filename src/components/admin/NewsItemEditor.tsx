@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errorMessage";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +30,15 @@ interface Props {
 
 const STATUSES = ["draft", "pending", "published", "archived"];
 
-const LANES = ["local_news", "ai", "marketing", "sales", "business", "tech", "general"];
+const LANES = [
+  "local_news",
+  "ai",
+  "marketing",
+  "sales",
+  "business",
+  "tech",
+  "general",
+];
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -66,30 +75,41 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
         .eq("id", itemId)
         .maybeSingle();
       if (error || !data) {
-        toast({ title: "Failed to load news item", description: error?.message, variant: "destructive" });
+        toast({
+          title: "Failed to load news item",
+          description: error?.message,
+          variant: "destructive",
+        });
         onClose();
         return;
       }
-      setItem(data as any);
-      setSourceName(((data as any).content_sources?.name as string) || "");
+      setItem(data);
+      setSourceName((data.content_sources?.name as string) || "");
       setLoading(false);
     })();
   }, [itemId]);
 
-  const patch = (p: Partial<NewsItem>) => setItem((prev) => (prev ? { ...prev, ...p } : prev));
+  const patch = (p: Partial<NewsItem>) =>
+    setItem((prev) => (prev ? { ...prev, ...p } : prev));
 
   const uploadImage = async (file: File) => {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `news/${itemId}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("blog-images").upload(path, file, { upsert: true });
+      const { error } = await supabase.storage
+        .from("blog-images")
+        .upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("blog-images").getPublicUrl(path);
       patch({ image_url: data.publicUrl });
       toast({ title: "Image uploaded" });
-    } catch (e: any) {
-      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Upload failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
     }
@@ -121,8 +141,12 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
       toast({ title: "News updated successfully" });
       onSaved();
       onClose();
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Save failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -132,29 +156,63 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100,
-        display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, overflowY: "auto",
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        zIndex: 100,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: 24,
+        overflowY: "auto",
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "100%", maxWidth: 900, background: "hsl(var(--admin-surface))",
-          border: "1px solid hsl(var(--admin-border))", borderRadius: 10, padding: 24, marginBottom: 40,
+          width: "100%",
+          maxWidth: 900,
+          background: "hsl(var(--admin-surface))",
+          border: "1px solid hsl(var(--admin-border))",
+          borderRadius: 10,
+          padding: 24,
+          marginBottom: 40,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 className="font-heading italic" style={{ fontSize: 22, color: "hsl(var(--admin-text))" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
+          <h2
+            className="font-heading italic"
+            style={{ fontSize: 22, color: "hsl(var(--admin-text))" }}
+          >
             Edit news article
           </h2>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--admin-text-soft))" }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "hsl(var(--admin-text-soft))",
+            }}
+          >
             <X size={18} />
           </button>
         </div>
 
         {loading || !item ? (
           <div style={{ textAlign: "center", padding: 40 }}>
-            <Loader2 className="animate-spin" size={22} style={{ color: "hsl(var(--admin-accent))" }} />
+            <Loader2
+              className="animate-spin"
+              size={22}
+              style={{ color: "hsl(var(--admin-accent))" }}
+            />
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -166,7 +224,13 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 onChange={(e) => patch({ ai_title: e.target.value })}
                 placeholder={item.title || "Article title"}
               />
-              <div style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 4 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--admin-text-ghost))",
+                  marginTop: 4,
+                }}
+              >
                 Original: {item.title || "—"}
               </div>
             </div>
@@ -174,7 +238,12 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
             <div>
               <label style={labelStyle}>Summary / excerpt</label>
               <textarea
-                style={{ ...inputStyle, minHeight: 70, resize: "vertical", fontFamily: "inherit" }}
+                style={{
+                  ...inputStyle,
+                  minHeight: 70,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
                 value={item.ai_summary || item.raw_excerpt || ""}
                 onChange={(e) => patch({ ai_summary: e.target.value })}
               />
@@ -192,17 +261,55 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
             <div>
               <label style={labelStyle}>Featured image</label>
               {item.image_url ? (
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 8 }}>
-                  <img src={item.image_url} alt="preview" style={{ width: 220, height: 130, objectFit: "cover", borderRadius: 6, border: "1px solid hsl(var(--admin-border))" }} />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "flex-start",
+                    marginBottom: 8,
+                  }}
+                >
+                  <img
+                    src={item.image_url}
+                    alt="preview"
+                    style={{
+                      width: 220,
+                      height: 130,
+                      objectFit: "cover",
+                      borderRadius: 6,
+                      border: "1px solid hsl(var(--admin-border))",
+                    }}
+                  />
                   <button
                     onClick={() => patch({ image_url: null })}
-                    style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "inline-flex", gap: 4, alignItems: "center" }}
+                    style={{
+                      padding: "6px 10px",
+                      background: "transparent",
+                      border: "1px solid hsl(var(--admin-danger))",
+                      borderRadius: 6,
+                      color: "hsl(var(--admin-danger))",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      display: "inline-flex",
+                      gap: 4,
+                      alignItems: "center",
+                    }}
                   >
                     <ImageOff size={12} /> Remove
                   </button>
                 </div>
               ) : (
-                <div style={{ padding: 20, border: "1px dashed hsl(var(--admin-border))", borderRadius: 6, textAlign: "center", color: "hsl(var(--admin-text-ghost))", fontSize: 12, marginBottom: 8 }}>
+                <div
+                  style={{
+                    padding: 20,
+                    border: "1px dashed hsl(var(--admin-border))",
+                    borderRadius: 6,
+                    textAlign: "center",
+                    color: "hsl(var(--admin-text-ghost))",
+                    fontSize: 12,
+                    marginBottom: 8,
+                  }}
+                >
                   No image set.
                 </div>
               )}
@@ -212,31 +319,94 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 value={item.image_url || ""}
                 onChange={(e) => patch({ image_url: e.target.value })}
               />
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, cursor: "pointer", fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
-                {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "1px solid hsl(var(--admin-border))",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  color: "hsl(var(--admin-text-soft))",
+                }}
+              >
+                {uploading ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Upload size={12} />
+                )}
                 Upload new image
                 <input
-                  type="file" accept="image/*" style={{ display: "none" }} disabled={uploading}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = ""; }}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadImage(f);
+                    e.target.value = "";
+                  }}
                 />
               </label>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+              }}
+            >
               <div>
                 <label style={labelStyle}>Source name</label>
-                <input style={{ ...inputStyle, opacity: 0.7 }} value={sourceName} disabled />
-                <div style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 4 }}>Managed via Sources.</div>
+                <input
+                  style={{ ...inputStyle, opacity: 0.7 }}
+                  value={sourceName}
+                  disabled
+                />
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginTop: 4,
+                  }}
+                >
+                  Managed via Sources.
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>Author</label>
-                <input style={inputStyle} value={item.author || ""} onChange={(e) => patch({ author: e.target.value })} />
+                <input
+                  style={inputStyle}
+                  value={item.author || ""}
+                  onChange={(e) => patch({ author: e.target.value })}
+                />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelStyle}>Source URL</label>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <input style={inputStyle} value={item.url} onChange={(e) => patch({ url: e.target.value })} />
-                  <a href={item.url} target="_blank" rel="noopener" style={{ padding: "8px 10px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", display: "inline-flex", alignItems: "center" }}>
+                  <input
+                    style={inputStyle}
+                    value={item.url}
+                    onChange={(e) => patch({ url: e.target.value })}
+                  />
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener"
+                    style={{
+                      padding: "8px 10px",
+                      background: "transparent",
+                      border: "1px solid hsl(var(--admin-border))",
+                      borderRadius: 6,
+                      color: "hsl(var(--admin-text-soft))",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                  >
                     <ExternalLink size={14} />
                   </a>
                 </div>
@@ -246,10 +416,16 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 <select
                   style={inputStyle}
                   value={item.topic_lane || ""}
-                  onChange={(e) => patch({ topic_lane: e.target.value || null })}
+                  onChange={(e) =>
+                    patch({ topic_lane: e.target.value || null })
+                  }
                 >
                   <option value="">— none —</option>
-                  {LANES.map((l) => <option key={l} value={l}>{l}</option>)}
+                  {LANES.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
                   {item.topic_lane && !LANES.includes(item.topic_lane) && (
                     <option value={item.topic_lane}>{item.topic_lane}</option>
                   )}
@@ -262,11 +438,24 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                   value={item.status}
                   onChange={(e) => patch({ status: e.target.value })}
                 >
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  {!STATUSES.includes(item.status) && <option value={item.status}>{item.status}</option>}
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                  {!STATUSES.includes(item.status) && (
+                    <option value={item.status}>{item.status}</option>
+                  )}
                 </select>
-                <div style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginTop: 4 }}>
-                  Only <strong>published</strong> items appear on the public News page.
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginTop: 4,
+                  }}
+                >
+                  Only <strong>published</strong> items appear on the public
+                  News page.
                 </div>
               </div>
               <div>
@@ -274,23 +463,62 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 <input
                   type="datetime-local"
                   style={inputStyle}
-                  value={item.published_at ? new Date(item.published_at).toISOString().slice(0, 16) : ""}
-                  onChange={(e) => patch({ published_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                  value={
+                    item.published_at
+                      ? new Date(item.published_at).toISOString().slice(0, 16)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    patch({
+                      published_at: e.target.value
+                        ? new Date(e.target.value).toISOString()
+                        : null,
+                    })
+                  }
                 />
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 16, borderTop: "1px solid hsl(var(--admin-border))" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginTop: 8,
+                paddingTop: 16,
+                borderTop: "1px solid hsl(var(--admin-border))",
+              }}
+            >
               <button
                 onClick={onClose}
-                style={{ padding: "10px 16px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 13 }}
+                style={{
+                  padding: "10px 16px",
+                  background: "transparent",
+                  border: "1px solid hsl(var(--admin-border))",
+                  borderRadius: 6,
+                  color: "hsl(var(--admin-text-soft))",
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                style={{ padding: "10px 18px", background: "hsl(var(--admin-accent))", border: "none", borderRadius: 6, color: "#1a1208", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}
+                style={{
+                  padding: "10px 18px",
+                  background: "hsl(var(--admin-accent))",
+                  border: "none",
+                  borderRadius: 6,
+                  color: "#1a1208",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 Save changes

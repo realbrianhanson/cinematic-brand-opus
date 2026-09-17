@@ -28,7 +28,8 @@ export default defineConfig({
           // errors at runtime, so keep them with the main bundle.
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
-            if (id.includes("@tiptap") || id.includes("prosemirror")) return "editor";
+            if (id.includes("@tiptap") || id.includes("prosemirror"))
+              return "editor";
             if (id.includes("@supabase")) return "supabase";
             if (id.includes("recharts") || id.includes("d3-")) return "charts";
           },

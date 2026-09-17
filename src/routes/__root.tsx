@@ -1,4 +1,11 @@
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router";
+import { brandStyles } from "@/config/brandStyles";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  Scripts,
+  useRouter,
+} from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,9 +41,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground px-6">
-      <h1 className="font-heading text-3xl md:text-4xl mb-4 text-center">This page didn't load</h1>
+      <h1 className="font-heading text-3xl md:text-4xl mb-4 text-center">
+        This page didn't load
+      </h1>
       <p className="text-muted-foreground text-center max-w-md mb-8">
-        Something went wrong while rendering this page. You can try again or go back home.
+        Something went wrong while rendering this page. You can try again or go
+        back home.
       </p>
       <div className="flex gap-4">
         <button
@@ -63,7 +73,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 function NotFoundComponent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground px-6">
-      <h1 className="font-heading text-3xl md:text-4xl mb-4 text-center">Page not found</h1>
+      <h1 className="font-heading text-3xl md:text-4xl mb-4 text-center">
+        Page not found
+      </h1>
       <p className="text-muted-foreground text-center max-w-md mb-8">
         The page you're looking for doesn't exist or has been moved.
       </p>
@@ -93,8 +105,13 @@ function RootComponent() {
     window.addEventListener("unhandledrejection", onUnhandled);
 
     // Duplicate-domain guard: the canonical site is the configured site URL; *.lovable.app must not be indexed.
-    if (window.location.hostname.endsWith("lovable.app")) {
-      let robots = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (
+      window.location.hostname.endsWith(".lovable.app") &&
+      window.location.hostname !== new URL(siteConfig.identity.siteUrl).hostname
+    ) {
+      let robots = document.head.querySelector<HTMLMetaElement>(
+        'meta[name="robots"]',
+      );
       if (!robots) {
         robots = document.createElement("meta");
         robots.setAttribute("name", "robots");
@@ -130,7 +147,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body style={brandStyles(siteConfig.brand)}>
         {children}
         <Scripts />
       </body>
@@ -138,60 +155,117 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "google-site-verification", content: "K_UDj1XvNR1AVquMTg9QMT_LfxDmHKiPwdzM3pcOQW4" },
-      { title: siteConfig.metadata.defaultTitle },
-      { name: "description", content: siteConfig.metadata.defaultDescription },
-      { property: "og:title", content: siteConfig.metadata.defaultTitle },
-      { name: "twitter:title", content: siteConfig.metadata.defaultTitle },
-      { property: "og:description", content: siteConfig.metadata.socialDescription },
-      { name: "twitter:description", content: siteConfig.metadata.socialDescription },
-      ...(siteConfig.metadata.socialImageUrl
-        ? [
-            { property: "og:image", content: siteConfig.metadata.socialImageUrl },
-            { name: "twitter:image", content: siteConfig.metadata.socialImageUrl },
-          ]
-        : []),
-      { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:type", content: "website" },
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      ...(siteConfig.metadata.faviconHref
-        ? [{ rel: "icon", type: "image/webp", href: siteConfig.metadata.faviconHref }]
-        : []),
-      { rel: "alternate", type: "application/rss+xml", title: siteConfig.metadata.rssTitle, href: "/rss.xml" },
-      ...(siteConfig.hero.posterSrc
-        ? [{ rel: "preload", as: "image", href: siteConfig.hero.posterSrc, fetchPriority: "high" as const }]
-        : []),
-      { rel: "preconnect", href: "https://pwjdotliwsulqktavyxf.supabase.co", crossOrigin: "anonymous" },
-      { rel: "dns-prefetch", href: "https://pwjdotliwsulqktavyxf.supabase.co" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "preload",
-        as: "style",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
-        media: "print",
-        onload: "this.media='all'",
-      },
-    ],
-    scripts: [
-      {
-        children: `document.querySelectorAll('link[rel="stylesheet"][media="print"]').forEach(l => l.media='all');`,
-      },
-    ],
-  }),
-  shellComponent: RootShell,
-  component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
-});
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+  {
+    head: () => ({
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        ...(siteConfig.metadata.googleSiteVerification
+          ? [
+              {
+                name: "google-site-verification",
+                content: siteConfig.metadata.googleSiteVerification,
+              },
+            ]
+          : []),
+        { title: siteConfig.metadata.defaultTitle },
+        {
+          name: "description",
+          content: siteConfig.metadata.defaultDescription,
+        },
+        { property: "og:title", content: siteConfig.metadata.defaultTitle },
+        { name: "twitter:title", content: siteConfig.metadata.defaultTitle },
+        {
+          property: "og:description",
+          content: siteConfig.metadata.socialDescription,
+        },
+        {
+          name: "twitter:description",
+          content: siteConfig.metadata.socialDescription,
+        },
+        ...(siteConfig.metadata.socialImageUrl
+          ? [
+              {
+                property: "og:image",
+                content: siteConfig.metadata.socialImageUrl,
+              },
+              {
+                name: "twitter:image",
+                content: siteConfig.metadata.socialImageUrl,
+              },
+            ]
+          : []),
+        { name: "twitter:card", content: "summary_large_image" },
+        { property: "og:type", content: "website" },
+      ],
+      links: [
+        { rel: "stylesheet", href: appCss },
+        ...(siteConfig.metadata.faviconHref
+          ? [
+              {
+                rel: "icon",
+                type: "image/webp",
+                href: siteConfig.metadata.faviconHref,
+              },
+            ]
+          : [{ rel: "icon", href: "data:," }]),
+        {
+          rel: "alternate",
+          type: "application/rss+xml",
+          title: siteConfig.metadata.rssTitle,
+          href: "/rss.xml",
+        },
+        ...(siteConfig.hero.posterSrc
+          ? [
+              {
+                rel: "preload",
+                as: "image",
+                href: siteConfig.hero.posterSrc,
+                fetchPriority: "high" as const,
+              },
+            ]
+          : []),
+        ...(import.meta.env.VITE_SUPABASE_URL
+          ? [
+              {
+                rel: "preconnect",
+                href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
+                crossOrigin: "anonymous" as const,
+              },
+              {
+                rel: "dns-prefetch",
+                href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
+              },
+            ]
+          : []),
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossOrigin: "anonymous",
+        },
+        {
+          rel: "preload",
+          as: "style",
+          href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
+          media: "print",
+          onload: "this.media='all'",
+        },
+      ],
+      scripts: [
+        {
+          children: `document.querySelectorAll('link[rel="stylesheet"][media="print"]').forEach(l => l.media='all');`,
+        },
+      ],
+    }),
+    shellComponent: RootShell,
+    component: RootComponent,
+    notFoundComponent: NotFoundComponent,
+    errorComponent: ErrorComponent,
+  },
+);

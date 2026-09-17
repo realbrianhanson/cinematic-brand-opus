@@ -1,3 +1,4 @@
+import { newsDisplay } from "@/lib/newsDisplay";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import NewsDetail from "@/pages/NewsDetail";
@@ -14,10 +15,10 @@ export const Route = createFileRoute("/news/$id")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData) return {};
-    const title = loaderData.ai_title || loaderData.title || "News";
+    const { title, summary } = newsDisplay(loaderData);
     return buildPageHead({
       title: pageTitle(title),
-      description: loaderData.ai_summary || loaderData.raw_excerpt || "",
+      description: summary,
       url: absoluteUrl(`/news/${params.id}`),
       image: loaderData.image_url,
       type: "article",
@@ -26,7 +27,9 @@ export const Route = createFileRoute("/news/$id")({
     });
   },
   component: NewsDetailRoute,
-  errorComponent: () => <PublicRouteError message="This news item could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="This news item could not be loaded." />
+  ),
   notFoundComponent: () => <NewsDetail />,
 });
 

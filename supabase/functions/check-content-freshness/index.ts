@@ -9,16 +9,42 @@ const corsHeaders = {
 
 // Aggregate GSC data by page over two 14-day windows within the last 28 days
 // and flag pages whose clicks or average position declined.
-async function gscDeclineIds(supabase: any, siteUrl: string): Promise<{ url: string; delta: number }[]> {
-  const { data: recent } = await supabase.from("gsc_performance").select("*").order("period_end", { ascending: false }).limit(50000);
+async function gscDeclineIds(
+  supabase: any,
+  siteUrl: string,
+): Promise<{ url: string; delta: number }[]> {
+  const { data: recent } = await supabase
+    .from("gsc_performance")
+    .select("*")
+    .order("period_end", { ascending: false })
+    .limit(50000);
   if (!recent || recent.length === 0) return [];
   // Group by page_url; split into "recent half" vs "older half" of the 28d snapshot by fetched_at.
-  const perPage: Record<string, { clicksNew: number; clicksOld: number; posNew: number; posOld: number; nNew: number; nOld: number }> = {};
+  const perPage: Record<
+    string,
+    {
+      clicksNew: number;
+      clicksOld: number;
+      posNew: number;
+      posOld: number;
+      nNew: number;
+      nOld: number;
+    }
+  > = {};
   const midpoint = recent[Math.floor(recent.length / 2)]?.fetched_at || null;
   for (const r of recent) {
     const url = String(r.page_url);
-    perPage[url] ||= { clicksNew: 0, clicksOld: 0, posNew: 0, posOld: 0, nNew: 0, nOld: 0 };
-    const isNew = midpoint ? new Date(r.fetched_at) >= new Date(midpoint) : true;
+    perPage[url] ||= {
+      clicksNew: 0,
+      clicksOld: 0,
+      posNew: 0,
+      posOld: 0,
+      nNew: 0,
+      nOld: 0,
+    };
+    const isNew = midpoint
+      ? new Date(r.fetched_at) >= new Date(midpoint)
+      : true;
     if (isNew) {
       perPage[url].clicksNew += r.clicks;
       perPage[url].posNew += Number(r.position);
@@ -44,7 +70,8 @@ async function gscDeclineIds(supabase: any, siteUrl: string): Promise<{ url: str
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
 
   const authResult = await authorizeCronOrAdmin(req, corsHeaders);
   if (authResult instanceof Response) return authResult;
@@ -54,10 +81,16 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    const { data: settings } = await supabase.from("site_settings").select("site_url").limit(1).maybeSingle();
+    const { data: settings } = await supabase
+      .from("site_settings")
+      .select("site_url")
+      .limit(1)
+      .maybeSingle();
     const siteUrl = (settings?.site_url || "").replace(/\/+$/, "");
 
-    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(
+      Date.now() - 90 * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
     const [dateFlags, gscFlags] = await Promise.all([
       supabase
@@ -123,7 +156,10 @@ Deno.serve(async (req) => {
     console.error("check-content-freshness error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

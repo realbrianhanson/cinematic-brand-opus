@@ -36,7 +36,7 @@ export const useReveal = (threshold = 0.15) => {
           obs.disconnect();
         }
       },
-      { threshold, rootMargin: "0px 0px -10% 0px" }
+      { threshold, rootMargin: "0px 0px -10% 0px" },
     );
     obs.observe(el);
 
@@ -55,7 +55,10 @@ export const useReveal = (threshold = 0.15) => {
   return { ref, visible };
 };
 
-export const revealStyle = (visible: boolean, delay = 0): React.CSSProperties => ({
+export const revealStyle = (
+  visible: boolean,
+  delay = 0,
+): React.CSSProperties => ({
   opacity: visible ? 1 : 0,
   transform: visible ? "translateY(0)" : "translateY(20px)",
   transition: `opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${delay}s, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${delay}s`,

@@ -1,10 +1,49 @@
+import { z } from "zod";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import { safeHref } from "@/lib/newsMarkdown";
+import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import { errorMessage } from "@/lib/errorMessage";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Zap, ExternalLink, CheckCircle2, XCircle, Edit3, Radio, AlertTriangle, Clock, Trash2, Wrench } from "lucide-react";
+import {
+  Loader2,
+  RefreshCw,
+  Zap,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Edit3,
+  Radio,
+  AlertTriangle,
+  Clock,
+  Trash2,
+  Wrench,
+} from "lucide-react";
 import { useNavigate } from "@/lib/router-compat";
 import NewsItemEditor from "./NewsItemEditor";
 
+const briefSchema = z
+  .object({ sources: z.array(z.object({ url: z.string() })).catch([]) })
+  .catch({ sources: [] });
+const factSchema = z
+  .object({
+    claims: z.array(z.unknown()).optional(),
+    verified_count: z.number().int().nonnegative().optional(),
+    unverified_count: z.number().int().nonnegative().optional(),
+    contradicted_count: z.number().int().nonnegative().optional(),
+    remediated: z.boolean().optional(),
+    structural_score: z.number().optional(),
+    fact_deductions: z.number().optional(),
+  })
+  .catch({});
+const publishSchema = z
+  .object({
+    decision: z.string().optional(),
+    error: z.string().optional(),
+    failures: z.array(z.string()).optional(),
+  })
+  .catch({});
 type Opp = {
   id: string;
   angle: string;
@@ -18,7 +57,7 @@ type Opp = {
   last_error: string | null;
   attempts: number;
   last_attempt_at: string | null;
-  brief: any;
+  brief: z.infer<typeof briefSchema>;
   created_at: string;
 };
 
@@ -30,11 +69,11 @@ type QueuedPost = {
   quality_score: number | null;
   originality_score: number | null;
   freshness_hours: number | null;
-  lint_flags: any;
-  source_citations: any;
+  lint_flags: Json;
+  source_citations: Json;
   opportunity_id: string | null;
   created_at: string;
-  fact_check: any;
+  fact_check: Json;
 };
 
 type SourceItem = {
@@ -75,49 +114,99 @@ export default function ContentQueue() {
   const [live, setLive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fixingFactsId, setFixingFactsId] = useState<string | null>(null);
-  const [overrideFor, setOverrideFor] = useState<{ postId: string; oppId: string | null; failures: string[] } | null>(null);
+  const [overrideFor, setOverrideFor] = useState<{
+    postId: string;
+    oppId: string | null;
+    failures: string[];
+  } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [publishing, setPublishing] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: oppData }, { data: postData }, { data: itemData }] = await Promise.all([
-      supabase.from("content_opportunities").select("*")
-        .order("created_at", { ascending: false }).limit(80),
-      supabase.from("posts").select("id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at, fact_check")
-        .eq("status", "draft").not("opportunity_id", "is", null)
-        .order("created_at", { ascending: false }).limit(30),
-      supabase.from("source_items").select("id, url, title, topic_lane, status, published_at, fetched_at")
-        .order("fetched_at", { ascending: false }).limit(50),
-    ]);
-    setOpps((oppData || []) as Opp[]);
+    const [{ data: oppData }, { data: postData }, { data: itemData }] =
+      await Promise.all([
+        supabase
+          .from("content_opportunities")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(80),
+        supabase
+          .from("posts")
+          .select(
+            "id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at, fact_check",
+          )
+          .eq("status", "draft")
+          .not("opportunity_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(30),
+        supabase
+          .from("source_items")
+          .select(
+            "id, url, title, topic_lane, status, published_at, fetched_at",
+          )
+          .order("fetched_at", { ascending: false })
+          .limit(50),
+      ]);
+    setOpps(
+      (oppData || []).map((o) => ({
+        ...o,
+        brief: briefSchema.parse(o.brief),
+      })) as Opp[],
+    );
     setQueued((postData || []) as QueuedPost[]);
     setItems((itemData || []) as SourceItem[]);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
       .channel(`content-queue-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "content_opportunities" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "source_items" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => load())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "content_opportunities" },
+        () => load(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "source_items" },
+        () => load(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => load(),
+      )
       .subscribe((s) => setLive(s === "SUBSCRIBED"));
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const runNow = async () => {
     setRunning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("daily-content-run", { body: {} });
+      const { data, error } = await supabase.functions.invoke(
+        "daily-content-run",
+        { body: {} },
+      );
       if (error) throw error;
-      toast({ title: "Pipeline run complete", description: `${data?.drafted ?? 0} draft(s) queued.` });
+      toast({
+        title: "Pipeline run complete",
+        description: `${data?.drafted ?? 0} draft(s) queued.`,
+      });
       await load();
-    } catch (e: any) {
-      toast({ title: "Run failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Run failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setRunning(false);
     }
@@ -125,29 +214,60 @@ export default function ContentQueue() {
 
   const draftOne = async (id: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("draft-from-opportunity", { body: { opportunity_id: id } });
+      const { data, error } = await supabase.functions.invoke(
+        "draft-from-opportunity",
+        { body: { opportunity_id: id } },
+      );
       if (error) throw error;
-      toast({ title: "Draft attempt complete", description: `Quality ${data?.quality_score ?? "—"}, originality ${data?.originality_score ?? "—"}%.` });
+      toast({
+        title: "Draft attempt complete",
+        description: `Quality ${data?.quality_score ?? "—"}, originality ${data?.originality_score ?? "—"}%.`,
+      });
       await load();
-    } catch (e: any) {
-      toast({ title: "Draft failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Draft failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     }
   };
 
   const retry = async (id: string) => {
-    await supabase.from("content_opportunities").update({ status: "proposed", attempts: 0, last_error: null, reject_reason: null }).eq("id", id);
+    await supabase
+      .from("content_opportunities")
+      .update({
+        status: "proposed",
+        attempts: 0,
+        last_error: null,
+        reject_reason: null,
+      })
+      .eq("id", id);
     await load();
   };
 
   const reject = async (id: string, reason: string) => {
-    await supabase.from("content_opportunities").update({ status: "rejected", reject_reason: reason }).eq("id", id);
+    await supabase
+      .from("content_opportunities")
+      .update({ status: "rejected", reject_reason: reason })
+      .eq("id", id);
     await load();
   };
 
   const deleteOpp = async (id: string) => {
     if (!confirm("Delete this opportunity? This cannot be undone.")) return;
-    const { error } = await supabase.from("content_opportunities").delete().eq("id", id);
-    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    const { error } = await supabase
+      .from("content_opportunities")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: "Deleted" });
     await load();
   };
@@ -155,62 +275,136 @@ export default function ContentQueue() {
   const deleteItem = async (id: string) => {
     if (!confirm("Delete this signal?")) return;
     const { error } = await supabase.from("source_items").delete().eq("id", id);
-    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    if (error) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     await load();
   };
 
   const clearAllOpps = async () => {
     if (opps.length === 0) return;
-    if (!confirm(`Delete ALL ${opps.length} opportunities in the pipeline? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Delete ALL ${opps.length} opportunities in the pipeline? This cannot be undone.`,
+      )
+    )
+      return;
     const ids = opps.map((o) => o.id);
-    const { error } = await supabase.from("content_opportunities").delete().in("id", ids);
-    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    const { error } = await supabase
+      .from("content_opportunities")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast({
+        title: "Clear failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: `Cleared ${ids.length} opportunities` });
     await load();
   };
 
   const clearAllItems = async () => {
     if (items.length === 0) return;
-    if (!confirm(`Delete ALL ${items.length} signals? This cannot be undone.`)) return;
+    if (!confirm(`Delete ALL ${items.length} signals? This cannot be undone.`))
+      return;
     const ids = items.map((i) => i.id);
-    const { error } = await supabase.from("source_items").delete().in("id", ids);
-    if (error) { toast({ title: "Clear failed", description: error.message, variant: "destructive" }); return; }
+    const { error } = await supabase
+      .from("source_items")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast({
+        title: "Clear failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: `Cleared ${ids.length} signals` });
     await load();
   };
 
   const clearEverything = async () => {
-    if (!confirm("Delete ALL opportunities AND signals? This wipes the queue clean. Cannot be undone.")) return;
+    if (
+      !confirm(
+        "Delete ALL opportunities AND signals? This wipes the queue clean. Cannot be undone.",
+      )
+    )
+      return;
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("content_opportunities").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-      supabase.from("source_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+      supabase
+        .from("content_opportunities")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"),
+      supabase
+        .from("source_items")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"),
     ]);
-    if (e1 || e2) { toast({ title: "Clear failed", description: (e1 || e2)!.message, variant: "destructive" }); return; }
+    if (e1 || e2) {
+      toast({
+        title: "Clear failed",
+        description: (e1 || e2)!.message,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: "Queue cleared" });
     await load();
   };
 
-  const publish = async (postId: string, oppId: string | null, overrideReasonArg?: string) => {
+  const publish = async (
+    postId: string,
+    oppId: string | null,
+    overrideReasonArg?: string,
+  ) => {
     setPublishing(postId);
     try {
-      const body: any = { post_id: postId };
+      const body: { post_id: string; override_reason?: string } = {
+        post_id: postId,
+      };
       if (overrideReasonArg && overrideReasonArg.trim().length >= 10) {
         body.override_reason = overrideReasonArg.trim();
       }
-      const { data, error } = await supabase.functions.invoke("manual-publish", { body });
+      const { data, error } = await supabase.functions.invoke(
+        "manual-publish",
+        { body },
+      );
       if (error) {
         // Try to read the 422 body so we can show the failure list
-        const ctx: any = (error as any).context;
-        let parsed: any = null;
-        if (ctx && typeof ctx.text === "function") {
-          try { parsed = JSON.parse(await ctx.text()); } catch { /* ignore */ }
+        let parsed = publishSchema.parse(null);
+        if (
+          error instanceof FunctionsHttpError &&
+          error.context instanceof Response
+        ) {
+          try {
+            parsed = publishSchema.parse(await error.context.json());
+          } catch {
+            /* Use the original error below. */
+          }
         }
-        if (parsed && parsed.decision === "blocked" && Array.isArray(parsed.failures)) {
+        if (
+          parsed &&
+          parsed.decision === "blocked" &&
+          Array.isArray(parsed.failures)
+        ) {
           setOverrideFor({ postId, oppId, failures: parsed.failures });
           setOverrideReason("");
           return;
         }
-        toast({ title: "Publish failed", description: (parsed?.error || error.message), variant: "destructive" });
+        toast({
+          title: "Publish failed",
+          description: parsed?.error || error.message,
+          variant: "destructive",
+        });
         return;
       }
       if (data?.ok === false && Array.isArray(data.failures)) {
@@ -218,7 +412,12 @@ export default function ContentQueue() {
         setOverrideReason("");
         return;
       }
-      toast({ title: data?.decision === "published_with_override" ? "Published (override)" : "Published" });
+      toast({
+        title:
+          data?.decision === "published_with_override"
+            ? "Published (override)"
+            : "Published",
+      });
       await load();
     } finally {
       setPublishing(null);
@@ -228,15 +427,24 @@ export default function ContentQueue() {
   const fixFacts = async (postId: string) => {
     setFixingFactsId(postId);
     try {
-      const { data, error } = await supabase.functions.invoke("remediate-post-facts", { body: { post_id: postId } });
+      const { data, error } = await supabase.functions.invoke(
+        "remediate-post-facts",
+        { body: { post_id: postId } },
+      );
       if (error) throw error;
       toast({
         title: data?.changed ? "Facts remediated" : "No remediation needed",
-        description: data?.reason || (data?.changed ? "Rewrote claims and re-checked." : ""),
+        description:
+          data?.reason ||
+          (data?.changed ? "Rewrote claims and re-checked." : ""),
       });
       await load();
-    } catch (e: any) {
-      toast({ title: "Fix facts failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Fix facts failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setFixingFactsId(null);
     }
@@ -252,205 +460,680 @@ export default function ContentQueue() {
 
   // Aggregates
   const counts = opps.reduce((acc: Record<string, number>, o) => {
-    acc[o.status] = (acc[o.status] || 0) + 1; return acc;
+    acc[o.status] = (acc[o.status] || 0) + 1;
+    return acc;
   }, {});
   const newItems = items.filter((i) => i.status === "new").length;
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <h1 className="font-heading italic" style={{ fontSize: 32, color: "hsl(var(--admin-text))", marginBottom: 4 }}>
+          <h1
+            className="font-heading italic"
+            style={{
+              fontSize: 32,
+              color: "hsl(var(--admin-text))",
+              marginBottom: 4,
+            }}
+          >
             Content Queue
           </h1>
-          <p className="font-body" style={{ fontSize: 14, color: "hsl(var(--admin-text-ghost))", display: "flex", alignItems: "center", gap: 8 }}>
-            <Radio size={12} style={{ color: live ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-ghost))" }} />
-            {live ? "Live — auto-updating" : "Connecting…"} · Pipeline runs every 30 min autonomously.
+          <p
+            className="font-body"
+            style={{
+              fontSize: 14,
+              color: "hsl(var(--admin-text-ghost))",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Radio
+              size={12}
+              style={{
+                color: live
+                  ? "hsl(var(--admin-accent))"
+                  : "hsl(var(--admin-text-ghost))",
+              }}
+            />
+            {live ? "Live — auto-updating" : "Connecting…"} · Pipeline runs
+            every 30 min autonomously.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={load} disabled={loading}
-            style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              padding: "10px 14px",
+              background: "transparent",
+              border: "1px solid hsl(var(--admin-border))",
+              borderRadius: 6,
+              color: "hsl(var(--admin-text-soft))",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />{" "}
+            Refresh
           </button>
-          <button onClick={clearEverything} disabled={opps.length === 0 && items.length === 0}
-            style={{ padding: "10px 14px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+          <button
+            onClick={clearEverything}
+            disabled={opps.length === 0 && items.length === 0}
+            style={{
+              padding: "10px 14px",
+              background: "transparent",
+              border: "1px solid hsl(var(--admin-danger))",
+              borderRadius: 6,
+              color: "hsl(var(--admin-danger))",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
             <Trash2 size={14} /> Clear all
           </button>
-          <button onClick={runNow} disabled={running}
-            style={{ padding: "10px 16px", background: "hsl(var(--admin-accent))", border: "none", borderRadius: 6, color: "#1a1208", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
-            {running ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+          <button
+            onClick={runNow}
+            disabled={running}
+            style={{
+              padding: "10px 16px",
+              background: "hsl(var(--admin-accent))",
+              border: "none",
+              borderRadius: 6,
+              color: "#1a1208",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {running ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Zap size={14} />
+            )}
             Run now
           </button>
         </div>
       </div>
 
       {/* Stats strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 24 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          gap: 10,
+          marginBottom: 24,
+        }}
+      >
         {[
           { label: "New signals", value: newItems },
           { label: "Proposed", value: counts.proposed || 0 },
           { label: "Drafting", value: counts.drafting || 0 },
           { label: "Ready", value: queued.length },
-          { label: "Rejected (24h)", value: opps.filter((o) => o.status === "rejected" && Date.now() - new Date(o.created_at).getTime() < 86400000).length },
+          {
+            label: "Rejected (24h)",
+            value: opps.filter(
+              (o) =>
+                o.status === "rejected" &&
+                Date.now() - new Date(o.created_at).getTime() < 86400000,
+            ).length,
+          },
         ].map((s) => (
-          <div key={s.label} style={{ ...cardStyle, marginBottom: 0, padding: 14, textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "hsl(var(--admin-text))" }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", textTransform: "uppercase", letterSpacing: 0.5 }}>{s.label}</div>
+          <div
+            key={s.label}
+            style={{
+              ...cardStyle,
+              marginBottom: 0,
+              padding: 14,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
+              {s.value}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--admin-text-ghost))",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              {s.label}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Ready */}
-      <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 12 }}>
+      <h2
+        className="font-heading italic"
+        style={{
+          fontSize: 20,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 12,
+        }}
+      >
         Ready to publish ({queued.length})
       </h2>
       {queued.length === 0 && !loading && (
-        <div style={{ ...cardStyle, textAlign: "center", color: "hsl(var(--admin-text-ghost))", fontSize: 13 }}>
-          No drafts waiting. The pipeline runs every 30 minutes; new drafts will appear here automatically.
+        <div
+          style={{
+            ...cardStyle,
+            textAlign: "center",
+            color: "hsl(var(--admin-text-ghost))",
+            fontSize: 13,
+          }}
+        >
+          No drafts waiting. The pipeline runs every 30 minutes; new drafts will
+          appear here automatically.
         </div>
       )}
       {queued.map((p) => {
-        const fc = p.fact_check as any;
+        const fc = factSchema.parse(p.fact_check);
         const hasFc = fc && typeof fc === "object" && Array.isArray(fc.claims);
-        const totalClaims = hasFc ? fc.claims.length : 0;
-        const badClaims = hasFc ? ((fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)) : 0;
+        const totalClaims = fc.claims?.length ?? 0;
+        const badClaims = hasFc
+          ? (fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)
+          : 0;
         const factsAmber = hasFc && badClaims > 0;
-        const oneClickReady = (p.quality_score ?? 0) >= 85 && !factsAmber;
-        const structural = hasFc && typeof fc.structural_score === "number" ? fc.structural_score : null;
-        const deductions = hasFc && typeof fc.fact_deductions === "number" ? fc.fact_deductions : null;
-        const qualityTip = structural !== null
-          ? `Structural ${structural} − fact deductions ${deductions ?? 0} = ${p.quality_score ?? "—"}`
-          : "Quality score (structural — fact-check pending)";
+        const oneClickReady =
+          (p.quality_score ?? 0) >= 85 &&
+          hasFc &&
+          totalClaims >= 2 &&
+          (fc.verified_count ?? 0) >= 2 &&
+          fc.contradicted_count === 0 &&
+          (fc.unverified_count ?? Infinity) <= 2;
+        const structural =
+          hasFc && typeof fc.structural_score === "number"
+            ? fc.structural_score
+            : null;
+        const deductions =
+          hasFc && typeof fc.fact_deductions === "number"
+            ? fc.fact_deductions
+            : null;
+        const qualityTip =
+          structural !== null
+            ? `Structural ${structural} − fact deductions ${deductions ?? 0} = ${p.quality_score ?? "—"}`
+            : "Quality score (structural — fact-check pending)";
         return (
-        <div key={p.id} style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 6 }}>{p.title}</div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8, alignItems: "center" }}>
-                <span title={qualityTip} style={{ cursor: "help" }}>
-                  Quality: <strong style={{ color: (p.quality_score ?? 0) >= 85 ? "hsl(var(--admin-accent))" : "hsl(var(--admin-text-soft))" }}>{p.quality_score ?? "—"}</strong>
-                  {structural !== null && (
-                    <span style={{ marginLeft: 4, color: "hsl(var(--admin-text-ghost))" }}>
-                      ({structural}−{deductions ?? 0})
+          <div key={p.id} style={cardStyle}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "hsl(var(--admin-text))",
+                    marginBottom: 6,
+                  }}
+                >
+                  {p.title}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    fontSize: 12,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginBottom: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <span title={qualityTip} style={{ cursor: "help" }}>
+                    Quality:{" "}
+                    <strong
+                      style={{
+                        color:
+                          (p.quality_score ?? 0) >= 85
+                            ? "hsl(var(--admin-accent))"
+                            : "hsl(var(--admin-text-soft))",
+                      }}
+                    >
+                      {p.quality_score ?? "—"}
+                    </strong>
+                    {structural !== null && (
+                      <span
+                        style={{
+                          marginLeft: 4,
+                          color: "hsl(var(--admin-text-ghost))",
+                        }}
+                      >
+                        ({structural}−{deductions ?? 0})
+                      </span>
+                    )}
+                  </span>
+                  <span>
+                    Originality: <strong>{p.originality_score ?? "—"}%</strong>
+                  </span>
+                  <span>
+                    Fresh: <strong>{p.freshness_hours ?? "—"}h</strong>
+                  </span>
+                  <span>
+                    Sources:{" "}
+                    <strong>
+                      {Array.isArray(p.source_citations)
+                        ? p.source_citations.length
+                        : 0}
+                    </strong>
+                  </span>
+                  <span>Created {timeAgo(p.created_at)}</span>
+                  {Array.isArray(p.lint_flags) && p.lint_flags.length > 0 && (
+                    <span style={{ color: "hsl(var(--admin-danger))" }}>
+                      Lint: {p.lint_flags.length}
                     </span>
                   )}
-                </span>
-                <span>Originality: <strong>{p.originality_score ?? "—"}%</strong></span>
-                <span>Fresh: <strong>{p.freshness_hours ?? "—"}h</strong></span>
-                <span>Sources: <strong>{(p.source_citations as any[])?.length ?? 0}</strong></span>
-                <span>Created {timeAgo(p.created_at)}</span>
-                {Array.isArray(p.lint_flags) && p.lint_flags.length > 0 && (
-                  <span style={{ color: "hsl(var(--admin-danger))" }}>Lint: {p.lint_flags.length}</span>
-                )}
-                {hasFc && (
-                  factsAmber ? (
-                    <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(38 80% 20%)", color: "hsl(38 90% 70%)", border: "1px solid hsl(38 60% 40%)", fontWeight: 600 }}>
-                      {fc.contradicted_count ?? 0} contradicted · {fc.unverified_count ?? 0} unverified
+                  {hasFc &&
+                    (factsAmber ? (
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background: "hsl(38 80% 20%)",
+                          color: "hsl(38 90% 70%)",
+                          border: "1px solid hsl(38 60% 40%)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {fc.contradicted_count ?? 0} contradicted ·{" "}
+                        {fc.unverified_count ?? 0} unverified
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background: "hsl(140 40% 18%)",
+                          color: "hsl(140 70% 70%)",
+                          border: "1px solid hsl(140 40% 35%)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Facts verified {fc.verified_count ?? 0}/{totalClaims}
+                      </span>
+                    ))}
+                  {hasFc && fc.remediated && (
+                    <span
+                      style={{
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: "hsl(var(--admin-surface))",
+                        color: "hsl(var(--admin-text-ghost))",
+                        border: "1px solid hsl(var(--admin-border))",
+                        fontSize: 10,
+                      }}
+                    >
+                      remediated
                     </span>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
+              >
+                {factsAmber && !fc?.remediated && (
+                  <button
+                    onClick={() => fixFacts(p.id)}
+                    disabled={fixingFactsId === p.id}
+                    title="Rewrite content to drop contradicted claims and attribute unverified ones, then re-check."
+                    style={{
+                      padding: "8px 12px",
+                      background: "transparent",
+                      border: "1px solid hsl(38 60% 40%)",
+                      borderRadius: 6,
+                      color: "hsl(38 90% 70%)",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {fixingFactsId === p.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Wrench size={12} />
+                    )}{" "}
+                    Fix facts
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
+                  style={{
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "1px solid hsl(var(--admin-border))",
+                    borderRadius: 6,
+                    color: "hsl(var(--admin-text-soft))",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Edit3 size={12} /> Edit
+                </button>
+                <button
+                  onClick={() => publish(p.id, p.opportunity_id)}
+                  disabled={publishing === p.id}
+                  style={{
+                    padding: "8px 12px",
+                    background: oneClickReady
+                      ? "hsl(var(--admin-accent))"
+                      : "transparent",
+                    border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`,
+                    borderRadius: 6,
+                    color: oneClickReady
+                      ? "#1a1208"
+                      : "hsl(var(--admin-text-soft))",
+                    cursor: publishing === p.id ? "wait" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  {publishing === p.id ? (
+                    <Loader2 size={12} className="animate-spin" />
                   ) : (
-                    <span style={{ padding: "2px 8px", borderRadius: 4, background: "hsl(140 40% 18%)", color: "hsl(140 70% 70%)", border: "1px solid hsl(140 40% 35%)", fontWeight: 600 }}>
-                      Facts verified {fc.verified_count ?? 0}/{totalClaims}
-                    </span>
-                  )
-                )}
-                {hasFc && fc.remediated && (
-                  <span style={{ padding: "2px 6px", borderRadius: 4, background: "hsl(var(--admin-surface))", color: "hsl(var(--admin-text-ghost))", border: "1px solid hsl(var(--admin-border))", fontSize: 10 }}>
-                    remediated
-                  </span>
-                )}
+                    <CheckCircle2 size={12} />
+                  )}{" "}
+                  Publish
+                </button>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-              {factsAmber && !fc?.remediated && (
-                <button onClick={() => fixFacts(p.id)} disabled={fixingFactsId === p.id}
-                  title="Rewrite content to drop contradicted claims and attribute unverified ones, then re-check."
-                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(38 60% 40%)", borderRadius: 6, color: "hsl(38 90% 70%)", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                  {fixingFactsId === p.id ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />} Fix facts
-                </button>
-              )}
-              <button onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
-                style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                <Edit3 size={12} /> Edit
-              </button>
-              <button onClick={() => publish(p.id, p.opportunity_id)} disabled={publishing === p.id}
-                style={{ padding: "8px 12px", background: oneClickReady ? "hsl(var(--admin-accent))" : "transparent", border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`, borderRadius: 6, color: oneClickReady ? "#1a1208" : "hsl(var(--admin-text-soft))", cursor: publishing === p.id ? "wait" : "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                {publishing === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} Publish
-              </button>
-            </div>
           </div>
-        </div>
         );
       })}
 
       {/* Opportunities pipeline */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
-        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+          marginTop: 32,
+        }}
+      >
+        <h2
+          className="font-heading italic"
+          style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}
+        >
           Pipeline ({opps.length})
         </h2>
         {opps.length > 0 && (
-          <button onClick={clearAllOpps}
-            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={clearAllOpps}
+            style={{
+              padding: "6px 10px",
+              background: "transparent",
+              border: "1px solid hsl(var(--admin-danger))",
+              borderRadius: 6,
+              color: "hsl(var(--admin-danger))",
+              cursor: "pointer",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <Trash2 size={12} /> Clear all
           </button>
         )}
       </div>
       {opps.map((o) => (
         <div key={o.id} style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+            }}
+          >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "hsl(var(--admin-text))", marginBottom: 4 }}>{o.angle}</div>
-              <div style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", marginBottom: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <span>Status: <strong style={{ color: STATUS_COLOR[o.status] || "hsl(var(--admin-text-soft))" }}>{o.status}</strong></span>
-                <span>Lane: <strong>{o.topic_lane}</strong></span>
-                <span>Kw: <strong>{o.target_keyword || "—"}</strong></span>
-                <span>Attempts: <strong>{o.attempts ?? 0}</strong></span>
-                <span><Clock size={10} style={{ display: "inline", marginRight: 3 }} />{timeAgo(o.created_at)}</span>
-                {o.last_attempt_at && <span>Last try {timeAgo(o.last_attempt_at)}</span>}
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: "hsl(var(--admin-text))",
+                  marginBottom: 4,
+                }}
+              >
+                {o.angle}
               </div>
-              {o.rationale && <p style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", marginBottom: 4 }}>{o.rationale}</p>}
-              {o.gap_reason && <p style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))", fontStyle: "italic" }}>Gap: {o.gap_reason}</p>}
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "hsl(var(--admin-text-ghost))",
+                  marginBottom: 8,
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>
+                  Status:{" "}
+                  <strong
+                    style={{
+                      color:
+                        STATUS_COLOR[o.status] || "hsl(var(--admin-text-soft))",
+                    }}
+                  >
+                    {o.status}
+                  </strong>
+                </span>
+                <span>
+                  Lane: <strong>{o.topic_lane}</strong>
+                </span>
+                <span>
+                  Kw: <strong>{o.target_keyword || "—"}</strong>
+                </span>
+                <span>
+                  Attempts: <strong>{o.attempts ?? 0}</strong>
+                </span>
+                <span>
+                  <Clock
+                    size={10}
+                    style={{ display: "inline", marginRight: 3 }}
+                  />
+                  {timeAgo(o.created_at)}
+                </span>
+                {o.last_attempt_at && (
+                  <span>Last try {timeAgo(o.last_attempt_at)}</span>
+                )}
+              </div>
+              {o.rationale && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "hsl(var(--admin-text-soft))",
+                    marginBottom: 4,
+                  }}
+                >
+                  {o.rationale}
+                </p>
+              )}
+              {o.gap_reason && (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "hsl(var(--admin-text-ghost))",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Gap: {o.gap_reason}
+                </p>
+              )}
               {o.reject_reason && (
-                <p style={{ fontSize: 12, color: "hsl(var(--admin-danger))", display: "flex", alignItems: "center", gap: 4 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "hsl(var(--admin-danger))",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
                   <XCircle size={11} /> Rejected: {o.reject_reason}
                 </p>
               )}
               {o.last_error && o.status !== "rejected" && (
-                <p style={{ fontSize: 12, color: "hsl(var(--admin-danger))", display: "flex", alignItems: "center", gap: 4 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "hsl(var(--admin-danger))",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
                   <AlertTriangle size={11} /> Last error: {o.last_error}
                 </p>
               )}
               {Array.isArray(o.brief?.sources) && (
                 <div style={{ marginTop: 8, fontSize: 11 }}>
-                  {o.brief.sources.slice(0, 3).map((s: any) => (
-                    <a key={s.url} href={s.url} target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "hsl(var(--admin-text-ghost))", marginRight: 10, textDecoration: "underline" }}>
-                      <ExternalLink size={10} /> {(() => { try { return new URL(s.url).hostname.replace(/^www\./, ""); } catch { return s.url; } })()}
-                    </a>
-                  ))}
+                  {o.brief.sources
+                    .filter((s) => safeHref(s.url))
+                    .slice(0, 3)
+                    .map((s) => (
+                      <a
+                        key={s.url}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 3,
+                          color: "hsl(var(--admin-text-ghost))",
+                          marginRight: 10,
+                          textDecoration: "underline",
+                        }}
+                      >
+                        <ExternalLink size={10} />{" "}
+                        {(() => {
+                          try {
+                            return new URL(s.url).hostname.replace(
+                              /^www\./,
+                              "",
+                            );
+                          } catch {
+                            return s.url;
+                          }
+                        })()}
+                      </a>
+                    ))}
                 </div>
               )}
             </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "flex-start", flexDirection: "column" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                alignItems: "flex-start",
+                flexDirection: "column",
+              }}
+            >
               {o.status === "proposed" && (
-                <button onClick={() => draftOne(o.id)}
-                  style={{ padding: "8px 12px", background: "hsl(var(--admin-accent))", border: "none", borderRadius: 6, color: "#1a1208", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                <button
+                  onClick={() => draftOne(o.id)}
+                  style={{
+                    padding: "8px 12px",
+                    background: "hsl(var(--admin-accent))",
+                    border: "none",
+                    borderRadius: 6,
+                    color: "#1a1208",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
                   Draft now
                 </button>
               )}
               {o.status === "rejected" && (
-                <button onClick={() => retry(o.id)}
-                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 12 }}>
+                <button
+                  onClick={() => retry(o.id)}
+                  style={{
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "1px solid hsl(var(--admin-border))",
+                    borderRadius: 6,
+                    color: "hsl(var(--admin-text-soft))",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
                   Retry
                 </button>
               )}
               {o.status !== "rejected" && o.status !== "published" && (
-                <button onClick={() => reject(o.id, "manual reject")}
-                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-ghost))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={() => reject(o.id, "manual reject")}
+                  style={{
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "1px solid hsl(var(--admin-border))",
+                    borderRadius: 6,
+                    color: "hsl(var(--admin-text-ghost))",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
                   <XCircle size={12} /> Reject
                 </button>
               )}
-              <button onClick={() => deleteOpp(o.id)}
-                style={{ padding: "8px 12px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={() => deleteOpp(o.id)}
+                style={{
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "1px solid hsl(var(--admin-danger))",
+                  borderRadius: 6,
+                  color: "hsl(var(--admin-danger))",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
                 <Trash2 size={12} /> Delete
               </button>
             </div>
@@ -458,39 +1141,153 @@ export default function ContentQueue() {
         </div>
       ))}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 32 }}>
-        <h2 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+          marginTop: 32,
+        }}
+      >
+        <h2
+          className="font-heading italic"
+          style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}
+        >
           Latest signals ({items.length})
         </h2>
         {items.length > 0 && (
-          <button onClick={clearAllItems}
-            style={{ padding: "6px 10px", background: "transparent", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: "hsl(var(--admin-danger))", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={clearAllItems}
+            style={{
+              padding: "6px 10px",
+              background: "transparent",
+              border: "1px solid hsl(var(--admin-danger))",
+              borderRadius: 6,
+              color: "hsl(var(--admin-danger))",
+              cursor: "pointer",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <Trash2 size={12} /> Clear all
           </button>
         )}
       </div>
       <div style={cardStyle}>
-        {items.length === 0 && <div style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", textAlign: "center" }}>No news items polled yet.</div>}
+        {items.length === 0 && (
+          <div
+            style={{
+              fontSize: 13,
+              color: "hsl(var(--admin-text-ghost))",
+              textAlign: "center",
+            }}
+          >
+            No news items polled yet.
+          </div>
+        )}
         {items.map((i) => (
-          <div key={i.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid hsl(var(--admin-border))", gap: 12, fontSize: 13, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              <button onClick={() => setEditingId(i.id)}
-                style={{ background: "transparent", border: "none", padding: 0, color: "hsl(var(--admin-text))", cursor: "pointer", fontSize: 13, textAlign: "left" }}>
+          <div
+            key={i.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "8px 0",
+              borderBottom: "1px solid hsl(var(--admin-border))",
+              gap: 12,
+              fontSize: 13,
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <button
+                onClick={() => setEditingId(i.id)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: "hsl(var(--admin-text))",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  textAlign: "left",
+                }}
+              >
                 {i.title || i.url}
               </button>
-              <span style={{ marginLeft: 8, fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>· {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}</span>
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  color: "hsl(var(--admin-text-ghost))",
+                }}
+              >
+                · {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}
+              </span>
             </div>
-            <span style={{ fontSize: 11, color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))", textTransform: "uppercase" }}>{i.status}</span>
-            <button onClick={() => setEditingId(i.id)} title="Edit news article"
-              style={{ background: "transparent", border: "1px solid hsl(var(--admin-border))", color: "hsl(var(--admin-text-soft))", cursor: "pointer", padding: "4px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))",
+                textTransform: "uppercase",
+              }}
+            >
+              {i.status}
+            </span>
+            <button
+              onClick={() => setEditingId(i.id)}
+              title="Edit news article"
+              style={{
+                background: "transparent",
+                border: "1px solid hsl(var(--admin-border))",
+                color: "hsl(var(--admin-text-soft))",
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: 4,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+              }}
+            >
               <Edit3 size={11} /> Edit
             </button>
-            <a href={i.url} target="_blank" rel="noopener" title="Open source"
-              style={{ color: "hsl(var(--admin-text-ghost))", padding: 2, display: "flex", alignItems: "center" }}>
+            <a
+              href={i.url}
+              target="_blank"
+              rel="noopener"
+              title="Open source"
+              style={{
+                color: "hsl(var(--admin-text-ghost))",
+                padding: 2,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <ExternalLink size={12} />
             </a>
-            <button onClick={() => deleteItem(i.id)} title="Delete signal"
-              style={{ background: "transparent", border: "none", color: "hsl(var(--admin-text-ghost))", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+            <button
+              onClick={() => deleteItem(i.id)}
+              title="Delete signal"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "hsl(var(--admin-text-ghost))",
+                cursor: "pointer",
+                padding: 2,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <Trash2 size={12} />
             </button>
           </div>
@@ -498,40 +1295,128 @@ export default function ContentQueue() {
       </div>
 
       {editingId && (
-        <NewsItemEditor itemId={editingId} onClose={() => setEditingId(null)} onSaved={load} />
+        <NewsItemEditor
+          itemId={editingId}
+          onClose={() => setEditingId(null)}
+          onSaved={load}
+        />
       )}
 
       {overrideFor && (
-        <div onClick={() => setOverrideFor(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ background: "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-border))", borderRadius: 8, padding: 24, maxWidth: 520, width: "90%" }}>
-            <h3 className="font-heading italic" style={{ fontSize: 20, color: "hsl(var(--admin-text))", marginBottom: 8 }}>
+        <div
+          onClick={() => setOverrideFor(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "hsl(var(--admin-surface))",
+              border: "1px solid hsl(var(--admin-border))",
+              borderRadius: 8,
+              padding: 24,
+              maxWidth: 520,
+              width: "90%",
+            }}
+          >
+            <h3
+              className="font-heading italic"
+              style={{
+                fontSize: 20,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 8,
+              }}
+            >
               Publish gate blocked this post
             </h3>
-            <p style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))", marginBottom: 12 }}>
-              Fix the issues, or supply an override reason (min 10 characters) to publish anyway. The reason is recorded on the post.
+            <p
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 12,
+              }}
+            >
+              Fix the issues, or supply an override reason (min 10 characters)
+              to publish anyway. The reason is recorded on the post.
             </p>
-            <ul style={{ fontSize: 13, color: "hsl(var(--admin-danger))", marginBottom: 16, paddingLeft: 18 }}>
-              {overrideFor.failures.map((f, i) => <li key={i} style={{ marginBottom: 4 }}>{f}</li>)}
+            <ul
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-danger))",
+                marginBottom: 16,
+                paddingLeft: 18,
+              }}
+            >
+              {overrideFor.failures.map((f, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {f}
+                </li>
+              ))}
             </ul>
             <label className="admin-label">Override reason</label>
-            <textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
-              rows={3} placeholder="Why is it OK to publish this despite the failures?"
-              className="admin-input font-body w-full" style={{ marginBottom: 12, resize: "vertical" as const }} />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setOverrideFor(null)}
-                style={{ padding: "8px 14px", background: "transparent", border: "1px solid hsl(var(--admin-border))", borderRadius: 6, color: "hsl(var(--admin-text-soft))", cursor: "pointer", fontSize: 13 }}>
+            <textarea
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              rows={3}
+              placeholder="Why is it OK to publish this despite the failures?"
+              className="admin-input font-body w-full"
+              style={{ marginBottom: 12, resize: "vertical" as const }}
+            />
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
+              <button
+                onClick={() => setOverrideFor(null)}
+                style={{
+                  padding: "8px 14px",
+                  background: "transparent",
+                  border: "1px solid hsl(var(--admin-border))",
+                  borderRadius: 6,
+                  color: "hsl(var(--admin-text-soft))",
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+              >
                 Cancel
               </button>
-              <button disabled={overrideReason.trim().length < 10 || publishing === overrideFor.postId}
+              <button
+                disabled={
+                  overrideReason.trim().length < 10 ||
+                  publishing === overrideFor.postId
+                }
                 onClick={async () => {
                   const target = overrideFor;
                   const reason = overrideReason;
                   setOverrideFor(null);
                   await publish(target.postId, target.oppId, reason);
                 }}
-                style={{ padding: "8px 14px", background: overrideReason.trim().length >= 10 ? "hsl(var(--admin-danger))" : "hsl(var(--admin-surface))", border: "1px solid hsl(var(--admin-danger))", borderRadius: 6, color: overrideReason.trim().length >= 10 ? "#fff" : "hsl(var(--admin-text-ghost))", cursor: overrideReason.trim().length >= 10 ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}>
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    overrideReason.trim().length >= 10
+                      ? "hsl(var(--admin-danger))"
+                      : "hsl(var(--admin-surface))",
+                  border: "1px solid hsl(var(--admin-danger))",
+                  borderRadius: 6,
+                  color:
+                    overrideReason.trim().length >= 10
+                      ? "#fff"
+                      : "hsl(var(--admin-text-ghost))",
+                  cursor:
+                    overrideReason.trim().length >= 10
+                      ? "pointer"
+                      : "not-allowed",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
                 Publish anyway
               </button>
             </div>

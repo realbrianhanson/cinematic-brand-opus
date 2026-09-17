@@ -26,7 +26,9 @@ describe("configuration validation (fail closed)", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.config.siteUrl).toBe("https://example.com");
-    expect(res.config.confirmUrl).toBe("https://example.com/api/public/newsletter/confirm");
+    expect(res.config.confirmUrl).toBe(
+      "https://example.com/api/public/newsletter/confirm",
+    );
     expect(res.config.unsubscribeUrl).toBe(
       "https://example.com/api/public/newsletter/unsubscribe",
     );
@@ -54,10 +56,17 @@ describe("configuration validation (fail closed)", () => {
   });
 
   it("rejects an unusable site_url", () => {
-    for (const url of ["", "not-a-url", "ftp://example.com", "https://localhost"]) {
+    for (const url of [
+      "",
+      "not-a-url",
+      "ftp://example.com",
+      "https://localhost",
+    ]) {
       expect(normalizeSiteUrl(url)).toBeNull();
     }
-    expect(normalizeSiteUrl("https://example.com/base/")).toBe("https://example.com/base");
+    expect(normalizeSiteUrl("https://example.com/base/")).toBe(
+      "https://example.com/base",
+    );
   });
 
   it("validates senders and emails", () => {
@@ -80,7 +89,7 @@ describe("HTML escaping", () => {
 
   it("never interpolates raw settings into the confirmation email", () => {
     const res = resolveNewsletterConfig(
-      { ...goodSettings, site_name: '<script>alert(1)</script>' },
+      { ...goodSettings, site_name: "<script>alert(1)</script>" },
       "k",
     );
     expect(res.ok).toBe(true);
@@ -98,21 +107,30 @@ describe("public subscribe responses (no enumeration signal)", () => {
     expect(subscribeResponseFor("suppressed")).toEqual(
       subscribeResponseFor("cooldown"),
     );
-    expect(subscribeResponseFor("suppressed").body.state).toBe(
-      "confirmation_already_requested",
-    );
+    expect(subscribeResponseFor("suppressed").body.state).toBe("accepted");
   });
 
-  it("distinguishes a real confirmation send", () => {
-    expect(subscribeResponseFor("confirmation_due").body.state).toBe("confirmation_sent");
-    expect(subscribeResponseFor("already_subscribed").body.state).toBe("already_subscribed");
+  it("uses one accepted response for every valid subscriber state", () => {
+    for (const state of [
+      "confirmation_due",
+      "already_subscribed",
+      "suppressed",
+      "cooldown",
+    ] as const) {
+      expect(subscribeResponseFor(state)).toEqual({
+        status: 200,
+        body: { ok: true, state: "accepted" },
+      });
+    }
     expect(subscribeResponseFor("error").status).toBe(500);
   });
 });
 
 describe("send idempotency", () => {
   it("derives stable keys per week and chunk", () => {
-    expect(buildBatchIdempotencyKey("nl-2026-W10", 0)).toBe("nl-2026-W10-batch-0");
+    expect(buildBatchIdempotencyKey("nl-2026-W10", 0)).toBe(
+      "nl-2026-W10-batch-0",
+    );
     expect(buildBatchIdempotencyKey("nl-2026-W10", 0)).toBe(
       buildBatchIdempotencyKey("nl-2026-W10", 0),
     );

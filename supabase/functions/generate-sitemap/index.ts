@@ -1,3 +1,4 @@
+import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
 // Dynamic sitemap. A reverse proxy maps /sitemap.xml on the site domain to this
 // function. `type=main` returns ONE complete <urlset> with every published URL —
 // search engines reject cross-host sitemap index entries pointing at supabase.co.
@@ -10,10 +11,17 @@ const corsHeaders = {
 };
 
 const escXml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 
 const isoDate = (d: string | null | undefined) =>
-  d ? new Date(d).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+  d
+    ? new Date(d).toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
 
 interface UrlEntry {
   loc: string;
@@ -53,7 +61,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: settings } = await supabase
@@ -62,7 +70,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const siteUrl = (settings?.site_url || "https://brianhanson.com").replace(/\/+$/, "");
+    const siteUrl = normalizeSiteUrl(settings?.site_url);
+    if (!siteUrl) throw new Error("Configure site_settings.site_url");
 
     let xml = "";
     if (type === "resources") {
@@ -86,12 +95,18 @@ Deno.serve(async (req) => {
     console.error("Sitemap generation error:", error);
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?><error>${escXml(error.message || String(error))}</error>`,
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/xml" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/xml" },
+      },
     );
   }
 });
 
-async function mainEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> {
+async function mainEntries(
+  supabase: any,
+  siteUrl: string,
+): Promise<UrlEntry[]> {
   const entries: UrlEntry[] = [];
 
   // Homepage
@@ -102,7 +117,11 @@ async function mainEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> 
     .from("posts")
     .select("slug, updated_at")
     .eq("status", "published");
-  entries.push({ loc: `${siteUrl}/blog`, changefreq: "weekly", priority: "0.8" });
+  entries.push({
+    loc: `${siteUrl}/blog`,
+    changefreq: "weekly",
+    priority: "0.8",
+  });
   for (const p of posts || []) {
     entries.push({
       loc: `${siteUrl}/blog/${p.slug}`,
@@ -113,13 +132,19 @@ async function mainEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> 
   }
 
   // Resources index + content-type lists + generated pages
-  entries.push({ loc: `${siteUrl}/resources`, changefreq: "weekly", priority: "0.8" });
+  entries.push({
+    loc: `${siteUrl}/resources`,
+    changefreq: "weekly",
+    priority: "0.8",
+  });
 
   const { data: schemas } = await supabase
     .from("content_schemas")
     .select("id, slug")
     .eq("is_active", true);
-  const schemaMap = new Map<string, string>((schemas || []).map((s: any) => [s.id, s.slug]));
+  const schemaMap = new Map<string, string>(
+    (schemas || []).map((s: any) => [s.id, s.slug]),
+  );
 
   const { data: pages } = await supabase
     .from("generated_pages")
@@ -167,12 +192,19 @@ async function mainEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> 
   }
 
   // HTML sitemap
-  entries.push({ loc: `${siteUrl}/sitemap`, changefreq: "monthly", priority: "0.4" });
+  entries.push({
+    loc: `${siteUrl}/sitemap`,
+    changefreq: "monthly",
+    priority: "0.4",
+  });
 
   return entries;
 }
 
-async function resourcesEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> {
+async function resourcesEntries(
+  supabase: any,
+  siteUrl: string,
+): Promise<UrlEntry[]> {
   const entries: UrlEntry[] = [
     { loc: `${siteUrl}/resources`, changefreq: "weekly", priority: "0.8" },
   ];
@@ -180,7 +212,9 @@ async function resourcesEntries(supabase: any, siteUrl: string): Promise<UrlEntr
     .from("content_schemas")
     .select("id, slug")
     .eq("is_active", true);
-  const schemaMap = new Map<string, string>((schemas || []).map((s: any) => [s.id, s.slug]));
+  const schemaMap = new Map<string, string>(
+    (schemas || []).map((s: any) => [s.id, s.slug]),
+  );
 
   const { data: pages } = await supabase
     .from("generated_pages")
@@ -194,7 +228,11 @@ async function resourcesEntries(supabase: any, siteUrl: string): Promise<UrlEntr
   );
   for (const s of schemas || []) {
     if (activeSchemaIds.has(s.id)) {
-      entries.push({ loc: `${siteUrl}/resources/${s.slug}`, changefreq: "weekly", priority: "0.7" });
+      entries.push({
+        loc: `${siteUrl}/resources/${s.slug}`,
+        changefreq: "weekly",
+        priority: "0.7",
+      });
     }
   }
 
@@ -211,7 +249,10 @@ async function resourcesEntries(supabase: any, siteUrl: string): Promise<UrlEntr
   return entries;
 }
 
-async function guidesEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> {
+async function guidesEntries(
+  supabase: any,
+  siteUrl: string,
+): Promise<UrlEntry[]> {
   const { data: pillars } = await supabase
     .from("pillar_pages")
     .select("slug, updated_at")
@@ -224,7 +265,10 @@ async function guidesEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]
   }));
 }
 
-async function blogEntries(supabase: any, siteUrl: string): Promise<UrlEntry[]> {
+async function blogEntries(
+  supabase: any,
+  siteUrl: string,
+): Promise<UrlEntry[]> {
   const entries: UrlEntry[] = [
     { loc: `${siteUrl}/blog`, changefreq: "weekly", priority: "0.8" },
   ];

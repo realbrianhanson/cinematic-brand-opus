@@ -63,7 +63,9 @@ describe("live preset", () => {
   it("keeps existing identity and calls to action intact", () => {
     expect(brianPreset.identity.name).toBe("Brian Hanson");
     expect(brianPreset.identity.siteUrl).toBe("https://brianhanson.com");
-    expect(brianPreset.hero.primaryCta?.href).toBe("https://aiforbeginners.com");
+    expect(brianPreset.hero.primaryCta?.href).toBe(
+      "https://aiforbeginners.com",
+    );
     expect(brianPreset.proofBadges.length).toBeGreaterThan(0);
     expect(brianPreset.results.length).toBe(4);
   });
@@ -80,7 +82,7 @@ describe("validation", () => {
       validateSiteConfig({
         ...memberPreset,
         identity: { ...memberPreset.identity, siteUrl: "https://example.com/" },
-      })
+      }),
     ).toThrow(SiteConfigError);
   });
 
@@ -89,7 +91,7 @@ describe("validation", () => {
       validateSiteConfig({
         ...memberPreset,
         metadata: { ...memberPreset.metadata, socialImageUrl: "/og.png" },
-      })
+      }),
     ).toThrow(SiteConfigError);
   });
 
@@ -98,7 +100,7 @@ describe("validation", () => {
       validateSiteConfig({
         ...memberPreset,
         sections: { ...memberPreset.sections, results: true },
-      })
+      }),
     ).toThrow(SiteConfigError);
   });
 
@@ -107,7 +109,7 @@ describe("validation", () => {
       validateSiteConfig({
         ...memberPreset,
         footer: { ...memberPreset.footer, privacyUrl: "javascript:alert(1)" },
-      })
+      }),
     ).toThrow(SiteConfigError);
   });
 });

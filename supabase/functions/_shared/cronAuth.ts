@@ -20,7 +20,10 @@ const VAULT_CRON_SECRET_TTL_MS = 5 * 60 * 1000;
 
 async function getVaultCronSecret(): Promise<string | null> {
   const now = Date.now();
-  if (vaultCronSecret && now - vaultCronSecretFetchedAt < VAULT_CRON_SECRET_TTL_MS) {
+  if (
+    vaultCronSecret &&
+    now - vaultCronSecretFetchedAt < VAULT_CRON_SECRET_TTL_MS
+  ) {
     return vaultCronSecret;
   }
   const url = Deno.env.get("SUPABASE_URL");
@@ -81,7 +84,10 @@ export async function authorizeCronOrAdmin(
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: authHeader } } },
   );
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
+  const {
+    data: { user },
+    error: userErr,
+  } = await anonClient.auth.getUser();
   if (userErr || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,

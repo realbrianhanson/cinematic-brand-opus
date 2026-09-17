@@ -6,10 +6,15 @@ import { getPublicPostsFirstPage } from "@/lib/publicData.functions";
 import { buildPageHead } from "@/lib/seoHead";
 import { absoluteUrl, pageTitle, siteConfig } from "@/config/site";
 
-const DESCRIPTION = `AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from ${siteConfig.identity.name}.`;
+const DESCRIPTION = siteConfig.content.blogDescription;
 
 export const Route = createFileRoute("/blog/")({
-  loader: () => getPublicPostsFirstPage(),
+  validateSearch: (search: Record<string, unknown>) => ({
+    category:
+      typeof search.category === "string" ? search.category.slice(0, 200) : "",
+  }),
+  loaderDeps: ({ search }) => ({ category: search.category }),
+  loader: ({ deps }) => getPublicPostsFirstPage({ data: deps }),
   head: () =>
     buildPageHead({
       title: pageTitle("Articles & Playbooks"),
@@ -18,10 +23,13 @@ export const Route = createFileRoute("/blog/")({
       type: "website",
     }),
   component: BlogRoute,
-  errorComponent: () => <PublicRouteError message="The article list could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="The article list could not be loaded." />
+  ),
 });
 
 function BlogRoute() {
   const firstPage = Route.useLoaderData();
-  return <Blog initialPage={firstPage} />;
+  const { category } = Route.useSearch();
+  return <Blog initialPage={firstPage} category={category} />;
 }

@@ -26,7 +26,9 @@ export async function loadVoiceConfig(supabase: any): Promise<VoiceConfig> {
     .maybeSingle();
   return {
     voice_profile: (data?.voice_profile || "").trim(),
-    banned_phrases: Array.isArray(data?.banned_phrases) ? data.banned_phrases : [],
+    banned_phrases: Array.isArray(data?.banned_phrases)
+      ? data.banned_phrases
+      : [],
   };
 }
 
@@ -39,7 +41,9 @@ export async function loadDefaultExpertPov(supabase: any): Promise<string> {
     .select("default_expert_pov")
     .limit(1)
     .maybeSingle();
-  return typeof data?.default_expert_pov === "string" ? data.default_expert_pov.trim() : "";
+  return typeof data?.default_expert_pov === "string"
+    ? data.default_expert_pov.trim()
+    : "";
 }
 
 /**
@@ -78,7 +82,10 @@ BANNED STRUCTURES (do not use):
  * Lint a piece of text (any string — HTML or plain) for voice violations.
  * Returns all offenses; empty array = clean.
  */
-export function lintContent(text: string, bannedPhrases: string[]): LintViolation[] {
+export function lintContent(
+  text: string,
+  bannedPhrases: string[],
+): LintViolation[] {
   const violations: LintViolation[] = [];
   if (!text || typeof text !== "string") return violations;
 
@@ -153,7 +160,9 @@ export function lintJson(
     return out;
   }
   if (Array.isArray(node)) {
-    node.forEach((v, i) => out.push(...lintJson(v, bannedPhrases, `${path}[${i}]`)));
+    node.forEach((v, i) =>
+      out.push(...lintJson(v, bannedPhrases, `${path}[${i}]`)),
+    );
     return out;
   }
   if (typeof node === "object") {
@@ -179,18 +188,26 @@ export function scoreContent(contentJson: any, title: string): ScoreResult {
   let score = 100;
 
   const intro = contentJson?.intro || "";
-  if (!intro) { score -= 20; issues.push("Missing intro"); }
-  else if (intro.split(/[.!?]+/).filter(Boolean).length < 2) {
-    score -= 10; issues.push("Intro too short (< 2 sentences)");
+  if (!intro) {
+    score -= 20;
+    issues.push("Missing intro");
+  } else if (intro.split(/[.!?]+/).filter(Boolean).length < 2) {
+    score -= 10;
+    issues.push("Intro too short (< 2 sentences)");
   }
 
   const sections = contentJson?.sections || contentJson?.categories || [];
   if (!Array.isArray(sections) || sections.length === 0) {
-    score -= 25; issues.push("No content sections");
+    score -= 25;
+    issues.push("No content sections");
   } else {
     for (const section of sections) {
       const items =
-        section.items || section.tools || section.steps || section.checklist_items || [];
+        section.items ||
+        section.tools ||
+        section.steps ||
+        section.checklist_items ||
+        [];
       if (Array.isArray(items) && items.length < 3) {
         score -= 5;
         issues.push(
@@ -200,13 +217,22 @@ export function scoreContent(contentJson: any, title: string): ScoreResult {
     }
   }
 
-  const faqs = contentJson?.frequently_asked_questions || contentJson?.faq_items || [];
+  const faqs =
+    contentJson?.frequently_asked_questions || contentJson?.faq_items || [];
   if (!Array.isArray(faqs) || faqs.length < 3) {
-    score -= 15; issues.push("Fewer than 3 FAQ items");
+    score -= 15;
+    issues.push("Fewer than 3 FAQ items");
   }
 
   const jsonStr = JSON.stringify(contentJson).toLowerCase();
-  const genericPhrases = ["lorem ipsum", "placeholder", "todo", "tbd", "insert here", "example.com"];
+  const genericPhrases = [
+    "lorem ipsum",
+    "placeholder",
+    "todo",
+    "tbd",
+    "insert here",
+    "example.com",
+  ];
   for (const phrase of genericPhrases) {
     if (jsonStr.includes(phrase)) {
       score -= 10;
@@ -215,19 +241,22 @@ export function scoreContent(contentJson: any, title: string): ScoreResult {
   }
 
   if (!/20\d{2}/.test(title)) {
-    score -= 5; issues.push("Title missing year for freshness");
+    score -= 5;
+    issues.push("Title missing year for freshness");
   }
 
   const tips = contentJson?.pro_tips || [];
   if (!Array.isArray(tips) || tips.length === 0) {
-    score -= 5; issues.push("No pro tips");
+    score -= 5;
+    issues.push("No pro tips");
   }
 
   const strings: string[] = [];
   function extract(obj: any) {
     if (typeof obj === "string") strings.push(obj);
     else if (Array.isArray(obj)) obj.forEach(extract);
-    else if (obj && typeof obj === "object") Object.values(obj).forEach(extract);
+    else if (obj && typeof obj === "object")
+      Object.values(obj).forEach(extract);
   }
   extract(contentJson);
   const wordCount = strings.join(" ").split(/\s+/).filter(Boolean).length;
@@ -253,23 +282,35 @@ export function scorePost(post: {
   const issues: string[] = [];
   let score = 100;
 
-  const stripped = (post.content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const stripped = (post.content || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const wordCount = stripped ? stripped.split(/\s+/).length : 0;
   if (wordCount < 800) {
     score -= 20;
     issues.push(`Post too thin: ${wordCount} words (minimum 800)`);
   }
 
-  if (!post.tldr) { score -= 5; issues.push("Missing TL;DR"); }
-  if (!post.excerpt) { score -= 5; issues.push("Missing excerpt"); }
+  if (!post.tldr) {
+    score -= 5;
+    issues.push("Missing TL;DR");
+  }
+  if (!post.excerpt) {
+    score -= 5;
+    issues.push("Missing excerpt");
+  }
   if (!Array.isArray(post.key_takeaways) || post.key_takeaways.length < 3) {
-    score -= 10; issues.push("Fewer than 3 key takeaways");
+    score -= 10;
+    issues.push("Fewer than 3 key takeaways");
   }
   if (!Array.isArray(post.faq_items) || post.faq_items.length < 3) {
-    score -= 15; issues.push("Fewer than 3 FAQ items");
+    score -= 15;
+    issues.push("Fewer than 3 FAQ items");
   }
   if (!/20\d{2}/.test(post.title || "")) {
-    score -= 5; issues.push("Title missing year for freshness");
+    score -= 5;
+    issues.push("Title missing year for freshness");
   }
 
   return { score: Math.max(0, score), issues };
@@ -334,7 +375,11 @@ Return the revised JSON object with the same schema.`;
 
     if (!resp.ok) {
       const errText = await resp.text();
-      return { revised: params.draftJson, tokensUsed: 0, error: `revise ${resp.status}: ${errText.slice(0, 200)}` };
+      return {
+        revised: params.draftJson,
+        tokensUsed: 0,
+        error: `revise ${resp.status}: ${errText.slice(0, 200)}`,
+      };
     }
 
     const data = await resp.json();
@@ -344,10 +389,18 @@ Return the revised JSON object with the same schema.`;
       const revised = JSON.parse(extractJson(raw));
       return { revised, tokensUsed };
     } catch (e: any) {
-      return { revised: params.draftJson, tokensUsed, error: `revise parse: ${e.message}` };
+      return {
+        revised: params.draftJson,
+        tokensUsed,
+        error: `revise parse: ${e.message}`,
+      };
     }
   } catch (e: any) {
-    return { revised: params.draftJson, tokensUsed: 0, error: `revise threw: ${e.message}` };
+    return {
+      revised: params.draftJson,
+      tokensUsed: 0,
+      error: `revise threw: ${e.message}`,
+    };
   }
 }
 
@@ -407,7 +460,11 @@ Return the revised JSON with only those violations fixed.`;
     });
 
     if (!resp.ok) {
-      return { revised: params.draftJson, tokensUsed: 0, error: `fix ${resp.status}` };
+      return {
+        revised: params.draftJson,
+        tokensUsed: 0,
+        error: `fix ${resp.status}`,
+      };
     }
 
     const data = await resp.json();
@@ -417,10 +474,18 @@ Return the revised JSON with only those violations fixed.`;
       const revised = JSON.parse(extractJson(raw));
       return { revised, tokensUsed };
     } catch (e: any) {
-      return { revised: params.draftJson, tokensUsed, error: `fix parse: ${e.message}` };
+      return {
+        revised: params.draftJson,
+        tokensUsed,
+        error: `fix parse: ${e.message}`,
+      };
     }
   } catch (e: any) {
-    return { revised: params.draftJson, tokensUsed: 0, error: `fix threw: ${e.message}` };
+    return {
+      revised: params.draftJson,
+      tokensUsed: 0,
+      error: `fix threw: ${e.message}`,
+    };
   }
 }
 
@@ -491,7 +556,11 @@ export async function refineWithVoice(params: {
  * Compose "Page Title | Site Name" but drop the suffix entirely if it would
  * push past ~65 chars. Never cut mid-word.
  */
-export function composeTitle(pageTitle: string, siteName: string, maxLen = 65): string {
+export function composeTitle(
+  pageTitle: string,
+  siteName: string,
+  maxLen = 65,
+): string {
   const t = (pageTitle || "").trim();
   const s = (siteName || "").trim();
   if (!t) return s;
@@ -541,7 +610,7 @@ const TITLE_PATTERNS: Record<string, string[]> = {
     "{angle}: {n} Tools Worth Paying For in {year}",
     "The {n} Top {angle} for {audience} ({year})",
   ],
-  "checklists": [
+  checklists: [
     "The {angle} Checklist: {n} Steps",
     "{angle}: A {n}-Point Checklist for {audience}",
     "{angle} Checklist for {year}",
@@ -556,18 +625,15 @@ const TITLE_PATTERNS: Record<string, string[]> = {
     "{n} Ways to Use {angle}",
     "{angle}: {n} Real Use Cases for {audience}",
   ],
-  "guides": [
+  guides: [
     "How to {angle}: A Practical Guide",
     "{angle}: The {audience} Guide",
   ],
-  "templates": [
+  templates: [
     "{n} {angle} Templates for {audience}",
     "{angle}: {n} Ready-to-Use Templates",
   ],
-  "faqs": [
-    "{angle}: FAQ for {audience}",
-    "Common Questions About {angle}",
-  ],
+  faqs: ["{angle}: FAQ for {audience}", "Common Questions About {angle}"],
 };
 
 const FALLBACK_PATTERNS_WITH_N = [
@@ -592,13 +658,24 @@ export function composePageTitle(params: {
   actualCount: number;
   overridePatterns?: string[];
 }): string {
-  const { schemaSlug, angle, niche, audience, year, actualCount, overridePatterns } = params;
+  const {
+    schemaSlug,
+    angle,
+    niche,
+    audience,
+    year,
+    actualCount,
+    overridePatterns,
+  } = params;
   const hasCount = actualCount >= 10;
   const rawPatterns =
     overridePatterns && overridePatterns.length
       ? overridePatterns
-      : TITLE_PATTERNS[schemaSlug] || (hasCount ? FALLBACK_PATTERNS_WITH_N : FALLBACK_PATTERNS_NO_N);
-  const pool = hasCount ? rawPatterns : rawPatterns.filter((p) => !p.includes("{n}"));
+      : TITLE_PATTERNS[schemaSlug] ||
+        (hasCount ? FALLBACK_PATTERNS_WITH_N : FALLBACK_PATTERNS_NO_N);
+  const pool = hasCount
+    ? rawPatterns
+    : rawPatterns.filter((p) => !p.includes("{n}"));
   const patterns = pool.length ? pool : FALLBACK_PATTERNS_NO_N;
   const idx = hash(`${niche}|${schemaSlug}|${angle}`) % patterns.length;
   const tpl = patterns[idx];
@@ -629,7 +706,16 @@ export async function writeMetaDescription(params: {
   niche: string;
   fallback: string;
 }): Promise<string> {
-  const { apiKey, model, voice, contentJson, primaryKeyword, angle, niche, fallback } = params;
+  const {
+    apiKey,
+    model,
+    voice,
+    contentJson,
+    primaryKeyword,
+    angle,
+    niche,
+    fallback,
+  } = params;
 
   // Compact content sample for the prompt: intro + first section headings + first few item names
   const sample: any = { intro: contentJson?.intro || "" };
@@ -647,7 +733,18 @@ export async function writeMetaDescription(params: {
       [];
     return {
       title: s?.title || s?.heading || s?.name,
-      items: kids.slice(0, 4).map((k: any) => k?.name || k?.title || k?.tool_name || k?.idea || k?.step || k?.task).filter(Boolean),
+      items: kids
+        .slice(0, 4)
+        .map(
+          (k: any) =>
+            k?.name ||
+            k?.title ||
+            k?.tool_name ||
+            k?.idea ||
+            k?.step ||
+            k?.task,
+        )
+        .filter(Boolean),
     };
   });
 
@@ -673,11 +770,18 @@ Return ONLY the meta description text. No JSON, no quotes, no preamble.`;
   try {
     const resp = await fetch(AI_GATEWAY, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: "You write tight, honest meta descriptions. Return only the description text." },
+          {
+            role: "system",
+            content:
+              "You write tight, honest meta descriptions. Return only the description text.",
+          },
           { role: "user", content: prompt },
         ],
         temperature: 0.5,

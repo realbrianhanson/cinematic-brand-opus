@@ -1,3 +1,4 @@
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useEffect, useRef } from "react";
 
 interface TrailPoint {
@@ -7,6 +8,7 @@ interface TrailPoint {
 }
 
 const CustomCursor = () => {
+  const prefs = useMediaPreferences();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,6 +18,7 @@ const CustomCursor = () => {
   const trail = useRef<TrailPoint[]>([]);
 
   useEffect(() => {
+    if (!prefs.resolved || prefs.lightMode) return;
     const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouch) return;
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -38,10 +41,12 @@ const CustomCursor = () => {
       mouse.current.y = e.clientY;
     };
     const onOver = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest("a, button, [data-hover]")) hovering.current = true;
+      if ((e.target as HTMLElement).closest("a, button, [data-hover]"))
+        hovering.current = true;
     };
     const onOut = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest("a, button, [data-hover]")) hovering.current = false;
+      if ((e.target as HTMLElement).closest("a, button, [data-hover]"))
+        hovering.current = false;
     };
 
     window.addEventListener("mousemove", onMove);
@@ -65,7 +70,11 @@ const CustomCursor = () => {
       }
 
       // Trail
-      trail.current.push({ x: mouse.current.x, y: mouse.current.y, alpha: 0.4 });
+      trail.current.push({
+        x: mouse.current.x,
+        y: mouse.current.y,
+        alpha: 0.4,
+      });
       if (trail.current.length > 25) trail.current.shift();
 
       if (ctx && canvas) {
@@ -97,7 +106,9 @@ const CustomCursor = () => {
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mouseout", onOut);
     };
-  }, []);
+  }, [prefs.resolved, prefs.lightMode]);
+
+  if (!prefs.resolved || prefs.lightMode) return null;
 
   return (
     <>
@@ -109,12 +120,27 @@ const CustomCursor = () => {
       <div
         ref={dotRef}
         className="fixed top-0 left-0 pointer-events-none hidden lg:block"
-        style={{ width: 8, height: 8, borderRadius: "50%", background: "#D4AF55", zIndex: 9999 }}
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: "var(--brand-accent)",
+          zIndex: 9999,
+        }}
       />
       <div
         ref={ringRef}
         className="fixed top-0 left-0 pointer-events-none hidden lg:block"
-        style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid #D4AF55", opacity: 0.35, zIndex: 9998, transition: "opacity 0.2s, transform 0.15s", willChange: "transform, opacity" }}
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          border: "1px solid var(--brand-accent)",
+          opacity: 0.35,
+          zIndex: 9998,
+          transition: "opacity 0.2s, transform 0.15s",
+          willChange: "transform, opacity",
+        }}
       />
     </>
   );

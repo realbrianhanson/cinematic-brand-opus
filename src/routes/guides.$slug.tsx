@@ -2,7 +2,10 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import PillarPage from "@/pages/PillarPage";
 import PublicRouteError from "@/components/PublicRouteError";
-import { getPublicPillarBySlug, getPublicSiteSettings } from "@/lib/publicData.functions";
+import {
+  getPublicPillarBySlug,
+  getPublicSiteSettings,
+} from "@/lib/publicData.functions";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
@@ -61,7 +64,9 @@ export const Route = createFileRoute("/guides/$slug")({
     });
   },
   component: GuideRoute,
-  errorComponent: () => <PublicRouteError message="This guide could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="This guide could not be loaded." />
+  ),
   notFoundComponent: () => <PillarPage />,
 });
 

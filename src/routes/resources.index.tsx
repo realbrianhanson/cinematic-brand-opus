@@ -2,12 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import ResourcesIndex from "@/pages/ResourcesIndex";
 import PublicRouteError from "@/components/PublicRouteError";
-import { getPublicResourceIndex, getPublicSiteSettings } from "@/lib/publicData.functions";
-import { breadcrumbJsonLd, buildPageHead, compactJsonLd, websiteJsonLd } from "@/lib/seoHead";
-import { absoluteUrl, pageTitle } from "@/config/site";
+import {
+  getPublicResourceIndex,
+  getPublicSiteSettings,
+} from "@/lib/publicData.functions";
+import {
+  breadcrumbJsonLd,
+  buildPageHead,
+  compactJsonLd,
+  websiteJsonLd,
+} from "@/lib/seoHead";
+import { absoluteUrl, pageTitle, siteConfig } from "@/config/site";
 
-const DESCRIPTION =
-  "Actionable guides, checklists, templates, and tools organized by industry.";
+const DESCRIPTION = siteConfig.content.resourceDescription;
 
 export const Route = createFileRoute("/resources/")({
   loader: async () => {
@@ -32,7 +39,9 @@ export const Route = createFileRoute("/resources/")({
       ]),
     }),
   component: ResourcesIndexRoute,
-  errorComponent: () => <PublicRouteError message="The resource library could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="The resource library could not be loaded." />
+  ),
 });
 
 function ResourcesIndexRoute() {

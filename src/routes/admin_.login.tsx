@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import PublicPageSkeleton from "@/components/PublicPageSkeleton";
 import AdminLogin from "@/components/admin/AdminLogin";
 
-export const Route = createFileRoute("/admin/login")({
+export const Route = createFileRoute("/admin_/login")({
   component: () => (
     <Suspense fallback={<PublicPageSkeleton />}>
       <AdminLogin />

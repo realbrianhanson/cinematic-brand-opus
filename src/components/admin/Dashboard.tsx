@@ -1,10 +1,24 @@
+import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, Eye, Pencil, Clock, AlertTriangle, RefreshCw, Loader2, Globe, Send, Mail } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Eye,
+  Pencil,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+  Loader2,
+  Globe,
+  Send,
+  Mail,
+} from "lucide-react";
 import BriansNotesWidget from "./BriansNotesWidget";
 import NewsletterPreviewCard from "./NewsletterPreviewCard";
 
@@ -20,11 +34,25 @@ const Dashboard = () => {
     queryFn: async () => {
       const [all, published, drafts, scheduled] = await Promise.all([
         supabase.from("posts").select("*", { count: "exact", head: true }),
-        supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "published"),
-        supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "draft"),
-        supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "scheduled"),
+        supabase
+          .from("posts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "published"),
+        supabase
+          .from("posts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "draft"),
+        supabase
+          .from("posts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "scheduled"),
       ]);
-      return { total: all.count ?? 0, published: published.count ?? 0, drafts: drafts.count ?? 0, scheduled: scheduled.count ?? 0 };
+      return {
+        total: all.count ?? 0,
+        published: published.count ?? 0,
+        drafts: drafts.count ?? 0,
+        scheduled: scheduled.count ?? 0,
+      };
     },
   });
 
@@ -44,26 +72,55 @@ const Dashboard = () => {
     queryKey: ["admin-newsletter-subscriber-stats"],
     queryFn: async () => {
       const [confirmed, pending] = await Promise.all([
-        supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
-        supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase
+          .from("newsletter_subscribers")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "confirmed"),
+        supabase
+          .from("newsletter_subscribers")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending"),
       ]);
       return { confirmed: confirmed.count ?? 0, pending: pending.count ?? 0 };
     },
   });
 
-  const stats = useMemo(() => [
-    { label: "Total Posts", value: postStats?.total ?? 0, icon: FileText, color: "#d4a843" },
-    { label: "Published", value: postStats?.published ?? 0, icon: Eye, color: "#4ade80" },
-    { label: "Drafts", value: postStats?.drafts ?? 0, icon: Pencil, color: "#facc15" },
-    { label: "Scheduled", value: postStats?.scheduled ?? 0, icon: Clock, color: "#60a5fa" },
-    {
-      label: "Newsletter subscribers",
-      value: `${subscriberStats?.confirmed ?? 0} / ${subscriberStats?.pending ?? 0}`,
-      subLabel: "confirmed / pending",
-      icon: Mail,
-      color: "#B8962E",
-    },
-  ], [postStats, subscriberStats]);
+  const stats = useMemo(
+    () => [
+      {
+        label: "Total Posts",
+        value: postStats?.total ?? 0,
+        icon: FileText,
+        color: "#d4a843",
+      },
+      {
+        label: "Published",
+        value: postStats?.published ?? 0,
+        icon: Eye,
+        color: "#4ade80",
+      },
+      {
+        label: "Drafts",
+        value: postStats?.drafts ?? 0,
+        icon: Pencil,
+        color: "#facc15",
+      },
+      {
+        label: "Scheduled",
+        value: postStats?.scheduled ?? 0,
+        icon: Clock,
+        color: "#60a5fa",
+      },
+      {
+        label: "Newsletter subscribers",
+        value: `${subscriberStats?.confirmed ?? 0} / ${subscriberStats?.pending ?? 0}`,
+        subLabel: "confirmed / pending",
+        icon: Mail,
+        color: "#B8962E",
+      },
+    ],
+    [postStats, subscriberStats],
+  );
 
   // Stale pages query
   const { data: staleCount } = useQuery({
@@ -86,25 +143,44 @@ const Dashboard = () => {
         .select("id, page_url, submitted_at, status")
         .order("submitted_at", { ascending: false })
         .limit(10);
-      const { count: totalSubmitted } = await supabase.from("indexing_log").select("*", { count: "exact", head: true });
-      const { count: totalIndexed } = await supabase.from("indexing_log").select("*", { count: "exact", head: true }).eq("status", "indexed");
-      return { recent: data ?? [], submitted: totalSubmitted ?? 0, indexed: totalIndexed ?? 0 };
+      const { count: totalSubmitted } = await supabase
+        .from("indexing_log")
+        .select("*", { count: "exact", head: true });
+      const { count: totalIndexed } = await supabase
+        .from("indexing_log")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "indexed");
+      return {
+        recent: data ?? [],
+        submitted: totalSubmitted ?? 0,
+        indexed: totalIndexed ?? 0,
+      };
     },
   });
 
   const handleAutoRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("refresh-stale-content", {
-        body: { all_stale: true },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "refresh-stale-content",
+        {
+          body: { all_stale: true },
+        },
+      );
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Refresh complete", description: `${data.refreshed} pages refreshed.` });
+      toast({
+        title: "Refresh complete",
+        description: `${data.refreshed} pages refreshed.`,
+      });
       qc.invalidateQueries({ queryKey: ["admin-stale-pages-count"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-    } catch (e: any) {
-      toast({ title: "Refresh failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Refresh failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setRefreshing(false);
     }
@@ -113,17 +189,24 @@ const Dashboard = () => {
   const handleSubmitIndexing = useCallback(async () => {
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("submit-indexnow", {
-        body: { all_unsubmitted: true },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "submit-indexnow",
+        {
+          body: { all_unsubmitted: true },
+        },
+      );
       if (error) throw error;
       toast({
         title: "Indexing submitted",
         description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
       });
       qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
-    } catch (e: any) {
-      toast({ title: "Submit failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({
+        title: "Submit failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -144,9 +227,20 @@ const Dashboard = () => {
           }}
         >
           <div className="flex items-center gap-3">
-            <AlertTriangle size={18} style={{ color: "hsl(var(--admin-accent))" }} />
-            <span className="font-body" style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
-              {staleCount} page{staleCount !== 1 ? "s" : ""} need content refresh (90+ days old)
+            <AlertTriangle
+              size={18}
+              style={{ color: "hsl(var(--admin-accent))" }}
+            />
+            <span
+              className="font-body"
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
+              {staleCount} page{staleCount !== 1 ? "s" : ""} need content
+              refresh (90+ days old)
             </span>
           </div>
           <div className="flex gap-2">
@@ -164,9 +258,13 @@ const Dashboard = () => {
               style={{ fontSize: 12, padding: "6px 14px" }}
             >
               {refreshing ? (
-                <><Loader2 size={14} className="animate-spin" /> Refreshing...</>
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Refreshing...
+                </>
               ) : (
-                <><RefreshCw size={14} /> Auto-Refresh All</>
+                <>
+                  <RefreshCw size={14} /> Auto-Refresh All
+                </>
               )}
             </button>
           </div>
@@ -174,12 +272,29 @@ const Dashboard = () => {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 32 }}>
+      <div
+        className="flex items-center justify-between flex-wrap gap-4"
+        style={{ marginBottom: 32 }}
+      >
         <div>
-          <h1 className="font-body" style={{ fontSize: 28, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+          <h1
+            className="font-body"
+            style={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: "hsl(var(--admin-text))",
+            }}
+          >
             Dashboard
           </h1>
-          <p className="font-body" style={{ fontSize: 14, color: "hsl(var(--admin-text-soft))", marginTop: 4 }}>
+          <p
+            className="font-body"
+            style={{
+              fontSize: 14,
+              color: "hsl(var(--admin-text-soft))",
+              marginTop: 4,
+            }}
+          >
             Welcome to your blog admin panel
           </p>
         </div>
@@ -203,24 +318,47 @@ const Dashboard = () => {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4" style={{ gap: 16, marginBottom: 32 }}>
+      <div
+        className="grid grid-cols-2 lg:grid-cols-4"
+        style={{ gap: 16, marginBottom: 32 }}
+      >
         {stats.map((s) => (
           <div
             key={s.label}
             className="admin-card"
             style={{ padding: "20px 20px" }}
           >
-            <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-              <span className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginBottom: 16 }}
+            >
+              <span
+                className="font-body"
+                style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+              >
                 {s.label}
               </span>
               <s.icon size={18} style={{ color: s.color }} strokeWidth={1.5} />
             </div>
-            <span className="font-body block" style={{ fontSize: 32, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+            <span
+              className="font-body block"
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
               {s.value}
             </span>
             {"subLabel" in s && s.subLabel ? (
-              <span className="font-body block" style={{ fontSize: 11, marginTop: 4, color: "hsl(var(--admin-text-soft))" }}>
+              <span
+                className="font-body block"
+                style={{
+                  fontSize: 11,
+                  marginTop: 4,
+                  color: "hsl(var(--admin-text-soft))",
+                }}
+              >
                 {s.subLabel}
               </span>
             ) : null}
@@ -236,8 +374,6 @@ const Dashboard = () => {
       {/* Weekly newsletter preview (Monday compose → Tuesday send) */}
       <NewsletterPreviewCard />
 
-
-
       {/* Recent posts */}
       <div className="admin-card" style={{ overflow: "hidden" }}>
         <div
@@ -247,13 +383,25 @@ const Dashboard = () => {
             borderBottom: "1px solid hsl(var(--admin-border))",
           }}
         >
-          <span className="font-body" style={{ fontSize: 16, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+          <span
+            className="font-body"
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "hsl(var(--admin-text))",
+            }}
+          >
             Recent Posts
           </span>
           <Link
             to="/admin/posts"
             className="font-body"
-            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))", textDecoration: "none", fontWeight: 500 }}
+            style={{
+              fontSize: 13,
+              color: "hsl(var(--admin-text-soft))",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
           >
             View All
           </Link>
@@ -261,7 +409,10 @@ const Dashboard = () => {
 
         {recentPosts?.length === 0 && (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}>
+            <p
+              className="font-body"
+              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
+            >
               No posts yet. Create your first one!
             </p>
           </div>
@@ -276,15 +427,35 @@ const Dashboard = () => {
               borderBottom: "1px solid hsl(var(--admin-border))",
               transition: "background-color 0.15s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(var(--admin-surface-2))")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor =
+                "hsl(var(--admin-surface-2))")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "transparent")
+            }
           >
             <div className="min-w-0 flex-1">
-              <span className="font-body block truncate" style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--admin-text))" }}>
+              <span
+                className="font-body block truncate"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "hsl(var(--admin-text))",
+                }}
+              >
                 {post.title}
               </span>
-              <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
-                Updated {new Date(post.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <span
+                className="font-body"
+                style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
+              >
+                Updated{" "}
+                {new Date(post.updated_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -295,7 +466,10 @@ const Dashboard = () => {
                   fontWeight: 600,
                   padding: "4px 12px",
                   borderRadius: 4,
-                  background: post.status === "published" ? "rgba(74, 222, 128, 0.12)" : "rgba(250, 204, 21, 0.12)",
+                  background:
+                    post.status === "published"
+                      ? "rgba(74, 222, 128, 0.12)"
+                      : "rgba(250, 204, 21, 0.12)",
                   color: post.status === "published" ? "#4ade80" : "#facc15",
                 }}
               >
@@ -310,17 +484,31 @@ const Dashboard = () => {
       <div className="admin-card" style={{ overflow: "hidden", marginTop: 24 }}>
         <div
           className="flex items-center justify-between"
-          style={{ padding: "18px 24px", borderBottom: "1px solid hsl(var(--admin-border))" }}
+          style={{
+            padding: "18px 24px",
+            borderBottom: "1px solid hsl(var(--admin-border))",
+          }}
         >
           <div className="flex items-center gap-2">
             <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-            <span className="font-body" style={{ fontSize: 16, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+            <span
+              className="font-body"
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
               Indexing Status
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
-              {indexingStats?.submitted ?? 0} submitted · {indexingStats?.indexed ?? 0} indexed
+            <span
+              className="font-body"
+              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
+            >
+              {indexingStats?.submitted ?? 0} submitted ·{" "}
+              {indexingStats?.indexed ?? 0} indexed
             </span>
             <button
               onClick={handleSubmitIndexing}
@@ -328,36 +516,78 @@ const Dashboard = () => {
               className="admin-btn-ghost flex items-center gap-2"
               style={{ fontSize: 11, padding: "5px 12px" }}
             >
-              {submitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+              {submitting ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Send size={12} />
+              )}
               {submitting ? "Submitting..." : "Submit All Unsubmitted"}
             </button>
           </div>
         </div>
-        {(!indexingStats?.recent || indexingStats.recent.length === 0) ? (
+        {!indexingStats?.recent || indexingStats.recent.length === 0 ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}>
+            <p
+              className="font-body"
+              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
+            >
               No pages submitted yet. Publish pages to start indexing.
             </p>
           </div>
         ) : (
           <div>
             {/* Header */}
-            <div className="hidden lg:grid" style={{ gridTemplateColumns: "1fr 150px 100px", padding: "8px 24px", backgroundColor: "hsl(var(--admin-surface-2))", borderBottom: "1px solid hsl(var(--admin-border))" }}>
-              <span className="admin-label" style={{ marginBottom: 0 }}>URL</span>
-              <span className="admin-label" style={{ marginBottom: 0 }}>Submitted</span>
-              <span className="admin-label" style={{ marginBottom: 0 }}>Status</span>
+            <div
+              className="hidden lg:grid"
+              style={{
+                gridTemplateColumns: "1fr 150px 100px",
+                padding: "8px 24px",
+                backgroundColor: "hsl(var(--admin-surface-2))",
+                borderBottom: "1px solid hsl(var(--admin-border))",
+              }}
+            >
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                URL
+              </span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                Submitted
+              </span>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
+                Status
+              </span>
             </div>
-            {indexingStats.recent.map((log: any) => (
+            {indexingStats.recent.map((log) => (
               <div
                 key={log.id}
                 className="lg:grid flex flex-col"
-                style={{ gridTemplateColumns: "1fr 150px 100px", padding: "10px 24px", borderBottom: "1px solid hsl(var(--admin-border))", alignItems: "center" }}
+                style={{
+                  gridTemplateColumns: "1fr 150px 100px",
+                  padding: "10px 24px",
+                  borderBottom: "1px solid hsl(var(--admin-border))",
+                  alignItems: "center",
+                }}
               >
-                <span className="font-body truncate" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+                <span
+                  className="font-body truncate"
+                  style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+                >
                   {log.page_url}
                 </span>
-                <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
-                  {new Date(log.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                <span
+                  className="font-body"
+                  style={{
+                    fontSize: 11,
+                    color: "hsl(var(--admin-text-ghost))",
+                  }}
+                >
+                  {log.submitted_at
+                    ? new Date(log.submitted_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
                 </span>
                 <span
                   className="font-body"
@@ -368,8 +598,14 @@ const Dashboard = () => {
                     borderRadius: 4,
                     width: "fit-content",
                     textTransform: "capitalize",
-                    background: log.status === "indexed" ? "hsl(var(--admin-sage) / 0.12)" : "hsl(var(--admin-accent) / 0.12)",
-                    color: log.status === "indexed" ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))",
+                    background:
+                      log.status === "indexed"
+                        ? "hsl(var(--admin-sage) / 0.12)"
+                        : "hsl(var(--admin-accent) / 0.12)",
+                    color:
+                      log.status === "indexed"
+                        ? "hsl(var(--admin-sage))"
+                        : "hsl(var(--admin-accent))",
                   }}
                 >
                   {log.status}

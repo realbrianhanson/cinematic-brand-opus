@@ -2,7 +2,10 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import ContentTypeList from "@/pages/ContentTypeList";
 import PublicRouteError from "@/components/PublicRouteError";
-import { getPublicContentType, getPublicSiteSettings } from "@/lib/publicData.functions";
+import {
+  getPublicContentType,
+  getPublicSiteSettings,
+} from "@/lib/publicData.functions";
 import {
   breadcrumbJsonLd,
   buildPageHead,
@@ -29,7 +32,8 @@ export const Route = createFileRoute("/resources/$contentType/")({
     return buildPageHead({
       title: pageTitle(schema.name),
       description:
-        schema.description || `Browse ${schema.name} resources organized by industry.`,
+        schema.description ||
+        `Browse ${schema.name} resources organized by industry.`,
       url,
       type: "website",
       jsonLd: compactJsonLd([
@@ -44,7 +48,9 @@ export const Route = createFileRoute("/resources/$contentType/")({
     });
   },
   component: ContentTypeRoute,
-  errorComponent: () => <PublicRouteError message="This resource list could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="This resource list could not be loaded." />
+  ),
   notFoundComponent: () => <ContentTypeList />,
 });
 

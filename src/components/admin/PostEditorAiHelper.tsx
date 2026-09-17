@@ -23,32 +23,78 @@ const scoreColor = (score: number, max: number) =>
   score >= max * 0.66 ? "admin-sage" : "admin-accent";
 
 const PostEditorAiHelper = ({
-  aeoScore, seoScore,
+  aeoScore,
+  seoScore,
   criteria,
-  aiGenerating, enhancing, hasGenerated, canGenerate,
-  onGenerate, onEnhance,
+  aiGenerating,
+  enhancing,
+  hasGenerated,
+  canGenerate,
+  onGenerate,
+  onEnhance,
 }: PostEditorAiHelperProps) => {
-  const overall = Math.round(((aeoScore / 6) * 50) + ((seoScore / 4) * 50));
-  const overallColor = overall >= 75 ? "admin-sage" : overall >= 40 ? "admin-accent" : "admin-danger";
-  const done = criteria.filter(c => c.done).length;
+  const overall = Math.round((aeoScore / 6) * 50 + (seoScore / 4) * 50);
+  const overallColor =
+    overall >= 75
+      ? "admin-sage"
+      : overall >= 40
+        ? "admin-accent"
+        : "admin-danger";
+  const done = criteria.filter((c) => c.done).length;
   const total = criteria.length;
 
   return (
     <div className="admin-card" style={{ padding: 20 }}>
       <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
         <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
-        <span className="admin-label" style={{ marginBottom: 0 }}>AI Helper</span>
+        <span className="admin-label" style={{ marginBottom: 0 }}>
+          AI Helper
+        </span>
       </div>
-      <p className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))", marginBottom: 14, lineHeight: 1.5 }}>
-        Generate all AEO/GEO &amp; SEO fields in one click based on your post content.
+      <p
+        className="font-body"
+        style={{
+          fontSize: 11,
+          color: "hsl(var(--admin-text-ghost))",
+          marginBottom: 14,
+          lineHeight: 1.5,
+        }}
+      >
+        Generate all AEO/GEO &amp; SEO fields in one click based on your post
+        content.
       </p>
 
       {/* Overall Score Ring */}
       <div style={{ marginBottom: 16, textAlign: "center" }}>
-        <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 10px" }}>
-          <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--admin-surface-2))" strokeWidth="2.8" />
-            <circle cx="18" cy="18" r="15.9" fill="none"
+        <div
+          style={{
+            position: "relative",
+            width: 100,
+            height: 100,
+            margin: "0 auto 10px",
+          }}
+        >
+          <svg
+            viewBox="0 0 36 36"
+            style={{
+              width: "100%",
+              height: "100%",
+              transform: "rotate(-90deg)",
+            }}
+          >
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9"
+              fill="none"
+              stroke="hsl(var(--admin-surface-2))"
+              strokeWidth="2.8"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9"
+              fill="none"
               stroke={`hsl(var(--${overallColor}))`}
               strokeWidth="2.8"
               strokeDasharray={`${overall} ${100 - overall}`}
@@ -56,55 +102,205 @@ const PostEditorAiHelper = ({
               style={{ transition: "stroke-dasharray 0.5s ease" }}
             />
           </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <span className="font-heading" style={{ fontSize: 24, color: `hsl(var(--${overallColor}))`, lineHeight: 1 }}>{overall}</span>
-            <span className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}>/ 100</span>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span
+              className="font-heading"
+              style={{
+                fontSize: 24,
+                color: `hsl(var(--${overallColor}))`,
+                lineHeight: 1,
+              }}
+            >
+              {overall}
+            </span>
+            <span
+              className="font-body"
+              style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}
+            >
+              / 100
+            </span>
           </div>
         </div>
-        <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <p
+          className="font-body"
+          style={{
+            fontSize: 10,
+            color: "hsl(var(--admin-text-ghost))",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
           Overall Score
         </p>
       </div>
 
       {/* Score Breakdown */}
       <div className="flex gap-3" style={{ marginBottom: 14 }}>
-        <div style={{ flex: 1, backgroundColor: "hsl(var(--admin-surface-2))", borderRadius: 4, padding: "10px 12px", textAlign: "center" }}>
-          <p className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>AEO/GEO</p>
-          <span className="font-heading" style={{ fontSize: 20, color: `hsl(var(--${scoreColor(aeoScore, 6)}))` }}>{aeoScore}</span>
-          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>/6</span>
+        <div
+          style={{
+            flex: 1,
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            borderRadius: 4,
+            padding: "10px 12px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            className="font-body"
+            style={{
+              fontSize: 9,
+              color: "hsl(var(--admin-text-ghost))",
+              marginBottom: 4,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            AEO/GEO
+          </p>
+          <span
+            className="font-heading"
+            style={{
+              fontSize: 20,
+              color: `hsl(var(--${scoreColor(aeoScore, 6)}))`,
+            }}
+          >
+            {aeoScore}
+          </span>
+          <span
+            className="font-body"
+            style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+          >
+            /6
+          </span>
         </div>
-        <div style={{ flex: 1, backgroundColor: "hsl(var(--admin-surface-2))", borderRadius: 4, padding: "10px 12px", textAlign: "center" }}>
-          <p className="font-body" style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>SEO</p>
-          <span className="font-heading" style={{ fontSize: 20, color: `hsl(var(--${scoreColor(seoScore, 4)}))` }}>{seoScore}</span>
-          <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>/4</span>
+        <div
+          style={{
+            flex: 1,
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            borderRadius: 4,
+            padding: "10px 12px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            className="font-body"
+            style={{
+              fontSize: 9,
+              color: "hsl(var(--admin-text-ghost))",
+              marginBottom: 4,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            SEO
+          </p>
+          <span
+            className="font-heading"
+            style={{
+              fontSize: 20,
+              color: `hsl(var(--${scoreColor(seoScore, 4)}))`,
+            }}
+          >
+            {seoScore}
+          </span>
+          <span
+            className="font-body"
+            style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+          >
+            /4
+          </span>
         </div>
       </div>
 
       {/* Checklist */}
       <div style={{ marginBottom: 14 }}>
-        <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>📈 Increase Your Score</p>
-        <div style={{ backgroundColor: "hsl(var(--admin-surface-2))", borderRadius: 6, padding: "4px", marginBottom: 10 }}>
-          <div style={{
-            height: 6, borderRadius: 3,
-            background: done === total
-              ? "hsl(var(--admin-sage))"
-              : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-            width: `${(done / total) * 100}%`,
-            transition: "width 0.4s ease",
-          }} />
+        <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>
+          📈 Increase Your Score
+        </p>
+        <div
+          style={{
+            backgroundColor: "hsl(var(--admin-surface-2))",
+            borderRadius: 6,
+            padding: "4px",
+            marginBottom: 10,
+          }}
+        >
+          <div
+            style={{
+              height: 6,
+              borderRadius: 3,
+              background:
+                done === total
+                  ? "hsl(var(--admin-sage))"
+                  : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+              width: `${(done / total) * 100}%`,
+              transition: "width 0.4s ease",
+            }}
+          />
         </div>
-        <p className="font-body" style={{ fontSize: 10, color: "hsl(var(--admin-text-ghost))", marginBottom: 10, textAlign: "right" }}>
+        <p
+          className="font-body"
+          style={{
+            fontSize: 10,
+            color: "hsl(var(--admin-text-ghost))",
+            marginBottom: 10,
+            textAlign: "right",
+          }}
+        >
           {done}/{total} completed
         </p>
         {criteria.map((c, i) => (
-          <div key={i} className="flex items-start gap-2" style={{ marginBottom: 6 }}>
-            <span style={{ fontSize: 13, lineHeight: "18px", flexShrink: 0, color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-text-ghost))" }}>
+          <div
+            key={i}
+            className="flex items-start gap-2"
+            style={{ marginBottom: 6 }}
+          >
+            <span
+              style={{
+                fontSize: 13,
+                lineHeight: "18px",
+                flexShrink: 0,
+                color: c.done
+                  ? "hsl(var(--admin-sage))"
+                  : "hsl(var(--admin-text-ghost))",
+              }}
+            >
               {c.done ? "✓" : "○"}
             </span>
-            <span className="font-body" style={{ fontSize: 11, lineHeight: "18px", flex: 1, color: c.done ? "hsl(var(--admin-text-ghost))" : "hsl(var(--admin-text-soft))", textDecoration: c.done ? "line-through" : "none" }}>
+            <span
+              className="font-body"
+              style={{
+                fontSize: 11,
+                lineHeight: "18px",
+                flex: 1,
+                color: c.done
+                  ? "hsl(var(--admin-text-ghost))"
+                  : "hsl(var(--admin-text-soft))",
+                textDecoration: c.done ? "line-through" : "none",
+              }}
+            >
               {c.label}
             </span>
-            <span className="font-body" style={{ fontSize: 9, lineHeight: "18px", color: c.done ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))", fontWeight: 600 }}>
+            <span
+              className="font-body"
+              style={{
+                fontSize: 9,
+                lineHeight: "18px",
+                color: c.done
+                  ? "hsl(var(--admin-sage))"
+                  : "hsl(var(--admin-accent))",
+                fontWeight: 600,
+              }}
+            >
               {c.done ? "✓" : c.points}
             </span>
           </div>
@@ -114,30 +310,69 @@ const PostEditorAiHelper = ({
       {/* Smart Button */}
       <button
         onClick={hasGenerated && overall < 100 ? onEnhance : onGenerate}
-        disabled={aiGenerating || enhancing || (!canGenerate && !hasGenerated) || overall >= 100}
-        className={overall >= 100 ? "w-full flex items-center justify-center gap-2 font-body" : "admin-btn-primary w-full flex items-center justify-center gap-2"}
+        disabled={
+          aiGenerating ||
+          enhancing ||
+          (!canGenerate && !hasGenerated) ||
+          overall >= 100
+        }
+        className={
+          overall >= 100
+            ? "w-full flex items-center justify-center gap-2 font-body"
+            : "admin-btn-primary w-full flex items-center justify-center gap-2"
+        }
         style={{
           fontSize: 13,
-          ...(overall >= 100 ? {
-            background: "hsl(var(--admin-sage))",
-            color: "#fff",
-            border: "none", borderRadius: 6, padding: "10px 16px", fontWeight: 600,
-            cursor: "default", opacity: 0.8,
-          } : hasGenerated && overall < 100 ? {
-            background: "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-            color: "#fff",
-            border: "none", borderRadius: 6, padding: "10px 16px", fontWeight: 600,
-          } : {}),
+          ...(overall >= 100
+            ? {
+                background: "hsl(var(--admin-sage))",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px 16px",
+                fontWeight: 600,
+                cursor: "default",
+                opacity: 0.8,
+              }
+            : hasGenerated && overall < 100
+              ? {
+                  background:
+                    "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "10px 16px",
+                  fontWeight: 600,
+                }
+              : {}),
         }}
       >
         {aiGenerating || enhancing ? (
-          <><Loader2 size={14} className="animate-spin" />{hasGenerated ? "Improving..." : "Generating..."}</>
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            {hasGenerated ? "Improving..." : "Generating..."}
+          </>
         ) : overall >= 100 ? (
           <>✓ Score Maximized</>
         ) : hasGenerated ? (
-          <>📈 Improve Score<span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{overall}%</span></>
+          <>
+            📈 Improve Score
+            <span
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                borderRadius: 12,
+                padding: "2px 8px",
+                fontSize: 11,
+              }}
+            >
+              {overall}%
+            </span>
+          </>
         ) : (
-          <><Sparkles size={14} />Generate SEO &amp; AEO/GEO</>
+          <>
+            <Sparkles size={14} />
+            Generate SEO &amp; AEO/GEO
+          </>
         )}
       </button>
     </div>

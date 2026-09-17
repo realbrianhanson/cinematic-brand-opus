@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -17,16 +17,25 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
+  const anonClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      global: { headers: { Authorization: authHeader } },
+    },
+  );
+  const {
+    data: { user },
+    error: userErr,
+  } = await anonClient.auth.getUser();
   if (userErr || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const { data: roleRow } = await anonClient
@@ -37,18 +46,20 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!roleRow) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
-    const { title, content, excerpt, enhance, missing_criteria } = await req.json();
+    const { title, content, excerpt, enhance, missing_criteria } =
+      await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+      return new Response(JSON.stringify({ error: "API key not configured" }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -85,37 +96,40 @@ Only include fields that need improvement based on the missing criteria.`
 ${voiceBlock}`;
 
     const userMessage = enhance
-      ? `Title: ${title || 'Untitled'}\n\nContent: ${(content || '').slice(0, 4000)}\n\nExcerpt: ${excerpt || 'None'}\n\nMissing criteria to fix:\n${(missing_criteria || []).map((c: string) => `- ${c}`).join('\n')}`
-      : `Title: ${title || 'Untitled'}\n\nContent: ${(content || '').slice(0, 4000)}\n\nExcerpt: ${excerpt || 'None'}`;
+      ? `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 4000)}\n\nExcerpt: ${excerpt || "None"}\n\nMissing criteria to fix:\n${(missing_criteria || []).map((c: string) => `- ${c}`).join("\n")}`
+      : `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 4000)}\n\nExcerpt: ${excerpt || "None"}`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MAIN_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
       },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('AI API error:', errText);
-      return new Response(JSON.stringify({ error: 'AI generation failed' }), {
+      console.error("AI API error:", errText);
+      return new Response(JSON.stringify({ error: "AI generation failed" }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiData = await response.json();
-    const raw = aiData.choices?.[0]?.message?.content || '';
+    const raw = aiData.choices?.[0]?.message?.content || "";
 
     const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
     const jsonStr = (jsonMatch[1] || raw).trim();
@@ -124,21 +138,29 @@ ${voiceBlock}`;
     try {
       result = JSON.parse(jsonStr);
     } catch {
-      console.error('Failed to parse AI response:', jsonStr);
-      return new Response(JSON.stringify({ error: 'Failed to parse AI response' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error("Failed to parse AI response:", jsonStr);
+      return new Response(
+        JSON.stringify({ error: "Failed to parse AI response" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error('Edge function error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Edge function error:", err);
+    return new Response(
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

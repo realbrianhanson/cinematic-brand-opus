@@ -7,7 +7,14 @@ interface SpringTextProps {
   charStyle?: React.CSSProperties;
 }
 
-const SpringText = ({ text, visible, delay = 0, className, style, charStyle }: SpringTextProps) => {
+const SpringText = ({
+  text,
+  visible,
+  delay = 0,
+  className,
+  style,
+  charStyle,
+}: SpringTextProps) => {
   return (
     <span className={className} style={{ ...style, display: "inline-block" }}>
       {text.split("").map((char, i) => (

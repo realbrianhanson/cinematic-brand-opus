@@ -23,7 +23,7 @@ const PostsManager = () => {
           debounceTimer = setTimeout(() => {
             qc.invalidateQueries({ queryKey: ["admin-posts"] });
           }, 2000);
-        }
+        },
       )
       .subscribe();
 
@@ -79,20 +79,22 @@ const PostsManager = () => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       setConfirmPublishAll(false);
     },
-    onError: (e: any) => {
+    onError: (e) => {
       toast.error(e?.message || "Failed to publish drafts");
     },
   });
 
   const draftCount = useMemo(
     () => posts?.filter((p) => p.status === "draft").length ?? 0,
-    [posts]
+    [posts],
   );
 
-
   const filtered = useMemo(
-    () => posts?.filter((p) => p.title.toLowerCase().includes(search.toLowerCase())) ?? [],
-    [posts, search]
+    () =>
+      posts?.filter((p) =>
+        p.title.toLowerCase().includes(search.toLowerCase()),
+      ) ?? [],
+    [posts, search],
   );
 
   const handleDelete = useCallback((id: string) => setDeleteId(id), []);
@@ -100,16 +102,30 @@ const PostsManager = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Posts</h1>
+      <div
+        className="flex items-center justify-between flex-wrap gap-4"
+        style={{ marginBottom: 24 }}
+      >
+        <h1
+          className="font-heading italic"
+          style={{ fontSize: 28, fontWeight: 400 }}
+        >
+          Posts
+        </h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setConfirmPublishAll(true)}
             disabled={draftCount === 0}
             className="admin-btn-ghost"
-            style={{ opacity: draftCount === 0 ? 0.4 : 1, display: "flex", alignItems: "center", gap: 6 }}
+            style={{
+              opacity: draftCount === 0 ? 0.4 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
           >
-            <Send size={14} /> Publish all drafts {draftCount > 0 && `(${draftCount})`}
+            <Send size={14} /> Publish all drafts{" "}
+            {draftCount > 0 && `(${draftCount})`}
           </button>
           <Link to="/admin/posts/new" className="admin-btn-primary">
             <Plus size={14} /> New Post
@@ -150,13 +166,18 @@ const PostsManager = () => {
           }}
         >
           {["Title", "Category", "Status", "Date", "Actions"].map((h) => (
-            <span key={h} className="admin-label" style={{ marginBottom: 0 }}>{h}</span>
+            <span key={h} className="admin-label" style={{ marginBottom: 0 }}>
+              {h}
+            </span>
           ))}
         </div>
 
         {isLoading && (
           <div style={{ padding: 32, textAlign: "center" }}>
-            <span className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>
+            <span
+              className="font-body"
+              style={{ color: "hsl(var(--admin-text-ghost))" }}
+            >
               Loading...
             </span>
           </div>
@@ -173,23 +194,42 @@ const PostsManager = () => {
               alignItems: "center",
               transition: "background-color 0.15s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(var(--admin-surface-2))")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor =
+                "hsl(var(--admin-surface-2))")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "transparent")
+            }
           >
-            <span className="font-body truncate" style={{ fontSize: 14, fontWeight: 500 }}>
+            <span
+              className="font-body truncate"
+              style={{ fontSize: 14, fontWeight: 500 }}
+            >
               {post.title}
             </span>
-            <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
-              {(post as any).categories?.name || "—"}
+            <span
+              className="font-body"
+              style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+            >
+              {post.categories?.name || "—"}
             </span>
-            <span className={`admin-badge w-fit ${post.status === "published" ? "admin-badge-published" : "admin-badge-draft"}`}>
+            <span
+              className={`admin-badge w-fit ${post.status === "published" ? "admin-badge-published" : "admin-badge-draft"}`}
+            >
               {post.status}
             </span>
-            <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+            <span
+              className="font-body"
+              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+            >
               {new Date(post.created_at).toLocaleDateString()}
             </span>
             <div className="flex items-center gap-3">
-              <Link to={`/admin/posts/${post.id}/edit`} style={{ color: "hsl(var(--admin-accent))" }}>
+              <Link
+                to={`/admin/posts/${post.id}/edit`}
+                style={{ color: "hsl(var(--admin-accent))" }}
+              >
                 <Pencil size={14} />
               </Link>
               <button
@@ -209,7 +249,10 @@ const PostsManager = () => {
 
         {filtered.length === 0 && !isLoading && (
           <div style={{ padding: 32, textAlign: "center" }}>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}>
+            <p
+              className="font-body"
+              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
+            >
               No posts found.
             </p>
           </div>
@@ -230,7 +273,10 @@ const PostsManager = () => {
               Delete this post? This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteId(null)} className="admin-btn-ghost">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="admin-btn-ghost"
+              >
                 Cancel
               </button>
               <button
@@ -251,16 +297,32 @@ const PostsManager = () => {
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
         >
-          <div className="admin-card" style={{ padding: 32, maxWidth: 440, width: "90%" }}>
-            <h2 className="font-heading italic" style={{ fontSize: 20, marginBottom: 12 }}>
+          <div
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 440, width: "90%" }}
+          >
+            <h2
+              className="font-heading italic"
+              style={{ fontSize: 20, marginBottom: 12 }}
+            >
               Publish {draftCount} draft{draftCount === 1 ? "" : "s"}?
             </h2>
-            <p className="font-body" style={{ fontSize: 14, marginBottom: 20, color: "hsl(var(--admin-text-soft))" }}>
-              This bypasses quality, lint, and fact-check gates via publish override.
-              Each post will go live immediately.
+            <p
+              className="font-body"
+              style={{
+                fontSize: 14,
+                marginBottom: 20,
+                color: "hsl(var(--admin-text-soft))",
+              }}
+            >
+              This bypasses quality, lint, and fact-check gates via publish
+              override. Each post will go live immediately.
             </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmPublishAll(false)} className="admin-btn-ghost">
+              <button
+                onClick={() => setConfirmPublishAll(false)}
+                className="admin-btn-ghost"
+              >
                 Cancel
               </button>
               <button
@@ -268,7 +330,9 @@ const PostsManager = () => {
                 className="admin-btn-primary"
                 disabled={publishAllMutation.isPending}
               >
-                {publishAllMutation.isPending ? "Publishing..." : `Publish ${draftCount}`}
+                {publishAllMutation.isPending
+                  ? "Publishing..."
+                  : `Publish ${draftCount}`}
               </button>
             </div>
           </div>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isUuid, validateNewsRequest, MAX_NEWS_BODY_BYTES } from "@/lib/newsRequest";
+import {
+  isUuid,
+  validateNewsRequest,
+  MAX_NEWS_BODY_BYTES,
+} from "@/lib/newsRequest";
 
 const ID = "3f0f8e6c-2f2b-4b8f-9a4e-91d2f4c9c1aa";
 
@@ -20,7 +24,9 @@ describe("validateNewsRequest", () => {
       id: ID,
       force: false,
     });
-    expect(validateNewsRequest(JSON.stringify({ id: ID, force: true }))).toEqual({
+    expect(
+      validateNewsRequest(JSON.stringify({ id: ID, force: true })),
+    ).toEqual({
       ok: true,
       id: ID,
       force: true,
@@ -34,12 +40,18 @@ describe("validateNewsRequest", () => {
 
   it("rejects empty, null and malformed json", () => {
     for (const body of ["", "null", "{", "[]", '"str"', "1"]) {
-      expect(validateNewsRequest(body)).toMatchObject({ ok: false, status: 400 });
+      expect(validateNewsRequest(body)).toMatchObject({
+        ok: false,
+        status: 400,
+      });
     }
   });
 
   it("rejects a missing or non-uuid id", () => {
-    expect(validateNewsRequest("{}")).toMatchObject({ ok: false, error: "invalid_id" });
+    expect(validateNewsRequest("{}")).toMatchObject({
+      ok: false,
+      error: "invalid_id",
+    });
     expect(validateNewsRequest(JSON.stringify({ id: "abc" }))).toMatchObject({
       ok: false,
       error: "invalid_id",
@@ -47,7 +59,10 @@ describe("validateNewsRequest", () => {
   });
 
   it("rejects oversized bodies before parsing", () => {
-    const huge = JSON.stringify({ id: ID, pad: "x".repeat(MAX_NEWS_BODY_BYTES) });
+    const huge = JSON.stringify({
+      id: ID,
+      pad: "x".repeat(MAX_NEWS_BODY_BYTES),
+    });
     expect(validateNewsRequest(huge)).toMatchObject({
       ok: false,
       status: 413,

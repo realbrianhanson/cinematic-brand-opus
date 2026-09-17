@@ -1,15 +1,29 @@
-import { useState } from "react";
+import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
+import { useState, useEffect } from "react";
 import { Linkedin, Twitter, Facebook, Link2, Mail } from "lucide-react";
 
-const ICONS: Record<string, any> = {
-  linkedin: Linkedin, twitter: Twitter, facebook: Facebook, copy: Link2, email: Mail,
+const ICONS: Record<string, typeof Linkedin> = {
+  linkedin: Linkedin,
+  twitter: Twitter,
+  facebook: Facebook,
+  copy: Link2,
+  email: Mail,
 };
 
-const PageShareBar = ({ config }: { config: any }) => {
+const PageShareBar = ({ config }: { config: WidgetConfig }) => {
   const [copied, setCopied] = useState(false);
-  const platforms: string[] = config.platforms || ["linkedin", "twitter", "facebook", "copy"];
-  const url = typeof window !== "undefined" ? window.location.href : "";
-  const title = typeof document !== "undefined" ? document.title : "";
+  const platforms: string[] = config.platforms || [
+    "linkedin",
+    "twitter",
+    "facebook",
+    "copy",
+  ];
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  useEffect(() => {
+    setUrl(window.location.href);
+    setTitle(document.title);
+  }, []);
 
   const shareUrls: Record<string, string> = {
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
@@ -18,10 +32,14 @@ const PageShareBar = ({ config }: { config: any }) => {
     email: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`,
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
@@ -31,15 +49,40 @@ const PageShareBar = ({ config }: { config: any }) => {
         if (!Icon) return null;
         if (p === "copy") {
           return (
-            <button key={p} onClick={handleCopy} className="p-2 transition-colors font-body flex items-center gap-1" style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)", background: "none", cursor: "pointer", fontSize: 11 }}>
+            <button
+              key={p}
+              onClick={handleCopy}
+              className="p-2 transition-colors font-body flex items-center gap-1"
+              style={{
+                color: "rgba(255,255,255,0.3)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "none",
+                cursor: "pointer",
+                fontSize: 11,
+              }}
+            >
               <Icon size={14} /> {copied ? "Copied!" : "Copy"}
             </button>
           );
         }
         return (
-          <a key={p} href={shareUrls[p]} target="_blank" rel="noopener noreferrer" className="p-2 transition-colors" style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--accent))")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+          <a
+            key={p}
+            aria-label={`Share via ${p}`}
+            href={shareUrls[p]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 transition-colors"
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "hsl(var(--accent))")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "rgba(255,255,255,0.3)")
+            }
           >
             <Icon size={14} />
           </a>

@@ -9,7 +9,11 @@ const HTMLSitemap = () => {
   const { data: siteSettings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("site_settings").select("site_name, site_url").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("site_settings")
+        .select("site_name, site_url")
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     staleTime: 60000,
@@ -20,7 +24,9 @@ const HTMLSitemap = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("generated_pages")
-        .select("id, title, slug, content_schema_id, niche_id, content_schemas(name, slug), niches!generated_pages_niche_id_fkey(name, slug)")
+        .select(
+          "id, title, slug, content_schema_id, niche_id, content_schemas(name, slug), niches!generated_pages_niche_id_fkey(name, slug)",
+        )
         .eq("status", "published")
         .order("title");
       return data ?? [];
@@ -58,9 +64,12 @@ const HTMLSitemap = () => {
   const siteUrl = siteSettings?.site_url || "";
 
   // Group generated pages by content type
-  const groupedByType: Record<string, { name: string; slug: string; pages: { title: string; pageSlug: string }[] }> = {};
+  const groupedByType: Record<
+    string,
+    { name: string; slug: string; pages: { title: string; pageSlug: string }[] }
+  > = {};
   for (const page of generatedPages || []) {
-    const schema = page.content_schemas as any;
+    const schema = page.content_schemas;
     if (!schema?.slug) continue;
     const key = schema.slug;
     if (!groupedByType[key]) {
@@ -70,41 +79,88 @@ const HTMLSitemap = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070E", color: "#fff" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+    >
       <Nav />
       <PageHead
         title={`Sitemap | ${siteName}`}
         description={`Complete sitemap of all published content on ${siteName}. Browse guides, resources, and blog articles.`}
         url={`${siteUrl}/sitemap`}
       />
-      <main id="main-content" className="mx-auto px-6 lg:px-14 pt-32 pb-24" style={{ maxWidth: 900 }}>
-        <h1 className="font-display italic mb-4" style={{ fontSize: "clamp(32px, 5vw, 48px)", lineHeight: 1.15 }}>
+      <main
+        id="main-content"
+        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
+        style={{ maxWidth: 900 }}
+      >
+        <h1
+          className="font-display italic mb-4"
+          style={{ fontSize: "clamp(32px, 5vw, 48px)", lineHeight: 1.15 }}
+        >
           Sitemap
         </h1>
-        <p className="font-body mb-12" style={{ fontSize: 15, color: "rgba(255,255,255,0.4)" }}>
+        <p
+          className="font-body mb-12"
+          style={{ fontSize: 15, color: "rgba(255,255,255,0.4)" }}
+        >
           A complete index of every page on this site.
         </p>
 
         {/* Main pages */}
         <section className="mb-12">
-          <h2 className="font-display italic mb-4" style={{ fontSize: 22, color: "#D4AF55" }}>Pages</h2>
+          <h2
+            className="font-display italic mb-4"
+            style={{ fontSize: 22, color: "var(--brand-accent)" }}
+          >
+            Pages
+          </h2>
           <ul className="flex flex-col gap-2">
-            <li><Link to="/" className="font-body hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}>Home</Link></li>
-            <li><Link to="/blog" className="font-body hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}>Blog</Link></li>
-            <li><Link to="/resources" className="font-body hover:text-[#D4AF55] transition-colors" style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}>Resources</Link></li>
+            <li>
+              <Link
+                to="/"
+                className="font-body hover:text-[var(--brand-accent)] transition-colors"
+                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+              >
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/blog"
+                className="font-body hover:text-[var(--brand-accent)] transition-colors"
+                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+              >
+                Blog
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/resources"
+                className="font-body hover:text-[var(--brand-accent)] transition-colors"
+                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+              >
+                Resources
+              </Link>
+            </li>
           </ul>
         </section>
 
         {/* Pillar guides */}
         {pillarPages && pillarPages.length > 0 && (
           <section className="mb-12">
-            <h2 className="font-display italic mb-4" style={{ fontSize: 22, color: "#D4AF55" }}>Guides</h2>
+            <h2
+              className="font-display italic mb-4"
+              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            >
+              Guides
+            </h2>
             <ul className="flex flex-col gap-2">
               {pillarPages.map((p) => (
                 <li key={p.id}>
                   <Link
                     to={`/guides/${p.slug}`}
-                    className="font-body hover:text-[#D4AF55] transition-colors"
+                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
                     style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
                   >
                     {p.title}
@@ -118,18 +174,35 @@ const HTMLSitemap = () => {
         {/* Generated pages by content type */}
         {Object.keys(groupedByType).length > 0 && (
           <section className="mb-12">
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22, color: "#D4AF55" }}>Resources</h2>
+            <h2
+              className="font-display italic mb-6"
+              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            >
+              Resources
+            </h2>
             {Object.values(groupedByType).map((group) => (
               <div key={group.slug} className="mb-8">
-                <h3 className="font-body font-semibold uppercase mb-3" style={{ fontSize: 12, letterSpacing: "0.12em", color: "rgba(255,255,255,0.5)" }}>
+                <h3
+                  className="font-body font-semibold uppercase mb-3"
+                  style={{
+                    fontSize: 12,
+                    letterSpacing: "0.12em",
+                    color: "rgba(255,255,255,0.5)",
+                  }}
+                >
                   {group.name}
                 </h3>
-                <ul className="flex flex-col gap-2 pl-4" style={{ borderLeft: "1px solid rgba(212,175,85,0.15)" }}>
+                <ul
+                  className="flex flex-col gap-2 pl-4"
+                  style={{
+                    borderLeft: "1px solid rgba(var(--brand-accent-rgb),0.15)",
+                  }}
+                >
                   {group.pages.map((page, i) => (
                     <li key={i}>
                       <Link
                         to={`/resources/${group.slug}/${page.pageSlug}`}
-                        className="font-body hover:text-[#D4AF55] transition-colors"
+                        className="font-body hover:text-[var(--brand-accent)] transition-colors"
                         style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}
                       >
                         {page.title}
@@ -145,13 +218,18 @@ const HTMLSitemap = () => {
         {/* Blog posts */}
         {blogPosts && blogPosts.length > 0 && (
           <section className="mb-12">
-            <h2 className="font-display italic mb-4" style={{ fontSize: 22, color: "#D4AF55" }}>Blog Articles</h2>
+            <h2
+              className="font-display italic mb-4"
+              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            >
+              Blog Articles
+            </h2>
             <ul className="flex flex-col gap-2">
               {blogPosts.map((post) => (
                 <li key={post.id}>
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="font-body hover:text-[#D4AF55] transition-colors"
+                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
                     style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
                   >
                     {post.title}

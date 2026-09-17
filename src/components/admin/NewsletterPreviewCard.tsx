@@ -8,20 +8,27 @@ import { Loader2, Mail, RefreshCw, X } from "lucide-react";
 // server-side helper in _shared/newsletterCompose.ts.
 function currentIsoWeekKey(): string {
   const d = new Date();
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const t = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+  );
   const day = t.getUTCDay() || 7;
   t.setUTCDate(t.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const week = Math.ceil(
+    ((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-interface Blurb { slug: string; blurb: string; }
+interface Blurb {
+  slug: string;
+  blurb: string;
+}
 
 interface PreviewRow {
   id: string;
   week_key: string;
-  status: "preview" | "sent" | "cancelled";
+  status: string;
   subject: string | null;
   intro: string | null;
   post_blurbs: Blurb[] | null;
@@ -33,7 +40,11 @@ const NewsletterPreviewCard = () => {
   const qc = useQueryClient();
   const weekKey = currentIsoWeekKey();
 
-  const { data: row, isLoading } = useQuery({
+  const {
+    data: row,
+    isLoading,
+    error: loadError,
+  } = useQuery({
     queryKey: ["newsletter-preview", weekKey],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -42,50 +53,86 @@ const NewsletterPreviewCard = () => {
         .eq("week_key", weekKey)
         .maybeSingle();
       if (error) throw error;
-      return (data as unknown) as PreviewRow | null;
+      return data as unknown as PreviewRow | null;
     },
     refetchOnWindowFocus: false,
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => safeMutation(async () => {
-      if (!row?.id) throw new Error("No preview to cancel");
-      const { error } = await supabase
-        .from("newsletter_sends")
-        .update({ status: "cancelled" })
-        .eq("id", row.id);
-      if (error) throw error;
-    }),
+    mutationFn: () =>
+      safeMutation(async () => {
+        if (!row?.id) throw new Error("No preview to cancel");
+        const { data: cancelled, error } = await supabase
+          .from("newsletter_sends")
+          .update({ status: "cancelled" })
+          .eq("id", row.id)
+          .eq("status", "preview")
+          .select("id")
+          .maybeSingle();
+        if (error) throw error;
+        if (!cancelled)
+          throw new Error(
+            "The send has already started or changed. Reload to check its status.",
+          );
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["newsletter-preview", weekKey] });
-      toast({ title: "Cancelled", description: "This week's newsletter will not send." });
+      toast({
+        title: "Cancelled",
+        description: "This week's newsletter will not send.",
+      });
     },
     onError: (e: Error) =>
-      toast({ title: "Cancel failed", description: e.message, variant: "destructive" }),
+      toast({
+        title: "Cancel failed",
+        description: e.message,
+        variant: "destructive",
+      }),
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: () => safeMutation(async () => {
-      const { data, error } = await supabase.functions.invoke(
-        "compose-weekly-newsletter-preview",
-        { body: {} },
-      );
-      if (error) throw error;
-      return data;
-    }),
-    onSuccess: () => {
+    mutationFn: () =>
+      safeMutation(async () => {
+        const { data, error } = await supabase.functions.invoke(
+          "compose-weekly-newsletter-preview",
+          { body: {} },
+        );
+        if (error) throw error;
+        if (!data?.ok || data?.skipped)
+          throw new Error(
+            data?.error || data?.skipped || "Preview was not generated.",
+          );
+        return data;
+      }),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["newsletter-preview", weekKey] });
-      toast({ title: "Regenerated", description: "A fresh preview was composed and emailed." });
+      toast({
+        title: "Preview saved",
+        description: data.preview_email_sent
+          ? "The preview was saved and emailed."
+          : "The preview was saved. No preview email was sent; check your email configuration.",
+      });
     },
     onError: (e: Error) =>
-      toast({ title: "Regenerate failed", description: e.message, variant: "destructive" }),
+      toast({
+        title: "Regenerate failed",
+        description: e.message,
+        variant: "destructive",
+      }),
   });
 
   const shell = (children: React.ReactNode) => (
     <div className="admin-card" style={{ padding: 20, marginBottom: 32 }}>
       <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
         <Mail size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-        <span className="font-body" style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--admin-text))" }}>
+        <span
+          className="font-body"
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "hsl(var(--admin-text))",
+          }}
+        >
           Weekly newsletter — {weekKey}
         </span>
       </div>
@@ -95,26 +142,39 @@ const NewsletterPreviewCard = () => {
 
   if (isLoading) {
     return shell(
-      <div className="flex items-center gap-2" style={{ color: "hsl(var(--admin-muted))", fontSize: 14 }}>
+      <div
+        className="flex items-center gap-2"
+        style={{ color: "hsl(var(--admin-muted))", fontSize: 14 }}
+      >
         <Loader2 size={14} className="animate-spin" /> Loading preview…
       </div>,
     );
   }
 
+  if (loadError)
+    return shell(
+      <p role="alert">Unable to load the newsletter. Please reload.</p>,
+    );
+
   if (!row) {
     return shell(
       <div style={{ fontSize: 14, color: "hsl(var(--admin-muted))" }}>
-        No preview yet for this week. Composition runs Monday 14:00 UTC. You can generate one now:
+        No preview yet for this week. Composition runs Monday 14:00 UTC. You can
+        generate one now:
         <div style={{ marginTop: 10 }}>
           <button
             className="admin-btn"
             onClick={() => regenerateMutation.mutate()}
-            disabled={regenerateMutation.isPending}
+            disabled={regenerateMutation.isPending || cancelMutation.isPending}
           >
             {regenerateMutation.isPending ? (
-              <><Loader2 size={14} className="animate-spin" /> Composing…</>
+              <>
+                <Loader2 size={14} className="animate-spin" /> Composing…
+              </>
             ) : (
-              <><RefreshCw size={14} /> Compose preview</>
+              <>
+                <RefreshCw size={14} /> Compose preview
+              </>
             )}
           </button>
         </div>
@@ -122,31 +182,94 @@ const NewsletterPreviewCard = () => {
     );
   }
 
-  const statusStyles: Record<PreviewRow["status"], { bg: string; fg: string; label: string }> = {
-    preview:   { bg: "#3a2f14", fg: "#f5d987", label: "PREVIEW · sends Tuesday" },
-    sent:      { bg: "#173a24", fg: "#a5f5c1", label: "SENT" },
+  const statusStyles: Record<
+    PreviewRow["status"],
+    { bg: string; fg: string; label: string }
+  > = {
+    preview: { bg: "#3a2f14", fg: "#f5d987", label: "PREVIEW · sends Tuesday" },
+    sent: { bg: "#173a24", fg: "#a5f5c1", label: "SENT" },
+    sending: { bg: "#3a2f14", fg: "#f5d987", label: "SENDING" },
+    needs_review: {
+      bg: "#3a1717",
+      fg: "#f5a5a5",
+      label: "DELIVERY NEEDS REVIEW",
+    },
     cancelled: { bg: "#3a1717", fg: "#f5a5a5", label: "CANCELLED" },
   };
-  const s = statusStyles[row.status];
+  const s = statusStyles[row.status] ?? {
+    bg: "#3a2f14",
+    fg: "#f5d987",
+    label: "STATUS UNKNOWN",
+  };
 
   return shell(
     <div>
-      <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: 4, background: s.bg, color: s.fg, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+      <div
+        style={{
+          display: "inline-block",
+          padding: "3px 10px",
+          borderRadius: 4,
+          background: s.bg,
+          color: s.fg,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          marginBottom: 12,
+        }}
+      >
         {s.label}
       </div>
-      <div style={{ fontSize: 17, fontWeight: 700, color: "hsl(var(--admin-text))", marginBottom: 6 }}>
-        {row.subject || <em style={{ color: "hsl(var(--admin-muted))" }}>(no subject)</em>}
+      {row.status === "needs_review" && (
+        <p role="alert">
+          Delivery stopped. Check the provider and delivery receipts before
+          resuming; some recipients may already have received this digest.
+        </p>
+      )}
+      <div
+        style={{
+          fontSize: 17,
+          fontWeight: 700,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 6,
+        }}
+      >
+        {row.subject || (
+          <em style={{ color: "hsl(var(--admin-muted))" }}>(no subject)</em>
+        )}
       </div>
       {row.intro ? (
-        <p style={{ fontSize: 14, lineHeight: 1.55, color: "hsl(var(--admin-muted))", margin: "0 0 14px" }}>
+        <p
+          style={{
+            fontSize: 14,
+            lineHeight: 1.55,
+            color: "hsl(var(--admin-muted))",
+            margin: "0 0 14px",
+          }}
+        >
           {row.intro}
         </p>
       ) : null}
       {Array.isArray(row.post_blurbs) && row.post_blurbs.length > 0 ? (
-        <ol style={{ margin: "0 0 16px", padding: "0 0 0 20px", fontSize: 13, lineHeight: 1.5, color: "hsl(var(--admin-text))" }}>
+        <ol
+          style={{
+            margin: "0 0 16px",
+            padding: "0 0 0 20px",
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: "hsl(var(--admin-text))",
+          }}
+        >
           {row.post_blurbs.map((b) => (
             <li key={b.slug} style={{ marginBottom: 8 }}>
-              <div style={{ fontFamily: "monospace", fontSize: 11, color: "hsl(var(--admin-muted))" }}>{b.slug}</div>
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: "hsl(var(--admin-muted))",
+                }}
+              >
+                {b.slug}
+              </div>
               <div>{b.blurb}</div>
             </li>
           ))}
@@ -158,25 +281,34 @@ const NewsletterPreviewCard = () => {
           <button
             className="admin-btn"
             onClick={() => {
-              if (confirm("Cancel this week's newsletter send?")) cancelMutation.mutate();
+              if (confirm("Cancel this week's newsletter send?"))
+                cancelMutation.mutate();
             }}
-            disabled={cancelMutation.isPending}
+            disabled={cancelMutation.isPending || regenerateMutation.isPending}
           >
             {cancelMutation.isPending ? (
-              <><Loader2 size={14} className="animate-spin" /> Cancelling…</>
+              <>
+                <Loader2 size={14} className="animate-spin" /> Cancelling…
+              </>
             ) : (
-              <><X size={14} /> Cancel this week's send</>
+              <>
+                <X size={14} /> Cancel this week's send
+              </>
             )}
           </button>
           <button
             className="admin-btn"
             onClick={() => regenerateMutation.mutate()}
-            disabled={regenerateMutation.isPending}
+            disabled={regenerateMutation.isPending || cancelMutation.isPending}
           >
             {regenerateMutation.isPending ? (
-              <><Loader2 size={14} className="animate-spin" /> Regenerating…</>
+              <>
+                <Loader2 size={14} className="animate-spin" /> Regenerating…
+              </>
             ) : (
-              <><RefreshCw size={14} /> Regenerate</>
+              <>
+                <RefreshCw size={14} /> Regenerate
+              </>
             )}
           </button>
         </div>

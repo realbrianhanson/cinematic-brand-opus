@@ -41,6 +41,7 @@ export interface SiteIdentity {
 export interface SiteMetadata {
   /** Default <title> for the homepage and as a chrome fallback. */
   defaultTitle: string;
+  googleSiteVerification: string | null;
   defaultDescription: string;
   /** Longer description used for og/twitter cards. */
   socialDescription: string;
@@ -219,6 +220,12 @@ export interface BrandTokens {
 export interface SiteConfig {
   /** Preset id, used by tests and the setup docs. */
   preset: string;
+  content: {
+    blogDescription: string;
+    newsDescription: string;
+    resourceDescription: string;
+    newsBuckets: Array<{ value: string; label: string; lanes: string[] }>;
+  };
   identity: SiteIdentity;
   metadata: SiteMetadata;
   brand: BrandTokens;
@@ -238,7 +245,8 @@ export interface SiteConfig {
 
 export class SiteConfigError extends Error {}
 
-const isNonEmpty = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
+const isNonEmpty = (v: unknown): v is string =>
+  typeof v === "string" && v.trim().length > 0;
 
 const ORIGIN = /^https?:\/\/[^\s/]+$/;
 
@@ -254,7 +262,8 @@ export const isValidHref = (href: unknown): href is string => {
 const checkLink = (link: LinkItem | null, path: string, errors: string[]) => {
   if (!link) return;
   if (!isNonEmpty(link.label)) errors.push(`${path}.label must not be empty`);
-  if (!isValidHref(link.href)) errors.push(`${path}.href is not a valid URL, path or mailto address`);
+  if (!isValidHref(link.href))
+    errors.push(`${path}.href is not a valid URL, path or mailto address`);
 };
 
 /**
@@ -267,25 +276,44 @@ export function validateSiteConfig(config: SiteConfig): SiteConfig {
   const { identity, metadata, brand } = config;
 
   if (!isNonEmpty(config.preset)) errors.push("preset must not be empty");
-  if (!isNonEmpty(identity.name)) errors.push("identity.name must not be empty");
+  if (!isNonEmpty(identity.name))
+    errors.push("identity.name must not be empty");
   if (!isNonEmpty(identity.logoInitials) || identity.logoInitials.length > 3) {
     errors.push("identity.logoInitials must be 1-3 characters");
   }
   if (!ORIGIN.test(identity.siteUrl)) {
-    errors.push('identity.siteUrl must be an origin like "https://example.com" with no trailing slash');
+    errors.push(
+      'identity.siteUrl must be an origin like "https://example.com" with no trailing slash',
+    );
   }
-  if (identity.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity.contactEmail)) {
+  if (
+    identity.contactEmail &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity.contactEmail)
+  ) {
     errors.push("identity.contactEmail is not a valid email address");
   }
 
-  if (!isNonEmpty(metadata.defaultTitle)) errors.push("metadata.defaultTitle must not be empty");
-  if (!isNonEmpty(metadata.defaultDescription)) errors.push("metadata.defaultDescription must not be empty");
-  if (metadata.socialImageUrl !== null && !/^https:\/\//.test(metadata.socialImageUrl)) {
-    errors.push("metadata.socialImageUrl must be an absolute https URL or null");
+  if (!isNonEmpty(metadata.defaultTitle))
+    errors.push("metadata.defaultTitle must not be empty");
+  if (!isNonEmpty(metadata.defaultDescription))
+    errors.push("metadata.defaultDescription must not be empty");
+  if (
+    metadata.socialImageUrl !== null &&
+    !/^https:\/\//.test(metadata.socialImageUrl)
+  ) {
+    errors.push(
+      "metadata.socialImageUrl must be an absolute https URL or null",
+    );
   }
 
-  for (const key of ["accent", "accentLight", "accentDark", "backdrop"] as const) {
-    if (!/^#[0-9a-fA-F]{3,8}$/.test(brand[key])) errors.push(`brand.${key} must be a hex colour`);
+  for (const key of [
+    "accent",
+    "accentLight",
+    "accentDark",
+    "backdrop",
+  ] as const) {
+    if (!/^#[0-9a-fA-F]{3,8}$/.test(brand[key]))
+      errors.push(`brand.${key} must be a hex colour`);
   }
 
   checkLink(config.nav.cta, "nav.cta", errors);
@@ -294,19 +322,30 @@ export function validateSiteConfig(config: SiteConfig): SiteConfig {
   checkLink(config.event.cta, "event.cta", errors);
   checkLink(config.speaking.bookingCta, "speaking.bookingCta", errors);
   checkLink(config.newsletter.secondaryCta, "newsletter.secondaryCta", errors);
-  config.nav.hashLinks.forEach((l, i) => checkLink(l, `nav.hashLinks[${i}]`, errors));
-  config.nav.routeLinks.forEach((l, i) => checkLink(l, `nav.routeLinks[${i}]`, errors));
-  config.footer.hashLinks.forEach((l, i) => checkLink(l, `footer.hashLinks[${i}]`, errors));
-  config.footer.routeLinks.forEach((l, i) => checkLink(l, `footer.routeLinks[${i}]`, errors));
+  config.nav.hashLinks.forEach((l, i) =>
+    checkLink(l, `nav.hashLinks[${i}]`, errors),
+  );
+  config.nav.routeLinks.forEach((l, i) =>
+    checkLink(l, `nav.routeLinks[${i}]`, errors),
+  );
+  config.footer.hashLinks.forEach((l, i) =>
+    checkLink(l, `footer.hashLinks[${i}]`, errors),
+  );
+  config.footer.routeLinks.forEach((l, i) =>
+    checkLink(l, `footer.routeLinks[${i}]`, errors),
+  );
 
   for (const key of ["privacyUrl", "termsUrl"] as const) {
     const value = config.footer[key];
     if (value !== null && !isValidHref(value)) {
-      errors.push(`footer.${key} must be a valid URL/path or null (null omits the link)`);
+      errors.push(
+        `footer.${key} must be a valid URL/path or null (null omits the link)`,
+      );
     }
   }
 
-  if (config.hero.headlineLines.length === 0) errors.push("hero.headlineLines must have at least one line");
+  if (config.hero.headlineLines.length === 0)
+    errors.push("hero.headlineLines must have at least one line");
   if (config.sections.story && config.story.timeline.length === 0) {
     errors.push("sections.story is enabled but story.timeline is empty");
   }
@@ -327,7 +366,9 @@ export function validateSiteConfig(config: SiteConfig): SiteConfig {
   }
 
   if (errors.length > 0) {
-    throw new SiteConfigError(`Invalid site config "${config.preset}":\n- ${errors.join("\n- ")}`);
+    throw new SiteConfigError(
+      `Invalid site config "${config.preset}":\n- ${errors.join("\n- ")}`,
+    );
   }
   return config;
 }

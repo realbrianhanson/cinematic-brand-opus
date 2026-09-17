@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import { errorMessage } from "@/lib/errorMessage";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
@@ -5,9 +8,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, MoreHorizontal, ExternalLink, Pencil, Eye, Archive,
-  Trash2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown,
-  ArrowUp, ArrowDown, CheckSquare, ImageIcon, Globe, Send,
+  Search,
+  MoreHorizontal,
+  ExternalLink,
+  Pencil,
+  Eye,
+  Archive,
+  Trash2,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  CheckSquare,
+  ImageIcon,
+  Globe,
+  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -20,10 +37,22 @@ const STATUSES = ["all", "draft", "review", "published", "archived"] as const;
 const PER_PAGE = 25;
 
 const statusColors: Record<string, { bg: string; color: string }> = {
-  draft: { bg: "hsl(var(--admin-text-ghost) / 0.15)", color: "hsl(var(--admin-text-ghost))" },
-  review: { bg: "hsl(var(--admin-accent) / 0.12)", color: "hsl(var(--admin-accent))" },
-  published: { bg: "hsl(var(--admin-sage) / 0.12)", color: "hsl(var(--admin-sage))" },
-  archived: { bg: "hsl(var(--admin-danger) / 0.12)", color: "hsl(var(--admin-danger))" },
+  draft: {
+    bg: "hsl(var(--admin-text-ghost) / 0.15)",
+    color: "hsl(var(--admin-text-ghost))",
+  },
+  review: {
+    bg: "hsl(var(--admin-accent) / 0.12)",
+    color: "hsl(var(--admin-accent))",
+  },
+  published: {
+    bg: "hsl(var(--admin-sage) / 0.12)",
+    color: "hsl(var(--admin-sage))",
+  },
+  archived: {
+    bg: "hsl(var(--admin-danger) / 0.12)",
+    color: "hsl(var(--admin-danger))",
+  },
 };
 
 function timeAgo(dateStr: string) {
@@ -47,7 +76,9 @@ const GeneratedPagesManager = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [sortCol, setSortCol] = useState<"created_at" | "views" | "quality_score">("created_at");
+  const [sortCol, setSortCol] = useState<
+    "created_at" | "views" | "quality_score"
+  >("created_at");
   const [sortAsc, setSortAsc] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkAction, setBulkAction] = useState<string | null>(null);
@@ -58,7 +89,9 @@ const GeneratedPagesManager = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-.select("*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)")
+        .select(
+          "*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)",
+        )
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -68,7 +101,10 @@ const GeneratedPagesManager = () => {
   const { data: niches } = useQuery({
     queryKey: ["admin-niches-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("niches").select("id, name, slug").order("name");
+      const { data } = await supabase
+        .from("niches")
+        .select("id, name, slug")
+        .order("name");
       return data ?? [];
     },
   });
@@ -76,7 +112,10 @@ const GeneratedPagesManager = () => {
   const { data: schemas } = useQuery({
     queryKey: ["admin-schemas-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("content_schemas").select("id, name, slug").order("name");
+      const { data } = await supabase
+        .from("content_schemas")
+        .select("id, name, slug")
+        .order("name");
       return data ?? [];
     },
   });
@@ -84,9 +123,15 @@ const GeneratedPagesManager = () => {
   const { data: indexingMap } = useQuery({
     queryKey: ["admin-indexing-logs"],
     queryFn: async () => {
-      const { data } = await supabase.from("indexing_log").select("page_id, status").order("submitted_at", { ascending: false });
+      const { data } = await supabase
+        .from("indexing_log")
+        .select("page_id, status")
+        .order("submitted_at", { ascending: false });
       const map = new Map<string, string>();
-      (data ?? []).forEach((log: any) => { if (!map.has(log.page_id)) map.set(log.page_id, log.status); });
+      (data ?? []).forEach((log) => {
+        if (log.page_id && log.status && !map.has(log.page_id))
+          map.set(log.page_id, log.status);
+      });
       return map;
     },
   });
@@ -94,10 +139,15 @@ const GeneratedPagesManager = () => {
   // Filter + sort
   const filtered = useMemo(() => {
     let list = pages ?? [];
-    if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
+    if (statusFilter !== "all")
+      list = list.filter((p) => p.status === statusFilter);
     if (nicheFilter) list = list.filter((p) => p.niche_id === nicheFilter);
-    if (schemaFilter) list = list.filter((p) => p.content_schema_id === schemaFilter);
-    if (search) list = list.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()));
+    if (schemaFilter)
+      list = list.filter((p) => p.content_schema_id === schemaFilter);
+    if (search)
+      list = list.filter((p) =>
+        p.title.toLowerCase().includes(search.toLowerCase()),
+      );
 
     list = [...list].sort((a, b) => {
       const av = a[sortCol] ?? 0;
@@ -110,12 +160,21 @@ const GeneratedPagesManager = () => {
       return sortAsc ? Number(av) - Number(bv) : Number(bv) - Number(av);
     });
     return list;
-  }, [pages, statusFilter, nicheFilter, schemaFilter, search, sortCol, sortAsc]);
+  }, [
+    pages,
+    statusFilter,
+    nicheFilter,
+    schemaFilter,
+    search,
+    sortCol,
+    sortAsc,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
 
-  const allOnPageSelected = paginated.length > 0 && paginated.every((p) => selected.has(p.id));
+  const allOnPageSelected =
+    paginated.length > 0 && paginated.every((p) => selected.has(p.id));
 
   const toggleAll = () => {
     if (allOnPageSelected) {
@@ -138,43 +197,58 @@ const GeneratedPagesManager = () => {
 
   const handleSort = (col: typeof sortCol) => {
     if (sortCol === col) setSortAsc(!sortAsc);
-    else { setSortCol(col); setSortAsc(false); }
+    else {
+      setSortCol(col);
+      setSortAsc(false);
+    }
   };
 
   const SortIcon = ({ col }: { col: typeof sortCol }) => {
-    if (sortCol !== col) return <ArrowUpDown size={12} style={{ opacity: 0.4 }} />;
+    if (sortCol !== col)
+      return <ArrowUpDown size={12} style={{ opacity: 0.4 }} />;
     return sortAsc ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
   // Mutations
   const updateStatus = useMutation({
-    mutationFn: ({ ids, status }: { ids: string[]; status: string }) => safeMutation(async () => {
-      const updateData: Record<string, unknown> = { status };
-      if (status === "published") updateData.published_at = new Date().toISOString();
-      const { error } = await supabase.from("generated_pages").update(updateData as never).in("id", ids);
-      if (error) throw error;
+    mutationFn: ({ ids, status }: { ids: string[]; status: string }) =>
+      safeMutation(async () => {
+        const updateData: Record<string, unknown> = { status };
+        if (status === "published")
+          updateData.published_at = new Date().toISOString();
+        const { error } = await supabase
+          .from("generated_pages")
+          .update(updateData as never)
+          .in("id", ids);
+        if (error) throw error;
 
-      // On publish: trigger OG image generation, silo linking, and IndexNow submission
-      if (status === "published") {
-        const publishedUrls: string[] = [];
-        for (const id of ids) {
-          const pg = (pages ?? []).find((p) => p.id === id);
-          if (!pg) continue;
-          const niche = (pg as any).niches;
-          const schema = (pg as any).content_schemas;
-          // Fire and forget — don't block on these
-          supabase.functions.invoke("generate-og-image", { body: { page_id: id } }).catch(() => {});
-          supabase.functions.invoke("build-silo-links", { body: { page_id: id } }).catch(() => {});
-          if (schema?.slug && pg.slug) {
-            publishedUrls.push(`/resources/${schema.slug}/${pg.slug}`);
+        // On publish: trigger OG image generation, silo linking, and IndexNow submission
+        if (status === "published") {
+          const publishedUrls: string[] = [];
+          for (const id of ids) {
+            const pg = (pages ?? []).find((p) => p.id === id);
+            if (!pg) continue;
+            const niche = pg.niches;
+            const schema = pg.content_schemas;
+            // Fire and forget — don't block on these
+            supabase.functions
+              .invoke("generate-og-image", { body: { page_id: id } })
+              .catch(() => {});
+            supabase.functions
+              .invoke("build-silo-links", { body: { page_id: id } })
+              .catch(() => {});
+            if (schema?.slug && pg.slug) {
+              publishedUrls.push(`/resources/${schema.slug}/${pg.slug}`);
+            }
+          }
+          // Submit all published URLs at once via IndexNow
+          if (publishedUrls.length > 0) {
+            supabase.functions
+              .invoke("submit-indexnow", { body: { urls: publishedUrls } })
+              .catch(() => {});
           }
         }
-        // Submit all published URLs at once via IndexNow
-        if (publishedUrls.length > 0) {
-          supabase.functions.invoke("submit-indexnow", { body: { urls: publishedUrls } }).catch(() => {});
-        }
-      }
-    }, 30000),
+      }, 30000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
@@ -185,12 +259,19 @@ const GeneratedPagesManager = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (ids: string[]) => safeMutation(async () => {
-      await supabase.from("keyword_assignments").delete().in("page_id", ids);
-      await supabase.from("generation_logs").delete().in("generated_page_id", ids);
-      const { error } = await supabase.from("generated_pages").delete().in("id", ids);
-      if (error) throw error;
-    }),
+    mutationFn: (ids: string[]) =>
+      safeMutation(async () => {
+        await supabase.from("keyword_assignments").delete().in("page_id", ids);
+        await supabase
+          .from("generation_logs")
+          .delete()
+          .in("generated_page_id", ids);
+        const { error } = await supabase
+          .from("generated_pages")
+          .delete()
+          .in("id", ids);
+        if (error) throw error;
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       setSelected(new Set());
@@ -201,58 +282,81 @@ const GeneratedPagesManager = () => {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: (pageItem: any) => safeMutation(async () => {
-      const nicheSlug = (pageItem as any).niches?.slug;
-      const schemaSlug = (pageItem as any).content_schemas?.slug;
-      if (!nicheSlug || !schemaSlug) throw new Error("Missing niche or schema");
-      const { data, error } = await supabase.functions.invoke("generate-content", {
-        body: {
-          niche_slugs: [nicheSlug],
-          content_type_slug: schemaSlug,
-          count_per_combination: 1,
-          dry_run: true,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.content_json) throw new Error("No content returned");
-      // Update the page with new content
-      const { error: updateErr } = await supabase
-        .from("generated_pages")
-        .update({
-          content_json: data.content_json,
-          seo_meta: data.seo_meta,
-          schema_markup: data.schema_markup,
-          last_refreshed: new Date().toISOString(),
-          refresh_count: (pageItem.refresh_count || 0) + 1,
-        })
-        .eq("id", pageItem.id);
-      if (updateErr) throw updateErr;
-    }, 60000),
+    mutationFn: (pageItem: NonNullable<typeof pages>[number]) =>
+      safeMutation(async () => {
+        const nicheSlug = pageItem.niches?.slug;
+        const schemaSlug = pageItem.content_schemas?.slug;
+        if (!nicheSlug || !schemaSlug)
+          throw new Error("Missing niche or schema");
+        const { data, error } = await supabase.functions.invoke(
+          "generate-content",
+          {
+            body: {
+              niche_slugs: [nicheSlug],
+              content_type_slug: schemaSlug,
+              count_per_combination: 1,
+              dry_run: true,
+            },
+          },
+        );
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.content_json) throw new Error("No content returned");
+        // Update the page with new content
+        const { error: updateErr } = await supabase
+          .from("generated_pages")
+          .update({
+            content_json: data.content_json,
+            seo_meta: data.seo_meta,
+            schema_markup: data.schema_markup,
+            last_refreshed: new Date().toISOString(),
+            refresh_count: (pageItem.refresh_count || 0) + 1,
+          })
+          .eq("id", pageItem.id);
+        if (updateErr) throw updateErr;
+      }, 60000),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       toast({ title: "Regenerated!" });
     },
-    onError: (e: any) => {
-      toast({ title: "Regeneration failed", description: e.message, variant: "destructive" });
+    onError: (e) => {
+      toast({
+        title: "Regeneration failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     },
   });
 
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: 24 }}>
-        <h1 className="font-heading italic" style={{ fontSize: 28, fontWeight: 400 }}>Generated Pages</h1>
+      <div
+        className="flex items-center justify-between flex-wrap gap-4"
+        style={{ marginBottom: 24 }}
+      >
+        <h1
+          className="font-heading italic"
+          style={{ fontSize: 28, fontWeight: 400 }}
+        >
+          Generated Pages
+        </h1>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3" style={{ marginBottom: 20 }}>
+      <div
+        className="flex flex-wrap items-center gap-3"
+        style={{ marginBottom: 20 }}
+      >
         {/* Status tabs */}
         <div className="flex gap-1">
           {STATUSES.map((s) => (
             <button
               key={s}
-              onClick={() => { setStatusFilter(s); setPage(0); }}
+              onClick={() => {
+                setStatusFilter(s);
+                setPage(0);
+              }}
               className="font-body"
               style={{
                 fontSize: 12,
@@ -263,9 +367,18 @@ const GeneratedPagesManager = () => {
                 cursor: "pointer",
                 textTransform: "capitalize",
                 transition: "all 0.15s",
-                background: statusFilter === s ? "hsl(var(--admin-accent))" : "transparent",
-                color: statusFilter === s ? "hsl(var(--admin-bg))" : "hsl(var(--admin-text-soft))",
-                borderColor: statusFilter === s ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))",
+                background:
+                  statusFilter === s
+                    ? "hsl(var(--admin-accent))"
+                    : "transparent",
+                color:
+                  statusFilter === s
+                    ? "hsl(var(--admin-bg))"
+                    : "hsl(var(--admin-text-soft))",
+                borderColor:
+                  statusFilter === s
+                    ? "hsl(var(--admin-accent))"
+                    : "hsl(var(--admin-border))",
               }}
             >
               {s}
@@ -276,26 +389,36 @@ const GeneratedPagesManager = () => {
         {/* Content type dropdown */}
         <select
           value={schemaFilter}
-          onChange={(e) => { setSchemaFilter(e.target.value); setPage(0); }}
+          onChange={(e) => {
+            setSchemaFilter(e.target.value);
+            setPage(0);
+          }}
           className="admin-input font-body"
           style={{ fontSize: 12, padding: "6px 10px", minWidth: 140 }}
         >
           <option value="">All Content Types</option>
           {schemas?.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
           ))}
         </select>
 
         {/* Niche dropdown */}
         <select
           value={nicheFilter}
-          onChange={(e) => { setNicheFilter(e.target.value); setPage(0); }}
+          onChange={(e) => {
+            setNicheFilter(e.target.value);
+            setPage(0);
+          }}
           className="admin-input font-body"
           style={{ fontSize: 12, padding: "6px 10px", minWidth: 140 }}
         >
           <option value="">All Niches</option>
           {niches?.map((n) => (
-            <option key={n.id} value={n.id}>{n.name}</option>
+            <option key={n.id} value={n.id}>
+              {n.name}
+            </option>
           ))}
         </select>
 
@@ -304,14 +427,20 @@ const GeneratedPagesManager = () => {
           <Search
             size={14}
             style={{
-              position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
               color: "hsl(var(--admin-text-ghost))",
             }}
           />
           <input
             placeholder="Search pages..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
             className="admin-input font-body w-full"
             style={{ paddingLeft: 34, fontSize: 12 }}
           />
@@ -324,13 +453,21 @@ const GeneratedPagesManager = () => {
         <div
           className="hidden lg:grid items-center"
           style={{
-            gridTemplateColumns: "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
+            gridTemplateColumns:
+              "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
             padding: "10px 20px",
             borderBottom: "1px solid hsl(var(--admin-border))",
             backgroundColor: "hsl(var(--admin-surface-2))",
           }}
         >
-          <label style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <label
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <input
               type="checkbox"
               checked={allOnPageSelected}
@@ -338,28 +475,57 @@ const GeneratedPagesManager = () => {
               style={{ accentColor: "hsl(var(--admin-accent))" }}
             />
           </label>
-          <span className="admin-label" style={{ marginBottom: 0 }}>Title</span>
-          <span className="admin-label" style={{ marginBottom: 0 }}>Niche</span>
-          <span className="admin-label" style={{ marginBottom: 0 }}>Type</span>
-          <span className="admin-label" style={{ marginBottom: 0 }}>Status</span>
+          <span className="admin-label" style={{ marginBottom: 0 }}>
+            Title
+          </span>
+          <span className="admin-label" style={{ marginBottom: 0 }}>
+            Niche
+          </span>
+          <span className="admin-label" style={{ marginBottom: 0 }}>
+            Type
+          </span>
+          <span className="admin-label" style={{ marginBottom: 0 }}>
+            Status
+          </span>
           <button
             onClick={() => handleSort("quality_score")}
             className="admin-label flex items-center gap-1"
-            style={{ marginBottom: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}
+            style={{
+              marginBottom: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              color: "inherit",
+            }}
           >
             Score <SortIcon col="quality_score" />
           </button>
           <button
             onClick={() => handleSort("views")}
             className="admin-label flex items-center gap-1"
-            style={{ marginBottom: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}
+            style={{
+              marginBottom: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              color: "inherit",
+            }}
           >
             Views <SortIcon col="views" />
           </button>
           <button
             onClick={() => handleSort("created_at")}
             className="admin-label flex items-center gap-1"
-            style={{ marginBottom: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}
+            style={{
+              marginBottom: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              color: "inherit",
+            }}
           >
             Date <SortIcon col="created_at" />
           </button>
@@ -368,13 +534,18 @@ const GeneratedPagesManager = () => {
 
         {isLoading && (
           <div style={{ padding: 32, textAlign: "center" }}>
-            <span className="font-body" style={{ color: "hsl(var(--admin-text-ghost))" }}>Loading...</span>
+            <span
+              className="font-body"
+              style={{ color: "hsl(var(--admin-text-ghost))" }}
+            >
+              Loading...
+            </span>
           </div>
         )}
 
         {paginated.map((pg) => {
-          const niche = (pg as any).niches;
-          const schema = (pg as any).content_schemas;
+          const niche = pg.niches;
+          const schema = pg.content_schemas;
           const sc = statusColors[pg.status ?? "draft"] || statusColors.draft;
 
           return (
@@ -382,21 +553,34 @@ const GeneratedPagesManager = () => {
               key={pg.id}
               className="lg:grid flex flex-col"
               style={{
-                gridTemplateColumns: "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
+                gridTemplateColumns:
+                  "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
                 padding: "12px 20px",
                 borderBottom: "1px solid hsl(var(--admin-border))",
                 alignItems: "center",
                 transition: "background-color 0.15s",
-                backgroundColor: selected.has(pg.id) ? "hsl(var(--admin-accent) / 0.06)" : undefined,
+                backgroundColor: selected.has(pg.id)
+                  ? "hsl(var(--admin-accent) / 0.06)"
+                  : undefined,
               }}
               onMouseEnter={(e) => {
-                if (!selected.has(pg.id)) e.currentTarget.style.backgroundColor = "hsl(var(--admin-surface-2))";
+                if (!selected.has(pg.id))
+                  e.currentTarget.style.backgroundColor =
+                    "hsl(var(--admin-surface-2))";
               }}
               onMouseLeave={(e) => {
-                if (!selected.has(pg.id)) e.currentTarget.style.backgroundColor = "transparent";
+                if (!selected.has(pg.id))
+                  e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <label
+                style={{
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={selected.has(pg.id)}
@@ -420,10 +604,16 @@ const GeneratedPagesManager = () => {
                 )}
                 <span
                   className="font-body truncate"
-                  style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--admin-text))" }}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "hsl(var(--admin-text))",
+                  }}
                   title={pg.title}
                 >
-                  {pg.title.length > 50 ? pg.title.slice(0, 50) + "…" : pg.title}
+                  {pg.title.length > 50
+                    ? pg.title.slice(0, 50) + "…"
+                    : pg.title}
                 </span>
               </div>
               <span
@@ -466,19 +656,46 @@ const GeneratedPagesManager = () => {
               {(() => {
                 const idxStatus = indexingMap?.get(pg.id);
                 if (!idxStatus) return null;
-                const color = idxStatus === "indexed" ? "hsl(var(--admin-sage))" : "hsl(var(--admin-accent))";
-                const label = idxStatus === "indexed" ? "Indexed by Google" : "Submitted to Google";
-                return <span title={label}><Globe size={12} style={{ color, flexShrink: 0 }} /></span>;
+                const color =
+                  idxStatus === "indexed"
+                    ? "hsl(var(--admin-sage))"
+                    : "hsl(var(--admin-accent))";
+                const label =
+                  idxStatus === "indexed"
+                    ? "Indexed by Google"
+                    : "Submitted to Google";
+                return (
+                  <span title={label}>
+                    <Globe size={12} style={{ color, flexShrink: 0 }} />
+                  </span>
+                );
               })()}
-              <span className="font-body flex items-center gap-1" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
-                {pg.quality_score != null ? Number(pg.quality_score).toFixed(1) : "—"}
+              <span
+                className="font-body flex items-center gap-1"
+                style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+              >
+                {pg.quality_score != null
+                  ? Number(pg.quality_score).toFixed(1)
+                  : "—"}
                 {(() => {
-                  const flags = (pg as any).lint_flags;
+                  const flags = pg.lint_flags;
                   const count = Array.isArray(flags) ? flags.length : 0;
-                  if (!count) return null;
+                  if (!Array.isArray(flags) || !count) return null;
                   const preview = flags
                     .slice(0, 5)
-                    .map((f: any) => (typeof f === "string" ? f : f?.field ? `${f.field}: ${f.phrase || f.type || ""}` : JSON.stringify(f)))
+                    .map((f: unknown) => {
+                      if (typeof f === "string") return f;
+                      const flag = z
+                        .object({
+                          field: z.string(),
+                          phrase: z.string().optional(),
+                          type: z.string().optional(),
+                        })
+                        .safeParse(f);
+                      return flag.success
+                        ? `${flag.data.field}: ${flag.data.phrase || flag.data.type || ""}`
+                        : JSON.stringify(f);
+                    })
                     .join(" · ");
                   return (
                     <span
@@ -497,16 +714,28 @@ const GeneratedPagesManager = () => {
                   );
                 })()}
               </span>
-              <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}>
+              <span
+                className="font-body"
+                style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
+              >
                 {pg.views ?? 0}
               </span>
-              <span className="font-body" style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}>
+              <span
+                className="font-body"
+                style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+              >
                 {timeAgo(pg.created_at ?? "")}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "hsl(var(--admin-text-soft))", padding: 4 }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "hsl(var(--admin-text-soft))",
+                      padding: 4,
+                    }}
                   >
                     <MoreHorizontal size={16} />
                   </button>
@@ -526,26 +755,41 @@ const GeneratedPagesManager = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => updateStatus.mutate({ ids: [pg.id], status: "published" })}
+                    onClick={() =>
+                      updateStatus.mutate({ ids: [pg.id], status: "published" })
+                    }
                   >
                     <ExternalLink size={14} className="mr-2" /> Publish
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => updateStatus.mutate({ ids: [pg.id], status: "archived" })}
+                    onClick={() =>
+                      updateStatus.mutate({ ids: [pg.id], status: "archived" })
+                    }
                   >
                     <Archive size={14} className="mr-2" /> Archive
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => regenerateMutation.mutate(pg)}>
+                  <DropdownMenuItem
+                    onClick={() => regenerateMutation.mutate(pg)}
+                  >
                     <RefreshCw size={14} className="mr-2" /> Regenerate
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={async () => {
                       toast({ title: "Generating OG image..." });
-                      const { data, error } = await supabase.functions.invoke("generate-og-image", { body: { page_id: pg.id } });
+                      const { data, error } = await supabase.functions.invoke(
+                        "generate-og-image",
+                        { body: { page_id: pg.id } },
+                      );
                       if (error || data?.error) {
-                        toast({ title: "Failed", description: error?.message || data?.error, variant: "destructive" });
+                        toast({
+                          title: "Failed",
+                          description: error?.message || data?.error,
+                          variant: "destructive",
+                        });
                       } else {
-                        qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+                        qc.invalidateQueries({
+                          queryKey: ["admin-generated-pages"],
+                        });
                         toast({ title: "OG image generated" });
                       }
                     }}
@@ -566,7 +810,10 @@ const GeneratedPagesManager = () => {
 
         {!isLoading && filtered.length === 0 && (
           <div style={{ padding: 40, textAlign: "center" }}>
-            <p className="font-body" style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}>
+            <p
+              className="font-body"
+              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
+            >
               No generated pages found.
             </p>
           </div>
@@ -575,8 +822,14 @@ const GeneratedPagesManager = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between" style={{ marginTop: 16 }}>
-          <span className="font-body" style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
+        <div
+          className="flex items-center justify-between"
+          style={{ marginTop: 16 }}
+        >
+          <span
+            className="font-body"
+            style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
+          >
             {filtered.length} pages · Page {page + 1} of {totalPages}
           </span>
           <div className="flex gap-2">
@@ -614,8 +867,22 @@ const GeneratedPagesManager = () => {
             zIndex: 50,
           }}
         >
-          <span className="font-body" style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--admin-text))" }}>
-            <CheckSquare size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
+          <span
+            className="font-body"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "hsl(var(--admin-text))",
+            }}
+          >
+            <CheckSquare
+              size={14}
+              style={{
+                display: "inline",
+                marginRight: 6,
+                verticalAlign: "middle",
+              }}
+            />
             {selected.size} selected
           </span>
           <button
@@ -635,7 +902,11 @@ const GeneratedPagesManager = () => {
           <button
             onClick={() => setBulkAction("delete")}
             className="admin-btn-ghost"
-            style={{ fontSize: 12, padding: "6px 14px", color: "hsl(var(--admin-danger))" }}
+            style={{
+              fontSize: 12,
+              padding: "6px 14px",
+              color: "hsl(var(--admin-danger))",
+            }}
           >
             Delete Selected
           </button>
@@ -648,12 +919,27 @@ const GeneratedPagesManager = () => {
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
         >
-          <div className="admin-card" style={{ padding: 32, maxWidth: 380, width: "90%" }}>
-            <p className="font-body" style={{ fontSize: 15, marginBottom: 20, color: "hsl(var(--admin-text))" }}>
+          <div
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 380, width: "90%" }}
+          >
+            <p
+              className="font-body"
+              style={{
+                fontSize: 15,
+                marginBottom: 20,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
               Delete this page? This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteId(null)} className="admin-btn-ghost">Cancel</button>
+              <button
+                onClick={() => setDeleteId(null)}
+                className="admin-btn-ghost"
+              >
+                Cancel
+              </button>
               <button
                 onClick={() => deleteMutation.mutate([deleteId])}
                 className="admin-btn-primary"
@@ -672,27 +958,52 @@ const GeneratedPagesManager = () => {
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
         >
-          <div className="admin-card" style={{ padding: 32, maxWidth: 420, width: "90%" }}>
-            <p className="font-body" style={{ fontSize: 15, marginBottom: 20, color: "hsl(var(--admin-text))" }}>
+          <div
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 420, width: "90%" }}
+          >
+            <p
+              className="font-body"
+              style={{
+                fontSize: 15,
+                marginBottom: 20,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
               {bulkAction === "delete"
                 ? `Delete ${selected.size} pages? This cannot be undone.`
                 : `${bulkAction === "publish" ? "Publish" : "Archive"} ${selected.size} pages?`}
             </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setBulkAction(null)} className="admin-btn-ghost">Cancel</button>
+              <button
+                onClick={() => setBulkAction(null)}
+                className="admin-btn-ghost"
+              >
+                Cancel
+              </button>
               <button
                 onClick={() => {
                   const ids = Array.from(selected);
                   if (bulkAction === "delete") {
                     deleteMutation.mutate(ids);
                   } else {
-                    updateStatus.mutate({ ids, status: bulkAction === "publish" ? "published" : "archived" });
+                    updateStatus.mutate({
+                      ids,
+                      status:
+                        bulkAction === "publish" ? "published" : "archived",
+                    });
                   }
                 }}
                 className="admin-btn-primary"
-                style={bulkAction === "delete" ? { background: "hsl(var(--admin-danger))" } : {}}
+                style={
+                  bulkAction === "delete"
+                    ? { background: "hsl(var(--admin-danger))" }
+                    : {}
+                }
               >
-                {(deleteMutation.isPending || updateStatus.isPending) ? "Processing..." : "Confirm"}
+                {deleteMutation.isPending || updateStatus.isPending
+                  ? "Processing..."
+                  : "Confirm"}
               </button>
             </div>
           </div>

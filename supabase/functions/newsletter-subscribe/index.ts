@@ -1,3 +1,4 @@
+import { readBoundedJson } from "../_shared/boundedJson.ts";
 // Public double-opt-in subscribe endpoint.
 //
 // Safety properties:
@@ -11,7 +12,10 @@
 //  - Suppressed recipients (bounced / complained) are never reactivated here.
 //  - Concurrent requests for the same address are serialized by the DB function.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import {
   buildConfirmationEmail,
@@ -29,7 +33,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MAX_BODY_BYTES = 2048;
 const EMAIL_LIMIT = 3; // confirmation requests per address...
 const EMAIL_WINDOW_SECONDS = 24 * 60 * 60; // ...per 24h
 const IP_LIMIT = 8; // requests per IP...
@@ -41,18 +44,6 @@ function json(status: number, body: unknown) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-async function readBoundedJson(req: Request): Promise<Record<string, unknown> | null> {
-  const raw = await req.text();
-  if (raw.length === 0 || raw.length > MAX_BODY_BYTES) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 async function hashed(value: string): Promise<string> {
@@ -73,7 +64,7 @@ function clientIp(req: Request): string {
 }
 
 async function allowed(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   key: string,
   limit: number,
   windowSeconds: number,
@@ -97,29 +88,40 @@ async function sendConfirmation(
   token: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const { subject, html } = buildConfirmationEmail(config, token);
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-      // Same address + same token must never produce two emails.
-      "Idempotency-Key": `nl-confirm-${token}`,
-    },
-    body: JSON.stringify({
-      from: config.fromAddress,
-      to: [email],
-      reply_to: config.replyTo,
-      subject,
-      html,
-    }),
-  });
-  if (!res.ok) return { ok: false, error: `Resend ${res.status}: ${await res.text()}` };
-  return { ok: true };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      signal: AbortSignal.timeout(15000),
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+        // Same address + same token must never produce two emails.
+        "Idempotency-Key": `nl-confirm-${token}`,
+      },
+      body: JSON.stringify({
+        from: config.fromAddress,
+        to: [email],
+        reply_to: config.replyTo,
+        subject,
+        html,
+      }),
+    });
+    if (!res.ok)
+      return { ok: false, error: `Resend ${res.status}: ${await res.text()}` };
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Provider request failed",
+    };
+  }
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json(405, { ok: false, error: "Method not allowed" });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST")
+    return json(405, { ok: false, error: "Method not allowed" });
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -153,39 +155,69 @@ Deno.serve(async (req) => {
         missing: resolved.missing,
       });
     }
-    const { data: pending } = await admin
+    const { data: pending, error: pendingError } = await admin
       .from("newsletter_subscribers")
-      .select("email, confirm_token")
+      .select("email, confirm_token, last_confirmation_sent_at")
       .eq("status", "pending")
       .limit(50);
+    if (pendingError) return json(503, { ok: false, state: "unavailable" });
     let sent = 0;
     let failed = 0;
     for (const p of pending ?? []) {
-      const r = await sendConfirmation(resolved.config, p.email, p.confirm_token);
-      if (r.ok) {
-        sent++;
-        await admin
-          .from("newsletter_subscribers")
-          .update({ last_confirmation_sent_at: new Date().toISOString() })
-          .eq("email", p.email);
-      } else {
+      const now = new Date();
+      if (
+        p.last_confirmation_sent_at &&
+        Date.parse(p.last_confirmation_sent_at) >
+          now.getTime() - RESEND_COOLDOWN_SECONDS * 1000
+      )
+        continue;
+      // Claim before sending; concurrent public/admin retries cannot both send.
+      let claim = admin
+        .from("newsletter_subscribers")
+        .update({ last_confirmation_sent_at: now.toISOString() })
+        .eq("email", p.email)
+        .eq("confirm_token", p.confirm_token)
+        .eq("status", "pending");
+      claim = p.last_confirmation_sent_at
+        ? claim.eq("last_confirmation_sent_at", p.last_confirmation_sent_at)
+        : claim.is("last_confirmation_sent_at", null);
+      const { data: claimed, error: claimError } = await claim
+        .select("email")
+        .maybeSingle();
+      if (claimError) {
+        failed++;
+        continue;
+      }
+      if (!claimed) continue;
+      const r = await sendConfirmation(
+        resolved.config,
+        p.email,
+        p.confirm_token,
+      );
+      if (r.ok) sent++;
+      else {
         failed++;
         console.error("resend_pending failed:", r.error);
       }
     }
-    return json(200, { ok: true, sent, failed });
+    return json(failed ? 502 : 200, { ok: failed === 0, sent, failed });
   }
 
   // ---- Public subscribe ----------------------------------------------------
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const email =
+    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!isValidEmail(email)) {
     return json(400, { ok: false, state: "invalid_email" });
   }
-  const source = typeof body.source === "string" ? body.source.slice(0, 64) : null;
+  const source =
+    typeof body.source === "string" ? body.source.slice(0, 64) : null;
 
   // Fail closed BEFORE any subscriber mutation.
   if (!resolved.ok) {
-    console.error("newsletter unavailable, missing:", resolved.missing.join(", "));
+    console.error(
+      "newsletter unavailable, missing:",
+      resolved.missing.join(", "),
+    );
     return json(503, { ok: false, state: "unavailable" });
   }
   const config = resolved.config;
@@ -200,11 +232,14 @@ Deno.serve(async (req) => {
     return json(429, { ok: false, state: "rate_limited" });
   }
 
-  const { data: rows, error: rpcErr } = await admin.rpc("newsletter_public_subscribe", {
-    _email: email,
-    _source: source,
-    _cooldown_seconds: RESEND_COOLDOWN_SECONDS,
-  });
+  const { data: rows, error: rpcErr } = await admin.rpc(
+    "newsletter_public_subscribe",
+    {
+      _email: email,
+      _source: source,
+      _cooldown_seconds: RESEND_COOLDOWN_SECONDS,
+    },
+  );
   if (rpcErr) {
     console.error("newsletter_public_subscribe failed:", rpcErr.message);
     return json(500, { ok: false, state: "error" });
@@ -225,10 +260,12 @@ Deno.serve(async (req) => {
     await admin
       .from("newsletter_subscribers")
       .update({ last_confirmation_sent_at: null })
-      .eq("email", email);
+      .eq("email", email)
+      .eq("confirm_token", row!.token as string)
+      .eq("status", "pending");
     return json(502, { ok: false, state: "send_failed" });
   }
 
   const mapped = subscribeResponseFor("confirmation_due");
-  return json(mapped.status, { ...mapped.body, site_name: config.siteName });
+  return json(mapped.status, mapped.body);
 });

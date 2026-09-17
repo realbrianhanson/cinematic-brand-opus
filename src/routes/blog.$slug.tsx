@@ -1,8 +1,13 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import BlogPost from "@/pages/BlogPost";
+import NotFound from "@/pages/NotFound";
+import { useAuth } from "@/contexts/AuthContext";
 import PublicRouteError from "@/components/PublicRouteError";
-import { getPublicPostBySlug, getPublicSiteSettings } from "@/lib/publicData.functions";
+import {
+  getPublicPostBySlug,
+  getPublicSiteSettings,
+} from "@/lib/publicData.functions";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
@@ -65,11 +70,18 @@ export const Route = createFileRoute("/blog/$slug")({
     });
   },
   component: BlogPostRoute,
-  errorComponent: () => <PublicRouteError message="This article could not be loaded." />,
+  errorComponent: () => (
+    <PublicRouteError message="This article could not be loaded." />
+  ),
   // Anonymous visitors get the 404 shell. Signed-in admins fall through to the
   // component's own authenticated read so drafts stay previewable.
-  notFoundComponent: () => <BlogPost />,
+  notFoundComponent: MissingPost,
 });
+
+function MissingPost() {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <BlogPost preview /> : <NotFound />;
+}
 
 function BlogPostRoute() {
   const { post, settings } = Route.useLoaderData();

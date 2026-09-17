@@ -4,10 +4,45 @@
  */
 
 const STOP_WORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-  "of", "with", "by", "from", "is", "it", "as", "be", "was", "are",
-  "this", "that", "will", "can", "has", "have", "had", "not", "you",
-  "your", "we", "our", "how", "what", "why", "when", "best", "top",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "is",
+  "it",
+  "as",
+  "be",
+  "was",
+  "are",
+  "this",
+  "that",
+  "will",
+  "can",
+  "has",
+  "have",
+  "had",
+  "not",
+  "you",
+  "your",
+  "we",
+  "our",
+  "how",
+  "what",
+  "why",
+  "when",
+  "best",
+  "top",
 ]);
 
 function tokenize(text: string): string[] {
@@ -28,7 +63,7 @@ export interface NicheMatch {
 export function scoreNicheMatch(
   sourceWords: string[],
   nicheName: string,
-  nicheContext?: any
+  nicheContext?: unknown,
 ): number {
   const nicheWords = new Set(tokenize(nicheName));
 
@@ -51,9 +86,9 @@ export function scoreNicheMatch(
 export function findRelatedNiches(
   sourceKeywords: string[],
   sourceCategory: string,
-  niches: { id: string; name: string; slug: string; context: any }[],
+  niches: { id: string; name: string; slug: string; context: unknown }[],
   minScore = 1,
-  limit = 3
+  limit = 3,
 ): NicheMatch[] {
   const sourceWords = [
     ...tokenize(sourceCategory),
@@ -78,13 +113,22 @@ export function findRelatedNiches(
 
 export function findRelatedNicheForPage(
   nicheName: string,
-  nicheContext: any,
-  posts: { id: string; title: string; slug: string; category_name?: string; keywords?: string[] }[],
-  limit = 2
+  nicheContext: unknown,
+  posts: {
+    id: string;
+    title: string;
+    slug: string;
+    category_name?: string;
+    keywords?: string[];
+  }[],
+  limit = 2,
 ): typeof posts {
   const nicheWords = tokenize(nicheName);
   if (nicheContext) {
-    const contextStr = typeof nicheContext === "string" ? nicheContext : JSON.stringify(nicheContext);
+    const contextStr =
+      typeof nicheContext === "string"
+        ? nicheContext
+        : JSON.stringify(nicheContext);
     nicheWords.push(...tokenize(contextStr));
   }
 

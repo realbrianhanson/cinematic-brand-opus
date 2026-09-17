@@ -8,7 +8,8 @@ describe("fetchAllRows", () => {
     const rows = await fetchAllRows<{ id: number }>(async (from, to) => {
       calls.push([from, to]);
       const data = [];
-      for (let i = from; i <= Math.min(to, total - 1); i += 1) data.push({ id: i });
+      for (let i = from; i <= Math.min(to, total - 1); i += 1)
+        data.push({ id: i });
       return { data, error: null };
     }, "posts");
     expect(rows).toHaveLength(total);
@@ -26,7 +27,10 @@ describe("fetchAllRows", () => {
 
   it("throws instead of returning an empty feed on a read error", async () => {
     await expect(
-      fetchAllRows(async () => ({ data: null, error: { message: "permission denied" } }), "posts"),
+      fetchAllRows(
+        async () => ({ data: null, error: { message: "permission denied" } }),
+        "posts",
+      ),
     ).rejects.toThrow(/posts read failed: permission denied/);
   });
 });

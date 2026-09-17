@@ -11,6 +11,18 @@ import eventCrowd from "@/assets/event-crowd.jpg";
 export const brianPreset: SiteConfig = {
   preset: "brian",
 
+  content: {
+    blogDescription:
+      "AI, marketing, and building businesses that matter. Playbooks, frameworks, and applied strategy from Brian Hanson.",
+    newsDescription:
+      "A daily signal feed of global AI, marketing, and sales news — curated and summarized in one place.",
+    resourceDescription: "Practical AI guides for every industry.",
+    newsBuckets: [
+      { value: "ai", label: "AI", lanes: ["ai_tools", "ai_training"] },
+      { value: "marketing", label: "Marketing", lanes: ["smb_marketing"] },
+      { value: "sales", label: "Sales", lanes: ["sales"] },
+    ],
+  },
   identity: {
     name: "Brian Hanson",
     role: "Keynote Speaker, Advisor & Operator",
@@ -29,6 +41,7 @@ export const brianPreset: SiteConfig = {
   },
 
   metadata: {
+    googleSiteVerification: "K_UDj1XvNR1AVquMTg9QMT_LfxDmHKiPwdzM3pcOQW4",
     defaultTitle: "Brian Hanson | Authority, Leadership, Legacy",
     defaultDescription:
       "Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership.",
@@ -58,7 +71,11 @@ export const brianPreset: SiteConfig = {
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
     ],
-    cta: { label: "Free AI Event", href: "https://aiforbeginners.com", external: true },
+    cta: {
+      label: "Free AI Event",
+      href: "https://aiforbeginners.com",
+      external: true,
+    },
     mobileCtaLabel: "Free 3-Day AI Event →",
   },
 
@@ -67,12 +84,28 @@ export const brianPreset: SiteConfig = {
     headlineLines: [
       { text: "AI Doesn't" },
       { text: "Replace People." },
-      { text: "It Replaces", gold: true, italic: true, spring: true, springDelay: 0.9 },
-      { text: "Inefficiency.", gold: true, italic: true, spring: true, springDelay: 1.1 },
+      {
+        text: "It Replaces",
+        gold: true,
+        italic: true,
+        spring: true,
+        springDelay: 0.9,
+      },
+      {
+        text: "Inefficiency.",
+        gold: true,
+        italic: true,
+        spring: true,
+        springDelay: 1.1,
+      },
     ],
     subtitle:
       "Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to scale. No coding required.",
-    primaryCta: { label: "Join Free 3-Day AI Event", href: "https://aiforbeginners.com", external: true },
+    primaryCta: {
+      label: "Join Free 3-Day AI Event",
+      href: "https://aiforbeginners.com",
+      external: true,
+    },
     secondaryCta: { label: "Book Brian to Speak", href: "#speaking" },
     socialProof: "150,000+ business owners in the community",
     videoSrc: "/videos/hero-bg.mp4",
@@ -94,7 +127,8 @@ export const brianPreset: SiteConfig = {
     overline: "The Story",
     headingLead: "From Nothing to",
     headingAccent: "150,000 Strong",
-    intro: "Every chapter taught me one thing: the rules only apply if you accept them. I never did.",
+    intro:
+      "Every chapter taught me one thing: the rules only apply if you accept them. I never did.",
     timeline: [
       {
         icon: "flame",
@@ -137,7 +171,8 @@ export const brianPreset: SiteConfig = {
     overline: "Core Expertise",
     headingLead: "Where AI Meets",
     headingAccent: "Real Results",
-    intro: "Four disciplines. One unfair advantage. The intersection most \u2018experts\u2019 can\u2019t touch.",
+    intro:
+      "Four disciplines. One unfair advantage. The intersection most \u2018experts\u2019 can\u2019t touch.",
     cards: [
       {
         icon: "brain",
@@ -163,19 +198,43 @@ export const brianPreset: SiteConfig = {
   },
 
   results: [
-    { end: 4, suffix: "×", label: "Inc. 5000", sub: "Highest: #80 in the nation" },
-    { end: 150, suffix: "K+", label: "Community", sub: "Business owners trained" },
-    { end: 50, prefix: "$", suffix: "M+", label: "Revenue", sub: "Influenced across ventures" },
-    { end: 3000, suffix: "+", label: "Revven Users", sub: "Built with zero code", locale: true },
+    {
+      end: 4,
+      suffix: "×",
+      label: "Inc. 5000",
+      sub: "Highest: #80 in the nation",
+    },
+    {
+      end: 150,
+      suffix: "K+",
+      label: "Community",
+      sub: "Business owners trained",
+    },
+    {
+      end: 50,
+      prefix: "$",
+      suffix: "M+",
+      label: "Revenue",
+      sub: "Influenced across ventures",
+    },
+    {
+      end: 3000,
+      suffix: "+",
+      label: "Revven Users",
+      sub: "Built with zero code",
+      locale: true,
+    },
   ],
 
   event: {
     overline: "Free Virtual Event",
     headingAccent: "3 Days",
     headingRest: "That Will Change How You Do Business",
-    intro: "Simple, push-button AI solutions with high impact. No tech background needed...",
+    intro:
+      "Simple, push-button AI solutions with high impact. No tech background needed...",
     imageSrc: eventCrowd,
-    imageAlt: "Brian Hanson's AI for Business live event with hundreds of attendees",
+    imageAlt:
+      "Brian Hanson's AI for Business live event with hundreds of attendees",
     days: [
       {
         day: "Day 1",
@@ -205,7 +264,11 @@ export const brianPreset: SiteConfig = {
         ],
       },
     ],
-    cta: { label: "Register Free — AIForBeginners.com", href: "https://aiforbeginners.com", external: true },
+    cta: {
+      label: "Register Free — AIForBeginners.com",
+      href: "https://aiforbeginners.com",
+      external: true,
+    },
     ctaNote: "100% free. No credit card. Just show up ready to learn.",
   },
 

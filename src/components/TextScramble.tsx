@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
+const glyphs =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
 
 interface TextScrambleProps {
   text: string;
@@ -10,11 +11,21 @@ interface TextScrambleProps {
   style?: React.CSSProperties;
 }
 
-const TextScramble = ({ text, trigger, delay = 0, className, style }: TextScrambleProps) => {
+const TextScramble = ({
+  text,
+  trigger,
+  delay = 0,
+  className,
+  style,
+}: TextScrambleProps) => {
   const [display, setDisplay] = useState("");
   const frameRef = useRef<number>(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(
+    undefined,
+  );
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     if (!trigger) return;
@@ -56,7 +67,7 @@ const TextScramble = ({ text, trigger, delay = 0, className, style }: TextScramb
 
   return (
     <span className={className} style={style}>
-      {trigger ? (display || text.replace(/./g, " ")) : ""}
+      {trigger ? display || text.replace(/./g, " ") : ""}
     </span>
   );
 };

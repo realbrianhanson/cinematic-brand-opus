@@ -11,7 +11,10 @@ export function publicClient() {
     global: {
       fetch: (input: RequestInfo | URL, init?: RequestInit) => {
         const h = new Headers(init?.headers);
-        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) {
+        if (
+          key.startsWith("sb_") &&
+          h.get("Authorization") === `Bearer ${key}`
+        ) {
           h.delete("Authorization");
         }
         h.set("apikey", key);
@@ -30,7 +33,10 @@ export const escXml = (s: unknown) =>
     .replace(/'/g, "&apos;");
 
 export const stripHtml = (html: string) =>
-  (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  (html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 export const truncate = (s: string, n: number) => {
   const t = (s || "").replace(/\s+/g, " ").trim();
@@ -54,7 +60,10 @@ const PAGE_SIZE = 1000;
  * Query errors are thrown, never turned into an empty feed.
  */
 export async function fetchAllRows<T>(
-  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  build: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   label: string,
 ): Promise<T[]> {
   const rows: T[] = [];
@@ -135,7 +144,9 @@ async function loadPublished() {
       (from, to) =>
         supabase
           .from("posts")
-          .select("slug, title, excerpt, tldr, content, published_at, created_at, updated_at")
+          .select(
+            "slug, title, excerpt, tldr, content, published_at, created_at, updated_at",
+          )
           .eq("status", "published")
           .order("published_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
@@ -156,7 +167,9 @@ async function loadPublished() {
       (from, to) =>
         supabase
           .from("generated_pages")
-          .select("slug, title, content_json, seo_meta, content_schema_id, updated_at")
+          .select(
+            "slug, title, content_json, seo_meta, content_schema_id, updated_at",
+          )
           .eq("status", "published")
           .order("title")
           .range(from, to),
@@ -198,7 +211,11 @@ export async function buildSitemapXml(): Promise<string> {
     });
   }
 
-  entries.push({ loc: `${siteUrl}/resources`, changefreq: "weekly", priority: "0.8" });
+  entries.push({
+    loc: `${siteUrl}/resources`,
+    changefreq: "weekly",
+    priority: "0.8",
+  });
   for (const s of schemas) {
     if (activeSchemaIds.has(s.id)) {
       entries.push({
@@ -226,7 +243,11 @@ export async function buildSitemapXml(): Promise<string> {
       priority: "0.9",
     });
   }
-  entries.push({ loc: `${siteUrl}/sitemap`, changefreq: "monthly", priority: "0.4" });
+  entries.push({
+    loc: `${siteUrl}/sitemap`,
+    changefreq: "monthly",
+    priority: "0.4",
+  });
 
   return urlsetXml(entries);
 }
@@ -236,7 +257,9 @@ export async function buildRssXml(): Promise<string> {
   const supabase = publicClient();
   const { data, error } = await supabase
     .from("posts")
-    .select("slug, title, excerpt, tldr, content, published_at, created_at, updated_at")
+    .select(
+      "slug, title, excerpt, tldr, content, published_at, created_at, updated_at",
+    )
     .eq("status", "published")
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -245,7 +268,9 @@ export async function buildRssXml(): Promise<string> {
   const posts = data ?? [];
 
   const brandName = s.site_name || s.publisher_name || "Blog";
-  const channelTitle = /blog$/i.test(brandName) ? brandName : `${brandName} Blog`;
+  const channelTitle = /blog$/i.test(brandName)
+    ? brandName
+    : `${brandName} Blog`;
   const description =
     s.author_bio ||
     (s.author_name
@@ -256,7 +281,10 @@ export async function buildRssXml(): Promise<string> {
   const items = posts
     .map((p) => {
       const link = `${s.siteUrl}/blog/${p.slug}`;
-      const desc = truncate(p.excerpt || p.tldr || stripHtml(p.content || ""), 500);
+      const desc = truncate(
+        p.excerpt || p.tldr || stripHtml(p.content || ""),
+        500,
+      );
       return `    <item>
       <title>${escXml(p.title)}</title>
       <link>${escXml(link)}</link>
@@ -307,7 +335,9 @@ export async function buildLlmsTxt(full: boolean): Promise<string> {
       const seo = (p.seo_meta ?? {}) as Record<string, string>;
       const desc =
         seo.meta_description || seo.description || stripHtml(p.content || "");
-      out.push(`- [${p.title}](${s.siteUrl}/guides/${p.slug}): ${truncate(desc, 160)}`);
+      out.push(
+        `- [${p.title}](${s.siteUrl}/guides/${p.slug}): ${truncate(desc, 160)}`,
+      );
       if (full) {
         const body = stripHtml(p.content || "");
         if (body) out.push("", `  ${truncate(body, 600)}`, "");
@@ -341,7 +371,9 @@ export async function buildLlmsTxt(full: boolean): Promise<string> {
     out.push("## Blog", "");
     for (const p of posts) {
       const desc = p.excerpt || p.tldr || stripHtml(p.content || "");
-      out.push(`- [${p.title}](${s.siteUrl}/blog/${p.slug}): ${truncate(desc, 160)}`);
+      out.push(
+        `- [${p.title}](${s.siteUrl}/blog/${p.slug}): ${truncate(desc, 160)}`,
+      );
       if (full) {
         const body = p.tldr || stripHtml(p.content || "");
         if (body) out.push("", `  ${truncate(body, 600)}`, "");

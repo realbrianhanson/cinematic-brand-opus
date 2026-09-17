@@ -3,7 +3,10 @@ import { Trash2 } from "lucide-react";
 
 const IframeNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   return (
-    <NodeViewWrapper className="tiptap-media-wrapper" data-selected={selected || undefined}>
+    <NodeViewWrapper
+      className="tiptap-media-wrapper"
+      data-selected={selected || undefined}
+    >
       <div
         style={{
           position: "relative",

@@ -14,7 +14,10 @@ const corsHeaders = {
 };
 
 function pemToBuffer(pem: string) {
-  const base64 = pem.replace(/\\n/g, "").replace(/-----BEGIN PRIVATE KEY-----/, "").replace(/-----END PRIVATE KEY-----/, "");
+  const base64 = pem
+    .replace(/\\n/g, "")
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "");
   const binary = atob(base64);
   const buffer = new ArrayBuffer(binary.length);
   const view = new Uint8Array(buffer);
@@ -24,7 +27,7 @@ function pemToBuffer(pem: string) {
   return buffer;
 }
 
-function base64url(source: ArrayBuffer) {
+function base64url(source: ArrayBuffer | Uint8Array) {
   // Convert the buffer to a string
   const string = String.fromCharCode.apply(null, new Uint8Array(source) as any);
 
@@ -32,17 +35,19 @@ function base64url(source: ArrayBuffer) {
   let base64 = btoa(string);
 
   // Replace non-url compatible characters
-  base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  base64 = base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
   return base64;
 }
 
-async function getGoogleAccessToken(serviceAccountJson: string): Promise<string> {
+async function getGoogleAccessToken(
+  serviceAccountJson: string,
+): Promise<string> {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const now = Math.floor(Date.now() / 1000);
   const jwtHeader = JSON.stringify({
     alg: "RS256",
-    typ: "JWT"
+    typ: "JWT",
   });
 
   const jwtClaimSet = JSON.stringify({
@@ -63,16 +68,16 @@ async function getGoogleAccessToken(serviceAccountJson: string): Promise<string>
     pemToBuffer(serviceAccount.private_key),
     {
       name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
+      hash: "SHA-256",
     },
     false,
-    ["sign"]
+    ["sign"],
   );
 
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
     cryptoKey,
-    new TextEncoder().encode(data)
+    new TextEncoder().encode(data),
   );
 
   const signatureBase64 = base64url(signature);
@@ -81,9 +86,9 @@ async function getGoogleAccessToken(serviceAccountJson: string): Promise<string>
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
 
   const tokenData = await tokenResponse.json();
@@ -98,16 +103,16 @@ async function submitToIndexingApi(accessToken: string, pageUrl: string) {
   const apiUrl = "https://indexing.googleapis.com/v2/urlNotifications:publish";
   const payload = {
     url: pageUrl,
-    type: "URL_UPDATED"
+    type: "URL_UPDATED",
   };
 
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`
+      Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();
@@ -130,16 +135,25 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await anonClient.auth.getUser();
+  const anonClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      global: { headers: { Authorization: authHeader } },
+    },
+  );
+  const {
+    data: { user },
+    error: userErr,
+  } = await anonClient.auth.getUser();
   if (userErr || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const { data: roleRow } = await anonClient
@@ -150,14 +164,15 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!roleRow) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const body = await req.json();
@@ -169,7 +184,10 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const siteUrl = (settings?.site_url || "https://example.com").replace(/\/$/, "");
+    const siteUrl = (settings?.site_url || "https://example.com").replace(
+      /\/$/,
+      "",
+    );
 
     const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
 
@@ -189,7 +207,7 @@ Deno.serve(async (req) => {
             "Google discovery is handled passively via the sitemap listed in robots.txt. " +
             "Active submission is running through IndexNow (Bing, Yandex, and other participating engines).",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -204,11 +222,19 @@ Deno.serve(async (req) => {
           method: "indexing_api",
           error: `Failed to authenticate with Google: ${e.message}`,
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const results: { submitted: number; errors: string[]; method: string; warnings: string[] } = {
+    const results: {
+      submitted: number;
+      errors: string[];
+      method: string;
+      warnings: string[];
+    } = {
       submitted: 0,
       errors: [],
       method: "indexing_api",
@@ -218,26 +244,33 @@ Deno.serve(async (req) => {
     if (all_unsubmitted) {
       const { data: pages } = await supabase
         .from("generated_pages")
-        .select("id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)")
+        .select(
+          "id, slug, content_schema_id, niche_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)",
+        )
         .eq("status", "published");
 
       const { data: existingLogs } = await supabase
         .from("indexing_log")
         .select("page_id");
 
-      const submittedIds = new Set((existingLogs || []).map((l: any) => l.page_id));
+      const submittedIds = new Set(
+        (existingLogs || []).map((l: any) => l.page_id),
+      );
       const urlList: { id: string; url: string }[] = [];
 
       for (const pg of pages || []) {
         if (submittedIds.has(pg.id)) continue;
         const contentSlug = (pg as any).content_schemas?.slug;
         if (!contentSlug) continue;
-        urlList.push({ id: pg.id, url: `${siteUrl}/resources/${contentSlug}/${pg.slug}` });
+        urlList.push({
+          id: pg.id,
+          url: `${siteUrl}/resources/${contentSlug}/${pg.slug}`,
+        });
       }
 
       if (urlList.length > DAILY_INDEXING_API_LIMIT) {
         results.warnings.push(
-          `${urlList.length} URLs queued but Indexing API limit is ${DAILY_INDEXING_API_LIMIT}/day. Only first ${DAILY_INDEXING_API_LIMIT} will be submitted.`
+          `${urlList.length} URLs queued but Indexing API limit is ${DAILY_INDEXING_API_LIMIT}/day. Only first ${DAILY_INDEXING_API_LIMIT} will be submitted.`,
         );
         urlList.length = DAILY_INDEXING_API_LIMIT;
       }
@@ -255,21 +288,25 @@ Deno.serve(async (req) => {
       results.submitted = 1;
     } else {
       return new Response(
-        JSON.stringify({ error: "Provide page_id + page_url, or all_unsubmitted: true" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Provide page_id + page_url, or all_unsubmitted: true",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    return new Response(
-      JSON.stringify({ success: true, ...results }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, ...results }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("Submit to Google error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
@@ -277,7 +314,7 @@ async function submitPage(
   supabase: any,
   pageId: string,
   pageUrl: string,
-  accessToken: string
+  accessToken: string,
 ) {
   try {
     await submitToIndexingApi(accessToken, pageUrl);

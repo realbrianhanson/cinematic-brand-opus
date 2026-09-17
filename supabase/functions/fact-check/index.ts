@@ -18,23 +18,34 @@ type Verdict = "verified" | "unverified" | "contradicted";
 type CheckedClaim = Claim & { verdict: Verdict; evidence_url: string | null };
 
 function parseJsonLoose(raw: string): any | null {
-  let s = (raw || "").replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  let s = (raw || "")
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+  const a = s.indexOf("{"),
+    b = s.lastIndexOf("}");
   if (a !== -1 && b > a) s = s.slice(a, b + 1);
-  try { return JSON.parse(s); } catch { return null; }
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const auth = await authorizeCronOrAdmin(req, corsHeaders);
   if (auth instanceof Response) return auth;
 
   const { post_id } = await req.json().catch(() => ({}));
   if (!post_id) {
     return new Response(JSON.stringify({ error: "post_id required" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -47,25 +58,38 @@ Deno.serve(async (req) => {
 
   const { data: post, error: postErr } = await supabase
     .from("posts")
-    .select("id, title, content, excerpt, tldr, key_takeaways, faq_items, source_citations, lint_flags, fact_check")
+    .select(
+      "id, title, content, excerpt, tldr, key_takeaways, faq_items, source_citations, lint_flags, fact_check",
+    )
     .eq("id", post_id)
     .maybeSingle();
   if (postErr || !post) {
     return new Response(JSON.stringify({ error: "post not found" }), {
-      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!pplxKey) {
-    return new Response(JSON.stringify({ ok: true, skipped: "no perplexity key" }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "no perplexity key" }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
-  const citations = Array.isArray(post.source_citations) ? post.source_citations : [];
+  const citations = Array.isArray(post.source_citations)
+    ? post.source_citations
+    : [];
   const citationList = citations
-    .map((c: any) => `- ${c.title || "(untitled)"} ${c.url || ""}`).join("\n");
-  const plain = (post.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 12000);
+    .map((c: any) => `- ${c.title || "(untitled)"} ${c.url || ""}`)
+    .join("\n");
+  const plain = (post.content || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 12000);
 
   // Step 1: extract claims
   const extractSys = `Extract every verifiable factual claim from the post that contains a number, date, product name, company action, or statistic. For each, pick the URL from the provided citations that best supports it (or null).
@@ -82,29 +106,41 @@ ${citationList || "(none)"}`;
 
   let claims: Claim[] = [];
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: "system", content: extractSys },
-          { role: "user", content: extractUser },
-        ],
-        temperature: 0.1,
-        max_tokens: 4000,
-      }),
-    });
+    const r = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableKey}`,
+        },
+        body: JSON.stringify({
+          model: MAIN_MODEL,
+          messages: [
+            { role: "system", content: extractSys },
+            { role: "user", content: extractUser },
+          ],
+          temperature: 0.1,
+          max_tokens: 4000,
+        }),
+      },
+    );
     if (r.ok) {
       const d = await r.json();
       const parsed = parseJsonLoose(d?.choices?.[0]?.message?.content || "");
       if (parsed && Array.isArray(parsed.claims)) {
         claims = parsed.claims
-          .filter((c: any) => c && typeof c.claim === "string" && c.claim.trim())
+          .filter(
+            (c: any) => c && typeof c.claim === "string" && c.claim.trim(),
+          )
           .slice(0, 12)
           .map((c: any) => ({
             claim: c.claim.trim(),
-            source_url: typeof c.source_url === "string" && c.source_url.startsWith("http") ? c.source_url : null,
+            source_url:
+              typeof c.source_url === "string" &&
+              c.source_url.startsWith("http")
+                ? c.source_url
+                : null,
           }));
       }
     } else {
@@ -125,11 +161,17 @@ Claim: "${c.claim}"
 Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_url":"https://..."}`;
       const r = await fetch("https://api.perplexity.ai/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pplxKey}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${pplxKey}`,
+        },
         body: JSON.stringify({
           model: "sonar",
           messages: [
-            { role: "system", content: "You are a strict fact-checker. Reply with JSON only." },
+            {
+              role: "system",
+              content: "You are a strict fact-checker. Reply with JSON only.",
+            },
             { role: "user", content: q },
           ],
           temperature: 0.1,
@@ -138,11 +180,22 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
       if (r.ok) {
         const d = await r.json();
         const parsed = parseJsonLoose(d?.choices?.[0]?.message?.content || "");
-        if (parsed && (parsed.verdict === "verified" || parsed.verdict === "unverified" || parsed.verdict === "contradicted")) {
+        if (
+          parsed &&
+          (parsed.verdict === "verified" ||
+            parsed.verdict === "unverified" ||
+            parsed.verdict === "contradicted")
+        ) {
           verdict = parsed.verdict;
-          if (typeof parsed.evidence_url === "string" && parsed.evidence_url.startsWith("http")) {
+          if (
+            typeof parsed.evidence_url === "string" &&
+            parsed.evidence_url.startsWith("http")
+          ) {
             evidence_url = parsed.evidence_url;
-          } else if (Array.isArray(d?.citations) && typeof d.citations[0] === "string") {
+          } else if (
+            Array.isArray(d?.citations) &&
+            typeof d.citations[0] === "string"
+          ) {
             evidence_url = d.citations[0];
           }
         }
@@ -155,8 +208,12 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
   }
 
   const verified_count = checked.filter((c) => c.verdict === "verified").length;
-  const unverified_count = checked.filter((c) => c.verdict === "unverified").length;
-  const contradicted_count = checked.filter((c) => c.verdict === "contradicted").length;
+  const unverified_count = checked.filter(
+    (c) => c.verdict === "unverified",
+  ).length;
+  const contradicted_count = checked.filter(
+    (c) => c.verdict === "contradicted",
+  ).length;
 
   // Recompute quality score using structural score + fact deductions
   const { score: structural } = scorePost({
@@ -167,7 +224,9 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
     tldr: (post as any).tldr,
     excerpt: (post as any).excerpt,
   });
-  const citationsCount = Array.isArray(post.source_citations) ? post.source_citations.length : 0;
+  const citationsCount = Array.isArray(post.source_citations)
+    ? post.source_citations.length
+    : 0;
   const q = computeQualityWithFacts({
     structuralScore: structural,
     unverifiedCount: unverified_count,
@@ -191,7 +250,8 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
   const newLintFlags = Array.isArray(post.lint_flags)
     ? (post.lint_flags as any[]).filter((f) => !(f && f.type === "fact_check"))
     : [];
-  const gateWouldFailFacts = contradicted_count > 0 || verified_count < 2 || unverified_count > 2;
+  const gateWouldFailFacts =
+    contradicted_count > 0 || verified_count < 2 || unverified_count > 2;
   if (gateWouldFailFacts) {
     newLintFlags.push({
       type: "fact_check",
@@ -206,15 +266,27 @@ Answer JSON ONLY: {"verdict":"verified"|"unverified"|"contradicted","evidence_ur
     lint_flags: newLintFlags,
   };
 
-  const { error: upErr } = await supabase.from("posts").update(update).eq("id", post_id);
+  const { error: upErr } = await supabase
+    .from("posts")
+    .update(update)
+    .eq("id", post_id);
   if (upErr) {
     return new Response(JSON.stringify({ error: upErr.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  return new Response(JSON.stringify({
-    ok: true, verified_count, unverified_count, contradicted_count,
-    quality_score: q.score, structural_score: structural, fact_deductions: q.deductions,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      verified_count,
+      unverified_count,
+      contradicted_count,
+      quality_score: q.score,
+      structural_score: structural,
+      fact_deductions: q.deductions,
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 });

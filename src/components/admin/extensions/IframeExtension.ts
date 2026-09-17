@@ -12,7 +12,10 @@ const Iframe = Node.create({
       src: { default: null },
       frameborder: { default: "0" },
       allowfullscreen: { default: "true" },
-      allow: { default: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" },
+      allow: {
+        default:
+          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+      },
     };
   },
 
@@ -23,8 +26,16 @@ const Iframe = Node.create({
   renderHTML({ HTMLAttributes }) {
     return [
       "div",
-      { style: "position:relative;width:100%;aspect-ratio:16/9;margin:16px 0;border-radius:4px;overflow:hidden;" },
-      ["iframe", mergeAttributes(HTMLAttributes, { style: "width:100%;height:100%;border:0;" })],
+      {
+        style:
+          "position:relative;width:100%;aspect-ratio:16/9;margin:16px 0;border-radius:4px;overflow:hidden;",
+      },
+      [
+        "iframe",
+        mergeAttributes(HTMLAttributes, {
+          style: "width:100%;height:100%;border:0;",
+        }),
+      ],
     ];
   },
 

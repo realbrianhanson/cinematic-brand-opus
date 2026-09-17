@@ -25,17 +25,25 @@ async function fetchSourceMarkdown(url: string): Promise<string> {
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+        body: JSON.stringify({
+          url,
+          formats: ["markdown"],
+          onlyMainContent: true,
+        }),
       });
       if (r.ok) {
         const j = await r.json();
         const md = j?.data?.markdown || j?.markdown;
         if (md && md.length > 200) return md.slice(0, 12000);
       }
-    } catch (_) { /* fall through */ }
+    } catch (_) {
+      /* fall through */
+    }
   }
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 NewsRewriter/1.0" } });
+    const r = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 NewsRewriter/1.0" },
+    });
     const html = await r.text();
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -56,7 +64,8 @@ const json = (payload: unknown, status = 200) =>
   });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   try {
@@ -68,12 +77,16 @@ Deno.serve(async (req) => {
 
     const rawBody = await req.text().catch(() => "");
     const validated = validateNewsRequest(rawBody);
-    if (!validated.ok) return json({ error: validated.error }, validated.status);
+    if (!validated.ok)
+      return json({ error: validated.error }, validated.status);
     const { id, force } = validated;
 
     if (!LOVABLE_API_KEY) {
       return json(
-        { error: "ai_unavailable", message: "AI generation is not configured." },
+        {
+          error: "ai_unavailable",
+          message: "AI generation is not configured.",
+        },
         503,
       );
     }
@@ -82,7 +95,9 @@ Deno.serve(async (req) => {
 
     const { data: item, error } = await supabase
       .from("source_items")
-      .select("id, title, url, raw_excerpt, full_content, ai_title, ai_summary, image_url, topic_lane, published_at, content_sources(name)")
+      .select(
+        "id, title, url, raw_excerpt, full_content, ai_title, ai_summary, image_url, topic_lane, published_at, content_sources(name)",
+      )
       .eq("id", id)
       .maybeSingle();
     if (error || !item) {
@@ -99,7 +114,8 @@ Deno.serve(async (req) => {
             .from("source_items")
             .update({ image_url: cachedImage.slice(0, 1000) })
             .eq("id", item.id);
-          if (imgError) console.error("image backfill failed:", imgError.message);
+          if (imgError)
+            console.error("image backfill failed:", imgError.message);
         }
       }
       return json({
@@ -124,7 +140,10 @@ Deno.serve(async (req) => {
     }
     if ((recentCount ?? 0) >= 20) {
       return json(
-        { error: "rate_limited", message: "Generation limit reached, try again later." },
+        {
+          error: "rate_limited",
+          message: "Generation limit reached, try again later.",
+        },
         429,
       );
     }
@@ -133,9 +152,15 @@ Deno.serve(async (req) => {
     const voice = await loadVoiceConfig(supabase);
     const voiceBlock = formatVoiceBlock(voice);
 
-    const sourceName = (item as any).content_sources?.name || (() => {
-      try { return new URL(item.url).hostname.replace(/^www\./, ""); } catch { return "the original source"; }
-    })();
+    const sourceName =
+      (item as any).content_sources?.name ||
+      (() => {
+        try {
+          return new URL(item.url).hostname.replace(/^www\./, "");
+        } catch {
+          return "the original source";
+        }
+      })();
 
     const prompt = `You are rewriting a news item into an original article for a business/AI audience.
 
@@ -164,31 +189,45 @@ Return STRICT JSON only, no prose, no code fences:
   "content_markdown": "The full article in markdown, using ## for subheadings and normal paragraphs."
 }`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+    const aiResp = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MAIN_MODEL,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a careful business news editor. Output valid JSON only.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: MAIN_MODEL,
-        messages: [
-          { role: "system", content: "You are a careful business news editor. Output valid JSON only." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+    );
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
-      return new Response(JSON.stringify({ error: "ai_failed", detail: t.slice(0, 500) }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "ai_failed", detail: t.slice(0, 500) }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const aiJson = await aiResp.json();
     let raw = aiJson?.choices?.[0]?.message?.content || "";
-    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/g, "").trim();
+    raw = raw
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/g, "")
+      .trim();
     let parsed: any;
     try {
       parsed = JSON.parse(raw);
@@ -198,19 +237,27 @@ Return STRICT JSON only, no prose, no code fences:
     }
 
     const title = (parsed.title || item.title || "").toString().slice(0, 200);
-    const summary = (parsed.summary || item.raw_excerpt || "").toString().slice(0, 400);
+    const summary = (parsed.summary || item.raw_excerpt || "")
+      .toString()
+      .slice(0, 400);
     let content = (parsed.content_markdown || parsed.content || "").toString();
 
     // Auto-link training mentions to the tracked CTA URL.
     try {
       const { data: ctaSettings } = await supabase
-        .from("site_settings").select("cta_url").limit(1).maybeSingle();
+        .from("site_settings")
+        .select("cta_url")
+        .limit(1)
+        .maybeSingle();
       content = linkifyEventMentions(content, ctaSettings?.cta_url);
-    } catch (_) { /* non-fatal */ }
+    } catch (_) {
+      /* non-fatal */
+    }
 
     if (!content || content.length < 200) {
       return new Response(JSON.stringify({ error: "generation_too_short" }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -226,7 +273,8 @@ Return STRICT JSON only, no prose, no code fences:
       full_content: content,
       full_content_generated_at: new Date().toISOString(),
     };
-    if (backfilledImage) updatePayload.image_url = backfilledImage.slice(0, 1000);
+    if (backfilledImage)
+      updatePayload.image_url = backfilledImage.slice(0, 1000);
 
     const { error: updateError } = await supabase
       .from("source_items")
@@ -234,15 +282,26 @@ Return STRICT JSON only, no prose, no code fences:
       .eq("id", item.id);
     if (updateError) {
       console.error("source_items update failed:", updateError.message);
-      return json({ error: "save_failed", message: "Could not store the article." }, 500);
+      return json(
+        { error: "save_failed", message: "Could not store the article." },
+        500,
+      );
     }
 
-    return new Response(JSON.stringify({
-      id: item.id, title, summary, content, cached: false,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        id: item.id,
+        title,
+        summary,
+        content,
+        cached: false,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

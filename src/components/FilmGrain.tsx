@@ -1,28 +1,30 @@
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useEffect, useRef, useState } from "react";
 
 const FilmGrain = () => {
+  const prefs = useMediaPreferences();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  );
+  const [isMobile, setIsMobile] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
   useEffect(() => {
-    if (isMobile) return; // skip on mobile for performance
+    if (isMobile || !prefs.resolved || prefs.lightMode) return; // skip on mobile for performance
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = 0, h = 0;
+    let w = 0,
+      h = 0;
     let prevScrollY = window.scrollY;
     let velocity = 0;
 
@@ -62,9 +64,9 @@ const FilmGrain = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [isMobile]);
+  }, [isMobile, prefs.resolved, prefs.lightMode]);
 
-  if (isMobile) return null;
+  if (isMobile || !prefs.resolved || prefs.lightMode) return null;
 
   return (
     <canvas

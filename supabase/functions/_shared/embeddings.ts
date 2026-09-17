@@ -5,13 +5,19 @@ const GATEWAY = "https://ai.gateway.lovable.dev/v1/embeddings";
 export const EMBEDDING_MODEL = "openai/text-embedding-3-small";
 export const EMBEDDING_DIM = 1536;
 
-export async function embedText(text: string, apiKey: string): Promise<number[] | null> {
+export async function embedText(
+  text: string,
+  apiKey: string,
+): Promise<number[] | null> {
   const trimmed = (text || "").slice(0, 8000).trim();
   if (!trimmed) return null;
   try {
     const res = await fetch(GATEWAY, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({ model: EMBEDDING_MODEL, input: trimmed }),
     });
     if (!res.ok) {
@@ -28,7 +34,9 @@ export async function embedText(text: string, apiKey: string): Promise<number[] 
 
 export function cosineSim(a: number[], b: number[]): number {
   if (!a || !b || a.length !== b.length) return 0;
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     na += a[i] * a[i];
