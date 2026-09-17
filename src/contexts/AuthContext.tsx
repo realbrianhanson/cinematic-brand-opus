@@ -23,16 +23,17 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [sessionResolved, setSessionResolved] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [roleResolved, setRoleResolved] = useState(false);
+  const [role, setRole] = useState<{ userId: string; isAdmin: boolean } | null>(null);
 
   // Session state only. The auth callback must stay synchronous: awaiting any
   // Supabase call inside it can deadlock the client's internal lock.
   useEffect(() => {
     let active = true;
+    let receivedAuthEvent = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
+      receivedAuthEvent = true;
       setUser(session?.user ?? null);
       setSessionResolved(true);
     });
@@ -40,12 +41,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        if (!active) return;
+        if (!active || receivedAuthEvent) return;
         setUser(session?.user ?? null);
       })
       .catch((e) => {
         console.error("Session load error:", e);
-        if (active) setUser(null);
+        if (active && !receivedAuthEvent) setUser(null);
       })
       .finally(() => {
         if (active) setSessionResolved(true);
@@ -62,26 +63,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId) {
-      setIsAdmin(false);
-      setRoleResolved(true);
+      setRole(null);
       return;
     }
 
     let stale = false;
-    setIsAdmin(false);
-    setRoleResolved(false);
+    setRole(null);
 
-    supabase
+    Promise.resolve(supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .eq("role", "admin")
-      .maybeSingle()
+      .maybeSingle())
       .then(({ data, error }) => {
         if (stale) return;
         if (error) console.error("Role check error:", error.message);
-        setIsAdmin(!error && !!data);
-        setRoleResolved(true);
+        setRole({ userId, isAdmin: !error && !!data });
+      })
+      .catch((error: unknown) => {
+        if (stale) return;
+        console.error("Role check failed:", error);
+        setRole({ userId, isAdmin: false });
       });
 
     return () => {
@@ -89,7 +92,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [userId]);
 
-  const loading = !sessionResolved || !roleResolved;
+  const isAdmin = !!userId && role?.userId === userId && role.isAdmin;
+  const loading = !sessionResolved || (!!userId && role?.userId !== userId);
 
 
   const signIn = async (email: string, password: string) => {
@@ -105,7 +109,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Sign out error:", e);
     }
     setUser(null);
-    setIsAdmin(false);
+    setRole(null);
   };
 
   return (

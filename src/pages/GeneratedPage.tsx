@@ -55,7 +55,7 @@ const GeneratedPage = ({ initialPage, initialSettings }: GeneratedPageProps = {}
       const { data: schema } = await supabase.from("content_schemas").select("id, name, slug, renderer_component").eq("slug", contentType!).maybeSingle();
       if (!schema) return null;
       const { data: pg } = await supabase
-        .from("generated_pages").select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context)")
+        .from("generated_pages").select("*, niches!generated_pages_niche_id_fkey(id, name, slug)")
         .eq("content_schema_id", schema.id).eq("slug", pageSlug!).maybeSingle();
       if (!pg) return null;
       const niche = (pg as any).niches || { id: null, name: "", slug: "", context: {} };

@@ -1,19 +1,20 @@
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useEffect, useState } from "react";
 
 const AmbientOrbs = () => {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  );
+  const prefs = useMediaPreferences();
+  const [isMobile, setIsMobile] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  if (isMobile) return null;
+  if (isMobile || !prefs.resolved || prefs.lightMode) return null;
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>

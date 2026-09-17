@@ -1,3 +1,40 @@
+# Independent verification update — September 17, 2026
+
+The earlier report below describes generated changes, not a complete independent sign-off. The overall A–Z audit and member-ready release are **not complete**.
+
+Direct-code repair verified locally:
+
+- Published articles now render their rich content in the initial HTTP response. Browser-only DOMPurify caused server rendering to fail; all three public HTML renderers now share a DOM-free sanitizer with the crawler endpoint.
+- JSON-LD is escaped for TanStack’s actual HTML script sink. A regression test renders that component with an injected closing-script payload.
+- `/admin/login` is outside the protected admin route. The duplicate admin outlet is removed.
+- Auth role state is bound to the current user. Tests cover stale session reads, user switching, rejected role reads, and late responses.
+- Missing articles return visible not-found content with HTTP 404. Authenticated admin draft preview uses a separate query/cache key.
+- Decorative intro/animation markup is deterministic and does not cover the no-JavaScript page. Cursor/grain honor reduced-motion and data-saving preferences.
+- Mobile keyboard menu activation, Escape, and focus return were verified at 387px with no horizontal overflow.
+- Public resource readers no longer select private niche context. CTA tracking uses the configured origin consistently during server and browser rendering.
+
+Measured checks: 82 tests passed; frontend TypeScript passed; production build passed; changed crawler edge function passed Deno checking. HTTP checks passed for home, login, published article and missing article. Full lint still fails with **246 errors and 284 warnings** across the existing project; this is not a clean lint sign-off. No real emails, paid generation, publishing, subscriber creation, or production test articles were used.
+
+Deployment: these direct changes require GitHub integration/merge and deployment. A code diff or local build does not prove the deployed backend function has updated. Brian’s Cloudflare Worker and custom-domain setup are unchanged.
+
+Remaining verified issues (not signed off):
+
+1. Newsletter delivery needs a frozen audience/content snapshot, durable receipts, explicit partial/uncertain states, pagination, and truthful failure handling. Current provider failures can still result in a `sent` state.
+2. Confirmation/unsubscription need conditional atomic state transitions; subscription request parsing needs streaming byte limits and neutral responses.
+3. Newsletter admin statuses and private sender/reply-to/postal settings need completion; the postal address is not configured.
+4. Niche admin visibility and private-column access require scoped policy/RPC repair without exposing context to nonadmins.
+5. Concurrent content claims/publishing need global budget serialization and claim ownership; quality gates need non-finite/malformed input rejection.
+6. News search/lane and blog category filters must operate before pagination. Niche CSV import needs quoted-field parsing and validation.
+7. Post scheduling needs explicit configured-timezone conversion and DST tests; partial post/SEO saves must not report success or duplicate retries.
+8. Member backend prompts, links and fallback identity remain partly Brian/AI-specific. Public accent tokens, listing copy and infrastructure metadata are not fully configurable.
+9. Fresh member setup needs a guarded, idempotent neutral bootstrap and accurate Cloud-remix/admin-account instructions. Historical migrations have missing baseline table creation; a fresh SQL replay is not verified.
+10. Dependency advisories, the full backend Deno check, legacy lint errors, and CI’s npm-lock/undeclared-tsgo mismatch remain to fix.
+11. Crawler protocol filtering and the remaining generated-resource/social link sinks need review beyond HTML-body sanitization.
+
+The 13 saved Lovable follow-up requests are paused. Continue the work through direct code; do not resume those requests against these changes.
+
+---
+
 # Audit — publishing reliability and hardening (Batch 5)
 
 Scope: publish gate and automated content runs, public feeds, outbound URL

@@ -85,7 +85,7 @@ export const getPublicPillarBySlug = createServerFn({ method: "GET" })
     const supabase = createPublicServerClient();
     const { data, error } = await supabase
       .from("pillar_pages")
-      .select("*, niches(id, name, slug, context)")
+      .select("*, niches(id, name, slug)")
       .eq("slug", slug)
       .eq("status", "published")
       .maybeSingle();
@@ -162,7 +162,7 @@ export const getPublicGeneratedPage = createServerFn({ method: "GET" })
 
     const { data: page, error: pageError } = await supabase
       .from("generated_pages")
-      .select("*, niches!generated_pages_niche_id_fkey(id, name, slug, context)")
+      .select("*, niches!generated_pages_niche_id_fkey(id, name, slug)")
       .eq("content_schema_id", schema.id)
       .eq("slug", pageSlug)
       .eq("status", "published")

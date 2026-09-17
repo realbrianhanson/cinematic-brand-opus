@@ -1,5 +1,5 @@
 import { useParams, Link } from "@/lib/router-compat";
-import DOMPurify from "dompurify";
+import { safeHtml } from "@/lib/safeHtml";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ArrowRight, Clock, Calendar, BookOpen } from "lucide-react";
@@ -12,23 +12,25 @@ import Footer from "@/components/Footer";
 import PublicCTA from "@/components/PublicCTA";
 
 interface BlogPostProps {
+  /** Enabled only inside an authenticated admin preview; RLS still applies. */
+  preview?: boolean;
   /** Server-rendered article, so the body is in the initial HTML. */
   initialPost?: Record<string, any> | null;
   initialSettings?: Record<string, any> | null;
 }
 
-const BlogPost = ({ initialPost, initialSettings }: BlogPostProps = {}) => {
+const BlogPost = ({ initialPost, initialSettings, preview = false }: BlogPostProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
   const { data: post, isLoading } = useQuery({
-    queryKey: ["public-post", slug],
+    queryKey: [preview ? "admin-preview-post" : "public-post", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("posts")
         .select("*, categories(name, slug)")
-        .eq("slug", slug!)
-        .eq("status", "published")
-        .maybeSingle();
+        .eq("slug", slug!);
+      if (!preview) query = query.eq("status", "published");
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -257,7 +259,7 @@ const BlogPost = ({ initialPost, initialSettings }: BlogPostProps = {}) => {
             lineHeight: 1.85,
             color: "rgba(255,255,255,0.9)",
           }}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content ?? "") }}
+          dangerouslySetInnerHTML={{ __html: safeHtml(post.content ?? "") }}
         />
         </div>
 

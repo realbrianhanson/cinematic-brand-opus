@@ -1,5 +1,5 @@
 import { useParams, Link } from "@/lib/router-compat";
-import DOMPurify from "dompurify";
+import { safeHtml } from "@/lib/safeHtml";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Clock, Calendar, ArrowRight } from "lucide-react";
@@ -32,7 +32,7 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pillar_pages")
-        .select("*, niches(id, name, slug, context)")
+        .select("*, niches(id, name, slug)")
         .eq("slug", slug!)
         .eq("status", "published")
         .maybeSingle();
@@ -158,7 +158,7 @@ const PillarPage = ({ initialPillar, initialSettings }: PillarPageProps = {}) =>
         <div
           className="blog-content font-body"
           style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(255,255,255,0.8)" }}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pillar.content) }}
+          dangerouslySetInnerHTML={{ __html: safeHtml(pillar.content) }}
         />
 
         <SiloNavigation nicheId={nicheId!} pillarTitle={pillar.title} />

@@ -1,3 +1,6 @@
+import sanitize from "npm:sanitize-html@2.17.7";
+import { htmlPolicy } from "../_shared/htmlPolicy.ts";
+
 // Server-rendered HTML for crawlers. Public, no auth.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -7,6 +10,8 @@ const HTML_HEADERS = {
   "Content-Type": "text/html; charset=utf-8",
   "Cache-Control": "public, max-age=3600",
   "Access-Control-Allow-Origin": "*",
+  "X-Content-Type-Options": "nosniff",
+  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https:; media-src https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 };
 
 // ---------- utilities ----------
@@ -504,7 +509,7 @@ async function renderBlogPost(settings: Settings, path: string, slug: string): P
   ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc((post as any).featured_image_alt || post.title)}" style="max-width:100%;height:auto"></p>` : ""}
   ${post.tldr ? `<aside><h2>TL;DR</h2><p>${esc(post.tldr)}</p></aside>` : ""}
   ${takeaways.length ? `<section><h2>Key takeaways</h2><ul>${takeaways.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></section>` : ""}
-  <section>${post.content || ""}</section>
+  <section>${sanitize(post.content || "", htmlPolicy)}</section>
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
@@ -975,7 +980,7 @@ async function renderPillarPage(settings: Settings, path: string, slug: string):
 <article>
   <h1>${esc(pillar.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${pillar.updated_at ? ` · Updated ${esc(new Date(pillar.updated_at).toISOString().slice(0, 10))}` : ""}</p>
-  <section>${pillar.content || ""}</section>
+  <section>${sanitize(pillar.content || "", htmlPolicy)}</section>
 </article>
 ${relatedList}`;
 

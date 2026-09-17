@@ -83,7 +83,10 @@ export function buildPageHead(input: PageHeadInput): {
 
   const scripts: HeadScriptTag[] = (input.jsonLd ?? []).map((data) => ({
     type: "application/ld+json",
-    children: JSON.stringify(data),
+    children: JSON.stringify(data)
+      .replace(/</g, "\\u003c")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029"),
   }));
 
   return { meta, links, scripts };

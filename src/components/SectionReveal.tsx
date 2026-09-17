@@ -11,11 +11,7 @@ const prefersReduced = () =>
 const SectionReveal = ({ children }: SectionRevealProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [forceVisible, setForceVisible] = useState(false);
-  const [style, setStyle] = useState<React.CSSProperties>(() =>
-    prefersReduced()
-      ? { clipPath: "inset(0)", opacity: 1 }
-      : { clipPath: "inset(4% 0 0 0)", opacity: 0.6 }
-  );
+  const [style, setStyle] = useState<React.CSSProperties>({ clipPath: "inset(0)", opacity: 1 });
 
   useEffect(() => {
     if (prefersReduced()) {

@@ -1,3 +1,4 @@
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useEffect, useRef } from "react";
 
 interface TrailPoint {
@@ -7,6 +8,7 @@ interface TrailPoint {
 }
 
 const CustomCursor = () => {
+  const prefs = useMediaPreferences();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,6 +18,7 @@ const CustomCursor = () => {
   const trail = useRef<TrailPoint[]>([]);
 
   useEffect(() => {
+    if (!prefs.resolved || prefs.lightMode) return;
     const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouch) return;
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -97,7 +100,9 @@ const CustomCursor = () => {
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mouseout", onOut);
     };
-  }, []);
+  }, [prefs.resolved, prefs.lightMode]);
+
+  if (!prefs.resolved || prefs.lightMode) return null;
 
   return (
     <>

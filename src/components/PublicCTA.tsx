@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { siteConfig } from "@/config/site";
+import { safeHref } from "@/lib/newsMarkdown";
 import { X, ArrowRight } from "lucide-react";
 
 interface PublicCTAProps {
@@ -36,16 +38,16 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
   }, [variant]);
 
   const buildUrl = useCallback(() => {
-    if (!settings?.cta_url) return "";
+    if (!safeHref(settings?.cta_url)) return "";
     try {
-      const url = new URL(settings.cta_url);
-      url.searchParams.set("utm_source", window.location.hostname);
+      const url = new URL(settings!.cta_url!, siteConfig.identity.siteUrl);
+      url.searchParams.set("utm_source", new URL(siteConfig.identity.siteUrl).hostname);
       url.searchParams.set("utm_medium", "pseo");
       if (contentTypeSlug) url.searchParams.set("utm_campaign", contentTypeSlug);
       if (nicheSlug) url.searchParams.set("utm_content", nicheSlug);
       return url.toString();
     } catch {
-      return settings.cta_url;
+      return "";
     }
   }, [settings?.cta_url, nicheSlug, contentTypeSlug]);
 
@@ -67,6 +69,7 @@ const PublicCTA = ({ variant, nicheSlug, contentTypeSlug, nicheName, pageId, pag
     : settings.cta_subtext;
 
   const href = buildUrl();
+  if (!href) return null;
 
   // === INLINE ===
   if (variant === "inline") {

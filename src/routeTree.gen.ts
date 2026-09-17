@@ -24,7 +24,6 @@ import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminContentTypesRouteImport } from './routes/admin.content-types'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
 import { Route as AdminLibraryRouteImport } from './routes/admin.library'
-import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminNichesRouteImport } from './routes/admin.niches'
 import { Route as AdminPagesRouteImport } from './routes/admin.pages'
 import { Route as AdminPillarsRouteImport } from './routes/admin.pillars'
@@ -34,6 +33,7 @@ import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
 import { Route as AdminWidgetsRouteImport } from './routes/admin.widgets'
+import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
@@ -131,11 +131,6 @@ const AdminLibraryRoute = AdminLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminNichesRoute = AdminNichesRouteImport.update({
   id: '/niches',
   path: '/niches',
@@ -180,6 +175,11 @@ const AdminWidgetsRoute = AdminWidgetsRouteImport.update({
   id: '/widgets',
   path: '/widgets',
   getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin_/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/',
@@ -306,7 +306,6 @@ export interface FileRoutesByFullPath {
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pages': typeof AdminPagesRouteWithChildren
   '/admin/pillars': typeof AdminPillarsRouteWithChildren
@@ -316,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -350,7 +350,6 @@ export interface FileRoutesByTo {
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pages': typeof AdminPagesRouteWithChildren
   '/admin/pillars': typeof AdminPillarsRouteWithChildren
@@ -360,6 +359,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -398,7 +398,6 @@ export interface FileRoutesById {
   '/admin/content-types': typeof AdminContentTypesRouteWithChildren
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/library': typeof AdminLibraryRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pages': typeof AdminPagesRouteWithChildren
   '/admin/pillars': typeof AdminPillarsRouteWithChildren
@@ -408,6 +407,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
+  '/admin_/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -448,7 +448,6 @@ export interface FileRouteTypes {
     | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
-    | '/admin/login'
     | '/admin/niches'
     | '/admin/pages'
     | '/admin/pillars'
@@ -458,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site-settings'
     | '/admin/widgets'
+    | '/admin/login'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -492,7 +492,6 @@ export interface FileRouteTypes {
     | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
-    | '/admin/login'
     | '/admin/niches'
     | '/admin/pages'
     | '/admin/pillars'
@@ -502,6 +501,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site-settings'
     | '/admin/widgets'
+    | '/admin/login'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -539,7 +539,6 @@ export interface FileRouteTypes {
     | '/admin/content-types'
     | '/admin/generate'
     | '/admin/library'
-    | '/admin/login'
     | '/admin/niches'
     | '/admin/pages'
     | '/admin/pillars'
@@ -549,6 +548,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site-settings'
     | '/admin/widgets'
+    | '/admin_/login'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -584,6 +584,7 @@ export interface RootRouteChildren {
   RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
@@ -699,13 +700,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLibraryRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/niches': {
       id: '/admin/niches'
       path: '/niches'
@@ -768,6 +762,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/widgets'
       preLoaderRoute: typeof AdminWidgetsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin_/login': {
+      id: '/admin_/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/blog/': {
       id: '/blog/'
@@ -977,7 +978,6 @@ interface AdminRouteChildren {
   AdminContentTypesRoute: typeof AdminContentTypesRouteWithChildren
   AdminGenerateRoute: typeof AdminGenerateRoute
   AdminLibraryRoute: typeof AdminLibraryRoute
-  AdminLoginRoute: typeof AdminLoginRoute
   AdminNichesRoute: typeof AdminNichesRoute
   AdminPagesRoute: typeof AdminPagesRouteWithChildren
   AdminPillarsRoute: typeof AdminPillarsRouteWithChildren
@@ -995,7 +995,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminContentTypesRoute: AdminContentTypesRouteWithChildren,
   AdminGenerateRoute: AdminGenerateRoute,
   AdminLibraryRoute: AdminLibraryRoute,
-  AdminLoginRoute: AdminLoginRoute,
   AdminNichesRoute: AdminNichesRoute,
   AdminPagesRoute: AdminPagesRouteWithChildren,
   AdminPillarsRoute: AdminPillarsRouteWithChildren,
@@ -1072,6 +1071,7 @@ const rootRouteChildren: RootRouteChildren = {
   RssDotxmlRoute: RssDotxmlRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  AdminLoginRoute: AdminLoginRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,

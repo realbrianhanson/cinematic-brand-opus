@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
@@ -11,6 +11,7 @@ interface NavProps {
 const Nav = ({ loaded = true }: NavProps) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const [activeSection, setActiveSection] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
@@ -199,6 +200,7 @@ const Nav = ({ loaded = true }: NavProps) => {
 
           {/* Mobile hamburger */}
           <button
+            ref={menuTrigger}
             type="button"
             className="lg:hidden inline-flex items-center justify-center"
             onClick={() => setMenuOpen(true)}
@@ -218,6 +220,11 @@ const Nav = ({ loaded = true }: NavProps) => {
       <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              menuTrigger.current?.focus();
+            }}
+            aria-describedby={undefined}
             aria-label="Site menu"
             id="mobile-site-menu"
             className="fixed inset-0 flex flex-col overflow-y-auto focus:outline-none"

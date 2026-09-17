@@ -58,7 +58,7 @@ const prefersLessData = (): boolean => {
 const Loader = ({ onComplete }: LoaderProps) => {
   const [visible, setVisible] = useState(false);
   const [wiping, setWiping] = useState(false);
-  const [removed, setRemoved] = useState(false);
+  const [removed, setRemoved] = useState(true);
 
   useEffect(() => {
     if (seenThisSession() || prefersReducedMotion() || prefersLessData()) {
@@ -68,6 +68,7 @@ const Loader = ({ onComplete }: LoaderProps) => {
       return;
     }
 
+    setRemoved(false);
     const timers = [
       window.setTimeout(() => setVisible(true), 20),
       window.setTimeout(() => setWiping(true), 600),
