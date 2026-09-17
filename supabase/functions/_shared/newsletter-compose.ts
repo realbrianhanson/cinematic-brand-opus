@@ -163,17 +163,17 @@ export function buildHtml(
     .join("");
 
   const unsubBlock = unsubscribeToken
-    ? `<a href="${UNSUB_BASE}?token=${unsubscribeToken}" style="color:#7a7460;text-decoration:underline;">Unsubscribe</a>`
+    ? `<a href="${escapeHtml(config.unsubscribeUrl)}?token=${encodeURIComponent(unsubscribeToken)}" style="color:#7a7460;text-decoration:underline;">Unsubscribe</a>`
     : `<span style="color:#7a7460;">(Preview — unsubscribe link is per-subscriber and will be filled in on the real send.)</span>`;
 
   return `<!doctype html><html><body style="margin:0;padding:0;background:#faf8f4;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;">
   <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
     <div style="border-bottom:2px solid #B8962E;padding-bottom:12px;margin-bottom:24px;">
-      <span style="font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#B8962E;font-weight:700;">Brian Hanson · AI Brief</span>
+      <span style="font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#B8962E;font-weight:700;">${escapeHtml(config.siteName)}</span>
     </div>
     <p style="font-size:16px;line-height:1.6;color:#1a1a1a;margin:0 0 28px;">${escapeHtml(composed.intro)}</p>
     ${items}
-    <p style="font-size:15px;line-height:1.6;color:#1a1a1a;margin:32px 0 0;border-top:1px solid #e5ddc9;padding-top:20px;">Reply and tell me which one you're testing this week. I read every response.<br/><br/>— Brian</p>
+    <p style="font-size:15px;line-height:1.6;color:#1a1a1a;margin:32px 0 0;border-top:1px solid #e5ddc9;padding-top:20px;">Reply and tell me which one you're testing this week. I read every response.<br/><br/>— ${escapeHtml(config.authorName)}</p>
     <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5ddc9;font-size:12px;line-height:1.6;color:#7a7460;">
       ${postalAddress ? `<div style="margin-bottom:10px;">${escapeHtml(postalAddress)}</div>` : ""}
       ${unsubBlock}
