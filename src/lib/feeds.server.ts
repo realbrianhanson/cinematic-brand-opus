@@ -2,6 +2,7 @@
 // llms.txt). Reads published rows through the publishable key — RLS applies.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { siteConfig } from "@/config/site";
 
 export function publicClient() {
   const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -68,7 +69,7 @@ export async function getSiteSettings() {
     author_title: s.author_title ?? null,
     author_bio: s.author_bio ?? null,
     publisher_name: s.publisher_name ?? null,
-    siteUrl: (s.site_url || "https://brianhanson.com").replace(/\/+$/, ""),
+    siteUrl: (s.site_url || siteConfig.identity.siteUrl).replace(/\/+$/, ""),
   };
 }
 
