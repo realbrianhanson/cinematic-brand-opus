@@ -1,11 +1,11 @@
 # Authority, Shop, and admin upgrade
 
 **Last updated:** September 19, 2026
-**Release status:** Published and verified. The full 351-page recrawl and release CI passed; release receipts and measured checks are recorded in [AUDIT.md](../AUDIT.md).
+**Release status:** Published and verified. The latest 356-page recrawl and release CI passed; release receipts and measured checks are recorded in [AUDIT.md](../AUDIT.md).
 
 ## Visitor experience
 
-The homepage keeps Brian's original `/videos/hero-bg.mp4` video and adds a pause/resume control. The opening now leads into clear product paths, the free event, real testimonial proof, and the personal story. The blocking introduction, custom cursor, and animated film-grain canvas are removed from the homepage composition.
+The homepage keeps Brian's original `/videos/hero-bg.mp4` video and adds a pause/resume control. The opening now leads into the free event, real testimonial proof, clear product paths, and the personal story. The blocking introduction, custom cursor, and animated film-grain canvas are removed from the homepage composition.
 
 Published, listed, featured offers appear in a homepage Shop section. It disappears when no qualifying offers exist. Product cards share the Shop's prices and descriptions; original typographic covers provide a consistent fallback when no cover is uploaded. Search, category filters, and free/paid filters remain available in `/shop`.
 
@@ -55,3 +55,21 @@ A crawl of 351 public pages exposed three issues: a resource-category parameter 
 The final-deployment Shop browser rerun passed at 390px and 1440px with both real products, search/filter behavior, and outbound destinations checked. It recorded zero page errors and zero order API calls.
 
 See [AUDIT.md](../AUDIT.md) for deployment receipts and final release status. No fabricated live inquiries, orders, subscriptions, payments, or outbound emails were created for these checks. Automated checks demonstrate the tested behavior; they do not guarantee search rankings, conversions, or revenue.
+
+## Follow-up: clearer visitor paths and reliable downloads
+
+The next release simplifies navigation to Shop, Free Resources, About Brian, and
+Speaking. Start Here introduces a practical fictional demonstration and the
+actual free starter kit. Support, Privacy, and Terms have their own public pages
+and metadata. Shop filters show populated categories. Native downloads gain
+transactional email, private recovery, and explicit admin retry/readiness controls;
+Stripe remains unset. News source attribution, duplicate filtering, import review,
+Markdown editing, and mobile layout are improved. The final release removes
+repeated summary text from brief news detail pages.
+
+The expanded suite passes **387 tests in 61 files** and **ten isolated database
+suites**. Final source `18b1ece006dc4fbf78cfc3012185b30a3461eb1f` passed
+[all release CI checks](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35432370825).
+Frontend deployment `876c629c-f657-4d67-ad40-ed1a72a5c013` is confirmed on the
+custom domain. See the appended record in [AUDIT.md](../AUDIT.md) for final
+production crawl and browser evidence.

@@ -1,7 +1,7 @@
 # Download access and email recovery
 
 **Last updated:** September 19, 2026
-**Deployment status:** Implementation and isolated verification complete; apply the migration and deploy both functions before enabling this release in production.
+**Deployment status:** Published September 19, 2026. Migration `20260919210000` is applied and recorded; both functions are deployed. The live admin confirms a configured download-email sender and zero pending or uncertain deliveries. Stripe credentials remain intentionally unset. Provider behavior is covered by isolated tests; no production email was sent for QA.
 
 Native free and paid downloads retain their immediate private access page. Fulfillment also prepares a transactional email containing a private access link. External products and affiliate links remain entirely with their destination provider and never create these deliveries.
 

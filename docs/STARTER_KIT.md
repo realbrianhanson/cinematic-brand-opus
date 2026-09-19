@@ -15,3 +15,15 @@ The published landing-page path is `/offers/ai-follow-up-starter-kit`. Free nati
 Edit the landing-page copy in Admin → Offers & shop. To replace the PDF, upload a new file through that editor; previous customers retain their original file snapshot. The kit grants use of the prompts and worksheets in the reader's own work and client work, with no resale or redistribution of the original kit. A member should create their own resource and contact details.
 
 The worksheet's human-review approach is consistent with the [NIST Generative AI Profile](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf). The content is original practical guidance and is not a NIST certification or endorsement.
+
+## September 19 publication receipt
+
+The private PDF and published free offer are live. Storage readback confirms
+`public=false`, `application/pdf`, and 103,372 bytes. Its stored single-object eTag
+`ac428a00cd61a30a0f76463a057706e3` matches the local MD5; the local SHA-256 matches
+the value above. A public download was refused as expected. This check used the
+stored checksum rather than an authenticated byte re-download. No customer order
+or email was created to verify the upload.
+
+The offer is visible in the live admin and public Shop. Its customer entry point is
+[AI Follow-Up Starter Kit](https://brianhanson.com/offers/ai-follow-up-starter-kit).

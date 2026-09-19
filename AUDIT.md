@@ -183,3 +183,46 @@ were completed, with legacy-email compatibility, readiness consistency, and mobi
 layout findings corrected. The local browser checks cover six routes at 1440,
 390, and 320 pixels, the worked-example control, and the recovery entry point.
 Final publication receipts and production verification follow below.
+
+### Follow-up publication evidence
+
+- Final runtime source: `18b1ece006dc4fbf78cfc3012185b30a3461eb1f`. Its
+  [release CI](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35432370825)
+  passed every step: frontend types, formatting, lint, 387 application tests, ten
+  isolated database suites, all edge-function typechecks, and production build.
+  ESLint reports zero errors and 289 existing warnings.
+- Migration `20260919210000_offer_access_delivery` is applied and recorded. The
+  deployment-only Lovable operation `umsg_01m2wchq9cea59e2bfj3b0bfhk` deployed
+  `offers-api`, `offer-stripe-webhook`, `poll-sources`, and `generate-news-article`
+  and uploaded the exact prepared PDF for **1.6 credits**. All 15 old queued prompts
+  remained paused. Automatically regenerated database types were inspected,
+  formatted, reviewed, and pushed; no unrelated runtime code was introduced.
+- Frontend deployment `876c629c-f657-4d67-ad40-ed1a72a5c013` is confirmed by the
+  custom-domain GET header. It supersedes initial follow-up deployment
+  `272a63b6-b41e-422a-ae92-a1a29b9f3dd0` and includes the final repeated-summary fix.
+- The confirming crawl at `2026-09-19T08:37:54.091Z` passed **356 of 356 public
+  URLs**, with no failed pages or duplicate titles. Each checked page has one H1
+  and its expected canonical. Crawler-user-agent checks on the four new information
+  pages and starter-kit landing page return 200 and route-specific metadata.
+- Live keyboard/mobile checks confirm all expanded navigation links are reachable
+  at 320×568 and 390×568, nested Escape and focus return work, desktop disclosure
+  navigation works, the original video is retained, and long-host news details fit
+  320px. The final news detail renders its summary once with source attribution.
+- The final published browser pass covers seven routes at 1440, 390, and 320px,
+  with no horizontal overflow or page errors. It verifies the free-only Shop
+  filter, the enabled starter-kit form without submitting it, the Start Here
+  demonstration, and support-to-recovery navigation. No mutation requests were
+  attempted (`/tmp/nextlevel-public-qa-report.json`).
+- The private starter kit is published in Admin and Shop. The exact file metadata,
+  local SHA-256, and matching stored checksum are recorded in
+  [STARTER_KIT.md](docs/STARTER_KIT.md). The live admin confirms email configuration,
+  zero pending or uncertain deliveries, and disabled retry controls when empty.
+  Stripe credentials remain intentionally unset. Production readback found zero
+  orders, access deliveries, grants, and speaking inquiries; no QA messages or
+  test customer records were created.
+
+The checks above verify the measured behavior. Provider acceptance and inbox
+placement were not tested by sending a production email, and no Stripe payment
+was attempted. The news checks improve selection and attribution; they do not
+constitute fact-checking every historical third-party report. A new member remix
+still requires its own launch check with that member's configuration.
