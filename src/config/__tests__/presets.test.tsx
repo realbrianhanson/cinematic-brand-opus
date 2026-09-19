@@ -10,6 +10,7 @@ const BRIAN_MARKERS = [
   "Hanson",
   "brianhanson.com",
   "aiforbeginners.com",
+  "go.aiforbusiness.com/summit",
   "Inc. 5000",
   "150,000",
   "Revven",
@@ -64,7 +65,7 @@ describe("live preset", () => {
     expect(brianPreset.identity.name).toBe("Brian Hanson");
     expect(brianPreset.identity.siteUrl).toBe("https://brianhanson.com");
     expect(brianPreset.hero.primaryCta?.href).toBe(
-      "https://aiforbeginners.com",
+      "https://go.aiforbusiness.com/summit?_go=brian60",
     );
     expect(brianPreset.proofBadges.length).toBeGreaterThan(0);
     expect(brianPreset.results.length).toBe(3);

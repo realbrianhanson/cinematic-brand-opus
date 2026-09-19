@@ -1,6 +1,7 @@
 import type { SiteConfig } from "../types";
 import brianHeadshot from "@/assets/brian-headshot.jpeg";
-import eventCrowd from "@/assets/event-crowd.jpg";
+
+const freeSummitUrl = "https://go.aiforbusiness.com/summit?_go=brian60";
 
 /**
  * LIVE PRESET — Brian Hanson (brianhanson.com).
@@ -73,11 +74,11 @@ export const brianPreset: SiteConfig = {
       { label: "News", href: "/news" },
     ],
     cta: {
-      label: "Free AI Event",
-      href: "https://aiforbeginners.com",
+      label: "Free AI Summit",
+      href: freeSummitUrl,
       external: true,
     },
-    mobileCtaLabel: "Free 3-Day AI Event →",
+    mobileCtaLabel: "Free 3-Day AI Summit →",
   },
 
   hero: {
@@ -89,8 +90,8 @@ export const brianPreset: SiteConfig = {
     subtitle:
       "Learn how to create better marketing, simplify repetitive work, and build useful tools with Brian Hanson. No coding background required.",
     primaryCta: {
-      label: "Join Free 3-Day AI Event",
-      href: "https://aiforbeginners.com",
+      label: "Join Free 3-Day AI Summit",
+      href: freeSummitUrl,
       external: true,
     },
     secondaryCta: { label: "Book Brian to Speak", href: "#speaking" },
@@ -236,50 +237,49 @@ export const brianPreset: SiteConfig = {
   ],
 
   event: {
-    overline: "Free Virtual Event",
-    headingAccent: "3 Days",
-    headingRest: "to Get Started with AI",
+    overline: "Live · Online · Interactive",
+    headingAccent: "Free 3-Day",
+    headingRest: "AI for Business Summit",
     intro:
-      "A free virtual training for business owners who want to understand the tools and put them to work. Follow practical demonstrations, then plan your next step.",
-    imageSrc: eventCrowd,
-    imageAlt:
-      "Brian Hanson's AI for Business live event with hundreds of attendees",
+      "Learn how to use AI for marketing, sales, content, and lead generation. Join the live online summit for practical examples of tools, ads, funnels, and prospect follow-up—even if you're starting from scratch.",
+    imageSrc: null,
+    imageAlt: "",
     days: [
       {
         day: "Day 1",
-        title: "AI Foundations",
+        title: "Master the tools",
         bullets: [
-          "What AI can actually do for YOUR business",
-          "The tools that matter (skip the noise)",
-          "Your first AI workflow — live",
+          "Understand the AI basics, even as a beginner",
+          "Learn which tools to use and when",
+          "Write prompts that produce more useful answers",
         ],
       },
       {
         day: "Day 2",
-        title: "Implementation",
+        title: "AI for marketing & sales",
         bullets: [
-          "Hands-on building with push-button tools",
-          "Automate content, marketing, and ops",
-          "Check the output before using it",
+          "Create content, ads, and funnels with AI",
+          "Find prospects and generate leads",
+          "Put AI to work across your social media",
         ],
       },
       {
         day: "Day 3",
-        title: "Scale & Automate",
+        title: "Turn prompts into profit",
         bullets: [
-          "Choose which tasks to automate next",
-          "Keep a human review where it matters",
-          "Your 90-day implementation roadmap",
+          "Write and sell in your authentic brand voice",
+          "Follow up with prospects using AI",
+          "Map out what to do first and what to do next",
         ],
       },
     ],
     cta: {
-      label: "See Dates & Register Free",
-      href: "https://aiforbeginners.com",
+      label: "Reserve Your Free 3-Day Pass",
+      href: freeSummitUrl,
       external: true,
     },
     ctaNote:
-      "Free virtual training. Visit the event page for current dates and registration details.",
+      "Attend online for free. Check the registration page for the next dates and session times.",
   },
 
   speaking: {
@@ -318,8 +318,8 @@ export const brianPreset: SiteConfig = {
       "Get a weekly selection of useful AI articles, tools, and business workflows. See what they can help with and what to check before trying them.",
     privacyNote: "No spam, ever. Unsubscribe anytime.",
     secondaryCta: {
-      label: "Join the Free 3-Day AI Event",
-      href: "https://aiforbeginners.com",
+      label: "Join the Free 3-Day AI Summit",
+      href: freeSummitUrl,
       external: true,
     },
     secondaryCtaLabel: "Prefer to learn live?",
