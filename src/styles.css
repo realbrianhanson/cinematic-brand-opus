@@ -472,6 +472,7 @@
 }
 
 .admin-btn-ghost,
+.admin-btn,
 .admin-btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -490,6 +491,7 @@
   text-decoration: none;
 }
 .admin-btn-ghost:hover,
+.admin-btn:hover,
 .admin-btn-secondary:hover {
   border-color: hsl(var(--admin-border-hover));
   color: hsl(var(--admin-text));

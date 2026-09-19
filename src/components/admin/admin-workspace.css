@@ -2,11 +2,13 @@
 .admin-shell .admin-inquiry-search {
   padding-left: 2.5rem;
 }
-.admin-shell .admin-btn-secondary:disabled {
+.admin-shell .admin-btn-secondary:disabled,
+.admin-shell .admin-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.admin-shell .admin-btn-secondary:focus-visible {
+.admin-shell .admin-btn-secondary:focus-visible,
+.admin-shell .admin-btn:focus-visible {
   outline: 2px solid hsl(var(--admin-accent));
   outline-offset: 3px;
 }
