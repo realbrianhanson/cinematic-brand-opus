@@ -77,3 +77,27 @@ Released source `cc703e7089dd0ee5ed497960af270f73cb1b9f36` through Lovable deplo
   QA. Ten articles received source review; this does not imply every historical
   article was fact-checked. The 15 queued Lovable prompts remain paused and preserved.
 - Release publication evidence is recorded below after GitHub sync and deployment.
+
+### Completion release publication evidence
+
+Implementation `577e18a9cc4cceadde802112954c4942ed7067ed` passed the complete
+[GitHub workflow](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35421335602),
+and Lovable reported that exact synced commit. Frontend deployment
+`9b4ddcf6-9357-4c96-bcfa-e4eb2875d38b` is verified by the custom-domain response
+header. Home, blog (following its normal redirect), news, resources, login, all
+three guides, sitemap, RSS, LLM feed and favicon respond successfully; an absent
+article returns 404. Sampled public pages have one canonical and route-specific titles.
+
+Authenticated live checks passed for dashboard totals, New Post, article Preview,
+Generate, existing article Edit and revision entries, Performance RPCs and all
+three Site setup steps. No settings or test articles were saved. Resource search
+returns the revised Shopify article. Browser error inspection found only a
+browser-extension session error, not an application error. The local 390px mobile
+homepage has equal client/scroll width (387px), without horizontal overflow.
+
+The deployment-only Lovable operation deployed `submit-indexnow` and its helpers
+for 0.6 credits. Cloud independently shows a fresh deployment time and the 15 old
+queued prompts remain paused. Lovable automatically regenerated database types
+(despite the no-edit request); these were inspected, retained and formatted, and
+the frontend typecheck passes. This reconciliation changes types/documentation
+only, without changing the verified runtime implementation.

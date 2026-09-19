@@ -10,10 +10,17 @@ Authorized: fix remaining issues, implement discussed improvements, and publish 
 - [x] Member setup: guided identity/niche/brand/favicon/author/offer setup, preview and launch checklist, preserve private configuration.
 - [x] Public UI: hierarchy and consistent CTAs/components, mobile/accessibility polish, article readability/contents/sources, goal-based searchable resource discovery.
 - [x] SEO/content: three useful topic hubs and contextual links, author credibility, source/claim checks, review and improve ten existing articles where evidence supports changes; retain URLs and genuine claims only.
-- [ ] Verification: meaningful regressions, type/lint/build, isolated migrations, backend checks, browser desktop/mobile review.
-- [ ] Release: GitHub checks/sync, apply migrations/deploy changed functions, publish frontend, verify live flows and report actual limits.
+- [x] Verification: meaningful regressions, type/lint/build, isolated migrations, backend checks, browser desktop/mobile review.
+- [x] Release: GitHub checks/sync, apply migrations/deploy changed functions, publish frontend, verify live flows and report actual limits.
 
 ## Evidence and limitations
 
 Existing live release: 79c436e, Lovable deployment e28162f3-4afc-45a9-b154-96b36c61144a.
 Last GSC import 2026-09-14, period 2026-08-17–2026-09-13. 338 published posts; one public resource; no pillar pages. These counts can change.
+
+Completed September 19, 2026. Implementation 577e18a passed full GitHub CI.
+Frontend deployment 9b4ddcf6-9357-4c96-bcfa-e4eb2875d38b verified on brianhanson.com.
+The changed submit-indexnow function was deployed separately; Cloud shows its new
+deployment time. Live checks cover New Post, existing Edit/revisions, Preview,
+Generate, dashboard, Performance, Site setup, public search, guides and feeds.
+No live email, paid content generation or fresh Cloud remix was run for QA.
