@@ -1050,6 +1050,7 @@ export type Database = {
           created_at: string;
           draft_claim_token: string | null;
           embedding: string | null;
+          editorial_metadata: Json;
           excerpt: string | null;
           fact_check: Json | null;
           fact_checked_at: string | null;
@@ -1085,6 +1086,7 @@ export type Database = {
           created_at?: string;
           draft_claim_token?: string | null;
           embedding?: string | null;
+          editorial_metadata?: Json;
           excerpt?: string | null;
           fact_check?: Json | null;
           fact_checked_at?: string | null;
@@ -1120,6 +1122,7 @@ export type Database = {
           created_at?: string;
           draft_claim_token?: string | null;
           embedding?: string | null;
+          editorial_metadata?: Json;
           excerpt?: string | null;
           fact_check?: Json | null;
           fact_checked_at?: string | null;

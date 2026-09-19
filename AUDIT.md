@@ -101,3 +101,11 @@ queued prompts remain paused. Lovable automatically regenerated database types
 (despite the no-edit request); these were inspected, retained and formatted, and
 the frontend typecheck passes. This reconciliation changes types/documentation
 only, without changing the verified runtime implementation.
+
+## September 19 editorial generation release
+
+Implemented shared reader-question briefs, six article formats, source-passage retrieval, recent-title comparison, three candidate headline pairs, relevant unused author notes, and topic-specific image composition with vision review. Removed blog word-count/year/FAQ penalties and the misleading admin score display. Search metadata joins the factual claim review; repaired fact-remediation's invalid SEO-column read. Image alt text is reviewed after generation and editable/recoverable in the admin.
+
+A ten-article pilot adds prompts, examples, comparison tables, and ten original explanatory illustrations. URLs and original publication dates are preserved. The exact revisions and guarded transaction are in `content/editorial-pilot-20260919/`. Facts are primary-source reviewed; illustrations and worked data are labeled, not presented as firsthand tests.
+
+Validation: 176 application tests in 30 suites; six existing database suites plus the new pilot transaction/rollback suite; frontend typecheck; all 34 Deno entrypoints; formatting; build; lint 0 errors (290 warnings). The new migration was applied and read back; no email or paid generation was invoked for QA. Actual release verification follows after deployment.

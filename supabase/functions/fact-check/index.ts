@@ -95,8 +95,20 @@ Deno.serve(async (req) => {
   const extractSys = `Extract every verifiable factual claim from the post that contains a number, date, product name, company action, or statistic. For each, pick the URL from the provided citations that best supports it (or null).
 Return JSON ONLY:
 {"claims":[{"claim":"...","source_url":"https://... or null"}]}
-Cap at 12 claims. No commentary.`;
-  const extractUser = `POST TITLE: ${post.title}
+Prioritize headline and search-metadata outcome promises, then product capabilities and material numbers. Do not interpret illustrative data as measured outcomes. Cap at 12 claims. No commentary.`;
+  const { data: seo, error: seoError } = await supabase
+    .from("seo_metadata")
+    .select("meta_title,meta_description")
+    .eq("post_id", post_id)
+    .maybeSingle();
+  if (seoError)
+    return new Response(
+      JSON.stringify({ error: "Metadata could not be checked" }),
+      { status: 503, headers: corsHeaders },
+    );
+  const extractUser = `SEARCH TITLE: ${seo?.meta_title || ""}
+SEARCH DESCRIPTION: ${seo?.meta_description || ""}
+POST TITLE: ${post.title}
 
 POST CONTENT (plaintext):
 ${plain}

@@ -20,6 +20,10 @@ const PostEditorSeoPanel = ({
   setOgImage,
 }: PostEditorSeoPanelProps) => (
   <div className="flex flex-col gap-4" style={{ padding: "0 20px 20px" }}>
+    <p className="text-xs">
+      Be concise and specific. Search engines may shorten or rewrite titles and
+      descriptions; there is no fixed character limit.
+    </p>
     <div>
       <div className="flex justify-between">
         <label
@@ -36,13 +40,10 @@ const PostEditorSeoPanel = ({
           className="font-body"
           style={{
             fontSize: 10,
-            color:
-              metaTitle.length > 60
-                ? "hsl(var(--admin-danger))"
-                : "hsl(var(--admin-text-ghost))",
+            color: "hsl(var(--admin-text-ghost))",
           }}
         >
-          {metaTitle.length}/60
+          {metaTitle.length} characters
         </span>
       </div>
       <input
@@ -67,13 +68,10 @@ const PostEditorSeoPanel = ({
           className="font-body"
           style={{
             fontSize: 10,
-            color:
-              metaDesc.length > 160
-                ? "hsl(var(--admin-danger))"
-                : "hsl(var(--admin-text-ghost))",
+            color: "hsl(var(--admin-text-ghost))",
           }}
         >
-          {metaDesc.length}/160
+          {metaDesc.length} characters
         </span>
       </div>
       <textarea

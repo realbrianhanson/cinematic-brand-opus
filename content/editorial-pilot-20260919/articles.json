@@ -1,0 +1,406 @@
+[
+  {
+    "id": "ed489c9f-09b2-4f38-8856-7345967989c5",
+    "slug": "stop-hiding-behind-your-logo-scaling-your-voice-with-ai",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Your Best Content May Already Be in a Voice Note",
+    "meta_title": "Turn Voice Notes Into Content That Sounds Like You",
+    "meta_description": "Turn one customer question into a voice note, an AI-assisted draft, and a post that keeps your point of view. Includes a copyable editing prompt.",
+    "excerpt": "Turn one customer question into a voice note, an AI-assisted draft, and a post that keeps your point of view. Includes a copyable editing prompt.",
+    "content": "<p>You answer a customer question clearly on the phone. Then you sit down to write about it and suddenly sound like a brochure. Start with the answer you already gave.</p><p>Here is a proposed workflow for turning a voice note into useful content. The examples are fictional; they demonstrate the editing process, not a client's results.</p><figure><img src=\"/editorial/founder-voice.svg\" alt=\"An audio waveform leads to a transcript and a card labeled Your point, Your example, Your voice.\" width=\"1200\" height=\"675\" loading=\"lazy\"/><figcaption>Illustrated workflow; not a screenshot or a measured result.</figcaption></figure><h2>Record an answer, not a presentation</h2><p>Choose one question customers ask before buying. Record your answer while stationary and able to focus. Include what you recommend, why, and one situation where you would recommend something else. Remove customer names and private details before using a transcription or AI service.</p><p>Do not worry about an elegant introduction. The valuable part is your judgment: what would you tell this particular person that a generic article would miss?</p><h2>What to preserve when AI edits your words</h2><table><thead><tr><th>Stage</th><th>Fictional example from a painter</th></tr></thead><tbody><tr><td>Voice note</td><td>Everyone asks if two coats fixes a patchy wall. Sometimes the patch needs primer first. More paint does not solve every surface problem.</td></tr><tr><td>Generic rewrite</td><td>Transform your space with professional painting solutions.</td></tr><tr><td>Useful edit</td><td>Before buying another tin of paint, check the patch. A surface that needs primer may still look uneven after another coat.</td></tr></tbody></table><p>The useful edit keeps the original distinction. It does not add a price, a guarantee, or a story about a job that never happened. The painting example illustrates writing choices; have a qualified practitioner verify technical advice before publishing it.</p><h2>A prompt you can reuse</h2><blockquote><p>Edit the transcript below into one short post for [audience]. Preserve my recommendation, my reason, and my exception. Remove repetition. Do not add facts, experiences, promises, or a sales pitch. Show the draft, then list anything unclear that I should verify. Keep distinctive phrases that sound natural when spoken. Transcript: [paste your anonymized transcript].</p></blockquote><p>Providing clear context and refining the result matches <a href=\"https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt\">OpenAI's prompting guidance</a>. It does not remove the need to edit.</p><h2>Read it aloud before you schedule it</h2><p>Underline the sentence containing your actual advice. If there is not one, the draft is still too generic. Compare every factual statement with your recording. Then read it aloud and replace any phrase you would never say to a customer.</p><p>Save the approved draft and the transcript together. You now have a useful voice example for the next article. For the wider publishing workflow, use the <a href=\"/guides/ai-marketing-automation\">AI marketing automation guide</a>.</p>",
+    "tldr": "Turn one customer question into a voice note, an AI-assisted draft, and a post that keeps your point of view. Includes a copyable editing prompt.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt",
+        "title": "OpenAI: Prompting guidance"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/founder-voice.webp",
+    "featured_image_alt": "An audio waveform leads to a transcript and a card labeled Your point, Your example, Your voice.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How do I turn a voice note into content without losing my voice?",
+        "search_intent": "How do I turn a voice note into content without losing my voice?",
+        "format": "how_to",
+        "original_value": "Transcript-to-post comparison and reusable editing prompt",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Compare every claim with the transcript and read the draft aloud."
+      },
+      "visual": {
+        "style": "founder-voice",
+        "concept": "Transcript-to-post comparison and reusable editing prompt"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/founder-voice.png"
+  },
+  {
+    "id": "75752d8d-ac90-49ad-a987-31e38d8d88a7",
+    "slug": "stop-guessing-your-event-roi-how-ai-tracks-real-behavior-at-your-next-pop-up",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Did Your Pop-Up Pay Off? Work Through These Numbers",
+    "meta_title": "How to Measure Pop-Up Event ROI: A Simple Worksheet",
+    "meta_description": "Use an illustrative worksheet to separate event revenue, product costs, and event costs. Track later sales without pretending attribution is perfect.",
+    "excerpt": "Use an illustrative worksheet to separate event revenue, product costs, and event costs. Track later sales without pretending attribution is perfect.",
+    "content": "<p>A busy booth can lose money. A quiet booth can produce a customer who buys again. Count both the immediate result and later follow-up, but keep the numbers separate.</p><p>For this worksheet, event ROI means net event contribution divided by event cost. Define the terms before comparing events. This is a planning example, not accounting advice or a report of actual results.</p><h2>A worked example with fictional numbers</h2><table><thead><tr><th>Item</th><th>Example amount</th><th>What it includes</th></tr></thead><tbody><tr><td>Attributed sales</td><td>$2,400</td><td>Sales linked to the event within your chosen window</td></tr><tr><td>Product and transaction costs</td><td>$960</td><td>Costs directly associated with those sales</td></tr><tr><td>Contribution before event costs</td><td>$1,440</td><td>$2,400 minus $960</td></tr><tr><td>Event costs</td><td>$900</td><td>Booth, travel, materials, and budgeted staffing</td></tr><tr><td>Net event contribution</td><td>$540</td><td>$1,440 minus $900</td></tr><tr><td>Event ROI under this definition</td><td>60%</td><td>$540 divided by $900</td></tr></tbody></table><p>Choose whether and how to allocate owner time and shared overhead, and document that choice. Include refunds and discounts. Comparing one event that includes staffing with another that excludes it will produce a misleading ranking.</p><h2>Build the worksheet before the event</h2><p>Make columns for event name, date, order reference, sales amount, direct cost, attribution method, and refund amount. Keep an event-cost sheet beside it. Choose a follow-up window in advance, such as 30 days; that is a measurement choice, not a universal standard.</p><p>A checkout note, event-specific link, or customer answer can help associate a sale with the event. Keep uncertain sales in an unconfirmed category. An association does not prove the event caused the purchase, and the same sale should not be counted twice.</p><h2>Where AI can help</h2><p><a href=\"https://help.openai.com/en/articles/8437071-data-analysis-with-chatgpt\">ChatGPT's data-analysis documentation</a> describes working with uploaded spreadsheets and reviewing the analysis. Use a de-identified copy and ask for transparent calculations, not an impressive-looking summary.</p><blockquote><p>Using these two example sheets, calculate contribution by event. Show the formula and rows used. Separate confirmed and uncertain attribution. Flag missing costs, refunds, duplicate order references, and events with zero event cost. Do not invent missing values or divide by zero. Return a table I can reconcile against the source.</p></blockquote><h2>Check the answer before booking again</h2><p>Recalculate one event manually. Reconcile total sales with your records. Compare the event against another way you could spend the same time and budget. Keep qualitative notes, such as audience fit, alongside the figures without quietly assigning them invented dollar values.</p><p>For a useful follow-up process after the event, see the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a>.</p>",
+    "tldr": "Use an illustrative worksheet to separate event revenue, product costs, and event costs. Track later sales without pretending attribution is perfect.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.openai.com/en/articles/8437071-data-analysis-with-chatgpt",
+        "title": "OpenAI: Data analysis with ChatGPT"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/event-roi.webp",
+    "featured_image_alt": "Illustrative equation: $1,440 contribution minus $900 event cost equals $540 net contribution.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How do I calculate whether a pop-up event paid off?",
+        "search_intent": "How do I calculate whether a pop-up event paid off?",
+        "format": "worked_example",
+        "original_value": "Reconciled fictional ROI worksheet and explicit attribution limits",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Check the arithmetic manually and reconcile orders without double counting."
+      },
+      "visual": {
+        "style": "event-roi",
+        "concept": "Reconciled fictional ROI worksheet and explicit attribution limits"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/event-roi.png"
+  },
+  {
+    "id": "22747434-3a2a-4a82-87ac-1f4e52b29d20",
+    "slug": "what-a-370-year-old-cracked-cipher-means-for-your-messy-spreadsheets",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Messy Spreadsheet? Check These Rows Before Asking AI for Answers",
+    "meta_title": "Clean a Messy Spreadsheet With AI: A Worked Example",
+    "meta_description": "Use a fictional sales sheet to spot duplicates, inconsistent dates, and missing values before analysis. Includes a prompt and a reconciliation checklist.",
+    "excerpt": "Use a fictional sales sheet to spot duplicates, inconsistent dates, and missing values before analysis. Includes a prompt and a reconciliation checklist.",
+    "content": "<p>If the same order appears twice, AI can give you a beautifully written explanation of the wrong sales total. The first useful question is often: what is wrong with this file?</p><p>A model's performance on a puzzle does not establish that it can discover profit in your customer records. This walkthrough replaces that leap with a small, inspectable task: find data problems before calculating anything.</p><h2>Start with a copy and one question</h2><p>Keep your original unchanged. Use a small, de-identified sample with one row per record and clear headings. <a href=\"https://help.openai.com/en/articles/8437071-data-analysis-with-chatgpt\">OpenAI's data-analysis guide</a> recommends structured data and explains how to review the analysis. Check your organization's rules before uploading real records.</p><h2>Find the problem in this fictional sheet</h2><table><thead><tr><th>Order</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead><tbody><tr><td>A101</td><td>2026-09-01</td><td>120</td><td>Candidate valid record</td></tr><tr><td>A101</td><td>2026-09-01</td><td>120</td><td>Possible duplicate; verify before removal</td></tr><tr><td>A102</td><td>09/02/2026</td><td>80</td><td>Date convention needs confirmation</td></tr><tr><td>A103</td><td>2026-09-03</td><td>Missing</td><td>Do not replace with an invented amount</td></tr></tbody></table><p>The two known unique order amounts total 200 if the repeated A101 is confirmed as a duplicate. That is not the complete period's sales: A103 is unresolved. A good answer should make that limitation hard to miss.</p><h2>Ask for a problem report before a cleaned file</h2><blockquote><p>Inspect this fictional sales sheet. Identify possible duplicates, ambiguous dates, missing amounts, and inconsistent currencies. Preserve the original rows. Return a proposed change log with row references and reasons. Do not delete records, infer missing amounts, or calculate a complete sales total until I approve the rules. Separate confirmed observations from questions.</p></blockquote><p>Then resolve the questions yourself. Is an order reference unique, or can an order legitimately have several line items? Are dates month-first or day-first? Are refunds negative sales or stored on another sheet? The model cannot establish your business definitions from column names alone.</p><h2>Reconcile the result</h2><ol><li>Count the original rows, retained rows, and excluded rows.</li><li>Keep a reason for each exclusion.</li><li>Compare known totals before and after the approved changes.</li><li>Keep unresolved records in a separate review list.</li><li>Spot-check several rows against the source system.</li></ol><p>Once the file is trustworthy enough for the specific question, ask for the analysis. Clean data does not guarantee an accurate forecast or establish why customers behave a certain way. For a bounded first project, use the <a href=\"/guides/ai-for-small-business\">small-business AI guide</a>.</p>",
+    "tldr": "Use a fictional sales sheet to spot duplicates, inconsistent dates, and missing values before analysis. Includes a prompt and a reconciliation checklist.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.openai.com/en/articles/8437071-data-analysis-with-chatgpt",
+        "title": "OpenAI: Data analysis with ChatGPT"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/clean-data.webp",
+    "featured_image_alt": "A four-row fictional order sheet highlights a duplicate and a missing amount beside a review checklist.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How can I use AI to inspect a messy spreadsheet without inventing data?",
+        "search_intent": "How can I use AI to inspect a messy spreadsheet without inventing data?",
+        "format": "worked_example",
+        "original_value": "Fictional four-row audit with correct partial total and unresolved-record handling",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Reconcile row counts, exclusion reasons, and known totals."
+      },
+      "visual": {
+        "style": "clean-data",
+        "concept": "Fictional four-row audit with correct partial total and unresolved-record handling"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/clean-data.png"
+  },
+  {
+    "id": "f6c7fc2d-e514-45db-8ed7-062493f0b94c",
+    "slug": "why-your-shopify-store-needs-a-catalog-brain-to-double-sales",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Can a Shopper Tell What You Sell From Your Product Data?",
+    "meta_title": "Improve Shopify Product Data for AI Shopping",
+    "meta_description": "Review one product category for missing details, inconsistent variants, and unclear descriptions. Use a simple audit before making conversion claims.",
+    "excerpt": "Review one product category for missing details, inconsistent variants, and unclear descriptions. Use a simple audit before making conversion claims.",
+    "content": "<p>A shopper asks whether a bag fits a 15-inch laptop. Your product description says \"perfect for everyday life.\" That is a writing problem and a data problem before it is an AI problem.</p><p>Start by making one product category easier to understand. Better catalog information is useful; it does not justify promising to double sales.</p><h2>Give the product a clear identity</h2><p><a href=\"https://help.shopify.com/en/manual/products/details\">Shopify's product-details documentation</a> explains that product information affects presentation, organization, and discovery. It also describes metafields for specialized details. Fill the fields that are relevant to the actual product, rather than filling everything with guesses.</p><table><thead><tr><th>Check</th><th>Weak fictional entry</th><th>More useful direction</th></tr></thead><tbody><tr><td>Title</td><td>Premium everyday bag</td><td>Identify the bag type and meaningful distinguishing feature</td></tr><tr><td>Fit</td><td>Fits all your essentials</td><td>State verified interior dimensions and any tested fit limitations</td></tr><tr><td>Variants</td><td>Blue / Navy / Dark blue used interchangeably</td><td>Use the actual variant names consistently</td></tr><tr><td>Availability</td><td>Description claims \"always in stock\"</td><td>Remove unsupported availability claims; check current inventory</td></tr></tbody></table><p>This table demonstrates review criteria, not a completed audit of your store. A plausible dimension generated by AI is still a made-up dimension.</p><h2>Use AI to identify missing information</h2><blockquote><p>Review these product descriptions against the supplied specifications. List unanswered customer questions, contradictory statements, and inconsistent variant names. Quote the exact text causing each issue. Do not add dimensions, materials, certifications, compatibility, or performance claims unless present in the specifications. Return an edit checklist, not automatic changes.</p></blockquote><p>Have someone who knows the product resolve the missing facts. Then update the source record so the corrected information is not trapped in one piece of marketing copy.</p><h2>Test with the questions shoppers actually ask</h2><p>Pick a few questions from real inquiries, remove private details, and try to answer them using the page alone. Ask another person to do the same. Record which answers are clear, absent, or contradictory.</p><p>After making changes, track relevant behavior over a stated period: product questions, search exits, add-to-cart actions, and purchases. Record other changes, including pricing and promotions. A small change in sales does not establish that the catalog edit caused it.</p><p>For the next operational step, read <a href=\"/blog/how-to-put-your-shopify-store-on-autopilot-using-new-ai-sales-tools\">how to start a bounded Shopify workflow</a>.</p>",
+    "tldr": "Review one product category for missing details, inconsistent variants, and unclear descriptions. Use a simple audit before making conversion claims.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.shopify.com/en/manual/products/details",
+        "title": "Shopify: Product details"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/product-data.webp",
+    "featured_image_alt": "An illustrated bag is connected to labels for dimensions, materials, and variants.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "What product information should I improve before using AI shopping tools?",
+        "search_intent": "What product information should I improve before using AI shopping tools?",
+        "format": "how_to",
+        "original_value": "Product-data audit table and a fact-preserving review prompt",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify edits against actual specifications and record confounding changes."
+      },
+      "visual": {
+        "style": "product-data",
+        "concept": "Product-data audit table and a fact-preserving review prompt"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/product-data.png"
+  },
+  {
+    "id": "a9edb35e-bc8b-4b5e-ab6b-57cacc2409bd",
+    "slug": "stop-chasing-messy-feedback-loops-use-markup-ai-to-centralize-brand-reviews",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "One Draft, Three Opinions: Make the Approval Decision Clear",
+    "meta_title": "Build a Marketing Approval Workflow That Keeps Moving",
+    "meta_description": "Define the owner, reviewer, decision, and deadline for each marketing asset. Use AI to organize feedback without letting it approve work for you.",
+    "excerpt": "Define the owner, reviewer, decision, and deadline for each marketing asset. Use AI to organize feedback without letting it approve work for you.",
+    "content": "<p>\"Looks good\" is not always approval. It might mean the designer likes the layout while the person responsible for the offer has not checked the price.</p><p>Before buying another review tool, agree on who makes which decision. This proposed process works as a checklist you can adapt to your existing workspace. It is not a claim about unverified Markup AI features.</p><figure><img src=\"/editorial/review-workflow.svg\" alt=\"A draft flows into review and branches to Approved, Revise, and Rejected.\" width=\"1200\" height=\"675\" loading=\"lazy\"/><figcaption>Illustrated workflow; not a screenshot or a measured result.</figcaption></figure><h2>Make every asset carry its own brief</h2><table><thead><tr><th>Field</th><th>Example for a fictional workshop ad</th></tr></thead><tbody><tr><td>Owner</td><td>The person responsible for getting the finished asset out</td></tr><tr><td>Version</td><td>One link to the exact draft under review</td></tr><tr><td>Decision needed</td><td>Check the date, offer, registration link, and visual fit</td></tr><tr><td>Approver</td><td>A named person with authority to approve this offer</td></tr><tr><td>Deadline</td><td>A stated date and timezone, with an escalation contact</td></tr></tbody></table><p>Do not treat silence as approval. If a deadline passes, flag the delay to the owner. Quietly publishing an unchecked offer makes the workflow faster only on paper.</p><h2>Separate comments from the decision</h2><p>Use explicit outcomes: approved, changes requested, or rejected. <a href=\"https://help.asana.com/s/article/giving-feedback-and-approvals\">Asana's approval documentation</a> provides an example of this pattern in a real product. Confirm your tool's capabilities and permissions before adapting it.</p><p>Keep one comment location. If feedback arrives in a separate message, bring it into the review record and identify who said it. When the draft changes, record whether the previous approval still applies.</p><h2>Let AI sort feedback, not grant approval</h2><blockquote><p>Organize these review comments into required changes, optional suggestions, conflicting requests, and unanswered questions. Preserve the author and source reference for each comment. Do not infer approval from silence or resolve conflicting instructions yourself. Produce a checklist for the asset owner.</p></blockquote><p>Compare the checklist with the original comments. A summary that drops a required correction creates more work than it saves.</p><h2>Review the bottleneck after a small trial</h2><p>Use this process on a handful of assets. Record when each asset entered review, when a decision arrived, and why another revision was needed. If one approval repeatedly stalls, clarify the decision or assign a backup before introducing more automation.</p><p>The <a href=\"/guides/ai-marketing-automation\">marketing automation guide</a> can help you choose the next repeatable task once ownership is clear.</p>",
+    "tldr": "Define the owner, reviewer, decision, and deadline for each marketing asset. Use AI to organize feedback without letting it approve work for you.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.asana.com/s/article/giving-feedback-and-approvals",
+        "title": "Asana: Feedback and approvals"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/review-workflow.webp",
+    "featured_image_alt": "A draft flows into review and branches to Approved, Revise, and Rejected.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How can a small team make marketing approvals clear and timely?",
+        "search_intent": "How can a small team make marketing approvals clear and timely?",
+        "format": "how_to",
+        "original_value": "Approval brief, decision table, and feedback-sorting prompt",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the summary against the original comments and retain explicit approval."
+      },
+      "visual": {
+        "style": "review-workflow",
+        "concept": "Approval brief, decision table, and feedback-sorting prompt"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/review-workflow.png"
+  },
+  {
+    "id": "38e79e40-6d33-4d0a-b103-8d1fbfb84f83",
+    "slug": "how-to-put-your-shopify-store-on-autopilot-using-new-ai-sales-tools",
+    "expected_updated_at": "2026-09-19 04:21:36.594031+00",
+    "title": "Your First Shopify Automation Should Be Easy to Undo",
+    "meta_title": "Shopify Sidekick vs Flow: Build Your First Workflow",
+    "meta_description": "Compare Sidekick and Flow, then define and test one internal workflow before enabling it. Includes a decision table and test cases.",
+    "excerpt": "Compare Sidekick and Flow, then define and test one internal workflow before enabling it. Includes a decision table and test cases.",
+    "content": "<p>Pick a task where a mistake creates a review item, not an email to a customer or a refund. That gives you room to learn what the automation actually does.</p><figure><img src=\"/editorial/shopify-flow.svg\" alt=\"A trigger leads to a condition and an action, with a separate exception path to review.\" width=\"1200\" height=\"675\" loading=\"lazy\"/><figcaption>Illustrated workflow; not a screenshot or a measured result.</figcaption></figure><h2>Assistant or repeatable workflow?</h2><table><thead><tr><th>Need</th><th>Starting point</th><th>Your responsibility</th></tr></thead><tbody><tr><td>Explain a task or draft a change</td><td>Sidekick</td><td>Review the proposed answer or change</td></tr><tr><td>Run a defined action after an event</td><td>Flow</td><td>Define and test the trigger, conditions, and action</td></tr><tr><td>Automatically handle every store decision</td><td>Neither is a complete business operating plan</td><td>Choose bounded tasks and keep accountable owners</td></tr></tbody></table><h2>Which Shopify tools should you start with?</h2><p>For a manageable first project, separate an assistant from an automation. <a href=\"https://help.shopify.com/en/manual/ai-powered-tools/sidekick\">Shopify describes Sidekick</a> as an assistant inside the merchant admin that helps with questions, content, and store tasks. It presents changes for review. That does not make it a customer-facing sales representative or give it permission to run every part of your store unattended.</p><h2>Build one workflow before expanding</h2><p><a href=\"https://help.shopify.com/en/manual/shopify-flow/create-workflow\">Shopify Flow documentation</a> explains how to create a workflow manually, from a template, or with Sidekick. A generated workflow starts inactive and must be reviewed, tested, and enabled. Begin with a reversible internal task, such as tagging an order for staff review. Save customer messages, refunds, discounts, and inventory changes for later, after you understand the behavior.</p><ol><li>Write the trigger in plain language: exactly what event should start the workflow?</li><li>List the condition that must be true, including exclusions.</li><li>Choose one action and identify who owns failures.</li><li>Run test cases for a match, a non-match, and missing data.</li><li>Enable it only after reviewing the output.</li></ol><h2>Example brief to give your assistant</h2><p>Try: “Help me draft a workflow that tags qualifying orders for manual review. Show the trigger, conditions, and action. Do not enable it. Tell me which fields you need and what happens when a field is missing.” Replace “qualifying” with your real order rule before using the prompt.</p><p>This is a proposed implementation pattern, not a claim that it has produced a particular sales increase. Track the number of correct tags and the staff time required to fix mistakes.</p><h2>Keep the exception path visible</h2><p>A workflow should have an owner, a stop switch, and a small log of unexpected results. Check for repeat triggers and whether the action can happen twice. Shopify notes that workflow execution may be delayed; do not promise an instant response to a customer based on a background automation. Review the store’s current capabilities and app permissions before adding paid tools.</p><h2>A small test sheet</h2><table><thead><tr><th>Test</th><th>Expected behavior</th></tr></thead><tbody><tr><td>Order matches your rule</td><td>The internal review tag is added</td></tr><tr><td>Order does not match</td><td>No tag is added</td></tr><tr><td>Required field is missing</td><td>The agreed exception path is followed</td></tr><tr><td>The same event is processed again</td><td>No duplicate customer-facing action occurs</td></tr></tbody></table><p>Record the actual outcome next to the expected one. These are proposed acceptance checks, not results from a tested store.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "tldr": "Compare Sidekick and Flow, then define and test one internal workflow before enabling it. Includes a decision table and test cases.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://help.shopify.com/en/manual/ai-powered-tools/sidekick",
+        "title": "Shopify: Sidekick"
+      },
+      {
+        "url": "https://help.shopify.com/en/manual/shopify-flow/create-workflow",
+        "title": "Shopify: Create and test workflows"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/shopify-flow.webp",
+    "featured_image_alt": "A trigger leads to a condition and an action, with a separate exception path to review.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "Which Shopify tool should I use for assistance versus a repeatable workflow?",
+        "search_intent": "Which Shopify tool should I use for assistance versus a repeatable workflow?",
+        "format": "comparison",
+        "original_value": "Practical decision aid and task-specific review checklist",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the output against the cited source and the acceptance checklist."
+      },
+      "visual": {
+        "style": "shopify-flow",
+        "concept": "Practical decision aid and task-specific review checklist"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/shopify-flow.png"
+  },
+  {
+    "id": "90a81816-c11b-40dc-8531-6b920e5acd91",
+    "slug": "stop-typing-and-start-talking-running-a-global-desk-with-gemini-live",
+    "expected_updated_at": "2026-09-19 04:21:36.594031+00",
+    "title": "Talk Through a Task With Gemini Live, Then Check the Answer",
+    "meta_title": "Gemini Live for Business: A Task Review Checklist",
+    "meta_description": "Use voice or screen sharing for a bounded task. Try a demonstration prompt and check the response against the source before acting.",
+    "excerpt": "Use voice or screen sharing for a bounded task. Try a demonstration prompt and check the response against the source before acting.",
+    "content": "<p>Use a conversation to get unstuck on one task: understand a document, rehearse an explanation, or identify what to check next. Keep the task narrow enough that you can verify the answer.</p><h2>Use Live as an assistant to the operator</h2><p><a href=\"https://support.google.com/gemini/answer/15274899?hl=en\">Google’s Gemini Live help page</a> documents voice conversations and camera or screen sharing on supported mobile devices. A useful business starting point is helping an employee understand a task while the employee remains responsible for the result. It is not evidence that the consumer app can independently operate a global customer-support desk.</p><h2>Try a short, non-sensitive task</h2><p>Choose a demonstration document, a mock product display, or a training example. Explain the objective before sharing the camera or screen. Ask the assistant to describe what it can observe, separate uncertain details, and suggest the next step. A simple prompt is: “Help me review this sample display for readability. Describe what you can see, list anything you cannot read confidently, and suggest three changes.”</p><p>Check the description against the actual screen. If it misreads a label, correct it and repeat the observation before using its recommendation.</p><h2>Control what is shared</h2><p>Google notes that screen sharing exposes the full screen, not only the one item you are discussing. Close unrelated messages and customer records first. Stopping or muting audio is not a substitute for checking whether screen or camera sharing is active. Review the app’s visible sharing controls and the current help instructions when beginning and ending the session.</p><h2>Measure whether the workflow helps</h2><p>Compare the time to finish the same small task with and without assistance. Record misunderstandings and corrections, not just how natural the conversation feels. Keep customer commitments, account access, and final instructions with a person. Check language, device, and account availability in current Google documentation before planning a team rollout.</p><p>This revision removes the earlier unsupported model-version and language-count claims. The workflow relies on documented Live capabilities, not a promised release name or guaranteed service coverage.</p><h2>Try this with a demonstration document</h2><blockquote><p>Help me explain this fictional project brief to a colleague. First tell me the deadline, deliverables, and questions the document leaves unanswered. Point out anything you cannot read. Do not infer missing dates or tell me that work has been completed.</p></blockquote><table><thead><tr><th>Check</th><th>Pass condition</th></tr></thead><tbody><tr><td>Did it read the document correctly?</td><td>Names, dates, and deliverables match</td></tr><tr><td>Did it acknowledge missing details?</td><td>Unstated facts remain questions</td></tr><tr><td>Is the next action clear?</td><td>You can name what you will do and verify</td></tr></tbody></table><p>If it guesses, correct the specific misunderstanding and repeat the check. Do not convert a fluent spoken answer into an unchecked customer promise.</p><p>Continue with the <a href=\"/guides/ai-for-small-business\">AI for small business guide</a> for a broader implementation plan.</p>",
+    "tldr": "Use voice or screen sharing for a bounded task. Try a demonstration prompt and check the response against the source before acting.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://support.google.com/gemini/answer/15274899?hl=en",
+        "title": "Google: Talk naturally with Gemini Live"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/gemini-live.webp",
+    "featured_image_alt": "An illustrated microphone on a phone connects a single question to a reminder to check the source.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How can I use Gemini Live to talk through a business task?",
+        "search_intent": "How can I use Gemini Live to talk through a business task?",
+        "format": "how_to",
+        "original_value": "Practical decision aid and task-specific review checklist",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the output against the cited source and the acceptance checklist."
+      },
+      "visual": {
+        "style": "gemini-live",
+        "concept": "Practical decision aid and task-specific review checklist"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/gemini-live.png"
+  },
+  {
+    "id": "adef1a52-6d29-4977-a098-500564747600",
+    "slug": "build-your-next-business-tool-as-a-single-file",
+    "expected_updated_at": "2026-09-19 04:21:36.594031+00",
+    "title": "A Local Business App or a Shared Tool? Choose by the Handoff",
+    "meta_title": "Local Apps vs Shared Tools: Choose the Right Workflow",
+    "meta_description": "Compare a local app with a shared service by ownership, backups, collaboration, and access. Includes a handoff checklist.",
+    "excerpt": "Compare a local app with a shared service by ownership, backups, collaboration, and access. Includes a handoff checklist.",
+    "content": "<p>A tool that works perfectly on your machine can still fail the moment someone else needs the records. Start with the handoff, then choose where the app should live.</p><h2>Choose a single-user task first</h2><p>A local tool is a good candidate when one person owns a bounded workflow and can manage the data file. Think of a personal checklist, a demonstration calculator, or an offline reference tool. A shared customer database with simultaneous editors has different requirements. Do not choose a portable file merely because a spreadsheet currently feels inconvenient.</p><h2>Understand the file and the runtime</h2><p><a href=\"https://withcapsule.app/\">Capsule’s product page</a> describes a portable container that combines an HTML interface, schema, and local SQLite data. It provides desktop players; the web version is a preview with file-access limitations, and the site describes mobile support as coming soon. A generated HTML page by itself is not automatically a complete Capsule application or a hosted multi-user service.</p><h2>Specify a small acceptance test</h2><p>Before building, write down the fields, validation rules, and one task the app must complete. Use sample data and test create, edit, delete, close, reopen, export, and restore. If you cannot reopen the file and recover the last saved record, the prototype is not ready for real work.</p><p>Example brief: “Create a local equipment-checklist prototype using the chosen runtime. Use sample records only. Explain where data is saved, how I can export it, and how I can restore a backup. Do not add external services.” Have someone review the generated code and storage behavior before trusting it with business information.</p><h2>Plan the ownership and sharing rules</h2><p>Assign one owner to the working file. Keep dated backups in an approved location and test restoring one. Sending a file may send its included data; inspect the contents before sharing. Two people editing separate copies can create conflicting records. If the team needs concurrent access, permissions, reliable syncing, or an audit trail, evaluate an application designed for those requirements.</p><p>Local storage reduces some dependencies. It does not eliminate device loss, accidental deletion, malware, or the need to maintain the software.</p><h2>Compare the operating responsibilities</h2><table><thead><tr><th>Question</th><th>Local file-based app</th><th>Shared service</th></tr></thead><tbody><tr><td>Who has the current copy?</td><td>You need a clear file ownership and version rule</td><td>Confirm how the service handles concurrent edits</td></tr><tr><td>How is recovery handled?</td><td>Arrange and test backups of the actual data</td><td>Check retention, exports, and restore options</td></tr><tr><td>What happens when someone leaves?</td><td>Transfer files, documentation, and required software</td><td>Transfer ownership and remove access</td></tr></tbody></table><p>These are evaluation questions, not universal claims about every local app or cloud service. Test your chosen product.</p><h2>Run a handoff rehearsal</h2><p>Using fictional records, save a change, close the app, reopen it, export the records, and recover them on the intended device. Write down where the data is actually stored. If a colleague cannot find the authoritative copy, resolve that before putting the tool into daily use.</p><p>Continue with the <a href=\"/guides/ai-for-small-business\">AI for small business guide</a> for a broader implementation plan.</p>",
+    "tldr": "Compare a local app with a shared service by ownership, backups, collaboration, and access. Includes a handoff checklist.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://withcapsule.app/",
+        "title": "Capsule: portable apps and platform availability"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/local-file.webp",
+    "featured_image_alt": "A local document is contrasted with a connected network and questions about ownership and access.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "When should I choose a local file-based app instead of a shared tool?",
+        "search_intent": "When should I choose a local file-based app instead of a shared tool?",
+        "format": "comparison",
+        "original_value": "Practical decision aid and task-specific review checklist",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the output against the cited source and the acceptance checklist."
+      },
+      "visual": {
+        "style": "local-file",
+        "concept": "Practical decision aid and task-specific review checklist"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/local-file.png"
+  },
+  {
+    "id": "1b715111-6060-4a20-8809-485cfa4d5015",
+    "slug": "stop-paying-for-3d-product-renders-how-to-use-ai-to-create-design-assets",
+    "expected_updated_at": "2026-09-19 04:21:36.594031+00",
+    "title": "A Beautiful AI Product Model Can Still Show the Wrong Product",
+    "meta_title": "How to Review AI Product Models Before Publishing",
+    "meta_description": "Check geometry, materials, exports, and mobile presentation before using an AI model on a product page. Includes an acceptance checklist.",
+    "excerpt": "Check geometry, materials, exports, and mobile presentation before using an AI model on a product page. Includes an acceptance checklist.",
+    "content": "<p>A polished render can hide a wrong handle, missing seam, or impossible dimension. Review the model against the item you sell before reviewing how impressive it looks.</p><h2>Start with a product-accuracy requirement</h2><p>An attractive image is not enough for a product listing. The model must represent the item a customer will receive: shape, proportions, finish, visible controls, and included accessories. Write a short acceptance checklist before choosing a tool. Use concept imagery for exploration, and label it appropriately when it does not depict the finished product.</p><h2>What Cartesian currently describes</h2><p><a href=\"https://www.formas.ai/cartesian\">Cartesian by Formas</a> presents AI-assisted 3D modeling for architecture and product design, with editable components and downloadable model studies. Its site offers a preview waitlist. These product descriptions are useful for evaluation, but they are not independent evidence of a particular time saving, price advantage, or conversion lift.</p><p>Confirm access, supported inputs, export formats, commercial usage terms, and compatibility with your storefront before treating the tool as a production dependency.</p><h2>Use a one-product acceptance test</h2><ol><li>Choose one uncomplicated product and gather approved reference photos and dimensions.</li><li>Specify the required export format and maximum asset size for the intended viewer.</li><li>Inspect every side against the reference, including text, handles, joins, and hidden surfaces.</li><li>Ask a product owner to approve accuracy before publishing.</li><li>Test loading, rotation, and fallback imagery on a real phone.</li></ol><p>Keep the original product photo available. If a generated detail is ambiguous, use a corrected asset or the photo rather than presenting a guess as a product feature.</p><h2>Compare the complete cost</h2><p>Include setup, revisions, cleanup, export conversion, testing, and maintenance in your comparison with conventional rendering. Record the time for your own trial. An inexpensive first draft may still require skilled cleanup. If the result fails product-accuracy review, it has not replaced a production render.</p><p>This guide offers an evaluation method. It does not claim firsthand testing of Cartesian or promise the earlier article’s specific cost and speed savings.</p><h2>Write the acceptance checklist first</h2><table><thead><tr><th>Check</th><th>Evidence to compare</th><th>Reason to stop</th></tr></thead><tbody><tr><td>Shape and dimensions</td><td>Verified product specifications and reference views</td><td>Distorted proportions or missing parts</td></tr><tr><td>Materials and finish</td><td>Actual product reference</td><td>A finish or texture the buyer will not receive</td></tr><tr><td>File compatibility</td><td>Import into the intended application</td><td>Missing materials or an unusable export</td></tr><tr><td>Presentation</td><td>Real page on target devices</td><td>Slow or unclear interaction</td></tr></tbody></table><p>Record pass, revise, or reject for each row, with a reviewer and date. This is a proposed review process; the illustration does not depict a tested product or a measured result.</p><p>Continue with the <a href=\"/guides/ai-marketing-automation\">AI marketing automation guide</a> for a broader implementation plan.</p>",
+    "tldr": "Check geometry, materials, exports, and mobile presentation before using an AI model on a product page. Includes an acceptance checklist.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://www.formas.ai/cartesian",
+        "title": "Cartesian by Formas: product information and model studies"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/product-model.webp",
+    "featured_image_alt": "A solid cube is compared with a wireframe cube, emphasizing shape, finish, and fit.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How do I evaluate an AI-generated product model before publishing it?",
+        "search_intent": "How do I evaluate an AI-generated product model before publishing it?",
+        "format": "how_to",
+        "original_value": "Practical decision aid and task-specific review checklist",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the output against the cited source and the acceptance checklist."
+      },
+      "visual": {
+        "style": "product-model",
+        "concept": "Practical decision aid and task-specific review checklist"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/product-model.png"
+  },
+  {
+    "id": "1c51ab00-2f33-4b0d-861f-9db5bb254cdf",
+    "slug": "stop-building-from-scratch-how-to-use-anthropic-s-43-new-sales-workflows",
+    "expected_updated_at": "2026-09-19 04:21:36.594031+00",
+    "title": "Give Claude a Sales Brief Before Giving It More Access",
+    "meta_title": "Use Claude to Draft a Sales Brief You Can Verify",
+    "meta_description": "Define a bounded sales task, supply approved evidence, and review the output before sending anything. Includes a reusable brief.",
+    "excerpt": "Define a bounded sales task, supply approved evidence, and review the output before sending anything. Includes a reusable brief.",
+    "content": "<p>Ask for a brief your salesperson can check before asking an assistant to act on an account. A useful first result is a document with evidence and unanswered questions.</p><h2>Choose the task before the workflow count</h2><p><a href=\"https://www.anthropic.com/news/claude-for-small-business\">Anthropic’s introduction to Claude for Small Business</a> describes ready-to-run workflows and connectors for business tools. The launch announcement lists 15 workflows and emphasizes approval before sending, posting, or paying. Catalogs can change, so inspect the current options in your account instead of planning around an unverified headline count.</p><p>This revision removes the earlier unsupported claims about 43 new sales workflows, 27 new integrations, and installation totals.</p><h2>Start with a reviewable deliverable</h2><p>A meeting brief is a manageable starting point: approved account facts, open questions, and a proposed agenda. Define exactly which records may be used. Connect only the required tools, and confirm the account and workspace before granting access. Avoid making the first task an unattended outreach campaign.</p><p>Example: “Prepare a draft meeting brief from these approved records. Cite the record behind each factual statement. Separate open questions from known facts. Do not contact anyone or update the CRM.”</p><h2>Review facts and permissions separately</h2><p>Check whether each source supports the statement, whether the information is current, and whether the proposed next step is appropriate for this customer. Then review the action itself: recipient, destination record, attachments, and timing. A well-written message can still go to the wrong contact.</p><p>Keep the approved output and note any correction that would help the next run. Repeated missing information usually calls for a better source or narrower scope, not a more elaborate prompt.</p><h2>Expand only after a useful trial</h2><p>Compare preparation time and correction effort across a small number of ordinary tasks. Include the time spent connecting systems and reviewing drafts. Before adding scheduling or writes, establish who owns failures and how an incorrect change can be reversed. Check current plan availability and connector requirements in Anthropic’s product documentation.</p><p>The goal is a reliable, repeatable task that your team understands. A larger catalog does not by itself mean more value for your business.</p><h2>A brief for a fictional prospect</h2><blockquote><p>Prepare a sales research brief from the approved sources below. Separate sourced facts, my supplied notes, and hypotheses to discuss. For every company claim, include its exact source and date if available. Leave unknown budget, buying authority, and timing as questions. Suggest three discovery questions. Do not send messages, update records, or claim a relationship we have not established.</p></blockquote><h2>Compare the draft with the evidence</h2><p>Open each source. Check that it supports the adjacent claim about the same company and time period. Remove personalization that depends on an assumption about the person. Give the salesperson the unresolved questions alongside the brief so uncertainty does not disappear during the handoff.</p><p>This example is a proposed workflow, not a report of using Claude on a real prospect or a promise of higher close rates.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "tldr": "Define a bounded sales task, supply approved evidence, and review the output before sending anything. Includes a reusable brief.",
+    "key_takeaways": [],
+    "faq_items": [],
+    "source_citations": [
+      {
+        "url": "https://www.anthropic.com/news/claude-for-small-business",
+        "title": "Anthropic: Introducing Claude for Small Business"
+      }
+    ],
+    "featured_image": "https://brianhanson.com/editorial/sales-brief.webp",
+    "featured_image_alt": "A sales brief separates sourced facts, supplied notes, and open questions beside a review shield.",
+    "editorial_metadata": {
+      "version": 2,
+      "brief": {
+        "reader_question": "How do I use Claude for a sales task while keeping the output verifiable?",
+        "search_intent": "How do I use Claude for a sales task while keeping the output verifiable?",
+        "format": "how_to",
+        "original_value": "Practical decision aid and task-specific review checklist",
+        "evidence_limits": "Proposed workflow with labeled illustrative examples; not a firsthand product test or a promise of measured results.",
+        "success_check": "Verify the output against the cited source and the acceptance checklist."
+      },
+      "visual": {
+        "style": "sales-brief",
+        "concept": "Practical decision aid and task-specific review checklist"
+      },
+      "review_warnings": [],
+      "reviewed_at": "2026-09-19",
+      "review_method": "Primary-source review and manually checked illustrative examples"
+    },
+    "og_image": "https://brianhanson.com/editorial/sales-brief.png"
+  }
+]

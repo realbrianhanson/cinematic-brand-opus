@@ -9,6 +9,14 @@ import {
 } from "../_shared/voice.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
+import {
+  editorialInstructions,
+  EDITORIAL_FIELDS,
+  chooseTitlePair,
+  editorialWarnings,
+  recentArticles,
+} from "../_shared/editorial.ts";
+import { collectEvidence } from "../_shared/editorialEvidence.ts";
 import { generateFeaturedImage } from "../_shared/featuredImage.ts";
 
 const corsHeaders = {
@@ -88,6 +96,7 @@ Deno.serve(async (req) => {
 
     // Step 1: Research via Perplexity (if available)
     let researchContext = "";
+    let researchUrls: string[] = [];
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     if (PERPLEXITY_API_KEY) {
       try {
@@ -122,6 +131,9 @@ Deno.serve(async (req) => {
           const researchData = await researchRes.json();
           researchContext = researchData.choices?.[0]?.message?.content || "";
           const citations = researchData.citations || [];
+          researchUrls = citations
+            .filter((url: unknown) => typeof url === "string")
+            .slice(0, 4);
           if (citations.length > 0) {
             researchContext += `\n\nSources:\n${citations
               .slice(0, 5)
@@ -147,36 +159,26 @@ Deno.serve(async (req) => {
     const voice = await loadVoiceConfig(supabaseAdmin);
     const voiceBlock = formatVoiceBlock(voice);
 
-    // Step 2: Generate the full blog post via Lovable AI
-    const systemPrompt = `You are a blog writer and SEO specialist. Write a comprehensive, well-structured blog post.
-
+    const recent = await recentArticles(supabaseAdmin);
+    const evidence = await collectEvidence(
+      researchUrls.map((url) => ({ url })),
+    );
+    // A research summary is a discovery aid. Only retrieved passages support
+    // current product/cost/result claims in the draft.
+    researchContext = evidence.context;
+    const systemPrompt = `You are an editorial writer for the configured audience.
 ${voiceBlock}
-
-Requirements:
-- Use question-format H2 and H3 headings where appropriate (great for AEO/GEO)
-- Include bulleted or numbered lists for actionable content
-- Target 1200-2000 words
-- Include specific examples, data points, and expert insights from the research
-- Structure with clear sections using H2 headings
-- Use short paragraphs (1-3 sentences max)
-
-Return valid JSON ONLY with these fields:
-{
-  "title": "Engaging, SEO-optimized title (under 60 chars ideally)",
-  "content": "Full HTML blog post content with proper heading tags, lists, paragraphs",
-  "excerpt": "Compelling 1-2 sentence excerpt/summary",
-  "tldr": "TL;DR summary in 20-60 words",
-  "key_takeaways": ["takeaway 1", "takeaway 2", "takeaway 3", "takeaway 4", "takeaway 5"],
-  "faq_items": [{"question": "Q1?", "answer": "A1"}, {"question": "Q2?", "answer": "A2"}, {"question": "Q3?", "answer": "A3"}],
-  "meta_title": "SEO meta title under 60 characters",
-  "meta_description": "SEO meta description under 160 characters",
-  "keywords": "keyword1, keyword2, keyword3, keyword4, keyword5",
-  "featured_image_alt": "Descriptive alt text for the featured image, 6-14 words, includes the article topic, no 'image of' or 'picture of' prefix"
-}`;
-
-    const userMessage = researchContext
-      ? `Write a comprehensive blog post about: "${topic}"${additional_context ? `\n\nAdditional guidance: ${additional_context}` : ""}\n\nUse the following research to inform the article with accurate, up-to-date information:\n\n${researchContext.slice(0, 6000)}`
-      : `Write a comprehensive blog post about: "${topic}"${additional_context ? `\n\nAdditional guidance: ${additional_context}` : ""}`;
+${editorialInstructions(recent)}
+If no source evidence is supplied, write a bounded illustrative workflow, label it as a proposal, and omit changing product features, statistics, quotations, prices, or personal experience. Never invent sources.
+Return JSON ONLY:
+{"title":"accurate engaging headline", "content":"complete HTML article", "excerpt":"specific description",
+"tldr":"direct answer", "key_takeaways":["useful takeaways"], "faq_items":[],
+"meta_title":"distinct descriptive search title", "meta_description":"specific honest reason to read", "keywords":"topic labels",
+${EDITORIAL_FIELDS}}
+`;
+    const userMessage = `Topic: ${topic}
+Additional guidance: ${typeof additional_context === "string" ? additional_context.slice(0, 8000) : ""}
+${researchContext || "No verified source passages are available. Produce a clearly labeled proposal requiring editorial review."}`;
 
     console.log("Generating blog post via Lovable AI...");
     const aiResponse = await fetch(
@@ -350,7 +352,27 @@ Return valid JSON ONLY with these fields:
       console.warn("linkifyEventMentions failed:", e?.message);
     }
 
-    // Compute quality score for the finalized post
+    Object.assign(result, chooseTitlePair(result, recent));
+    const reviewWarnings = editorialWarnings(result, recent);
+    if (!evidence.sources.length)
+      reviewWarnings.push(
+        "No retrieved sources: verify factual claims before publishing",
+      );
+    lintFlags.push(
+      ...reviewWarnings.map((message) => ({
+        type: "editorial_review",
+        message,
+      })),
+    );
+    result.source_citations = evidence.sources;
+    result.editorial_metadata = {
+      version: 2,
+      brief: result.editorial_brief,
+      title_candidates: result.title_candidates,
+      review_warnings: reviewWarnings,
+      evidence_urls: evidence.sources.map((s) => s.url),
+    };
+    // Compute structural readiness, not an SEO prediction.
     const { score: qualityScore, issues: qualityIssues } = scorePost({
       title: result.title,
       content: result.content,
@@ -370,9 +392,17 @@ Return valid JSON ONLY with these fields:
       result.excerpt || result.meta_description || topic,
       LOVABLE_API_KEY,
       supabaseAdmin,
+      result.visual_concept,
     );
     if (featuredImageUrl) {
-      result.featured_image = featuredImageUrl;
+      result.featured_image = featuredImageUrl.url;
+      result.featured_image_alt = featuredImageUrl.alt;
+      result.editorial_metadata.visual = featuredImageUrl.visual;
+    } else {
+      result.editorial_metadata.review_warnings = [
+        ...reviewWarnings,
+        "Cover was not accepted by image review. Choose an image before publishing if the article needs one.",
+      ];
     }
 
     console.log("Blog post generated successfully:", result.title);

@@ -1,9 +1,10 @@
 import { useEditorRecovery } from "@/hooks/useEditorRecovery";
+import EditorialBrief from "./EditorialBrief";
 import EditorialChecklist from "./EditorialChecklist";
 import EditorPreview from "./EditorPreview";
 import { z } from "zod";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import type { TablesInsert } from "@/integrations/supabase/types";
+import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { scheduledInstant, zonedInput } from "@/lib/scheduleTime";
@@ -80,6 +81,10 @@ const PostEditor = () => {
     scheduleTouched.current = false;
   }, [id]);
   const [featuredImage, setFeaturedImage] = useState("");
+  const [featuredImageAlt, setFeaturedImageAlt] = useState("");
+  const [editorialMetadata, setEditorialMetadata] = useState<Json>({});
+  const [sourceCitations, setSourceCitations] = useState<Json>([]);
+  const [generationFlags, setGenerationFlags] = useState<Json>([]);
   const [uploading, setUploading] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
   const [editorContent, setEditorContent] = useState("");
@@ -172,6 +177,10 @@ const PostEditor = () => {
     scheduledAt,
     timezone,
     featuredImage,
+    featuredImageAlt,
+    editorialMetadata,
+    sourceCitations,
+    generationFlags,
     editorContent,
     metaTitle,
     metaDesc,
@@ -193,6 +202,10 @@ const PostEditor = () => {
         scheduledAt: z.string(),
         timezone: z.string(),
         featuredImage: z.string(),
+        featuredImageAlt: z.string().default(""),
+        editorialMetadata: z.unknown().default({}),
+        sourceCitations: z.unknown().default([]),
+        generationFlags: z.unknown().default([]),
         editorContent: z.string(),
         metaTitle: z.string(),
         metaDesc: z.string(),
@@ -221,6 +234,10 @@ const PostEditor = () => {
     scheduleTouched.current = true;
     setTimezone(d.timezone);
     setFeaturedImage(d.featuredImage);
+    setFeaturedImageAlt(d.featuredImageAlt);
+    setEditorialMetadata(d.editorialMetadata as Json);
+    setSourceCitations(d.sourceCitations as Json);
+    setGenerationFlags(d.generationFlags as Json);
     setEditorContent(d.editorContent);
     editorRef.current?.commands.setContent(d.editorContent);
     setMetaTitle(d.metaTitle);
@@ -263,6 +280,10 @@ const PostEditor = () => {
       excerpt: p.excerpt || "",
       categoryId: p.category_id || "",
       featuredImage: p.featured_image || "",
+      featuredImageAlt: p.featured_image_alt || "",
+      editorialMetadata: p.editorial_metadata || {},
+      sourceCitations: p.source_citations || [],
+      generationFlags: p.lint_flags || [],
       editorContent: p.content || "",
       tldr: p.tldr || "",
       keyTakeaways: p.key_takeaways || [],
@@ -290,6 +311,10 @@ const PostEditor = () => {
       setInitialStatus(post.status);
 
       setFeaturedImage(post.featured_image ?? "");
+      setFeaturedImageAlt(post.featured_image_alt ?? "");
+      setEditorialMetadata(post.editorial_metadata || {});
+      setSourceCitations(post.source_citations || []);
+      setGenerationFlags(post.lint_flags || []);
       setSlugManual(true);
       setTldr(post.tldr ?? "");
       const parsedTakeaways = z
@@ -353,6 +378,7 @@ const PostEditor = () => {
         .from("blog-images")
         .getPublicUrl(path);
       setFeaturedImage(urlData.publicUrl);
+      setFeaturedImageAlt("");
       setUploading(false);
     },
     [toast],
@@ -397,107 +423,35 @@ const PostEditor = () => {
   // Scoring
   const currentContent = editorContent;
 
-  const seoScore = useMemo(() => {
-    let s = 0;
-    if (metaTitle && metaTitle.length <= 60) s++;
-    if (metaDesc && metaDesc.length <= 160) s++;
-    if (keywords) s++;
-    if (featuredImage || ogImage) s++;
-    return s;
-  }, [metaTitle, metaDesc, keywords, featuredImage, ogImage]);
-
-  const aeoScore = useMemo(() => {
-    let s = 0;
-    if (tldr && tldr.length >= 20) s++;
-    if (
-      faqItems.filter((f) => f.question.trim() && f.answer.trim()).length >= 2
-    )
-      s++;
-    if (keyTakeaways.filter((t) => t.trim()).length >= 3) s++;
-    if (/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent)) s++;
-    if (/<(ul|ol)[^>]*>/i.test(currentContent)) s++;
-    if (/href=["']https?:\/\//i.test(currentContent)) s++;
-    return s;
-  }, [tldr, faqItems, keyTakeaways, currentContent]);
-
-  const criteria = useMemo(() => {
-    const validFaq = faqItems.filter(
-      (f) => f.question.trim() && f.answer.trim(),
-    );
-    const validTakeaways = keyTakeaways.filter((t) => t.trim());
-    return [
+  const criteria = useMemo(
+    () => [
       {
-        label: "TL;DR summary (20+ chars)",
-        done: !!(tldr && tldr.length >= 20),
-        points: "+8",
-        category: "AEO",
+        label: "Descriptive search title",
+        done: !!metaTitle.trim(),
+        points: "",
+        category: "Metadata",
       },
       {
-        label: "2+ FAQ items",
-        done: validFaq.length >= 2,
-        points: "+8",
-        category: "AEO",
+        label: "Specific search description",
+        done: !!metaDesc.trim(),
+        points: "",
+        category: "Metadata",
       },
       {
-        label: "3+ key takeaways",
-        done: validTakeaways.length >= 3,
-        points: "+8",
-        category: "AEO",
+        label: "Reader-facing excerpt",
+        done: !!excerpt.trim(),
+        points: "",
+        category: "Metadata",
       },
       {
-        label: "Question headings (H2/H3 with ?)",
-        done: /<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent),
-        points: "+8",
-        category: "AEO",
-      },
-      {
-        label: "Lists in content (ul/ol)",
-        done: /<(ul|ol)[^>]*>/i.test(currentContent),
-        points: "+8",
-        category: "AEO",
-      },
-      {
-        label: "External source links (verify manually)",
+        label: "Source links to verify",
         done: /href=["']https?:\/\//i.test(currentContent),
-        points: "+8",
-        category: "AEO",
+        points: "",
+        category: "Review",
       },
-      {
-        label: "Meta title (≤60 chars)",
-        done: !!(metaTitle && metaTitle.length <= 60),
-        points: "+13",
-        category: "SEO",
-      },
-      {
-        label: "Meta description (≤160 chars)",
-        done: !!(metaDesc && metaDesc.length <= 160),
-        points: "+13",
-        category: "SEO",
-      },
-      {
-        label: "Keywords added",
-        done: !!keywords,
-        points: "+12",
-        category: "SEO",
-      },
-      {
-        label: "Featured or OG image",
-        done: !!(featuredImage || ogImage),
-        points: "+12",
-        category: "SEO",
-      },
-    ];
-  }, [
-    tldr,
-    faqItems,
-    keyTakeaways,
-    currentContent,
-    metaTitle,
-    metaDesc,
-    keywords,
-    featuredImage,
-    ogImage,
-  ]);
+    ],
+    [metaTitle, metaDesc, excerpt, currentContent],
+  );
 
   const aeoTips = useMemo(
     () => [
@@ -507,9 +461,6 @@ const PostEditor = () => {
     ],
     [],
   );
-
-  const scoreColor = (score: number, max: number) =>
-    score >= max * 0.66 ? "admin-sage" : "admin-accent";
 
   // AI generation
   const handleAiGenerate = useCallback(async () => {
@@ -533,8 +484,9 @@ const PostEditor = () => {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.tldr) setTldr(data.tldr);
-      if (data.key_takeaways?.length) setKeyTakeaways(data.key_takeaways);
-      if (data.faq_items?.length) setFaqItems(data.faq_items);
+      if (Array.isArray(data.key_takeaways))
+        setKeyTakeaways(data.key_takeaways);
+      if (Array.isArray(data.faq_items)) setFaqItems(data.faq_items);
       if (data.excerpt) setExcerpt(data.excerpt);
       if (data.meta_title) setMetaTitle(data.meta_title);
       if (data.meta_description) setMetaDesc(data.meta_description);
@@ -584,8 +536,9 @@ const PostEditor = () => {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       if (data.tldr) setTldr(data.tldr);
-      if (data.key_takeaways?.length) setKeyTakeaways(data.key_takeaways);
-      if (data.faq_items?.length) setFaqItems(data.faq_items);
+      if (Array.isArray(data.key_takeaways))
+        setKeyTakeaways(data.key_takeaways);
+      if (Array.isArray(data.faq_items)) setFaqItems(data.faq_items);
       if (data.excerpt) setExcerpt(data.excerpt);
       if (data.meta_title) setMetaTitle(data.meta_title);
       if (data.meta_description) setMetaDesc(data.meta_description);
@@ -597,8 +550,9 @@ const PostEditor = () => {
       setAeoOpen(true);
       setSeoOpen(true);
       toast({
-        title: "Score boosted! 🚀",
-        description: "Missing criteria have been filled by AI.",
+        title: "Editorial suggestions applied",
+        description:
+          "Review the changes for accuracy and usefulness before saving.",
       });
     } catch (e) {
       toast({
@@ -630,7 +584,7 @@ const PostEditor = () => {
             topic: aiTopic.trim(),
             additional_context: aiContext.trim() || undefined,
           },
-          signal: AbortSignal.timeout(120000),
+          signal: AbortSignal.timeout(300000),
         },
       );
       if (error) throw error;
@@ -648,12 +602,17 @@ const PostEditor = () => {
       }
       if (data.excerpt) setExcerpt(data.excerpt);
       if (data.tldr) setTldr(data.tldr);
-      if (data.key_takeaways?.length) setKeyTakeaways(data.key_takeaways);
-      if (data.faq_items?.length) setFaqItems(data.faq_items);
+      if (Array.isArray(data.key_takeaways))
+        setKeyTakeaways(data.key_takeaways);
+      if (Array.isArray(data.faq_items)) setFaqItems(data.faq_items);
       if (data.meta_title) setMetaTitle(data.meta_title);
       if (data.meta_description) setMetaDesc(data.meta_description);
       if (data.keywords) setKeywords(data.keywords);
-      if (data.featured_image) setFeaturedImage(data.featured_image);
+      setFeaturedImage(data.featured_image || "");
+      setFeaturedImageAlt(data.featured_image_alt || "");
+      setEditorialMetadata(data.editorial_metadata || {});
+      setSourceCitations(data.source_citations || []);
+      setGenerationFlags(data.lint_flags || []);
 
       setAeoOpen(true);
       setSeoOpen(true);
@@ -751,6 +710,10 @@ const PostEditor = () => {
           status: persistStatus,
           scheduled_at: scheduledISO,
           featured_image: featuredImage || null,
+          featured_image_alt: featuredImageAlt || null,
+          editorial_metadata: editorialMetadata,
+          source_citations: sourceCitations,
+          lint_flags: generationFlags,
           reading_time,
           faq_items: cleanFaq.length ? cleanFaq : [],
           key_takeaways: cleanTakeaways.length ? cleanTakeaways : [],
@@ -1053,6 +1016,8 @@ const PostEditor = () => {
             setCategoryId={setCategoryId}
             categories={categories ?? []}
             featuredImage={featuredImage}
+            featuredImageAlt={featuredImageAlt}
+            setFeaturedImageAlt={setFeaturedImageAlt}
             setFeaturedImage={setFeaturedImage}
             uploading={uploading}
             onFeaturedUpload={handleFeaturedUpload}
@@ -1060,10 +1025,9 @@ const PostEditor = () => {
             setExcerpt={setExcerpt}
           />
 
+          <EditorialBrief value={editorialMetadata} />
           <EditorialChecklist html={editorContent} />
           <PostEditorAiHelper
-            aeoScore={aeoScore}
-            seoScore={seoScore}
             criteria={criteria}
             aiGenerating={aiGenerating}
             enhancing={enhancing}
@@ -1092,16 +1056,7 @@ const PostEditor = () => {
                   style={{ color: "hsl(var(--admin-accent))" }}
                 />
                 <span className="admin-label" style={{ marginBottom: 0 }}>
-                  AEO / GEO
-                </span>
-                <span
-                  className="admin-badge"
-                  style={{
-                    background: `hsl(var(--${scoreColor(aeoScore, 6)}-soft))`,
-                    color: `hsl(var(--${scoreColor(aeoScore, 6)}))`,
-                  }}
-                >
-                  {aeoScore}/6
+                  Summaries & reader questions
                 </span>
               </span>
               {aeoOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1138,16 +1093,7 @@ const PostEditor = () => {
             >
               <span className="flex items-center gap-2">
                 <span className="admin-label" style={{ marginBottom: 0 }}>
-                  SEO
-                </span>
-                <span
-                  className="admin-badge"
-                  style={{
-                    background: `hsl(var(--${scoreColor(seoScore, 4)}-soft))`,
-                    color: `hsl(var(--${scoreColor(seoScore, 4)}))`,
-                  }}
-                >
-                  {seoScore}/4
+                  Search appearance
                 </span>
               </span>
               {seoOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

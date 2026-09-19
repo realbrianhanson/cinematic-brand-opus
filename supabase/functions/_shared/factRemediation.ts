@@ -29,12 +29,18 @@ export async function remediatePostFacts(
   const { data: post, error } = await supabase
     .from("posts")
     .select(
-      "id, title, content, excerpt, tldr, key_takeaways, faq_items, meta_title, meta_description, featured_image_alt, fact_check, source_citations, lint_flags",
+      "id, title, content, excerpt, tldr, key_takeaways, faq_items, featured_image_alt, fact_check, source_citations, lint_flags",
     )
     .eq("id", postId)
     .maybeSingle();
   if (error || !post) return { ok: false, reason: "post not found" };
 
+  const { data: seo, error: seoError } = await supabase
+    .from("seo_metadata")
+    .select("meta_title,meta_description")
+    .eq("post_id", postId)
+    .maybeSingle();
+  if (seoError) return { ok: false, reason: "Could not read article metadata" };
   const fc = post.fact_check as any;
   if (!fc || !Array.isArray(fc.claims))
     return { ok: false, reason: "no fact_check to remediate" };
@@ -74,7 +80,7 @@ export async function remediatePostFacts(
           .join("\n")}`
       : "",
     unverified.length > 0
-      ? `UNVERIFIED CLAIMS — either DELETE, or convert to properly attributed statements. When attributing, use the exact form: "according to <SOURCE NAME>" with a markdown link to the source_url when present. Never leave a bare claim.\n${unverified
+      ? `UNVERIFIED CLAIMS — either DELETE, or convert to properly attributed statements. When attributing, use the exact form: "according to <SOURCE NAME>" with an HTML anchor link to the source_url when present. Never leave a bare claim.\n${unverified
           .map((c: any, i: number) => {
             const src = c.source_url
               ? citationNames.get(c.source_url) ||
@@ -95,8 +101,8 @@ export async function remediatePostFacts(
     tldr: post.tldr,
     key_takeaways: post.key_takeaways,
     faq_items: post.faq_items,
-    meta_title: post.meta_title,
-    meta_description: post.meta_description,
+    meta_title: seo?.meta_title,
+    meta_description: seo?.meta_description,
     featured_image_alt: post.featured_image_alt,
   };
 
@@ -106,8 +112,8 @@ ${factInstructions}
 
 Rules:
 - Never invent replacement facts. Deletion is always preferable to fabrication.
-- Preserve overall structure, JSON schema, and word count within ~15%.
-- Attributed claims must use markdown links, e.g. "according to [Bloomberg](https://...)".
+- Preserve useful structure and JSON schema. Remove unsupported content even if the article becomes substantially shorter.
+- Attributed claims must use HTML anchors to exact sources. Attribution does not make an unsupported claim true.
 - Do not touch any claim marked verified.`;
 
   const revised = await critiqueAndRevise({
@@ -117,7 +123,7 @@ Rules:
     researchContext,
     draftJson,
     schemaHint:
-      "blog post fields (title, content HTML, excerpt, tldr, key_takeaways, faq_items, meta_title, meta_description, featured_image_alt)",
+      "blog post fields (title, content HTML, excerpt, tldr, key_takeaways, faq_items, featured_image_alt)",
     maxTokens: 16000,
   });
 
@@ -164,7 +170,7 @@ Rules:
       tldr: merged.tldr,
       key_takeaways: merged.key_takeaways,
       faq_items: merged.faq_items,
-      featured_image_alt: merged.featured_image_alt,
+      // Image description is maintained by image review, not article rewriting.
       lint_flags: lintFlags,
       quality_score: structuralScore, // fact-check will refine this
       fact_check: nextFc,

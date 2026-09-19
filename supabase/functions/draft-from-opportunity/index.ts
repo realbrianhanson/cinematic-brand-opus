@@ -14,6 +14,14 @@ import {
   scorePost,
 } from "../_shared/voice.ts";
 import { linkifyEventMentions } from "../_shared/eventLink.ts";
+import {
+  editorialInstructions,
+  EDITORIAL_FIELDS,
+  chooseTitlePair,
+  editorialWarnings,
+  recentArticles,
+} from "../_shared/editorial.ts";
+import { collectEvidence } from "../_shared/editorialEvidence.ts";
 import { generateFeaturedImage } from "../_shared/featuredImage.ts";
 
 const corsHeaders = {
@@ -167,19 +175,19 @@ Deno.serve(async (req) => {
     .from("expert_notes")
     .select("id, note, topic_hint")
     .eq("archived", false)
+    .is("used_in_post_id", null)
     .gte(
       "created_at",
       new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString(),
     )
     .order("created_at", { ascending: false })
     .limit(20);
-  const matchedNote =
-    (notes || []).find(
-      (n) =>
-        !n.topic_hint ||
-        n.topic_hint === opp.topic_lane ||
-        opp.angle.toLowerCase().includes((n.topic_hint || "").toLowerCase()),
-    ) || (notes || [])[0];
+  const matchedNote = (notes || []).find(
+    (n) =>
+      !!n.topic_hint &&
+      (n.topic_hint === opp.topic_lane ||
+        opp.angle.toLowerCase().includes((n.topic_hint || "").toLowerCase())),
+  );
 
   const voice = await loadVoiceConfig(supabase);
   const voiceBlock = formatVoiceBlock(voice);
@@ -200,51 +208,48 @@ Deno.serve(async (req) => {
   const authorContext =
     editorialIdentity.author_bio || editorialIdentity.site_name || "";
 
-  const systemPrompt = `You are ${authorName} writing a first-person analysis post.
-
+  let recent;
+  try {
+    recent = await recentArticles(supabase);
+  } catch (error) {
+    await failOpp(String(error), currentAttempts >= MAX_ATTEMPTS);
+    return new Response(
+      JSON.stringify({ error: "Article history unavailable" }),
+      { status: 503, headers: corsHeaders },
+    );
+  }
+  const evidence = await collectEvidence(sources);
+  if (!evidence.sources.length) {
+    await failOpp(
+      "No readable source evidence; needs editorial research",
+      currentAttempts >= MAX_ATTEMPTS,
+    );
+    return new Response(
+      JSON.stringify({ error: "No readable source evidence" }),
+      { status: 422, headers: corsHeaders },
+    );
+  }
+  const systemPrompt = `You are ${authorName}'s editorial writer.
 ${voiceBlock}
-
-Author background and audience: ${authorContext}. Never invent first-person experiences.
-
-Structure:
-- Open with a concrete hook tied to the news (no "In today's fast-paced world" type openings).
-- Explain what happened in 2-3 sentences with citations.
-- Give the author's take: what it means for the configured audience specifically.
-- 3-5 practical actions the reader can take this week.
-- Close with what to watch next.
-
-Rules:
-- 900-1400 words.
-- First person ("I", "I'd").
-- Cite sources as markdown links inside sentences, using the URLs provided.
-- No generic AI-recap tone. No hedging. No em dashes.
-- If the author's note is provided, weave it in naturally as a "From the trenches" callout paragraph.
-- Every numeric claim must come from one of the provided source URLs.
-
+Author background and audience: ${authorContext}.
+${editorialInstructions(recent, opp.brief?.format)}
 Return JSON ONLY:
 {
-  "title": "...",
-  "content": "full HTML with <h2>, <h3>, <p>, <ul>, <a href=...> etc.",
-  "excerpt": "1-2 sentences",
-  "tldr": "20-60 words",
-  "key_takeaways": ["...", "...", "...", "...", "..."],
-  "faq_items": [{"question": "...", "answer": "..."}, ... 3-5 items],
-  "meta_title": "under 60 chars",
-  "meta_description": "under 160 chars",
-  "keywords": "kw1, kw2, kw3, kw4, kw5",
-  "featured_image_alt": "6-14 words, no 'image of'"
+  "title":"accurate engaging headline", "content":"complete HTML article",
+  "excerpt":"specific 1-2 sentence description", "tldr":"direct answer to the reader question",
+  "key_takeaways":["only useful takeaways"], "faq_items":[],
+  "meta_title":"distinct descriptive search title", "meta_description":"specific honest reason to read",
+  "keywords":"topic labels, not keyword stuffing",
+  ${EDITORIAL_FIELDS}
 }`;
-
   const briefBlock = `Angle: ${opp.angle}
-Target keyword: ${opp.target_keyword}
-Format: ${opp.brief?.format || "news_analysis"}
-Why the configured audience cares: ${opp.rationale}
-What's missing elsewhere: ${opp.gap_reason}
-
-Sources (use these URLs as citations):
-${sources.map((s) => `- ${s.title || "(untitled)"} — ${s.url}`).join("\n")}
-
-${matchedNote ? `the author's note (weave into a "From the trenches" callout):\n"${matchedNote.note}"` : "No personal note is available. Omit first-person experience claims and personal callouts."}`;
+Reader question: ${opp.brief?.reader_question || opp.target_keyword}
+Search intent: ${opp.brief?.search_intent || "Choose the reader task before drafting"}
+Why the audience cares: ${opp.rationale}
+Original contribution: ${opp.gap_reason}
+${evidence.context}
+Unavailable sources (do not rely on them): ${evidence.missing.join(", ")}
+${matchedNote ? `Relevant supplied author note (do not expand into invented experience): ${matchedNote.note}` : "No personal note: omit personal experience claims."}`;
 
   const aiRes = await fetch(
     "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -350,7 +355,12 @@ ${matchedNote ? `the author's note (weave into a "From the trenches" callout):\n
       maxLinks: 1,
     });
 
-  const lintFlags = lintJson(draft, voice.banned_phrases);
+  Object.assign(draft, chooseTitlePair(draft, recent));
+  const reviewWarnings = editorialWarnings(draft, recent);
+  const lintFlags = [
+    ...lintJson(draft, voice.banned_phrases),
+    ...reviewWarnings.map((message) => ({ type: "editorial_review", message })),
+  ];
   const { score: quality_score } = scorePost({
     title: draft.title,
     content: draft.content,
@@ -504,6 +514,7 @@ ${matchedNote ? `the author's note (weave into a "From the trenches" callout):\n
     draft.excerpt || draft.meta_description || opp.angle || "",
     lovableKey,
     supabase,
+    draft.visual_concept,
   );
 
   const strippedForReading = String(draft.content || "")
@@ -527,14 +538,22 @@ ${matchedNote ? `the author's note (weave into a "From the trenches" callout):\n
       tldr: draft.tldr,
       key_takeaways: draft.key_takeaways,
       faq_items: draft.faq_items,
-      featured_image_alt: draft.featured_image_alt,
-      featured_image: featuredImageUrl,
+      featured_image_alt: featuredImageUrl?.alt || null,
+      featured_image: featuredImageUrl?.url || null,
+      editorial_metadata: {
+        version: 2,
+        brief: draft.editorial_brief,
+        title_candidates: draft.title_candidates,
+        visual: featuredImageUrl?.visual || null,
+        review_warnings: reviewWarnings,
+        evidence_urls: evidence.sources.map((s) => s.url),
+      },
       status: "draft",
       quality_score,
       lint_flags: lintFlags,
       opportunity_id,
       draft_claim_token: claimToken,
-      source_citations: sources,
+      source_citations: evidence.sources,
       originality_score,
       freshness_hours,
       reading_time: readingTime,

@@ -12,6 +12,8 @@ interface PostEditorSidebarProps {
   setCategoryId: (v: string) => void;
   categories: Array<{ id: string; name: string }>;
   featuredImage: string;
+  featuredImageAlt: string;
+  setFeaturedImageAlt: (v: string) => void;
   setFeaturedImage: (v: string) => void;
   uploading: boolean;
   onFeaturedUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -30,6 +32,8 @@ const PostEditorSidebar = ({
   setCategoryId,
   categories,
   featuredImage,
+  featuredImageAlt,
+  setFeaturedImageAlt,
   setFeaturedImage,
   uploading,
   onFeaturedUpload,
@@ -151,7 +155,10 @@ const PostEditorSidebar = ({
             }}
           />
           <button
-            onClick={() => setFeaturedImage("")}
+            onClick={() => {
+              setFeaturedImage("");
+              setFeaturedImageAlt("");
+            }}
             style={{
               position: "absolute",
               top: 6,
@@ -190,6 +197,21 @@ const PostEditorSidebar = ({
       </label>
     </div>
 
+    <div className="admin-card" style={{ padding: 20 }}>
+      <label className="admin-label" htmlFor="cover-alt">
+        Cover image description
+      </label>
+      <textarea
+        id="cover-alt"
+        value={featuredImageAlt}
+        onChange={(e) => setFeaturedImageAlt(e.target.value)}
+        rows={2}
+        className="admin-input font-body w-full"
+      />
+      <p className="text-xs mt-2">
+        Describe what is actually visible. Review this after replacing an image.
+      </p>
+    </div>
     {/* Excerpt */}
     <div className="admin-card" style={{ padding: 20 }}>
       <label className="admin-label">Excerpt</label>

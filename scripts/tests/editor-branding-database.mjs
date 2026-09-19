@@ -32,6 +32,7 @@ for (const file of [
   "20260919092000_performance_reporting.sql",
   "20260919093000_public_library.sql",
   "20260919094000_library_and_breakdowns.sql",
+  "20260919095000_editorial_metadata.sql",
 ])
   await db.exec(readFileSync("supabase/migrations/" + file, "utf8"));
 await db.exec("set role anon");

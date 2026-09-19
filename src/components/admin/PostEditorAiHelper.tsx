@@ -1,16 +1,11 @@
-import { Sparkles, Wand2, Loader2 } from "lucide-react";
-
-interface ScoreCriteria {
-  label: string;
-  done: boolean;
-  points: string;
-  category: string;
-}
-
-interface PostEditorAiHelperProps {
-  aeoScore: number;
-  seoScore: number;
-  criteria: ScoreCriteria[];
+import { Loader2, Sparkles } from "lucide-react";
+interface Props {
+  criteria: {
+    label: string;
+    done: boolean;
+    points: string;
+    category: string;
+  }[];
   aiGenerating: boolean;
   enhancing: boolean;
   hasGenerated: boolean;
@@ -18,365 +13,55 @@ interface PostEditorAiHelperProps {
   onGenerate: () => void;
   onEnhance: () => void;
 }
-
-const scoreColor = (score: number, max: number) =>
-  score >= max * 0.66 ? "admin-sage" : "admin-accent";
-
-const PostEditorAiHelper = ({
-  aeoScore,
-  seoScore,
+export default function PostEditorAiHelper({
   criteria,
   aiGenerating,
   enhancing,
-  hasGenerated,
   canGenerate,
   onGenerate,
   onEnhance,
-}: PostEditorAiHelperProps) => {
-  const overall = Math.round((aeoScore / 6) * 50 + (seoScore / 4) * 50);
-  const overallColor =
-    overall >= 75
-      ? "admin-sage"
-      : overall >= 40
-        ? "admin-accent"
-        : "admin-danger";
-  const done = criteria.filter((c) => c.done).length;
-  const total = criteria.length;
-
+}: Props) {
   return (
     <div className="admin-card" style={{ padding: 20 }}>
-      <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
-        <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
-        <span className="admin-label" style={{ marginBottom: 0 }}>
-          AI Helper
-        </span>
-      </div>
-      <p
-        className="font-body"
-        style={{
-          fontSize: 11,
-          color: "hsl(var(--admin-text-ghost))",
-          marginBottom: 14,
-          lineHeight: 1.5,
-        }}
-      >
-        Draft metadata and summaries from your article. This checklist does not
-        predict rankings or verify factual accuracy.
+      <h2 className="admin-label">Article assistant</h2>
+      <p className="text-sm mb-4">
+        Draft accurate metadata from the article. FAQs, summaries, and lists are
+        optional; add them only when they help. There is no ranking score or
+        required word count.
       </p>
-
-      {/* Metadata completeness Ring */}
-      <div style={{ marginBottom: 16, textAlign: "center" }}>
-        <div
-          style={{
-            position: "relative",
-            width: 100,
-            height: 100,
-            margin: "0 auto 10px",
-          }}
-        >
-          <svg
-            viewBox="0 0 36 36"
-            style={{
-              width: "100%",
-              height: "100%",
-              transform: "rotate(-90deg)",
-            }}
-          >
-            <circle
-              cx="18"
-              cy="18"
-              r="15.9"
-              fill="none"
-              stroke="hsl(var(--admin-surface-2))"
-              strokeWidth="2.8"
-            />
-            <circle
-              cx="18"
-              cy="18"
-              r="15.9"
-              fill="none"
-              stroke={`hsl(var(--${overallColor}))`}
-              strokeWidth="2.8"
-              strokeDasharray={`${overall} ${100 - overall}`}
-              strokeLinecap="round"
-              style={{ transition: "stroke-dasharray 0.5s ease" }}
-            />
-          </svg>
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span
-              className="font-heading"
-              style={{
-                fontSize: 24,
-                color: `hsl(var(--${overallColor}))`,
-                lineHeight: 1,
-              }}
-            >
-              {overall}
-            </span>
-            <span
-              className="font-body"
-              style={{ fontSize: 9, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              / 100
-            </span>
-          </div>
-        </div>
-        <p
-          className="font-body"
-          style={{
-            fontSize: 10,
-            color: "hsl(var(--admin-text-ghost))",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          Metadata completeness
-        </p>
-      </div>
-
-      {/* Score Breakdown */}
-      <div className="flex gap-3" style={{ marginBottom: 14 }}>
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            borderRadius: 4,
-            padding: "10px 12px",
-            textAlign: "center",
-          }}
-        >
-          <p
-            className="font-body"
-            style={{
-              fontSize: 9,
-              color: "hsl(var(--admin-text-ghost))",
-              marginBottom: 4,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Structure
-          </p>
-          <span
-            className="font-heading"
-            style={{
-              fontSize: 20,
-              color: `hsl(var(--${scoreColor(aeoScore, 6)}))`,
-            }}
-          >
-            {aeoScore}
-          </span>
-          <span
-            className="font-body"
-            style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
-          >
-            /6
-          </span>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            borderRadius: 4,
-            padding: "10px 12px",
-            textAlign: "center",
-          }}
-        >
-          <p
-            className="font-body"
-            style={{
-              fontSize: 9,
-              color: "hsl(var(--admin-text-ghost))",
-              marginBottom: 4,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            SEO
-          </p>
-          <span
-            className="font-heading"
-            style={{
-              fontSize: 20,
-              color: `hsl(var(--${scoreColor(seoScore, 4)}))`,
-            }}
-          >
-            {seoScore}
-          </span>
-          <span
-            className="font-body"
-            style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
-          >
-            /4
-          </span>
-        </div>
-      </div>
-
-      {/* Checklist */}
-      <div style={{ marginBottom: 14 }}>
-        <p className="admin-label" style={{ marginBottom: 10, fontSize: 10 }}>
-          📈 Increase Your Score
-        </p>
-        <div
-          style={{
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            borderRadius: 6,
-            padding: "4px",
-            marginBottom: 10,
-          }}
-        >
-          <div
-            style={{
-              height: 6,
-              borderRadius: 3,
-              background:
-                done === total
-                  ? "hsl(var(--admin-sage))"
-                  : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-              width: `${(done / total) * 100}%`,
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
-        <p
-          className="font-body"
-          style={{
-            fontSize: 10,
-            color: "hsl(var(--admin-text-ghost))",
-            marginBottom: 10,
-            textAlign: "right",
-          }}
-        >
-          {done}/{total} completed
-        </p>
-        {criteria.map((c, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-2"
-            style={{ marginBottom: 6 }}
-          >
-            <span
-              style={{
-                fontSize: 13,
-                lineHeight: "18px",
-                flexShrink: 0,
-                color: c.done
-                  ? "hsl(var(--admin-sage))"
-                  : "hsl(var(--admin-text-ghost))",
-              }}
-            >
-              {c.done ? "✓" : "○"}
-            </span>
-            <span
-              className="font-body"
-              style={{
-                fontSize: 11,
-                lineHeight: "18px",
-                flex: 1,
-                color: c.done
-                  ? "hsl(var(--admin-text-ghost))"
-                  : "hsl(var(--admin-text-soft))",
-                textDecoration: c.done ? "line-through" : "none",
-              }}
-            >
-              {c.label}
-            </span>
-            <span
-              className="font-body"
-              style={{
-                fontSize: 9,
-                lineHeight: "18px",
-                color: c.done
-                  ? "hsl(var(--admin-sage))"
-                  : "hsl(var(--admin-accent))",
-                fontWeight: 600,
-              }}
-            >
-              {c.done ? "✓" : c.points}
-            </span>
-          </div>
+      <ul className="space-y-2 mb-4 text-sm">
+        {criteria.map((c) => (
+          <li key={c.label}>
+            {c.done ? "✓" : "○"} {c.label}
+            {c.category === "Review" ? " (manual review)" : ""}
+          </li>
         ))}
-      </div>
-
-      {/* Smart Button */}
-      <button
-        onClick={hasGenerated && overall < 100 ? onEnhance : onGenerate}
-        disabled={
-          aiGenerating ||
-          enhancing ||
-          (!canGenerate && !hasGenerated) ||
-          overall >= 100
-        }
-        className={
-          overall >= 100
-            ? "w-full flex items-center justify-center gap-2 font-body"
-            : "admin-btn-primary w-full flex items-center justify-center gap-2"
-        }
-        style={{
-          fontSize: 13,
-          ...(overall >= 100
-            ? {
-                background: "hsl(var(--admin-sage))",
-                color: "#fff",
-                border: "none",
-                borderRadius: 6,
-                padding: "10px 16px",
-                fontWeight: 600,
-                cursor: "default",
-                opacity: 0.8,
-              }
-            : hasGenerated && overall < 100
-              ? {
-                  background:
-                    "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "10px 16px",
-                  fontWeight: 600,
-                }
-              : {}),
-        }}
-      >
-        {aiGenerating || enhancing ? (
-          <>
-            <Loader2 size={14} className="animate-spin" />
-            {hasGenerated ? "Improving..." : "Generating..."}
-          </>
-        ) : overall >= 100 ? (
-          <>✓ Score Maximized</>
-        ) : hasGenerated ? (
-          <>
-            📈 Improve Score
-            <span
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                borderRadius: 12,
-                padding: "2px 8px",
-                fontSize: 11,
-              }}
-            >
-              {overall}%
-            </span>
-          </>
-        ) : (
-          <>
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <button
+          className="admin-btn-primary"
+          disabled={!canGenerate || aiGenerating || enhancing}
+          onClick={onGenerate}
+        >
+          {aiGenerating ? (
+            <Loader2 className="animate-spin" size={14} />
+          ) : (
             <Sparkles size={14} />
-            Generate SEO &amp; Structure
-          </>
-        )}
-      </button>
+          )}{" "}
+          Draft metadata
+        </button>
+        <button
+          className="admin-btn-secondary"
+          disabled={!canGenerate || aiGenerating || enhancing}
+          onClick={onEnhance}
+        >
+          {enhancing ? "Reviewing…" : "Review missing metadata"}
+        </button>
+      </div>
+      <p className="text-xs mt-3">
+        AI suggestions still need an editor to check claims, sources, and
+        promises.
+      </p>
     </div>
   );
-};
-
-export default PostEditorAiHelper;
+}

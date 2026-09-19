@@ -1,3 +1,4 @@
+import { editorialInstructions, recentArticles } from "../_shared/editorial.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
@@ -71,33 +72,36 @@ Deno.serve(async (req) => {
     const voice = await loadVoiceConfig(supabaseAdmin);
     const voiceBlock = formatVoiceBlock(voice);
 
+    const recent = await recentArticles(supabaseAdmin);
     const baseSystemPrompt = enhance
       ? `You are an SEO and AEO/GEO optimization expert. The user has a blog post that needs improvement. Based on the missing criteria provided, generate or improve the fields needed. Return valid JSON only with these optional fields:
 - "tldr": A concise TL;DR summary (20-60 words)
 - "key_takeaways": Array of 3-5 actionable bullet points
-- "faq_items": Array of objects with "question" and "answer" fields (2-4 items)
+- "faq_items": Array of genuinely useful questions and answers; [] when unnecessary
 - "excerpt": A compelling 1-2 sentence excerpt
-- "meta_title": SEO title under 60 characters
-- "meta_description": SEO description under 160 characters  
+- "meta_title": descriptive search title faithful to the article
+- "meta_description": concise, specific description of what the reader gets
 - "keywords": Comma-separated keyword string
-- "enhanced_content": If content needs more words, question-format headings, or lists, return the improved HTML content. Preserve existing content and add to it.
+- "enhanced_content": Return revised HTML only if clarity or organization improves. Never add length, FAQs, question headings, statistics, or factual claims to satisfy a checklist. Preserve exact source links and factual meaning. Omit this field if unnecessary.
 Only include fields that need improvement based on the missing criteria.`
       : `You are an SEO and AEO/GEO optimization expert. Given a blog post title, content, and excerpt, generate optimized fields. Return valid JSON only with ALL of these fields:
 - "tldr": A concise TL;DR summary (20-60 words)
 - "key_takeaways": Array of 3-5 actionable bullet points  
-- "faq_items": Array of 2-4 objects with "question" and "answer" fields
+- "faq_items": Array of genuinely useful questions and answers; [] when unnecessary
 - "excerpt": A compelling 1-2 sentence excerpt
-- "meta_title": SEO title under 60 characters with main keyword
-- "meta_description": SEO description under 160 characters
+- "meta_title": descriptive search title faithful to the article; no unsupported promises
+- "meta_description": concise, specific description of what the reader gets
 - "keywords": Comma-separated keyword string (5-8 keywords)`;
 
     const systemPrompt = `${baseSystemPrompt}
 
-${voiceBlock}`;
+${voiceBlock}
+${editorialInstructions(recent)}
+Use only the supplied article as evidence. Do not invent facts or sources. Metadata should describe this article, not a different or expanded promise.`;
 
     const userMessage = enhance
-      ? `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 4000)}\n\nExcerpt: ${excerpt || "None"}\n\nMissing criteria to fix:\n${(missing_criteria || []).map((c: string) => `- ${c}`).join("\n")}`
-      : `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 4000)}\n\nExcerpt: ${excerpt || "None"}`;
+      ? `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 24000)}\n\nExcerpt: ${excerpt || "None"}\n\nMissing criteria to fix:\n${(missing_criteria || []).map((c: string) => `- ${c}`).join("\n")}`
+      : `Title: ${title || "Untitled"}\n\nContent: ${(content || "").slice(0, 24000)}\n\nExcerpt: ${excerpt || "None"}`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -114,7 +118,7 @@ ${voiceBlock}`;
             { role: "user", content: userMessage },
           ],
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 10000,
         }),
       },
     );

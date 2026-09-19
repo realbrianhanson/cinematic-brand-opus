@@ -187,9 +187,12 @@ For each chosen cluster, return:
 - target_keyword: the search phrase to rank for
 - rationale: why this fits the configured audience (1 sentence)
 - gap_reason: what's missing from what's already out there
-- format: one of "news_analysis" | "how_to" | "opinion" | "roundup"
+- reader_question: one specific question this article answers
+- search_intent: the reader task, not an invented search-volume estimate
+- format: one of "news_analysis" | "how_to" | "comparison" | "worked_example" | "opinion" | "roundup"
+Prefer a portfolio near 60% useful evergreen workflows, 25% comparisons or documented examples, 15% news analysis when the evidence supports it. This is editorial guidance, not a quota: choose fewer articles when evidence is weak. A news source may inspire an evergreen guide only when the actual workflow can be substantiated. Reject a superficial analogy between unrelated news and business outcomes. Avoid 'Stop...' headline formulas. If an existing article answers the same question, skip a new post; recommend updating it in the rationale instead.
 
-Return JSON ONLY: { "picks": [{ idx, angle, target_keyword, rationale, gap_reason, format }] }
+Return JSON ONLY: { "picks": [{ idx, angle, target_keyword, rationale, gap_reason, reader_question, search_intent, format }] }
 If none qualify, return { "picks": [] }.`;
 
   const userMsg = `Recent posts (avoid duplicating):\n${existingTitles
@@ -260,6 +263,8 @@ If none qualify, return { "picks": [] }.`;
         gap_reason: pick.gap_reason,
         brief: {
           format: pick.format,
+          reader_question: pick.reader_question,
+          search_intent: pick.search_intent,
           sources: cluster.map((c) => ({ url: c.url, title: c.title })),
         },
         status: "proposed",
