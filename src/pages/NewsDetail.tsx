@@ -253,19 +253,6 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             </div>
           ) : (
             <div>
-              {summary && (
-                <p
-                  className="font-body"
-                  style={{
-                    color: "rgba(255,255,255,0.85)",
-                    fontSize: 17,
-                    lineHeight: 1.7,
-                    marginBottom: "1em",
-                  }}
-                >
-                  {summary}
-                </p>
-              )}
               <p
                 className="font-body"
                 style={{
