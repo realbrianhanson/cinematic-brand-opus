@@ -36,6 +36,12 @@ const free: ShopOffer = {
   summary: "A practical next step.",
   cover_url: null,
   kind: "free",
+  checkout_mode: "native",
+  price_display_mode: "fixed",
+  external_url: null,
+  external_button_text: "",
+  is_affiliate: false,
+  affiliate_disclosure: null,
   amount_minor: 0,
   currency: "usd",
   updated_at: "2026-09-19T00:00:00Z",
@@ -43,6 +49,39 @@ const free: ShopOffer = {
   shop_featured: true,
 };
 describe("shop browsing", () => {
+  it("shows provider pricing honestly and keeps external cards on local detail pages", () => {
+    render(
+      <Shop
+        catalog={{
+          items: [
+            {
+              ...free,
+              title: "External program",
+              slug: "external-program",
+              checkout_mode: "external",
+              kind: "paid",
+              price_display_mode: "provider",
+              external_url: "https://example.com/program?_go=member60",
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 24,
+        }}
+        filters={shopFilters({})}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "External program — View current pricing" })
+        .getAttribute("href"),
+    ).toBe("/offers/external-program");
+    expect(screen.getByText("External offer")).toBeTruthy();
+    expect(screen.queryByText("Free", { selector: "span" })).toBeNull();
+    expect(
+      document.querySelector('a[href^="https://example.com/program"]'),
+    ).toBeNull();
+  });
   it("links free and paid cards to their existing opt-in/checkout pages with clear prices", () => {
     render(
       <Shop

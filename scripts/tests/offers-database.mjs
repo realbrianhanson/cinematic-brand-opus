@@ -42,10 +42,11 @@ async function offer(overrides = {}) {
     asset_name: "guide.pdf",
     ...overrides,
   };
-  await db.query(
-    "INSERT INTO storage.objects(bucket_id,name) VALUES('offer-files',$1)",
-    [item.asset_path],
-  );
+  if (item.asset_path)
+    await db.query(
+      "INSERT INTO storage.objects(bucket_id,name) VALUES('offer-files',$1)",
+      [item.asset_path],
+    );
   const keys = Object.keys(item);
   await db.query(
     `INSERT INTO offers(${keys.join(",")}) VALUES(${keys.map((_, i) => `$${i + 1}`).join(",")})`,
@@ -110,6 +111,20 @@ assert.deepEqual(
     shop_category: "resource",
     shop_featured: false,
   })),
+);
+await db.exec(
+  readFileSync(
+    "supabase/migrations/20260919150000_offer_external_listings.sql",
+    "utf8",
+  ),
+);
+assert.equal(
+  (
+    await one(
+      "SELECT count(*)::int n FROM offers WHERE checkout_mode='native' AND price_display_mode='fixed' AND external_url IS NULL AND NOT is_affiliate",
+    )
+  ).n,
+  3,
 );
 await db.exec("SET ROLE anon");
 assert.equal(
@@ -565,7 +580,285 @@ await reject(
   [hiddenCampaign.id],
   /permission denied/,
 );
+
+// External/affiliate products are listings, never local payment or delivery orders.
+await db.exec("RESET ROLE");
+const external = await offer({
+  checkout_mode: "external",
+  price_display_mode: "provider",
+  kind: "paid",
+  amount_minor: 0,
+  external_url:
+    "https://provider.example/course?utm_source=shop&affiliate=brian#details",
+  external_button_text: "Visit provider",
+  is_affiliate: true,
+  affiliate_disclosure: "I may earn a commission.",
+  asset_path: null,
+  asset_name: null,
+  show_in_shop: true,
+});
+await offer({
+  checkout_mode: "external",
+  external_url: "https://provider.example/free",
+  asset_path: null,
+  asset_name: null,
+});
+await offer({
+  checkout_mode: "external",
+  kind: "paid",
+  amount_minor: 1900,
+  external_url: "https://provider.example/fixed",
+  asset_path: null,
+  asset_name: null,
+});
+const externalDraft = await offer({
+  checkout_mode: "external",
+  status: "draft",
+  asset_path: null,
+  asset_name: null,
+});
+await reject(
+  "UPDATE offers SET status='published' WHERE id=$1",
+  [externalDraft.id],
+  /offers_ready_to_publish/,
+);
+for (const url of [
+  "http://provider.example",
+  "javascript:alert(1)",
+  "https:///missing-host",
+  "https://user:password@provider.example",
+  "https://user@provider.example",
+  "https://provider.example\\redirect",
+  "https://provider.example/white space",
+  "https://provider.example/\nnewline",
+  "https://provider.example/\ttab",
+  "https://provider.example/\u007fcontrol",
+  "https://provider.example:99999",
+  "https://[:::]",
+  "https://999.999.999.999",
+  "https://bad..example",
+  "https://-bad.example",
+  `https://provider.example/${"x".repeat(2048)}`,
+]) {
+  await reject(
+    "UPDATE offers SET external_url=$1 WHERE id=$2",
+    [url, externalDraft.id],
+    /check constraint/,
+  );
+}
+for (const url of [
+  "https://provider.example",
+  "HTTPS://provider.example:443/course?a=1&b=2#details",
+  "https://[2001:db8::1]/course",
+  "https://127.0.0.1/",
+  "https://xn--bcher-kva.example/",
+]) {
+  assert.equal(
+    (await one("SELECT offer_valid_external_url($1) valid", [url])).valid,
+    true,
+  );
+}
+await reject(
+  "UPDATE offers SET price_display_mode='provider' WHERE id=$1",
+  [free.id],
+  /check constraint/,
+);
+await reject(
+  "UPDATE offers SET kind='free' WHERE id=$1",
+  [external.id],
+  /offers_price/,
+);
+await reject(
+  "UPDATE offers SET amount_minor=50 WHERE id=$1",
+  [external.id],
+  /offers_price/,
+);
+await reject(
+  "UPDATE offers SET price_display_mode='fixed' WHERE id=$1",
+  [external.id],
+  /offers_price/,
+);
+await reject(
+  "UPDATE offers SET external_button_text=$1 WHERE id=$2",
+  ["x".repeat(81), external.id],
+  /check constraint/,
+);
+await reject(
+  "UPDATE offers SET affiliate_disclosure=$1 WHERE id=$2",
+  ["x".repeat(1001), external.id],
+  /check constraint/,
+);
+await reject(
+  "UPDATE offers SET next_offer_id=$1 WHERE id=$2",
+  [free.id, external.id],
+  /offers_external_no_funnel/,
+);
+await reject(
+  "UPDATE offers SET next_offer_window_minutes=30 WHERE id=$1",
+  [external.id],
+  /offers_external_no_funnel/,
+);
+await reject(
+  "UPDATE offers SET funnel_only=true WHERE id=$1",
+  [externalDraft.id],
+  /offers_external_no_funnel/,
+);
+await reject(
+  "UPDATE offers SET next_offer_id=$1 WHERE id=$2",
+  [external.id, hiddenCampaign.id],
+  /External listings cannot be follow-up targets/,
+);
+const historicalTarget = await offer();
+const historicalParent = await offer({ next_offer_id: historicalTarget.id });
+const parentSnapshot = await reserve(historicalParent);
+await reject(
+  "UPDATE offers SET checkout_mode='external',external_url='https://provider.example' WHERE id=$1",
+  [historicalTarget.id],
+  /current or historical orders/,
+);
+await db.query("UPDATE offers SET next_offer_id=NULL WHERE id=$1", [
+  historicalParent.id,
+]);
+await reject(
+  "UPDATE offers SET checkout_mode='external',external_url='https://provider.example' WHERE id=$1",
+  [historicalTarget.id],
+  /current or historical orders/,
+);
+assert.equal(
+  (
+    await one("SELECT next_offer_id FROM offer_orders WHERE id=$1", [
+      parentSnapshot.id,
+    ])
+  ).next_offer_id,
+  historicalTarget.id,
+);
+
+// Converting a standalone listing cannot invalidate an already issued native token.
+const converted = await offer();
+const convertedHash = token();
+const originalOrder = await reserve(converted, convertedHash);
+await db.query(
+  "UPDATE offers SET checkout_mode='external',external_url='https://provider.example',asset_path=NULL,asset_name=NULL WHERE id=$1",
+  [converted.id],
+);
+await db.exec("SET ROLE service_role");
+const countBefore = (await one("SELECT count(*)::int n FROM offer_orders")).n;
+await assert.rejects(
+  reserve(external),
+  /External listings do not support local claims/,
+);
+await assert.rejects(
+  reserve(converted),
+  /External listings do not support local claims/,
+);
+assert.equal(
+  (await one("SELECT count(*)::int n FROM offer_orders")).n,
+  countBefore,
+);
+const preserved = await reserve(converted, convertedHash);
+assert.equal(preserved.id, originalOrder.id);
+assert.equal(preserved.asset_path_snapshot, converted.asset_path);
+assert.equal(preserved.status, "fulfilled");
+await db.exec("RESET ROLE");
+const convertedPaid = await offer({ kind: "paid", amount_minor: 3900 });
+const pendingBeforeConversion = await reserve(convertedPaid);
+await db.query(
+  "UPDATE offers SET checkout_mode='external',price_display_mode='provider',amount_minor=0,external_url='https://provider.example' WHERE id=$1",
+  [convertedPaid.id],
+);
+const pendingAfterConversion = await reserve(
+  convertedPaid,
+  pendingBeforeConversion.token_hash,
+);
+assert.equal(pendingAfterConversion.id, pendingBeforeConversion.id);
+assert.equal(pendingAfterConversion.amount_minor, 3900);
+assert.equal(pendingAfterConversion.status, "pending");
+await db.exec("SET ROLE anon");
+const publicExternal = await one(
+  "SELECT checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure FROM offers WHERE id=$1",
+  [external.id],
+);
+assert.equal(publicExternal.checkout_mode, "external");
+assert.equal(publicExternal.external_url, external.external_url);
+assert.equal(publicExternal.is_affiliate, true);
+assert.equal(
+  (
+    await db.query("SELECT external_url FROM offers WHERE id=$1", [
+      externalDraft.id,
+    ])
+  ).rows.length,
+  0,
+);
+await reject(
+  "SELECT asset_path FROM offers WHERE id=$1",
+  [external.id],
+  /permission denied/,
+);
+await reject("SELECT * FROM offer_orders", [], /permission denied/);
+await db.exec("RESET ROLE");
+const ownerListings = readFileSync(
+  "scripts/maintenance/20260919-brian-shop-listings.sql",
+  "utf8",
+);
+await db.exec(
+  "CREATE TABLE public.site_settings(site_url text,author_name text); INSERT INTO site_settings VALUES('https://member.example','Member Owner')",
+);
+const beforeOwnerSeed = (await one("SELECT count(*)::int n FROM offers")).n;
+await assert.rejects(
+  db.exec(ownerListings),
+  /restricted to the Brian Hanson owner site/,
+);
+await db.exec("ROLLBACK");
+assert.equal(
+  (await one("SELECT count(*)::int n FROM offers")).n,
+  beforeOwnerSeed,
+);
+await db.exec(
+  "UPDATE site_settings SET site_url='https://brianhanson.com',author_name='Brian Hanson'",
+);
+await db.exec(ownerListings);
+const seeded = (
+  await db.query(
+    "SELECT slug,checkout_mode,price_display_mode,amount_minor,asset_path,status,show_in_shop,external_url FROM offers WHERE slug IN ('pushten','app-building-workshop') ORDER BY slug",
+  )
+).rows;
+assert.equal(seeded.length, 2);
+assert.ok(
+  seeded.every(
+    (item) =>
+      item.checkout_mode === "external" &&
+      item.asset_path === null &&
+      item.status === "published" &&
+      item.show_in_shop,
+  ),
+);
+assert.equal(seeded[0].price_display_mode, "fixed");
+assert.equal(seeded[0].amount_minor, 700);
+assert.equal(
+  seeded[0].external_url,
+  "https://go.aiforbusiness.com/push-ten-workshop?_go=brian60",
+);
+assert.equal(seeded[1].price_display_mode, "provider");
+assert.equal(seeded[1].amount_minor, 0);
+assert.equal(
+  seeded[1].external_url,
+  "https://go.aiforbusiness.com/get-pushten",
+);
+await assert.rejects(db.exec(ownerListings), /listing.*already exists/);
+await db.exec("ROLLBACK");
+assert.equal(
+  (await one("SELECT count(*)::int n FROM offers")).n,
+  beforeOwnerSeed + 2,
+);
+assert.deepEqual(
+  (
+    await db.query(
+      "SELECT slug,checkout_mode,price_display_mode,amount_minor,asset_path,status,show_in_shop,external_url FROM offers WHERE slug IN ('pushten','app-building-workshop') ORDER BY slug",
+    )
+  ).rows,
+  seeded,
+);
 await db.close();
 console.log(
-  "PASS: offer admin/public isolation, private immutable files, validated publishing, graph/ancestry cycles, immutable fulfillment snapshots, token retries, one-child eligibility, deadlines, checkout races, payment tamper checks, duplicate events, refund revocation, delayed payment recovery, order retention, opt-in Shop categories/filtering, and exclusive-funnel catalog protection.",
+  "PASS: native offer/payment regressions, opt-in Shop privacy, external/affiliate URL and price validation, external claim rejection, funnel/historical-target conversion protection, and preserved native order retries after listing conversion.",
 );

@@ -1030,6 +1030,12 @@ export type Database = {
       };
       offers: {
         Row: {
+          checkout_mode: string;
+          price_display_mode: string;
+          external_url: string | null;
+          external_button_text: string;
+          is_affiliate: boolean;
+          affiliate_disclosure: string | null;
           amount_minor: number;
           asset_name: string | null;
           asset_path: string | null;
@@ -1053,6 +1059,12 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          checkout_mode?: string;
+          price_display_mode?: string;
+          external_url?: string | null;
+          external_button_text?: string;
+          is_affiliate?: boolean;
+          affiliate_disclosure?: string | null;
           amount_minor?: number;
           asset_name?: string | null;
           asset_path?: string | null;
@@ -1076,6 +1088,12 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          checkout_mode?: string;
+          price_display_mode?: string;
+          external_url?: string | null;
+          external_button_text?: string;
+          is_affiliate?: boolean;
+          affiliate_disclosure?: string | null;
           amount_minor?: number;
           asset_name?: string | null;
           asset_path?: string | null;
@@ -1705,6 +1723,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      offer_valid_external_url: { Args: { _url: string }; Returns: boolean };
       admin_content_breakdown: { Args: never; Returns: Json };
       admin_performance_snapshot: { Args: { days?: number }; Returns: Json };
       admin_read_niches: {

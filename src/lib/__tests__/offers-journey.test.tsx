@@ -17,6 +17,8 @@ import {
   type OfferAccess,
   newOfferToken,
   safeOfferRedirect,
+  safeExternalOfferUrl,
+  offerPrice,
 } from "@/lib/offers";
 
 const invoke = vi.hoisted(() => vi.fn());
@@ -35,6 +37,12 @@ const offer: PublicOffer = {
   cover_url: null,
   status: "published",
   kind: "free",
+  checkout_mode: "native",
+  price_display_mode: "fixed",
+  external_url: null,
+  external_button_text: "",
+  is_affiliate: false,
+  affiliate_disclosure: null,
   amount_minor: 0,
   currency: "usd",
   thank_you_message: "Enjoy your guide.",
@@ -101,6 +109,132 @@ afterEach(() => {
 });
 
 describe("offer visitor journey", () => {
+  it("opens external paid offers without checkout readiness, details, or access tokens", () => {
+    render(
+      <OfferLanding
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          kind: "paid",
+          price_display_mode: "provider",
+          external_url: "https://go.example.com/offer?_go=member60&source=shop",
+          external_button_text: "Explore the program",
+        }}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Explore the program" });
+    expect(link.getAttribute("href")).toBe(
+      "https://go.example.com/offer?_go=member60&source=shop",
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(
+      screen.getByRole("heading", { name: "View current pricing" }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Email address")).toBeNull();
+    expect(document.querySelector("form")).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Payment is handled by Stripe/)).toBeNull();
+    expect(screen.queryByText(/download on the next page/)).toBeNull();
+  });
+  it("shows an explicit affiliate disclosure before the outbound link", () => {
+    render(
+      <OfferLanding
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          kind: "paid",
+          amount_minor: 700,
+          external_url: "https://example.com/workshop?_go=member60",
+          external_button_text: "View workshop",
+          is_affiliate: true,
+        }}
+      />,
+    );
+    const disclosure = screen.getByText(
+      /Affiliate link: I may earn a commission/,
+    );
+    const link = screen.getByRole("link", { name: "View workshop" });
+    expect(link.getAttribute("rel")).toBe("sponsored noopener noreferrer");
+    expect(
+      disclosure.compareDocumentPosition(link) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /USD.*7\.00/ })).toBeTruthy();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("renders custom affiliate text safely and disables outbound navigation in previews", () => {
+    const custom = '<img src=x onerror="alert(1)"> Partner disclosure';
+    render(
+      <OfferLanding
+        preview
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          external_url: "https://example.com/offer",
+          is_affiliate: true,
+          affiliate_disclosure: custom,
+        }}
+      />,
+    );
+    expect(screen.getByText(custom)).toBeTruthy();
+    expect(document.querySelector("img")).toBeNull();
+    expect(
+      document.querySelector('a[href="https://example.com/offer"]'),
+    ).toBeNull();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Preview only",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("keeps malformed external destinations unavailable instead of starting native checkout", () => {
+    render(
+      <OfferLanding
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          external_url: "javascript:alert(1)",
+        }}
+      />,
+    );
+    expect(screen.getByText(/destination is not available/)).toBeTruthy();
+    expect(document.querySelector("form")).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it.each([
+    "http://example.com/offer",
+    "https:example.com/offer",
+    "https:///example.com/offer",
+    "//example.com/offer",
+    "/offer",
+    "javascript:alert(1)",
+    "https://name:password@example.com/offer",
+    "https://example.com/offer\n",
+    "https://example.com\\offer",
+    `https://example.com/${"x".repeat(2048)}`,
+  ])("rejects unsafe external offer destination %s", (url) => {
+    expect(safeExternalOfferUrl(url)).toBeNull();
+  });
+  it("shows provider pricing only for external offers and preserves native order prices", () => {
+    expect(
+      offerPrice({
+        ...offer,
+        checkout_mode: "external",
+        kind: "paid",
+        price_display_mode: "provider",
+      }),
+    ).toBe("View current pricing");
+    expect(offerPrice({ ...offer, kind: "paid", amount_minor: 700 })).toMatch(
+      /USD.*7\.00/,
+    );
+    expect(offerPrice(access.order)).toBe("Free");
+  });
   it("creates unpredictable access tokens and rejects unsafe redirects", () => {
     const first = newOfferToken();
     expect(first).toMatch(/^[a-f0-9]{64}$/);

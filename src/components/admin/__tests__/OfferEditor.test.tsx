@@ -39,7 +39,8 @@ vi.mock("@/lib/router-compat", () => ({
 vi.mock("@/config/SiteConfigContext", () => ({
   useSiteConfig: () => ({ identity: { siteUrl: "https://example.com" } }),
 }));
-vi.mock("@/lib/offers", () => ({
+vi.mock("@/lib/offers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/offers")>()),
   invokeOfferApi: async () => ({
     payments_ready: false,
     secret_configured: false,
@@ -105,6 +106,12 @@ const row = {
   kind: "free",
   amount_minor: 0,
   currency: "usd",
+  checkout_mode: "native",
+  price_display_mode: "fixed",
+  external_url: null,
+  external_button_text: "",
+  is_affiliate: false,
+  affiliate_disclosure: null,
   asset_path: null,
   asset_name: null,
   thank_you_message: "Thank you",
@@ -134,6 +141,94 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("offer editor save and upload safety", () => {
+  it("publishes an external affiliate listing with provider pricing and no native checkout requirements", async () => {
+    mock.read.mockResolvedValue({ data: row, error: null });
+    mock.update.mockImplementation(async (values) => ({
+      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
+      error: null,
+    }));
+    mount(row.id);
+    fireEvent.change(
+      await screen.findByLabelText("Checkout or delivery method"),
+      { target: { value: "external" } },
+    );
+    fireEvent.change(screen.getByLabelText(/Destination URL/), {
+      target: { value: "https://example.com/product?affiliate=brian" },
+    });
+    fireEvent.change(screen.getByLabelText("Offer type"), {
+      target: { value: "paid" },
+    });
+    fireEvent.change(screen.getByLabelText(/Price shown in Shop/), {
+      target: { value: "provider" },
+    });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /This is an affiliate link/ }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: { value: "published" },
+    });
+    expect(screen.queryByText("Private download")).toBeNull();
+    expect(screen.queryByLabelText("Follow-up offer")).toBeNull();
+    expect(screen.queryByLabelText("Price")).toBeNull();
+    expect(screen.queryByText(/Checkout stays unavailable/)).toBeNull();
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    );
+    await screen.findByText(/Offer published. Visitors can open/);
+    expect(mock.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkout_mode: "external",
+        price_display_mode: "provider",
+        amount_minor: 0,
+        external_url: "https://example.com/product?affiliate=brian",
+        is_affiliate: true,
+        affiliate_disclosure: null,
+        asset_path: null,
+        asset_name: null,
+        show_in_shop: true,
+        next_offer_id: null,
+        next_offer_window_minutes: 0,
+        funnel_only: false,
+      }),
+    );
+    expect(mock.upload).not.toHaveBeenCalled();
+  });
+  it("restores native price and file requirements when changing an external offer to website checkout", async () => {
+    mock.read.mockResolvedValue({
+      data: {
+        ...row,
+        checkout_mode: "external",
+        kind: "paid",
+        price_display_mode: "provider",
+        external_url: "https://example.com/product",
+      },
+      error: null,
+    });
+    mount(row.id);
+    fireEvent.change(
+      await screen.findByLabelText("Checkout or delivery method"),
+      { target: { value: "native" } },
+    );
+    expect(screen.getByText("Private download")).toBeTruthy();
+    expect(screen.getByLabelText("Price")).toBeTruthy();
+    expect(screen.queryByLabelText(/Destination URL/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: { value: "published" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    );
+    await screen.findByText(/Enter a price/);
+    fireEvent.change(screen.getByLabelText("Price"), {
+      target: { value: "7" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    );
+    await screen.findByText(/uploaded download file/);
+    expect(mock.update).not.toHaveBeenCalled();
+  });
   it("shows the canonical Shop link only for the saved published listing", async () => {
     const published = {
       ...row,

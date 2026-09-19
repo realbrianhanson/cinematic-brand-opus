@@ -148,10 +148,11 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existingError) throw existingError;
       let paid = existing?.status === "pending" && existing.amount_minor > 0;
+      let checkoutMode: "native" | "external" = "native";
       if (!existing) {
         const { data: offer, error: offerError } = await admin
           .from("offers")
-          .select("kind")
+          .select("kind,checkout_mode")
           .eq("id", offerId)
           .eq("status", "published")
           .maybeSingle();
@@ -163,9 +164,11 @@ Deno.serve(async (req) => {
             "This offer is not currently available.",
           );
         paid = offer.kind === "paid";
+        checkoutMode = offer.checkout_mode;
       }
       const result = await claimReservedOffer({
         paid,
+        checkoutMode,
         secret,
         webhook,
         token,
@@ -274,6 +277,7 @@ Deno.serve(async (req) => {
           .select(OFFER_PUBLIC_COLUMNS)
           .eq("id", order.next_offer_id!)
           .eq("status", "published")
+          .eq("checkout_mode", "native")
           .maybeSingle();
         if (error) throw error;
         nextOffer = data;

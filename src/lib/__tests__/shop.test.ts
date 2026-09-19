@@ -123,7 +123,17 @@ describe("shop catalog boundaries", () => {
       SHOP_PAGE_SIZE * 2 - 1,
     ]);
     expect(SHOP_COLUMNS).not.toMatch(
-      /asset|email|next_offer|token|checkout|\*/,
+      /asset|email|next_offer|token|stripe|checkout_url|\*/,
+    );
+    expect(SHOP_COLUMNS.split(",")).toEqual(
+      expect.arrayContaining([
+        "checkout_mode",
+        "price_display_mode",
+        "external_url",
+        "external_button_text",
+        "is_affiliate",
+        "affiliate_disclosure",
+      ]),
     );
     expect(
       mocks.calls

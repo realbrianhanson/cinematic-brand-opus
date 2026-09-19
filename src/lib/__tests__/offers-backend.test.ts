@@ -178,6 +178,24 @@ describe("hosted checkout and webhook contracts", () => {
     expect(fixture.reserve).not.toHaveBeenCalled();
     expect(fixture.provider.create).not.toHaveBeenCalled();
   });
+  it("rejects external listings before Stripe readiness or local order reservation", async () => {
+    for (const paid of [false, true]) {
+      for (const secret of [undefined, "sk_test_example"]) {
+        const fixture = claimFixture();
+        await expect(
+          claimReservedOffer({
+            ...fixture,
+            paid,
+            checkoutMode: "external",
+            secret,
+          }),
+        ).rejects.toMatchObject({ code: "external_checkout", status: 409 });
+        expect(fixture.reserve).not.toHaveBeenCalled();
+        expect(fixture.provider.create).not.toHaveBeenCalled();
+        expect(fixture.provider.record).not.toHaveBeenCalled();
+      }
+    }
+  });
   it("fulfills a free claim without payment secrets or provider calls", async () => {
     const fixture = claimFixture({
       ...order,

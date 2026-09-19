@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
+import { invokeOfferApi, offerPrice, type OfferHealth } from "@/lib/offers";
 import QueryNotice from "./QueryNotice";
 import { shopCategories } from "./offerEditorState";
 
@@ -45,8 +45,9 @@ function SetupGuide({
             Ready when you are
           </h2>
           <p className="admin-help mt-2">
-            Build and publish free offers now. Paid checkout stays unavailable
-            until both Stripe secrets are configured.
+            Free downloads and external or affiliate links work now. Website
+            Stripe Checkout stays unavailable until both Stripe secrets are
+            configured.
           </p>
         </div>
         <button
@@ -151,7 +152,7 @@ export default function OffersManager() {
       let query = supabase
         .from("offers")
         .select(
-          "id,title,slug,summary,status,kind,amount_minor,currency,funnel_only,show_in_shop,shop_category,shop_featured,updated_at",
+          "id,title,slug,summary,status,kind,amount_minor,currency,checkout_mode,price_display_mode,is_affiliate,funnel_only,show_in_shop,shop_category,shop_featured,updated_at",
           { count: "exact" },
         );
       if (status !== "all") query = query.eq("status", status);
@@ -222,8 +223,8 @@ export default function OffersManager() {
           <p className="admin-eyebrow">Digital products & lead magnets</p>
           <h1>Offers</h1>
           <p>
-            Give away a useful resource, sell a download, and offer a relevant
-            next step.
+            Share a free resource, sell a download, or recommend a product
+            through an external link.
           </p>
         </div>
         <Link to="/admin/offers/new" className="admin-btn-primary">
@@ -238,7 +239,7 @@ export default function OffersManager() {
               ? "Checking payment configuration…"
               : health.data?.payments_ready
                 ? `Stripe ${health.data.mode} configuration present`
-                : "Free offers ready · paid checkout needs Stripe setup"}
+                : "Free downloads & external links ready · website payments need Stripe setup"}
         </span>
         <button className="admin-btn-ghost" onClick={() => setTab("setup")}>
           View setup
@@ -335,7 +336,8 @@ export default function OffersManager() {
               </h2>
               <p className="admin-help mt-2">
                 Create a guide, checklist, template, or digital product. Start
-                with a draft and publish when the file and copy are ready.
+                with a draft and publish when the copy and delivery method are
+                ready.
               </p>
               <Link to="/admin/offers/new" className="admin-btn-primary mt-5">
                 Create an offer
@@ -351,9 +353,18 @@ export default function OffersManager() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="admin-badge capitalize">{offer.status}</span>
                   <strong>
-                    {offer.kind === "free"
-                      ? "Free download"
-                      : price(offer.amount_minor, offer.currency)}
+                    {offerPrice({
+                      ...offer,
+                      kind: offer.kind === "paid" ? "paid" : "free",
+                      checkout_mode:
+                        offer.checkout_mode === "external"
+                          ? "external"
+                          : "native",
+                      price_display_mode:
+                        offer.price_display_mode === "provider"
+                          ? "provider"
+                          : "fixed",
+                    })}
                   </strong>
                 </div>
                 <div>
@@ -366,6 +377,14 @@ export default function OffersManager() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <span className="admin-badge">
+                    {offer.checkout_mode === "external"
+                      ? "External link"
+                      : "Website checkout / download"}
+                  </span>
+                  {offer.is_affiliate && (
+                    <span className="admin-badge">Affiliate</span>
+                  )}
                   <span className="admin-badge">
                     {shopCategories[
                       offer.shop_category as keyof typeof shopCategories
@@ -449,7 +468,8 @@ export default function OffersManager() {
           <p className="admin-help">
             These contacts requested an offer; they are not automatically
             newsletter subscribers. “Fulfilled” means download access is
-            available, not that the file was downloaded.
+            available, not that the file was downloaded. External-link checkouts
+            and opt-ins are handled by their destination and do not appear here.
           </p>
           <div className="admin-filters">
             <select

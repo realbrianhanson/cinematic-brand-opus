@@ -1,23 +1,33 @@
 # Offers and funnels
 
-Open **Admin → Growth → Offers & funnels**. Free downloads work without Stripe. You can prepare paid pages now; their purchase button stays unavailable until Stripe's server credentials are configured.
+Open **Admin → Growth → Offers & funnels**. Each offer can use **Website checkout / download** or an **External / affiliate link**. Free downloads and external links work without this site's Stripe keys. You can prepare paid website downloads now; their purchase button stays unavailable until Stripe's server credentials are configured.
 
 ## Build an offer
 
 1. Select **New offer**, then add the title, short summary, landing-page copy, and optional HTTPS cover image.
-2. Upload the downloadable file: PDF, ZIP, EPUB, or plain text, up to 25 MB. Files are private. Uploads use a new versioned path so replacing a file does not change past customers' downloads.
-3. Choose free or a one-time price in USD, CAD, EUR, GBP, or AUD. Save as a draft and use **Preview** to check the page without creating an order.
+2. For **Website checkout / download**, upload the downloadable file: PDF, ZIP, EPUB, or plain text, up to 25 MB. Files are private. Uploads use a new versioned path so replacing a file does not change past customers' downloads. For a product or checkout hosted elsewhere, choose **External / affiliate link** and follow the instructions below.
+3. Choose free or a one-time price in USD, CAD, EUR, GBP, or AUD. External paid offers can instead show **View current pricing**. Save as a draft and use **Preview** to check the page without creating an order or opening its external destination.
 4. Publish when ready and share the `/offers/your-slug` link. Drafts and archived pages are not publicly available.
 
 ## Include selected offers in the Shop
 
-The site's **Shop** link opens `/shop`, a searchable catalog for trainings, resources, tools, and courses. In each offer editor, choose a category and enable **Show in Shop** if you want people to find that offer while browsing. **Feature in Shop** moves it ahead of other listings. Free and paid items appear together, with price filters and clear prices. Cards lead to the same offer page and existing opt-in or checkout flow, so its follow-up offers still work.
+The site's **Shop** link opens `/shop`, a searchable catalog for trainings, resources, tools, and courses. In each offer editor, choose a category and enable **Show in Shop** if you want people to find that offer while browsing. **Feature in Shop** moves it ahead of other listings. Free and paid items appear together, with price filters and clear prices. Cards lead to the offer's detail page. Website downloads keep their existing opt-in, checkout, and follow-up flow; external listings have a button that opens the saved destination.
 
 An offer appears only after it is published and explicitly listed. Existing offers start unlisted. Leave campaign pages unlisted to keep them out of the catalog and Shop sitemaps; their direct links continue to work. This setting does not make a published page private. Funnel-only offers cannot be listed because they require a qualifying earlier offer. Archiving removes a listing without taking downloads away from existing customers.
 
+## Link to an external product or affiliate offer
+
+1. Choose **External / affiliate link** under **Checkout or delivery method**. Paste the full HTTPS destination, including any affiliate or campaign parameters. Your own sales page, a Stripe Payment Link, or a third-party product page can be the destination.
+2. Add an optional button label such as **View workshop**. Leave it empty to use the default button text. No private file, website Stripe credentials, or delivery message is required.
+3. Set the offer to free or paid. For a stable price, select **Show a specific price** and enter the amount. For changing promotions, subscriptions, or several pricing plans, select **View current pricing on destination**. That listing remains in the Shop's paid filter and never displays a zero-dollar price.
+4. Enable **This is an affiliate link** when you may earn a commission. The public offer page displays a disclosure beside the outbound button. Add your own wording or leave it empty for the standard disclosure; the destination link is also marked as sponsored.
+5. Publish the offer and optionally enable **Show in Shop**. Check that the destination and any referral parameters are correct. Keep any displayed fixed price current with the destination page.
+
+External checkout, opt-ins, delivery, refunds, and upsells happen on the destination site. Clicking an external link does not create a website lead, order, or download entitlement, so those transactions do not appear in **Orders & leads** here. External listings are standalone: they cannot be a website download funnel's follow-up or have one. If an existing offer is referenced by a current funnel or a previous order's saved follow-up, create a separate external listing instead. Saving a method change clears incompatible settings; already fulfilled website orders retain their original download snapshots.
+
 ## Add an upsell or timed follow-up
 
-Create the follow-up offer first, then select it as the next offer on your initial offer. Enable **Funnel-only** on a follow-up if it should require a valid preceding download or purchase. You may set a time window (30 minutes to 7 days) or leave it without a timer.
+For website checkout/download offers, create the follow-up offer first, then select it as the next offer on your initial offer. Only website checkout/download offers can be selected. Enable **Funnel-only** on a follow-up if it should require a valid preceding download or purchase. You may set a time window (30 minutes to 7 days) or leave it without a timer.
 
 The timer begins when the original offer is fulfilled. It limits when the customer can start the next checkout; an already started checkout has its own expiry. Each paid offer requires a separate explicit checkout. No saved card is charged automatically. A customer can claim one follow-up per original order, and declining it does not remove the original download. The system prevents circular funnels and limits a chain to ten offers.
 
@@ -46,4 +56,4 @@ The **Leads & orders** tab records free opt-ins and paid checkout states. Emails
 
 ## Sharing this theme
 
-Member copies need their own database migrations, private `offer-files` bucket, `offers-api` and `offer-stripe-webhook` functions, canonical HTTPS site URL, administrator account, and (only when selling) Stripe account secrets and webhook. The readiness panel shows the webhook URL for that installation. Offer copy, files, pricing, and funnels are editable in admin and do not require code changes. Do not copy the original site's customer data or private files into a member installation.
+Member copies need their own database migrations, private `offer-files` bucket, `offers-api` and `offer-stripe-webhook` functions, canonical HTTPS site URL, administrator account, and (only when selling through the website's checkout) Stripe account secrets and webhook. External destinations do not require this site's Stripe credentials; their checkout must be configured at the destination. The readiness panel shows the webhook URL for that installation. Offer copy, files, pricing, destination links, affiliate disclosures, and funnels are editable in admin and do not require code changes. Do not copy the original site's customer data or private files into a member installation.

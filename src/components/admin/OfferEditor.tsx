@@ -102,6 +102,7 @@ function OfferForm({
   const [manualSlug, setManualSlug] = useState(!!initial);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== baseline.current;
+  const external = form.checkoutMode === "external";
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
   const ensureId = () =>
@@ -134,6 +135,7 @@ function OfferForm({
       const { data, error } = await supabase
         .from("offers")
         .select("id,title,status,next_offer_id")
+        .eq("checkout_mode", "native")
         .order("title")
         .limit(1000)
         .abortSignal(AbortSignal.timeout(20000));
@@ -143,6 +145,7 @@ function OfferForm({
   });
   const health = useQuery({
     queryKey: ["admin-offer-health"],
+    enabled: !external && form.kind === "paid",
     queryFn: () => invokeOfferApi<OfferHealth>({ action: "health" }),
     staleTime: 30000,
     retry: false,
@@ -221,7 +224,9 @@ function OfferForm({
       setSavedInShop(data.show_in_shop);
       setNotice(
         data.status === "published"
-          ? "Offer published. Existing orders keep the download and price they originally received."
+          ? data.checkout_mode === "external"
+            ? "Offer published. Visitors can open the destination from your offer page."
+            : "Offer published. Existing orders keep the download and price they originally received."
           : "Offer saved.",
       );
       await Promise.all([
@@ -328,7 +333,7 @@ function OfferForm({
             <ArrowLeft size={15} /> All offers
           </Link>
           <p className="admin-eyebrow">
-            {initial ? "Edit digital offer" : "Create digital offer"}
+            {initial ? "Edit offer" : "Create offer"}
           </p>
           <h1>{initial ? "Shape the next step" : "Make something useful"}</h1>
           <p>
@@ -336,7 +341,7 @@ function OfferForm({
               ? "You have unsaved changes."
               : savedId
                 ? "All changes saved."
-                : "Start with a clear promise and a useful download."}
+                : "Start with a clear promise and choose how visitors get the offer."}
           </p>
         </div>
         <button
@@ -379,6 +384,37 @@ function OfferForm({
         className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"
       >
         <div className="min-w-0 space-y-6">
+          <section className="admin-card p-5 md:p-6 space-y-4">
+            <h2 className="text-lg font-semibold">
+              How visitors get this offer
+            </h2>
+            <label className="block text-sm font-medium">
+              Checkout or delivery method
+              <select
+                className="admin-input mt-2 w-full"
+                value={form.checkoutMode}
+                onChange={(event) => {
+                  const checkoutMode = event.target
+                    .value as Form["checkoutMode"];
+                  setForm((old) => ({
+                    ...old,
+                    checkoutMode,
+                    ...(checkoutMode === "external"
+                      ? { funnelOnly: false }
+                      : { priceDisplayMode: "fixed" }),
+                  }));
+                }}
+              >
+                <option value="native">Website checkout / download</option>
+                <option value="external">External / affiliate link</option>
+              </select>
+            </label>
+            <p className="admin-help">
+              {external
+                ? "Send visitors to your sales page, a Stripe Payment Link, or another provider's product. No Stripe keys or uploaded file are needed here."
+                : "Collect an opt-in for a free download, or use your site's Stripe Checkout for a paid download. You can add a follow-up offer after delivery."}
+            </p>
+          </section>
           <section className="admin-card p-5 md:p-6 space-y-5">
             <h2 className="text-lg font-semibold">The offer page</h2>
             <label className="block text-sm font-medium">
@@ -441,7 +477,7 @@ function OfferForm({
                 onChange={(event) => update("body", event.target.value)}
               />
               <span className="admin-help block mt-2">
-                Plain text. Keep claims specific and describe the file honestly.
+                Plain text. Keep claims specific and describe what is included.
               </span>
             </label>
             <label className="block text-sm font-medium">
@@ -460,169 +496,257 @@ function OfferForm({
               </span>
             </label>
           </section>
-          <section className="admin-card p-5 md:p-6 space-y-4">
-            <h2 className="text-lg font-semibold">Private download</h2>
-            <p className="admin-help">
-              Customers receive a download button on their confirmation page.
-              Files are private and download links are temporary. No delivery
-              email is sent automatically.
-            </p>
-            {form.assetName && (
-              <div className="admin-notice flex items-start gap-3">
-                <FileText size={20} className="shrink-0 mt-1" />
-                <div className="min-w-0">
-                  <p className="font-medium break-all">{form.assetName}</p>
-                  <p className="admin-help mt-1">
-                    {dirty
-                      ? "Save to apply any file changes."
-                      : "Current file for new claims."}
-                  </p>
-                </div>
-              </div>
-            )}
-            <label className="block text-sm font-medium">
-              <span className="flex items-center gap-2">
-                <Upload size={16} />{" "}
-                {form.assetName
-                  ? "Upload a replacement"
-                  : "Upload the resource"}
-              </span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.zip,.epub,.txt,.md"
-                className="admin-input mt-3 w-full"
-                onChange={(event) => {
-                  void upload(event.target.files?.[0]);
-                }}
-              />
-              <span className="admin-help block mt-2">
-                PDF, ZIP, EPUB, TXT, or Markdown · maximum 25 MB. Replacements
-                are saved as new versions; files already purchased are
-                preserved.
-              </span>
-            </label>
-            {uploading && (
-              <p role="status" className="admin-help flex gap-2">
-                <Loader2 size={16} className="animate-spin" /> Uploading
-                privately…
-              </p>
-            )}
-            <label className="block text-sm font-medium">
-              Confirmation message
-              <textarea
-                className="admin-input mt-2 w-full"
-                rows={3}
-                maxLength={2000}
-                value={form.thankYou}
-                onChange={(event) => update("thankYou", event.target.value)}
-              />
-            </label>
-          </section>
-          <section className="admin-card p-5 md:p-6 space-y-5">
-            <h2 className="text-lg font-semibold">
-              Offer a relevant next step
-            </h2>
-            <p className="admin-help">
-              After successful fulfillment, show an optional follow-up. Visitors
-              can decline and keep their original download. A paid follow-up
-              always requires a separate checkout.
-            </p>
-            {choices.isError && (
-              <div role="alert" className="admin-notice admin-notice-error">
-                Follow-up offers could not be loaded.{" "}
-                <button
-                  type="button"
-                  className="admin-btn-ghost"
-                  onClick={() => {
-                    void choices.refetch();
-                  }}
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-            <label className="block text-sm font-medium">
-              Follow-up offer
-              <select
-                className="admin-input mt-2 w-full"
-                value={form.nextOffer}
-                disabled={choices.isPending || choices.isError}
-                onChange={(event) => update("nextOffer", event.target.value)}
-              >
-                <option value="">No follow-up</option>
-                {choices.data
-                  ?.filter(
-                    (offer) =>
-                      offer.id !== savedId &&
-                      (offer.status !== "archived" ||
-                        offer.id === form.nextOffer),
-                  )
-                  .map((offer) => (
-                    <option key={offer.id} value={offer.id}>
-                      {offer.title} ({offer.status})
-                    </option>
-                  ))}
-              </select>
-            </label>
-            {form.nextOffer && (
-              <>
+          {external ? (
+            <section className="admin-card p-5 md:p-6 space-y-5">
+              <h2 className="text-lg font-semibold">External destination</h2>
+              <label className="block text-sm font-medium">
+                Destination URL
+                <input
+                  type="url"
+                  required={form.status === "published"}
+                  maxLength={2048}
+                  className="admin-input mt-2 w-full"
+                  placeholder="https://…"
+                  value={form.externalUrl}
+                  onChange={(event) =>
+                    update("externalUrl", event.target.value)
+                  }
+                />
+                <span className="admin-help block mt-2">
+                  Paste the full HTTPS link, including any affiliate or tracking
+                  parameters.
+                </span>
+              </label>
+              <label className="block text-sm font-medium">
+                Button label <span className="admin-help">(optional)</span>
+                <input
+                  maxLength={80}
+                  className="admin-input mt-2 w-full"
+                  placeholder="View offer"
+                  value={form.externalButtonText}
+                  onChange={(event) =>
+                    update("externalButtonText", event.target.value)
+                  }
+                />
+              </label>
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.isAffiliate}
+                  onChange={(event) =>
+                    update("isAffiliate", event.target.checked)
+                  }
+                />
+                <span>
+                  <strong>This is an affiliate link</strong>
+                  <span className="admin-help block mt-1">
+                    Show an affiliate disclosure beside the button when you may
+                    earn a commission.
+                  </span>
+                </span>
+              </label>
+              {form.isAffiliate && (
                 <label className="block text-sm font-medium">
-                  Time available after fulfillment, in minutes
-                  <input
-                    type="number"
-                    min={0}
-                    max={10080}
-                    step={1}
+                  Affiliate disclosure{" "}
+                  <span className="admin-help">(optional)</span>
+                  <textarea
+                    rows={3}
+                    maxLength={1000}
                     className="admin-input mt-2 w-full"
-                    value={form.window}
-                    onChange={(event) => update("window", event.target.value)}
+                    value={form.affiliateDisclosure}
+                    onChange={(event) =>
+                      update("affiliateDisclosure", event.target.value)
+                    }
+                    placeholder="Leave blank to use the standard affiliate disclosure."
                   />
                   <span className="admin-help block mt-2">
-                    0 means no timer. Otherwise use 30–10,080 minutes (up to
-                    seven days). The deadline starts after the original order is
-                    fulfilled and does not reset on a refresh.
+                    Your disclosure appears beside the button. Leave this blank
+                    to use the standard affiliate disclosure.
                   </span>
                 </label>
-                <p className="admin-help">
-                  The follow-up must be published to appear. Existing orders
-                  keep the follow-up and time window in place when they were
-                  created.
-                </p>
-              </>
-            )}
-            <label className="flex items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={form.funnelOnly}
-                onChange={(event) =>
-                  setForm((old) => ({
-                    ...old,
-                    funnelOnly: event.target.checked,
-                    ...(event.target.checked
-                      ? { showInShop: false, shopFeatured: false }
-                      : {}),
-                  }))
-                }
-              />
-              <span>
-                <strong>Make this offer available only as a follow-up</strong>
-                <span className="admin-help block mt-1">
-                  Its page may be viewed, but a qualifying original claim is
-                  required. Link to this offer from another published offer
-                  before sharing your flow.
-                </span>
-              </span>
-            </label>
-            {form.funnelOnly && (
+              )}
               <p className="admin-help">
-                {qualifyingParents.length
-                  ? `Linked from: ${qualifyingParents.map((offer) => offer.title).join(", ")}.`
-                  : "No published parent offer is linked yet. Save this offer, then edit its parent and choose it as the follow-up."}
+                Checkout, opt-ins, delivery, and any upsells happen on the
+                destination site. This listing does not create orders or leads
+                here and cannot be part of a website download funnel. If an
+                existing offer is used as a follow-up, create a new external
+                listing instead.
               </p>
-            )}
-          </section>
+            </section>
+          ) : (
+            <>
+              <section className="admin-card p-5 md:p-6 space-y-4">
+                <h2 className="text-lg font-semibold">Private download</h2>
+                <p className="admin-help">
+                  Customers receive a download button on their confirmation
+                  page. Files are private and download links are temporary. No
+                  delivery email is sent automatically.
+                </p>
+                {form.assetName && (
+                  <div className="admin-notice flex items-start gap-3">
+                    <FileText size={20} className="shrink-0 mt-1" />
+                    <div className="min-w-0">
+                      <p className="font-medium break-all">{form.assetName}</p>
+                      <p className="admin-help mt-1">
+                        {dirty
+                          ? "Save to apply any file changes."
+                          : "Current file for new claims."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <label className="block text-sm font-medium">
+                  <span className="flex items-center gap-2">
+                    <Upload size={16} />{" "}
+                    {form.assetName
+                      ? "Upload a replacement"
+                      : "Upload the resource"}
+                  </span>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".pdf,.zip,.epub,.txt,.md"
+                    className="admin-input mt-3 w-full"
+                    onChange={(event) => {
+                      void upload(event.target.files?.[0]);
+                    }}
+                  />
+                  <span className="admin-help block mt-2">
+                    PDF, ZIP, EPUB, TXT, or Markdown · maximum 25 MB.
+                    Replacements are saved as new versions; files already
+                    purchased are preserved.
+                  </span>
+                </label>
+                {uploading && (
+                  <p role="status" className="admin-help flex gap-2">
+                    <Loader2 size={16} className="animate-spin" /> Uploading
+                    privately…
+                  </p>
+                )}
+                <label className="block text-sm font-medium">
+                  Confirmation message
+                  <textarea
+                    className="admin-input mt-2 w-full"
+                    rows={3}
+                    maxLength={2000}
+                    value={form.thankYou}
+                    onChange={(event) => update("thankYou", event.target.value)}
+                  />
+                </label>
+              </section>
+              <section className="admin-card p-5 md:p-6 space-y-5">
+                <h2 className="text-lg font-semibold">
+                  Offer a relevant next step
+                </h2>
+                <p className="admin-help">
+                  After successful fulfillment, show an optional follow-up.
+                  Visitors can decline and keep their original download. A paid
+                  follow-up always requires a separate checkout.
+                </p>
+                {choices.isError && (
+                  <div role="alert" className="admin-notice admin-notice-error">
+                    Follow-up offers could not be loaded.{" "}
+                    <button
+                      type="button"
+                      className="admin-btn-ghost"
+                      onClick={() => {
+                        void choices.refetch();
+                      }}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+                <label className="block text-sm font-medium">
+                  Follow-up offer
+                  <select
+                    className="admin-input mt-2 w-full"
+                    value={form.nextOffer}
+                    disabled={choices.isPending || choices.isError}
+                    onChange={(event) =>
+                      update("nextOffer", event.target.value)
+                    }
+                  >
+                    <option value="">No follow-up</option>
+                    {choices.data
+                      ?.filter(
+                        (offer) =>
+                          offer.id !== savedId &&
+                          (offer.status !== "archived" ||
+                            offer.id === form.nextOffer),
+                      )
+                      .map((offer) => (
+                        <option key={offer.id} value={offer.id}>
+                          {offer.title} ({offer.status})
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                {form.nextOffer && (
+                  <>
+                    <label className="block text-sm font-medium">
+                      Time available after fulfillment, in minutes
+                      <input
+                        type="number"
+                        min={0}
+                        max={10080}
+                        step={1}
+                        className="admin-input mt-2 w-full"
+                        value={form.window}
+                        onChange={(event) =>
+                          update("window", event.target.value)
+                        }
+                      />
+                      <span className="admin-help block mt-2">
+                        0 means no timer. Otherwise use 30–10,080 minutes (up to
+                        seven days). The deadline starts after the original
+                        order is fulfilled and does not reset on a refresh.
+                      </span>
+                    </label>
+                    <p className="admin-help">
+                      The follow-up must be published to appear. Existing orders
+                      keep the follow-up and time window in place when they were
+                      created.
+                    </p>
+                  </>
+                )}
+                <label className="flex items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.funnelOnly}
+                    onChange={(event) =>
+                      setForm((old) => ({
+                        ...old,
+                        funnelOnly: event.target.checked,
+                        ...(event.target.checked
+                          ? { showInShop: false, shopFeatured: false }
+                          : {}),
+                      }))
+                    }
+                  />
+                  <span>
+                    <strong>
+                      Make this offer available only as a follow-up
+                    </strong>
+                    <span className="admin-help block mt-1">
+                      Its page may be viewed, but a qualifying original claim is
+                      required. Link to this offer from another published offer
+                      before sharing your flow.
+                    </span>
+                  </span>
+                </label>
+                {form.funnelOnly && (
+                  <p className="admin-help">
+                    {qualifyingParents.length
+                      ? `Linked from: ${qualifyingParents.map((offer) => offer.title).join(", ")}.`
+                      : "No published parent offer is linked yet. Save this offer, then edit its parent and choose it as the follow-up."}
+                  </p>
+                )}
+              </section>
+            </>
+          )}
         </div>
         <aside className="space-y-6 min-w-0">
           <OfferShopSettings
@@ -640,57 +764,94 @@ function OfferForm({
                   update("kind", event.target.value as Form["kind"])
                 }
               >
-                <option value="free">Free download</option>
-                <option value="paid">Paid digital product</option>
+                <option value="free">
+                  {external ? "Free offer" : "Free download"}
+                </option>
+                <option value="paid">
+                  {external ? "Paid offer" : "Paid digital product"}
+                </option>
               </select>
             </label>
             {form.kind === "paid" && (
               <>
-                <div className="grid grid-cols-[1fr_100px] gap-3">
+                {external && (
                   <label className="block text-sm font-medium">
-                    Price
-                    <input
-                      required
-                      inputMode="decimal"
-                      className="admin-input mt-2 w-full"
-                      placeholder="19.00"
-                      value={form.price}
-                      onChange={(event) => update("price", event.target.value)}
-                    />
-                  </label>
-                  <label className="block text-sm font-medium">
-                    Currency
+                    Price shown in Shop
                     <select
                       className="admin-input mt-2 w-full"
-                      value={form.currency}
+                      value={form.priceDisplayMode}
                       onChange={(event) =>
-                        update("currency", event.target.value)
+                        update(
+                          "priceDisplayMode",
+                          event.target.value as Form["priceDisplayMode"],
+                        )
                       }
                     >
-                      {["usd", "cad", "eur", "gbp", "aud"].map((currency) => (
-                        <option key={currency} value={currency}>
-                          {currency.toUpperCase()}
-                        </option>
-                      ))}
+                      <option value="fixed">Show a specific price</option>
+                      <option value="provider">
+                        View current pricing on destination
+                      </option>
                     </select>
+                    <span className="admin-help block mt-2">
+                      Use current pricing for subscriptions, changing
+                      promotions, or products with several plans.
+                    </span>
                   </label>
-                </div>
+                )}
+                {(!external || form.priceDisplayMode === "fixed") && (
+                  <div className="grid grid-cols-[1fr_100px] gap-3">
+                    <label className="block text-sm font-medium">
+                      Price
+                      <input
+                        required
+                        inputMode="decimal"
+                        className="admin-input mt-2 w-full"
+                        placeholder="19.00"
+                        value={form.price}
+                        onChange={(event) =>
+                          update("price", event.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      Currency
+                      <select
+                        className="admin-input mt-2 w-full"
+                        value={form.currency}
+                        onChange={(event) =>
+                          update("currency", event.target.value)
+                        }
+                      >
+                        {["usd", "cad", "eur", "gbp", "aud"].map((currency) => (
+                          <option key={currency} value={currency}>
+                            {currency.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
                 <p className="admin-help">
-                  One-time payment through Stripe Checkout. Price is stored
-                  exactly to the cent; no recurring or automatic charges.
+                  {external
+                    ? form.priceDisplayMode === "provider"
+                      ? "The Shop shows “View current pricing”. Visitors confirm the price and terms on the destination site."
+                      : "This is a display price. Keep it in sync with the destination; checkout and final terms are handled there."
+                    : "One-time payment through Stripe Checkout. Price is stored exactly to the cent; no recurring or automatic charges."}
                 </p>
-                <div className="admin-notice text-sm">
-                  {health.isPending
-                    ? "Checking Stripe setup…"
-                    : health.isError
-                      ? "Stripe readiness is unknown. Check setup before sharing a paid offer."
-                      : health.data?.payments_ready
-                        ? `Stripe ${health.data.mode} configuration is present. A real checkout has not been verified by this check.`
-                        : "You can save or publish this page now. Checkout stays unavailable until Stripe setup is complete."}
-                  <Link to="/admin/offers" className="underline block mt-2">
-                    Offers setup
-                  </Link>
-                </div>
+                {!external && (
+                  <div className="admin-notice text-sm">
+                    {health.isPending
+                      ? "Checking Stripe setup…"
+                      : health.isError
+                        ? "Stripe readiness is unknown. Check setup before sharing a paid offer."
+                        : health.data?.payments_ready
+                          ? `Stripe ${health.data.mode} configuration is present. A real checkout has not been verified by this check.`
+                          : "You can save or publish this page now. Checkout stays unavailable until Stripe setup is complete."}
+                    <Link to="/admin/offers" className="underline block mt-2">
+                      Offers setup
+                    </Link>
+                  </div>
+                )}
               </>
             )}
             <label className="block text-sm font-medium">
@@ -702,12 +863,13 @@ function OfferForm({
               >
                 <option value="draft">Draft — admin preview only</option>
                 <option value="published">Published — public page</option>
-                <option value="archived">Archived — stop new claims</option>
+                <option value="archived">Archived — hide public page</option>
               </select>
             </label>
             <p className="admin-help">
-              Archiving preserves orders and their download access. Publishing
-              requires a title, summary, valid slug, and uploaded file.
+              {external
+                ? "Publishing requires a title, summary, valid slug, and HTTPS destination. Archiving hides this offer page and Shop listing."
+                : "Archiving preserves orders and their download access. Publishing requires a title, summary, valid slug, and uploaded file."}
             </p>
           </section>
           <OfferSharePanel
@@ -716,7 +878,7 @@ function OfferForm({
             savedStatus={savedStatus}
             savedInShop={savedInShop}
             dirty={dirty}
-            funnelOnly={form.funnelOnly}
+            funnelOnly={!external && form.funnelOnly}
             onNotice={setNotice}
           />
         </aside>

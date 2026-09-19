@@ -1,6 +1,6 @@
 /** Shared offer contracts without runtime/provider dependencies. */
 export const OFFER_PUBLIC_COLUMNS =
-  "id,slug,title,summary,body,cover_url,status,kind,amount_minor,currency,thank_you_message,funnel_only,created_at,updated_at";
+  "id,slug,title,summary,body,cover_url,status,kind,amount_minor,currency,thank_you_message,funnel_only,created_at,updated_at,checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure";
 export const OFFER_TOKEN = /^[0-9a-f]{64}$/;
 export const OFFER_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -249,6 +249,7 @@ export interface OfferCheckoutProvider {
 /** Provider operations are injected so retry and missing-key behavior are testable without charging. */
 export async function claimReservedOffer(input: {
   paid: boolean;
+  checkoutMode?: "native" | "external";
   secret?: string;
   webhook?: string;
   token: string;
@@ -257,6 +258,16 @@ export async function claimReservedOffer(input: {
   provider: OfferCheckoutProvider;
   now?: number;
 }) {
+  // External listings never reserve local orders, even when Stripe is configured.
+  // Existing-token retries explicitly use native mode because delivery comes from
+  // the immutable order snapshot, not the offer's current presentation mode.
+  if (input.checkoutMode !== undefined && input.checkoutMode !== "native") {
+    throw new OfferError(
+      409,
+      "external_checkout",
+      "This offer is available on the provider's website.",
+    );
+  }
   if (input.paid) requirePayments(input.secret, input.webhook);
   const order = await input.reserve();
   if (!order?.id) throw new Error("Order reservation failed");

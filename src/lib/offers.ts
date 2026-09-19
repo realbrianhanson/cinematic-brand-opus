@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type OfferKind = "free" | "paid";
+export type OfferCheckoutMode = "native" | "external";
+export type OfferPriceDisplayMode = "fixed" | "provider";
 export type OfferCurrency = "usd" | "cad" | "eur" | "gbp" | "aud";
 export interface PublicOffer {
   id: string;
@@ -11,6 +13,12 @@ export interface PublicOffer {
   cover_url: string | null;
   status: "draft" | "published" | "archived";
   kind: OfferKind;
+  checkout_mode: OfferCheckoutMode;
+  price_display_mode: OfferPriceDisplayMode;
+  external_url: string | null;
+  external_button_text: string;
+  is_affiliate: boolean;
+  affiliate_disclosure: string | null;
   amount_minor: number;
   currency: string;
   thank_you_message: string;
@@ -85,14 +93,55 @@ export async function invokeOfferApi<T>(
   return data as T;
 }
 export function offerPrice(
-  offer: Pick<PublicOffer, "kind" | "amount_minor" | "currency">,
+  offer: Pick<PublicOffer, "kind" | "amount_minor" | "currency"> &
+    Partial<Pick<PublicOffer, "checkout_mode" | "price_display_mode">>,
 ): string {
+  if (
+    offer.checkout_mode === "external" &&
+    offer.price_display_mode === "provider"
+  )
+    return "View current pricing";
   if (offer.kind === "free") return "Free";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: offer.currency.toUpperCase(),
     currencyDisplay: "code",
   }).format(offer.amount_minor / 100);
+}
+
+/** Outbound destinations are public links; never fetch them or create access tokens. */
+export function safeExternalOfferUrl(raw: unknown): string | null {
+  if (
+    typeof raw !== "string" ||
+    !raw ||
+    raw.length > 2048 ||
+    !/^https:\/\/[^/?#]+/i.test(raw) ||
+    /[\s\p{Cc}\\]/u.test(raw)
+  )
+    return null;
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      !url.hostname ||
+      url.username ||
+      url.password
+    )
+      return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function affiliateDisclosure(
+  offer: Pick<PublicOffer, "is_affiliate" | "affiliate_disclosure">,
+): string | null {
+  if (!offer.is_affiliate) return null;
+  return (
+    offer.affiliate_disclosure?.trim() ||
+    "Affiliate link: I may earn a commission if you purchase through this link."
+  );
 }
 export const isOfferToken = (token: unknown): token is string =>
   typeof token === "string" && /^[a-f0-9]{64}$/.test(token);

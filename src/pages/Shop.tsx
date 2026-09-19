@@ -233,13 +233,18 @@ export default function Shop({
                         <p className="text-xs uppercase tracking-widest text-white/60">
                           {SHOP_CATEGORIES[offer.shop_category]}
                         </p>
+                        {offer.checkout_mode === "external" && (
+                          <p className="mt-2 text-xs text-white/70">
+                            External offer
+                          </p>
+                        )}
                         <h2 className="font-display text-2xl leading-tight mt-3">
                           {offer.title}
                         </h2>
                         <p className="mt-3 text-sm leading-relaxed text-white/75 line-clamp-3">
                           {offer.summary}
                         </p>
-                        <div className="mt-auto pt-6 flex items-center justify-between gap-4">
+                        <div className="mt-auto pt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
                           <span
                             className="font-semibold"
                             style={{ color: "var(--brand-accent)" }}
@@ -247,9 +252,11 @@ export default function Shop({
                             {offerPrice(offer)}
                           </span>
                           <span className="inline-flex items-center gap-2 text-sm text-white/80">
-                            {offer.kind === "free"
-                              ? "Get the details"
-                              : "Explore offer"}
+                            {offer.checkout_mode === "external"
+                              ? "View details"
+                              : offer.kind === "free"
+                                ? "Get the details"
+                                : "Explore offer"}
                             <ArrowRight size={17} aria-hidden="true" />
                           </span>
                         </div>

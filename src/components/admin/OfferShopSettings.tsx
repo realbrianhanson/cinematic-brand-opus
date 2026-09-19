@@ -19,7 +19,7 @@ export default function OfferShopSettings({
           type="checkbox"
           className="mt-1"
           checked={form.showInShop}
-          disabled={form.funnelOnly}
+          disabled={form.checkoutMode === "native" && form.funnelOnly}
           aria-describedby="offer-shop-visibility-help"
           onChange={(event) =>
             onChange({
@@ -31,7 +31,7 @@ export default function OfferShopSettings({
         <span className="font-medium">Show in Shop</span>
       </label>
       <p id="offer-shop-visibility-help" className="admin-help">
-        {form.funnelOnly
+        {form.checkoutMode === "native" && form.funnelOnly
           ? "Follow-up-only offers stay out of the Shop. Turn off the follow-up-only setting to list this offer."
           : "Only published offers with this enabled appear in the Shop. Drafts and archived offers remain hidden. Turning it off keeps the offer’s own page available if published."}
       </p>
@@ -58,7 +58,10 @@ export default function OfferShopSettings({
           type="checkbox"
           className="mt-1"
           checked={form.shopFeatured}
-          disabled={!form.showInShop || form.funnelOnly}
+          disabled={
+            !form.showInShop ||
+            (form.checkoutMode === "native" && form.funnelOnly)
+          }
           aria-describedby="offer-shop-featured-help"
           onChange={(event) => onChange({ shopFeatured: event.target.checked })}
         />
@@ -66,8 +69,9 @@ export default function OfferShopSettings({
       </label>
       <p id="offer-shop-featured-help" className="admin-help">
         Give this offer a prominent place once it is published and listed.
-        Training and Course are catalog labels; delivery is still the download
-        file configured in this editor.
+        {form.checkoutMode === "external"
+          ? "Visitors can review this offer here, then follow your link to get it."
+          : "Training and Course are catalog labels; delivery is still the download file configured in this editor."}
       </p>
     </section>
   );

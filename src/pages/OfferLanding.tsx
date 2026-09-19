@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Download, LockKeyhole } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
 import {
   invokeOfferApi,
@@ -8,19 +8,147 @@ import {
   persistOfferToken,
   retryToken,
   safeOfferRedirect,
+  safeExternalOfferUrl,
+  affiliateDisclosure,
   type OfferClaim,
   type PublicOffer,
 } from "@/lib/offers";
 
 const fieldClass =
   "w-full mt-2 rounded border border-white/25 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]";
-export default function OfferLanding({
-  offer,
-  preview = false,
-}: {
-  offer: PublicOffer;
-  preview?: boolean;
-}) {
+type OfferLandingProps = { offer: PublicOffer; preview?: boolean };
+
+export default function OfferLanding(props: OfferLandingProps) {
+  return props.offer.checkout_mode === "external" ? (
+    <ExternalOfferLanding {...props} />
+  ) : (
+    <NativeOfferLanding {...props} />
+  );
+}
+
+function OfferDescription({ offer }: { offer: PublicOffer }) {
+  return (
+    <article className="min-w-0 break-words">
+      <p
+        className="text-sm uppercase tracking-widest font-bold mb-4"
+        style={{ color: "var(--brand-accent)" }}
+      >
+        {offer.checkout_mode === "external"
+          ? "External offer"
+          : offer.kind === "free"
+            ? "Free download"
+            : "Digital download"}
+      </p>
+      <h1 className="font-display text-4xl md:text-5xl leading-tight">
+        {offer.title}
+      </h1>
+      <p className="mt-6 text-lg leading-relaxed text-white/85">
+        {offer.summary}
+      </p>
+      {offer.cover_url && (
+        <img
+          src={offer.cover_url}
+          alt={offer.title}
+          className="mt-8 w-full max-h-[480px] object-contain rounded border border-white/10"
+        />
+      )}
+      <div className="mt-8 space-y-5 text-base leading-relaxed text-white/80">
+        {offer.body
+          .split(/\n\s*\n/)
+          .filter(Boolean)
+          .map((paragraph, i) => (
+            <p key={i} className="whitespace-pre-line">
+              {paragraph}
+            </p>
+          ))}
+      </div>
+    </article>
+  );
+}
+
+function ExternalOfferLanding({ offer, preview = false }: OfferLandingProps) {
+  const destination = offer.funnel_only
+    ? null
+    : safeExternalOfferUrl(offer.external_url);
+  const disclosure = affiliateDisclosure(offer);
+  const buttonText = offer.external_button_text.trim() || "Visit website";
+  return (
+    <OfferShell>
+      {preview && (
+        <div
+          className="mb-8 border border-amber-300/40 bg-amber-300/10 p-4 text-amber-100"
+          role="status"
+        >
+          Admin preview — the external link is disabled. This does not publish
+          the page.
+        </div>
+      )}
+      <div className="grid lg:grid-cols-[1.25fr_0.8fr] gap-10 lg:gap-16 items-start">
+        <OfferDescription offer={offer} />
+        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-lg p-6 md:p-8 lg:sticky lg:top-8">
+          <ArrowUpRight
+            size={25}
+            aria-hidden="true"
+            style={{ color: "var(--brand-accent)" }}
+          />
+          <h2 className="font-display text-3xl mt-4">{offerPrice(offer)}</h2>
+          <p className="text-sm leading-relaxed mt-3 text-white/80">
+            {offer.kind === "free"
+              ? "Continue to the provider’s website for access and availability."
+              : "Review current pricing, payment terms, and access details on the provider’s website."}
+          </p>
+          {disclosure && (
+            <p className="mt-6 rounded border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-4 text-sm leading-relaxed text-white/90 whitespace-pre-line">
+              {disclosure}
+            </p>
+          )}
+          {preview ? (
+            <button
+              type="button"
+              disabled
+              className="mt-6 w-full rounded border border-white/25 px-4 py-4 font-bold text-sm opacity-50"
+            >
+              Preview only
+            </button>
+          ) : destination ? (
+            <a
+              href={destination}
+              target="_blank"
+              rel={
+                offer.is_affiliate
+                  ? "sponsored noopener noreferrer"
+                  : "noopener noreferrer"
+              }
+              className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 text-center font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+              style={{
+                background: "var(--brand-accent)",
+                color: "var(--brand-backdrop)",
+              }}
+            >
+              <span className="min-w-0">{buttonText}</span>
+              <ArrowUpRight size={18} className="shrink-0" aria-hidden="true" />
+            </a>
+          ) : (
+            <p
+              role="status"
+              className="mt-6 text-sm leading-relaxed text-white/80"
+            >
+              This offer’s destination is not available right now. Please check
+              back soon.
+            </p>
+          )}
+          {destination && (
+            <p className="mt-3 text-xs leading-relaxed text-white/65">
+              Opens {new URL(destination).hostname} in a new tab.
+            </p>
+          )}
+        </aside>
+      </div>
+    </OfferShell>
+  );
+}
+
+function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
   const [ready, setReady] = useState<boolean | null>(
     offer.kind === "free" ? true : null,
   );
@@ -98,37 +226,7 @@ export default function OfferLanding({
         </div>
       )}
       <div className="grid lg:grid-cols-[1.25fr_0.8fr] gap-10 lg:gap-16 items-start">
-        <article>
-          <p
-            className="text-sm uppercase tracking-widest font-bold mb-4"
-            style={{ color: "var(--brand-accent)" }}
-          >
-            {offer.kind === "free" ? "Free download" : "Digital download"}
-          </p>
-          <h1 className="font-display text-4xl md:text-5xl leading-tight">
-            {offer.title}
-          </h1>
-          <p className="mt-6 text-lg leading-relaxed text-white/85">
-            {offer.summary}
-          </p>
-          {offer.cover_url && (
-            <img
-              src={offer.cover_url}
-              alt={offer.title}
-              className="mt-8 w-full max-h-[480px] object-contain rounded border border-white/10"
-            />
-          )}
-          <div className="mt-8 space-y-5 text-base leading-relaxed text-white/80">
-            {offer.body
-              .split(/\n\s*\n/)
-              .filter(Boolean)
-              .map((paragraph, i) => (
-                <p key={i} className="whitespace-pre-line">
-                  {paragraph}
-                </p>
-              ))}
-          </div>
-        </article>
+        <OfferDescription offer={offer} />
         <aside className="border border-white/20 bg-white/[0.035] rounded-lg p-6 md:p-8 lg:sticky lg:top-8">
           <Download
             size={25}

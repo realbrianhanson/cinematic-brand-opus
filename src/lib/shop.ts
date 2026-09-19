@@ -21,6 +21,12 @@ export type ShopOffer = Pick<
   | "summary"
   | "cover_url"
   | "kind"
+  | "checkout_mode"
+  | "price_display_mode"
+  | "external_url"
+  | "external_button_text"
+  | "is_affiliate"
+  | "affiliate_disclosure"
   | "amount_minor"
   | "currency"
   | "updated_at"
@@ -33,7 +39,7 @@ export interface ShopResult {
 }
 export const SHOP_PAGE_SIZE = 24;
 export const SHOP_COLUMNS =
-  "id,slug,title,summary,cover_url,kind,amount_minor,currency,updated_at,shop_category,shop_featured";
+  "id,slug,title,summary,cover_url,kind,checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure,amount_minor,currency,updated_at,shop_category,shop_featured";
 export function shopFilters(raw: unknown = {}): ShopFilters {
   const input =
     raw !== null && typeof raw === "object" && !Array.isArray(raw)
