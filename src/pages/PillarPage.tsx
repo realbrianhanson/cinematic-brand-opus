@@ -171,7 +171,7 @@ const PillarPage = ({
     );
   }
 
-  const reading = articleReading(pillar.content);
+  const reading = articleReading(pillar.content, pillar.title);
   const readingTime = Math.max(1, Math.ceil(wordCount(pillar.content) / 250));
   const authorName = siteSettings?.author_name || "Author";
 

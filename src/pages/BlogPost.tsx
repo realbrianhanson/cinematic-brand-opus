@@ -147,7 +147,7 @@ const BlogPost = ({
     staleTime: 60000,
   });
 
-  const reading = articleReading(post?.content || "");
+  const reading = articleReading(post?.content || "", post?.title || "");
   const blogFaqs = z
     .array(z.object({ question: z.string(), answer: z.string() }))
     .catch([])

@@ -1,9 +1,14 @@
 import { decodeHTML } from "entities";
 import { safeHtml } from "./safeHtml";
+import { normalizeArticleBody } from "../../supabase/functions/_shared/articleBody";
 /** Build stable heading links from sanitized HTML, identically in SSR and browser. */
-export function articleReading(content: string) {
+export function articleReading(content: string, pageTitle = "") {
   const headings: { id: string; title: string; level: number }[] = [];
-  const html = safeHtml(content).replace(
+  const html = normalizeArticleBody(
+    safeHtml(content),
+    pageTitle,
+    decodeHTML,
+  ).replace(
     /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi,
     (_full, tag: string, attrs: string, inner: string) => {
       const id = `article-section-${headings.length + 1}`;

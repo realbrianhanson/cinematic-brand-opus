@@ -1,6 +1,8 @@
 import { safeHref } from "../_shared/safeHref.ts";
 import sanitize from "npm:sanitize-html@2.17.7";
 import { htmlPolicy } from "../_shared/htmlPolicy.ts";
+import { decodeHTML } from "npm:entities@7.0.1";
+import { normalizeArticleBody } from "../_shared/articleBody.ts";
 
 // Server-rendered HTML for crawlers. Public, no auth.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -579,7 +581,7 @@ async function renderBlogPost(
   ${post.featured_image ? `<p><img src="${esc(post.featured_image)}" alt="${esc((post as any).featured_image_alt || post.title)}" style="max-width:100%;height:auto"></p>` : ""}
   ${post.tldr ? `<aside><h2>TL;DR</h2><p>${esc(post.tldr)}</p></aside>` : ""}
   ${takeaways.length ? `<section><h2>Key takeaways</h2><ul>${takeaways.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></section>` : ""}
-  <section>${sanitize(post.content || "", htmlPolicy)}</section>
+  <section>${normalizeArticleBody(sanitize(post.content || "", htmlPolicy), post.title, decodeHTML)}</section>
   ${
     faqs.length
       ? `<section><h2>Frequently asked questions</h2>${faqs
@@ -1128,7 +1130,7 @@ async function renderPillarPage(
 <article>
   <h1>${esc(pillar.title)}</h1>
   <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${pillar.updated_at ? ` · Updated ${esc(new Date(pillar.updated_at).toISOString().slice(0, 10))}` : ""}</p>
-  <section>${sanitize(pillar.content || "", htmlPolicy)}</section>
+  <section>${normalizeArticleBody(sanitize(pillar.content || "", htmlPolicy), pillar.title, decodeHTML)}</section>
 </article>
 ${relatedList}`;
 

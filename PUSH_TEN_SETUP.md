@@ -91,6 +91,9 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
       It refuses populated databases and existing active scheduled jobs. It seeds
       neutral settings and one guide format, with automated publishing, reports
       and paid image generation disabled. Re-running it does not overwrite edits.
+      Existing speaking inquiries also block setup, including when a copied
+      bootstrap marker is present. Speaking inquiry intake starts disabled; enable
+      it in **Admin → Speaking inquiries** only when you are ready to monitor it.
 
 **B. Make yourself the admin**
 

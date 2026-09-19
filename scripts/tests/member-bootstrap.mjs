@@ -127,6 +127,77 @@ assert.equal(
   1,
 );
 await cleanCommerce.close();
+
+// Exercise the actual inquiry migration on a current remix; the earlier tests
+// still cover older schemas without the optional table and intake setting.
+const speakingFixture = `
+create role service_role bypassrls;
+create schema auth;
+create function auth.uid() returns uuid language sql as $$select null::uuid$$;
+create function public.is_admin(uuid) returns boolean language sql as $$select false$$;
+alter table site_settings_private add column id uuid primary key default gen_random_uuid();
+create function public.update_updated_at_column() returns trigger language plpgsql as $$begin new.updated_at=now();return new;end;$$;`;
+const speakingMigration = readFileSync(
+  "supabase/migrations/20260919200000_speaking_inquiries.sql",
+  "utf8",
+);
+for (const alreadyBootstrapped of [false, true]) {
+  const inquiries = new PGlite();
+  await inquiries.exec(fixture + speakingFixture);
+  await inquiries.exec(speakingMigration);
+  if (alreadyBootstrapped) {
+    await inquiries.exec(sql);
+    assert.equal(
+      (
+        await inquiries.query(
+          "select speaking_inquiries_enabled from site_settings_private",
+        )
+      ).rows[0].speaking_inquiries_enabled,
+      false,
+      "fresh member intake stays disabled under the actual schema default",
+    );
+    await inquiries.exec(
+      "update site_settings_private set speaking_inquiries_enabled=true",
+    );
+    await inquiries.exec(sql);
+    assert.equal(
+      (
+        await inquiries.query(
+          "select speaking_inquiries_enabled from site_settings_private",
+        )
+      ).rows[0].speaking_inquiries_enabled,
+      true,
+      "an idempotent rerun preserves a member's later intake configuration",
+    );
+  }
+  await inquiries.exec(
+    "insert into speaking_inquiries(request_id,payload_hash,name,email,event_name) values(gen_random_uuid(),repeat('a',64),'Existing organizer','organizer@example.com','Existing event')",
+  );
+  await assert.rejects(
+    inquiries.exec(sql),
+    /Refusing bootstrap: speaking_inquiries/,
+    alreadyBootstrapped
+      ? "an inherited bootstrap marker must not bypass the inquiry guard"
+      : "inherited inquiries must prevent neutral setup",
+  );
+  await inquiries.exec("rollback");
+  assert.equal(
+    (
+      await inquiries.query(
+        "select count(*)::int n from speaking_inquiries where email='organizer@example.com' and event_name='Existing event'",
+      )
+    ).rows[0].n,
+    1,
+    "refusal preserves the original inquiry",
+  );
+  assert.equal(
+    (await inquiries.query("select count(*)::int n from site_settings")).rows[0]
+      .n,
+    alreadyBootstrapped ? 1 : 0,
+    "refusal does not initialize settings over inherited inquiries",
+  );
+  await inquiries.close();
+}
 console.log(
-  "PASS: empty member bootstrap, automation off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file refusal, preserved inherited data, and pre-commerce schema compatibility",
+  "PASS: empty member bootstrap, automation and inquiry intake off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file/inquiry refusal, preserved inherited data, and older schema compatibility",
 );

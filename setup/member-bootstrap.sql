@@ -13,9 +13,9 @@ do $$
 declare table_name text; populated boolean; active_jobs integer;
 begin
   perform pg_advisory_xact_lock(hashtext('member-empty-bootstrap'));
-  -- Commerce data can contain customer information and purchased files. Check it
-  -- even when an inherited neutral-v1 marker would otherwise make this a no-op.
-  foreach table_name in array array['offers','offer_orders','offer_stripe_events'] loop
+  -- Customer records and speaking inquiries can contain private information.
+  -- Check them even when an inherited neutral-v1 marker would make this a no-op.
+  foreach table_name in array array['offers','offer_orders','offer_stripe_events','speaking_inquiries'] loop
     if to_regclass('public.'||table_name) is not null then
       execute format('select exists(select 1 from public.%I)',table_name) into populated;
       if populated then raise exception 'Refusing bootstrap: % already contains records. Use an empty remix.',table_name; end if;

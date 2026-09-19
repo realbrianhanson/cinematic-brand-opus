@@ -2,7 +2,6 @@ import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
-import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { getShopSitemapOffers } from "@/lib/shopSitemap.functions";
@@ -12,18 +11,6 @@ const HTMLSitemap = () => {
   const shop = useQuery({
     queryKey: ["sitemap-shop-offers"],
     queryFn: () => getShopSitemapOffers(),
-    staleTime: 60000,
-  });
-  const { data: siteSettings } = useQuery({
-    queryKey: ["public-site-settings"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("site_settings")
-        .select("site_name, site_url")
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
     staleTime: 60000,
   });
 
@@ -68,9 +55,6 @@ const HTMLSitemap = () => {
     staleTime: 60000,
   });
 
-  const siteName = siteSettings?.site_name || "Site";
-  const siteUrl = siteSettings?.site_url || "";
-
   // Group generated pages by content type
   const groupedByType: Record<
     string,
@@ -92,11 +76,6 @@ const HTMLSitemap = () => {
       style={{ background: "var(--brand-backdrop)", color: "#fff" }}
     >
       <Nav />
-      <PageHead
-        title={`Sitemap | ${siteName}`}
-        description={`Complete sitemap of all published content on ${siteName}. Browse guides, resources, and blog articles.`}
-        url={`${siteUrl}/sitemap`}
-      />
       <main
         id="main-content"
         className="mx-auto px-6 lg:px-14 pt-32 pb-24"

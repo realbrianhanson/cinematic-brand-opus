@@ -23,7 +23,7 @@ export default function SpeakingPage() {
                 lineHeight: 1.02,
               }}
             >
-              {speaking.headingLead}
+              {speaking.headingLead}{" "}
               <em className="block text-[var(--brand-accent)]">
                 {speaking.headingAccent}
               </em>

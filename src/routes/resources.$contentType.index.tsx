@@ -19,7 +19,7 @@ import { absoluteUrl, pageTitle } from "@/config/site";
 export const Route = createFileRoute("/resources/$contentType/")({
   loader: async ({ params }) => {
     const [result, settings] = await Promise.all([
-      getPublicContentType({ data: { slug: params.contentType } }),
+      getPublicContentType({ data: { contentType: params.contentType } }),
       getPublicSiteSettings(),
     ]);
     if (!result) throw notFound();
