@@ -114,18 +114,21 @@ const Footer = () => {
             </h4>
             <div className="flex flex-col gap-3 items-start">
               {footer.hashLinks.map((l) => (
-                <button
+                <a
                   key={l.label}
-                  type="button"
+                  href={isHome ? l.href : `/${l.href}`}
                   data-hover
-                  onClick={() => goToHash(l.href)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToHash(l.href);
+                  }}
                   className="font-body transition-colors duration-200"
                   style={linkStyle}
                   onMouseEnter={hoverIn}
                   onMouseLeave={hoverOut}
                 >
                   {l.label}
-                </button>
+                </a>
               ))}
               {footer.routeLinks.map((l) => (
                 <Link

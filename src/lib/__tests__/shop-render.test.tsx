@@ -76,7 +76,7 @@ describe("shop browsing", () => {
         .getByRole("link", { name: "External program — View current pricing" })
         .getAttribute("href"),
     ).toBe("/offers/external-program");
-    expect(screen.getByText("External offer")).toBeTruthy();
+    expect(screen.getByText("View current pricing")).toBeTruthy();
     expect(screen.queryByText("Free", { selector: "span" })).toBeNull();
     expect(
       document.querySelector('a[href^="https://example.com/program"]'),

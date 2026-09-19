@@ -477,7 +477,9 @@ function OfferForm({
                 onChange={(event) => update("body", event.target.value)}
               />
               <span className="admin-help block mt-2">
-                Plain text. Keep claims specific and describe what is included.
+                Plain text. Use ## before a section heading and - before each
+                bullet. Explain who it is for, what is included, and the next
+                step. HTML is not rendered.
               </span>
             </label>
             <label className="block text-sm font-medium">

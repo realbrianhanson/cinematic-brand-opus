@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import "@testing-library/jest-dom/vitest";
 import {
   cleanup,
   fireEvent,
@@ -8,26 +10,28 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const { send } = vi.hoisted(() => ({ send: vi.fn() }));
+vi.mock("@/lib/speakingInquiries", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/lib/speakingInquiries")>();
+  return { ...original, submitSpeakingInquiry: send };
+});
 import SpeakingInquiry from "../SpeakingInquiry";
-
-const originalLocation = window.location;
-const assign = vi.fn();
+import { speakingEmailHref } from "@/lib/speakingInquiries";
+const id = "10000000-0000-4000-8000-000000000001";
 beforeEach(() => {
-  assign.mockReset();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { assign },
+  send.mockReset();
+  vi.spyOn(crypto, "randomUUID").mockReturnValue(id);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
   });
 });
 afterEach(() => {
   cleanup();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: originalLocation,
-  });
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
-
 function fillRequired() {
   fireEvent.change(screen.getByLabelText(/Your name/), {
     target: { value: "Alex Lee" },
@@ -36,132 +40,109 @@ function fillRequired() {
     target: { value: "alex@example.com" },
   });
   fireEvent.change(screen.getByLabelText(/Event name/), {
-    target: { value: "Business & AI / Fall" },
+    target: { value: "Business & AI" },
   });
 }
 function submit() {
   fireEvent.submit(
-    screen.getByRole("button", { name: "Open email draft" }).closest("form")!,
+    screen
+      .getByRole("button", { name: /speaking inquiry|Sending inquiry/ })
+      .closest("form")!,
   );
 }
-
-describe("speaking inquiry email handoff", () => {
-  it("requires contact details before opening an email draft", () => {
+describe("speaking inquiry capture", () => {
+  it("prevents native GET submission before hydration and offers email fallback", () => {
+    const html = renderToStaticMarkup(
+      <SpeakingInquiry href="mailto:speaker@example.com" />,
+    );
+    expect(html).toContain('method="post"');
+    expect(html).toContain('<fieldset disabled=""');
+    expect(html).toMatch(/type="submit" disabled=""/);
+    expect(html).toContain(
+      'href="mailto:speaker@example.com?subject=Speaking%20inquiry"',
+    );
+    expect(html).toContain("<noscript>");
+  });
+  it("requires valid contact information before submitting", async () => {
     render(<SpeakingInquiry href="mailto:speaker@example.com" />);
     submit();
-    expect(assign).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
     fillRequired();
-    fireEvent.change(screen.getByLabelText(/Email \(required\)/), {
-      target: { value: "invalid" },
-    });
-    submit();
-    expect(assign).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText(/Email \(required\)/), {
-      target: { value: "alex@example.com" },
-    });
     fireEvent.change(screen.getByLabelText(/Your name/), {
       target: { value: "   " },
     });
     submit();
-    expect(assign).not.toHaveBeenCalled();
-    expect(screen.getByRole("status").textContent).toContain(
-      "Please add your name",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("your name");
+    expect(send).not.toHaveBeenCalled();
   });
-
-  it("opens a safely encoded draft to the configured recipient, without claiming delivery", () => {
-    render(
-      <SpeakingInquiry href="mailto:speaker@example.com?subject=Speaking%20Inquiry&bcc=other%40example.com" />,
+  it("waits for a confirmed save and blocks duplicate clicks", async () => {
+    let finish!: () => void;
+    send.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
     );
-    fillRequired();
-    fireEvent.change(screen.getByLabelText(/Date or timeframe/), {
-      target: { value: "October 2026" },
-    });
-    fireEvent.change(screen.getByLabelText(/Who will be/), {
-      target: { value: "50 local founders" },
-    });
-    fireEvent.change(screen.getByLabelText(/What would you/), {
-      target: { value: "Practical workflows\n&bcc=someone@example.com" },
-    });
-    submit();
-    expect(assign).toHaveBeenCalledOnce();
-    const href = new URL(assign.mock.calls[0][0]);
-    expect(href.protocol).toBe("mailto:");
-    expect(href.pathname).toBe("speaker@example.com");
-    expect([...href.searchParams.keys()]).toEqual(["subject", "body"]);
-    expect(href.searchParams.get("subject")).toBe("Speaking Inquiry");
-    expect(href.searchParams.get("body")).toContain(
-      "Event: Business & AI / Fall",
-    );
-    expect(href.searchParams.get("body")).toContain("Date: October 2026");
-    expect(href.searchParams.get("body")).toContain("&bcc=someone@example.com");
-    expect(screen.getByRole("status").textContent).toContain(
-      "has not sent a message",
-    );
-    expect(
-      (screen.getByLabelText("Your email draft") as HTMLTextAreaElement).value,
-    ).toContain("To: speaker@example.com");
-  });
-
-  it("preserves encoded address characters without turning them into URI fragments", () => {
-    render(
-      <SpeakingInquiry href="mailto:events%23team@example.com?subject=Speaking%20Inquiry" />,
-    );
-    fillRequired();
-    submit();
-    const href = new URL(assign.mock.calls[0][0]);
-    expect(href.hash).toBe("");
-    expect(href.pathname).toBe("events%23team@example.com");
-    expect(decodeURIComponent(href.pathname)).toBe("events#team@example.com");
-    expect(href.searchParams.get("subject")).toBe("Speaking Inquiry");
-    expect(href.searchParams.get("body")).toContain("Name: Alex Lee");
-    expect(
-      (screen.getByLabelText("Your email draft") as HTMLTextAreaElement).value,
-    ).toContain("To: events#team@example.com");
-  });
-
-  it("rejects unsafe recipient headers and keeps subjects on one line", () => {
-    const { rerender } = render(
-      <SpeakingInquiry href="mailto:speaker@example.com%0d%0aBcc:other@example.com" />,
-    );
-    expect(
-      screen.queryByRole("button", { name: "Open email draft" }),
-    ).toBeNull();
-    rerender(
-      <SpeakingInquiry href="mailto:speaker@example.com?subject=Speaking%0D%0ABcc%3Aother%40example.com" />,
-    );
-    fillRequired();
-    submit();
-    const href = new URL(assign.mock.calls[0][0]);
-    expect(href.searchParams.get("subject")).not.toMatch(/[\r\n]/);
-    expect(href.searchParams.has("bcc")).toBe(false);
-  });
-
-  it("lets the visitor copy or manually select the draft when an email app is unavailable", async () => {
-    const writeText = vi.fn().mockRejectedValue(new Error("Clipboard blocked"));
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
     render(<SpeakingInquiry href="mailto:speaker@example.com" />);
     fillRequired();
     submit();
-    fireEvent.click(screen.getByRole("button", { name: "Copy draft" }));
-    await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toContain(
-        "Select and copy",
-      ),
+    submit();
+    expect(send).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Your inquiry is in.")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Sending inquiry" }),
+    ).toBeDisabled();
+    finish();
+    expect(await screen.findByText("Your inquiry is in.")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveFocus();
+    expect(send.mock.calls[0][0]).toMatchObject({
+      request_id: id,
+      email: "alex@example.com",
+      event_name: "Business & AI",
+      event_format: "undecided",
+    });
+  });
+  it("keeps inputs and the request identity after an uncertain submission", async () => {
+    send
+      .mockRejectedValueOnce(new Error("Could not confirm. Try again."))
+      .mockResolvedValueOnce(undefined);
+    render(<SpeakingInquiry href="mailto:speaker@example.com" />);
+    fillRequired();
+    submit();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not confirm",
     );
-    const draft = screen.getByLabelText(
-      "Your email draft",
-    ) as HTMLTextAreaElement;
-    expect(document.activeElement).toBe(draft);
-    expect(draft.selectionEnd).toBe(draft.value.length);
-    writeText.mockResolvedValue(undefined);
-    fireEvent.click(screen.getByRole("button", { name: "Copy draft" }));
+    expect(screen.getByLabelText(/Your name/)).toHaveValue("Alex Lee");
     await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toContain("Draft copied"),
+      expect(
+        screen.getByRole("button", { name: "Send speaking inquiry" }),
+      ).toBeEnabled(),
     );
-    expect(writeText).toHaveBeenLastCalledWith(draft.value);
+    submit();
+    expect(await screen.findByText("Your inquiry is in.")).toBeVisible();
+    expect(send.mock.calls[1][0]).toEqual(send.mock.calls[0][0]);
+  });
+  it("safely provides email fallback without requiring a configured email to collect inquiries", () => {
+    const { rerender } = render(
+      <SpeakingInquiry href="mailto:speaker@example.com?subject=Hello&bcc=other@example.com" />,
+    );
+    const link = screen.getByRole("link", { name: "Contact us directly" });
+    expect(link).toHaveAttribute(
+      "href",
+      "mailto:speaker@example.com?subject=Hello",
+    );
+    rerender(<SpeakingInquiry href="javascript:bad" />);
+    expect(
+      screen.queryByRole("link", { name: "Contact us directly" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Send speaking inquiry" }),
+    ).toBeVisible();
+    expect(
+      speakingEmailHref("mailto:speaker@example.com%0D%0ABcc:bad@example.com"),
+    ).toBeNull();
+    expect(speakingEmailHref("mailto:events%23team@example.com")).toContain(
+      "events%23team@example.com",
+    );
   });
 });

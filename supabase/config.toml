@@ -109,3 +109,6 @@ verify_jwt = false
 
 [functions.offer-stripe-webhook]
 verify_jwt = false
+
+[functions.submit-speaking-inquiry]
+verify_jwt = false

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { webcrypto } from "node:crypto";
 import {
   cleanup,
@@ -109,6 +110,16 @@ afterEach(() => {
 });
 
 describe("offer visitor journey", () => {
+  it("keeps personal details out of URLs before checkout hydration", () => {
+    const html = renderToStaticMarkup(<OfferLanding offer={offer} />);
+    expect(html).toContain('method="post"');
+    const document = new DOMParser().parseFromString(html, "text/html");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="email"]')?.disabled,
+    ).toBe(true);
+    expect(html).toContain("Enable JavaScript to securely request");
+    expect(invoke).not.toHaveBeenCalled();
+  });
   it("opens external paid offers without checkout readiness, details, or access tokens", () => {
     render(
       <OfferLanding

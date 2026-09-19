@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
-import CustomCursor from "@/components/CustomCursor";
-import ScrollProgress from "@/components/ScrollProgress";
+import { useEffect } from "react";
 import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
 import ProofBar from "@/components/ProofBar";
@@ -11,70 +9,47 @@ import EventCTA from "@/components/EventCTA";
 import Speaking from "@/components/Speaking";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
-import Divider from "@/components/Divider";
-import Loader from "@/components/Loader";
 import HomeResources from "@/components/HomeResources";
 import HomeTestimonials from "@/components/HomeTestimonials";
-import AmbientOrbs from "@/components/AmbientOrbs";
-import FilmGrain from "@/components/FilmGrain";
+import HomeShop from "@/components/HomeShop";
+import type { ShopOffer } from "@/lib/shop";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
-const Index = () => {
-  const siteConfig = useSiteConfig();
-  const { sections } = siteConfig;
-  // The page is fully visible from the first paint. The intro is an overlay on
-  // top of it, so no-JS visitors and storage failures still see the content.
-  const [introDone, setIntroDone] = useState(false);
-
-  const handleLoaderComplete = () => setIntroDone(true);
-
-  // Scroll to a hash target once the page is interactive (footer/nav anchors).
+export default function Index({
+  shopShowcase = [],
+}: {
+  shopShowcase?: ShopOffer[];
+}) {
+  const { sections } = useSiteConfig();
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
     if (!hash) return;
-    const timer = window.setTimeout(() => {
-      document
-        .getElementById(hash)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 200);
+    const timer = window.setTimeout(
+      () =>
+        document
+          .getElementById(hash)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      200,
+    );
     return () => window.clearTimeout(timer);
   }, []);
-
   return (
-    <>
-      {!introDone && <Loader onComplete={handleLoaderComplete} />}
-      <div className="public-site min-h-screen">
-        <AmbientOrbs />
-        <FilmGrain />
-        <CustomCursor />
-        <ScrollProgress />
-        <Nav loaded />
-        <main id="main-content">
-          <Hero loaded />
-          {sections.proofBar && <ProofBar />}
-          {sections.event && <EventCTA />}
-          <HomeTestimonials />
-          {sections.story && (
-            <>
-              <Story />
-              <Divider />
-            </>
-          )}
-          {sections.expertise && <Expertise />}
-          {sections.results && <Stats />}
-          {sections.speaking && (
-            <>
-              <Divider />
-              <Speaking />
-            </>
-          )}
-          <HomeResources />
-          {sections.newsletter && <FinalCTA />}
-        </main>
-        <Footer />
-      </div>
-    </>
+    <div className="public-site min-h-screen bg-[var(--brand-backdrop)]">
+      <Nav />
+      <main id="main-content">
+        <Hero />
+        {sections.proofBar && <ProofBar />}
+        <HomeShop offers={shopShowcase} />
+        {sections.event && <EventCTA />}
+        <HomeTestimonials />
+        {sections.story && <Story />}
+        {sections.expertise && <Expertise />}
+        {sections.results && <Stats />}
+        {sections.speaking && <Speaking />}
+        <HomeResources />
+        {sections.newsletter && <FinalCTA />}
+      </main>
+      <Footer />
+    </div>
   );
-};
-
-export default Index;
+}

@@ -242,15 +242,6 @@
     background: rgba(var(--brand-accent-rgb), 0.3);
     color: #fff;
   }
-
-  /* Hide cursor on desktop for public site only */
-  @media (min-width: 1024px) {
-    .public-site *,
-    .public-site *::before,
-    .public-site *::after {
-      cursor: none !important;
-    }
-  }
 }
 
 /* Nav link underline animation */
@@ -480,7 +471,8 @@
   cursor: not-allowed;
 }
 
-.admin-btn-ghost {
+.admin-btn-ghost,
+.admin-btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -497,7 +489,8 @@
     color 0.2s;
   text-decoration: none;
 }
-.admin-btn-ghost:hover {
+.admin-btn-ghost:hover,
+.admin-btn-secondary:hover {
   border-color: hsl(var(--admin-border-hover));
   color: hsl(var(--admin-text));
 }

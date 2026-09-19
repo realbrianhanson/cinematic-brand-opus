@@ -1,5 +1,5 @@
 import { useSiteConfig } from "@/config/SiteConfigContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAdminPreferences } from "@/hooks/useAdminPreferences";
 import { Link, NavLink, Outlet, useNavigate } from "@/lib/router-compat";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,45 +12,18 @@ import {
   Sun,
   LogOut,
   ExternalLink,
+  Search,
+  ChevronDown,
 } from "lucide-react";
-const groups = [
-  {
-    label: "Workspace",
-    items: [
-      { to: "/admin", label: "Overview", end: true },
-      { to: "/admin/queue", label: "Queue & automation" },
-    ],
-  },
-  {
-    label: "Content",
-    items: [
-      { to: "/admin/posts", label: "Articles" },
-      { to: "/admin/pages", label: "Resources" },
-      { to: "/admin/pillars", label: "Topic guides" },
-      { to: "/admin/generate", label: "Generate drafts" },
-      { to: "/admin/library", label: "Media library" },
-    ],
-  },
-  {
-    label: "Growth",
-    items: [
-      { to: "/admin/offers", label: "Offers & funnels" },
-      { to: "/admin/pseo-dashboard", label: "Performance" },
-      { to: "/admin/niches", label: "Audiences & niches" },
-    ],
-  },
-  {
-    label: "Settings",
-    items: [
-      { to: "/admin/setup", label: "Site setup" },
-      { to: "/admin/site-settings", label: "Brand & author" },
-      { to: "/admin/settings", label: "Integrations" },
-      { to: "/admin/content-types", label: "Content formats" },
-      { to: "/admin/categories", label: "Categories" },
-      { to: "/admin/widgets", label: "Widgets" },
-    ],
-  },
-];
+import { adminCreateActions, adminNavigation } from "./adminNavigation";
+import AdminCommandMenu from "./AdminCommandMenu";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import "./admin-workspace.css";
 export default function AdminLayout() {
   const siteConfig = useSiteConfig();
   const { user, signOut } = useAuth();
@@ -58,6 +31,56 @@ export default function AdminLayout() {
   const { prefs, updatePref } = useAdminPreferences();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen((value) => !value);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+  function createMenu(compact = false) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="admin-btn-primary justify-center w-full"
+            aria-label="Create new content"
+            title="Create new content"
+          >
+            <Plus size={17} />
+            {!compact && (
+              <>
+                Create <ChevronDown size={14} />
+              </>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72">
+          {adminCreateActions.map((item) => (
+            <DropdownMenuItem key={item.to} asChild>
+              <Link
+                to={item.to}
+                onClick={() => setOpen(false)}
+                className="flex gap-3 py-3"
+              >
+                <item.icon size={18} />
+                <span>
+                  <strong className="block">{item.label}</strong>
+                  <span className="text-xs text-muted-foreground">
+                    {item.description}
+                  </span>
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
   function navigation(compact = false) {
     return (
       <div className="admin-sidebar-inner">
@@ -66,25 +89,33 @@ export default function AdminLayout() {
             ? siteConfig.identity.logoInitials
             : siteConfig.identity.name}
         </div>
-        <Link
-          className="admin-btn-primary justify-center"
-          to="/admin/posts/new"
-          aria-label="New Post"
-          title="New Post"
-          onClick={() => setOpen(false)}
+        {createMenu(compact)}
+        <button
+          className="admin-workspace-search"
+          onClick={() => {
+            setOpen(false);
+            setSearchOpen(true);
+          }}
+          aria-label="Search workspace"
+          title="Search workspace (⌘ / Ctrl + K)"
         >
-          <Plus size={17} />
-          {!compact && "New Post"}
-        </Link>
+          <Search size={17} />
+          {!compact && (
+            <>
+              <span>Find anything</span>
+              <kbd>⌘ K</kbd>
+            </>
+          )}
+        </button>
         <nav aria-label="Admin navigation">
-          {groups.map((group) => (
+          {adminNavigation.map((group) => (
             <div className="admin-nav-group" key={group.label}>
               {!compact && <p>{group.label}</p>}
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === "/admin" || item.to === "/admin/posts"}
+                  end={item.to === "/admin"}
                   title={item.label}
                   aria-label={item.label}
                   onClick={() => setOpen(false)}
@@ -92,7 +123,8 @@ export default function AdminLayout() {
                     `admin-nav-link ${isActive ? "is-active" : ""}`
                   }
                 >
-                  {compact ? item.label.slice(0, 2) : item.label}
+                  <item.icon size={17} aria-hidden="true" />
+                  {!compact && item.label}
                 </NavLink>
               ))}
             </div>
@@ -169,14 +201,15 @@ export default function AdminLayout() {
           <Menu size={20} />
         </button>
         <strong>{siteConfig.identity.name}</strong>
-        <Link
+        <button
           className="admin-btn-ghost"
-          to="/admin/posts/new"
-          aria-label="New Post"
+          onClick={() => setSearchOpen(true)}
+          aria-label="Search workspace"
         >
-          <Plus size={20} />
-        </Link>
+          <Search size={20} />
+        </button>
       </div>
+      <AdminCommandMenu open={searchOpen} onOpenChange={setSearchOpen} />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="left"

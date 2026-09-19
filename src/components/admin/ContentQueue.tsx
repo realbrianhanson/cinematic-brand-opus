@@ -1,27 +1,38 @@
 import { z } from "zod";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { safeHref } from "@/lib/newsMarkdown";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
-import { errorMessage } from "@/lib/errorMessage";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { safeHref } from "@/lib/newsMarkdown";
+import { errorMessage } from "@/lib/errorMessage";
+import {
+  pipelineOutcome,
+  draftOutcome,
+  confirmedPublish,
+} from "@/lib/adminOutcomes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "@/lib/router-compat";
 import {
-  Loader2,
   RefreshCw,
   Zap,
   ExternalLink,
-  CheckCircle2,
-  XCircle,
-  Edit3,
   Radio,
-  AlertTriangle,
-  Clock,
   Trash2,
-  Wrench,
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
-import { useNavigate } from "@/lib/router-compat";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import NewsItemEditor from "./NewsItemEditor";
+import QueryNotice from "./QueryNotice";
+import QueueAutomationSettings from "./QueueAutomationSettings";
+import { loadContentQueue } from "./contentQueueData";
 
 const briefSchema = z
   .object({ sources: z.array(z.object({ url: z.string() })).catch([]) })
@@ -29,12 +40,10 @@ const briefSchema = z
 const factSchema = z
   .object({
     claims: z.array(z.unknown()).optional(),
-    verified_count: z.number().int().nonnegative().optional(),
-    unverified_count: z.number().int().nonnegative().optional(),
-    contradicted_count: z.number().int().nonnegative().optional(),
+    verified_count: z.number().optional(),
+    unverified_count: z.number().optional(),
+    contradicted_count: z.number().optional(),
     remediated: z.boolean().optional(),
-    structural_score: z.number().optional(),
-    fact_deductions: z.number().optional(),
   })
   .catch({});
 const publishSchema = z
@@ -44,1385 +53,600 @@ const publishSchema = z
     failures: z.array(z.string()).optional(),
   })
   .catch({});
-type Opp = {
-  id: string;
-  angle: string;
-  target_keyword: string | null;
-  topic_lane: string;
-  status: string;
-  opportunity_score: number;
-  rationale: string | null;
-  gap_reason: string | null;
-  reject_reason: string | null;
-  last_error: string | null;
-  attempts: number;
-  last_attempt_at: string | null;
-  brief: z.infer<typeof briefSchema>;
-  created_at: string;
-};
-
-type QueuedPost = {
-  id: string;
-  title: string;
-  slug: string;
-  status: string;
-  quality_score: number | null;
-  originality_score: number | null;
-  freshness_hours: number | null;
-  lint_flags: Json;
-  source_citations: Json;
-  opportunity_id: string | null;
-  created_at: string;
-  fact_check: Json;
-};
-
-type SourceItem = {
-  id: string;
-  url: string;
-  title: string | null;
-  topic_lane: string | null;
-  status: string;
-  published_at: string | null;
-  fetched_at: string;
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  proposed: "hsl(var(--admin-text-soft))",
-  drafting: "hsl(var(--admin-accent))",
-  queued: "hsl(var(--admin-accent))",
-  published: "hsl(var(--admin-success, var(--admin-accent)))",
-  rejected: "hsl(var(--admin-danger))",
-};
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return "—";
-  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  return `${Math.round(s / 86400)}d ago`;
-}
 
 export default function ContentQueue() {
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [opps, setOpps] = useState<Opp[]>([]);
-  const [queued, setQueued] = useState<QueuedPost[]>([]);
-  const [items, setItems] = useState<SourceItem[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [fixingFactsId, setFixingFactsId] = useState<string | null>(null);
   const [overrideFor, setOverrideFor] = useState<{
     postId: string;
-    oppId: string | null;
     failures: string[];
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const [publishing, setPublishing] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    const [{ data: oppData }, { data: postData }, { data: itemData }] =
-      await Promise.all([
-        supabase
-          .from("content_opportunities")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(80),
-        supabase
-          .from("posts")
-          .select(
-            "id, title, slug, status, quality_score, originality_score, freshness_hours, lint_flags, source_citations, opportunity_id, created_at, fact_check",
-          )
-          .eq("status", "draft")
-          .not("opportunity_id", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(30),
-        supabase
-          .from("source_items")
-          .select(
-            "id, url, title, topic_lane, status, published_at, fetched_at",
-          )
-          .order("fetched_at", { ascending: false })
-          .limit(50),
-      ]);
-    setOpps(
-      (oppData || []).map((o) => ({
-        ...o,
-        brief: briefSchema.parse(o.brief),
-      })) as Opp[],
+  const queue = useQuery({
+    queryKey: ["admin-content-queue"],
+    queryFn: loadContentQueue,
+    refetchInterval: 60000,
+  });
+  const { refetch } = queue;
+  useEffect(() => {
+    const channel = supabase.channel(
+      `content-queue-${Math.random().toString(36).slice(2)}`,
     );
-    setQueued((postData || []) as QueuedPost[]);
-    setItems((itemData || []) as SourceItem[]);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  // Realtime subscriptions
-  useEffect(() => {
-    const channel = supabase
-      .channel(`content-queue-${Math.random().toString(36).slice(2)}`)
-      .on(
+    for (const table of [
+      "content_opportunities",
+      "source_items",
+      "posts",
+      "site_settings_private",
+    ])
+      channel.on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "content_opportunities" },
-        () => load(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "source_items" },
-        () => load(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => load(),
-      )
-      .subscribe((s) => setLive(s === "SUBSCRIBED"));
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const runNow = async () => {
-    setRunning(true);
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "daily-content-run",
-        { body: {} },
+        { event: "*", schema: "public", table },
+        () => {
+          void refetch();
+        },
       );
-      if (error) throw error;
+    channel.subscribe((status) => setLive(status === "SUBSCRIBED"));
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
+  async function action(
+    id: string,
+    run: () => Promise<{
+      title: string;
+      description?: string;
+      failed?: boolean;
+    } | void>,
+  ) {
+    if (busy) return;
+    setBusy(id);
+    try {
+      const receipt = await run();
+      if (receipt)
+        toast({
+          ...receipt,
+          variant: receipt.failed ? "destructive" : "default",
+        });
+    } catch (error) {
       toast({
-        title: "Pipeline run complete",
-        description: `${data?.drafted ?? 0} draft(s) queued.`,
-      });
-      await load();
-    } catch (e) {
-      toast({
-        title: "Run failed",
-        description: errorMessage(e),
+        title: "Action needs attention",
+        description: errorMessage(error),
         variant: "destructive",
       });
     } finally {
-      setRunning(false);
+      await refetch();
+      setBusy(null);
     }
-  };
-
-  const draftOne = async (id: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "draft-from-opportunity",
-        { body: { opportunity_id: id } },
-      );
-      if (error) throw error;
-      toast({
-        title: "Draft attempt complete",
-        description: `Quality ${data?.quality_score ?? "—"}, originality ${data?.originality_score ?? "—"}%.`,
-      });
-      await load();
-    } catch (e) {
-      toast({
-        title: "Draft failed",
-        description: errorMessage(e),
-        variant: "destructive",
-      });
-    }
-  };
-
-  const retry = async (id: string) => {
-    await supabase
-      .from("content_opportunities")
-      .update({
-        status: "proposed",
-        attempts: 0,
-        last_error: null,
-        reject_reason: null,
-      })
-      .eq("id", id);
-    await load();
-  };
-
-  const reject = async (id: string, reason: string) => {
-    await supabase
-      .from("content_opportunities")
-      .update({ status: "rejected", reject_reason: reason })
-      .eq("id", id);
-    await load();
-  };
-
-  const deleteOpp = async (id: string) => {
-    if (!confirm("Delete this opportunity? This cannot be undone.")) return;
-    const { error } = await supabase
-      .from("content_opportunities")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({ title: "Deleted" });
-    await load();
-  };
-
-  const deleteItem = async (id: string) => {
-    if (!confirm("Delete this signal?")) return;
-    const { error } = await supabase.from("source_items").delete().eq("id", id);
-    if (error) {
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    await load();
-  };
-
-  const clearAllOpps = async () => {
-    if (opps.length === 0) return;
-    if (
-      !confirm(
-        `Delete ALL ${opps.length} opportunities in the pipeline? This cannot be undone.`,
-      )
-    )
-      return;
-    const ids = opps.map((o) => o.id);
-    const { error } = await supabase
-      .from("content_opportunities")
-      .delete()
-      .in("id", ids);
-    if (error) {
-      toast({
-        title: "Clear failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({ title: `Cleared ${ids.length} opportunities` });
-    await load();
-  };
-
-  const clearAllItems = async () => {
-    if (items.length === 0) return;
-    if (!confirm(`Delete ALL ${items.length} signals? This cannot be undone.`))
-      return;
-    const ids = items.map((i) => i.id);
-    const { error } = await supabase
-      .from("source_items")
-      .delete()
-      .in("id", ids);
-    if (error) {
-      toast({
-        title: "Clear failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({ title: `Cleared ${ids.length} signals` });
-    await load();
-  };
-
-  const clearEverything = async () => {
-    if (
-      !confirm(
-        "Delete ALL opportunities AND signals? This wipes the queue clean. Cannot be undone.",
-      )
-    )
-      return;
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase
+  }
+  async function invoke(name: string, body: Record<string, unknown>) {
+    const { data, error } = await supabase.functions.invoke(name, { body });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  function updateOpportunity(id: string, retry: boolean) {
+    void action(id, async () => {
+      const { data, error } = await supabase
         .from("content_opportunities")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000"),
-      supabase
-        .from("source_items")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000"),
-    ]);
-    if (e1 || e2) {
-      toast({
-        title: "Clear failed",
-        description: (e1 || e2)!.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({ title: "Queue cleared" });
-    await load();
-  };
-
-  const publish = async (
-    postId: string,
-    oppId: string | null,
-    overrideReasonArg?: string,
-  ) => {
-    setPublishing(postId);
-    try {
-      const body: { post_id: string; override_reason?: string } = {
-        post_id: postId,
+        .update(
+          retry
+            ? {
+                status: "proposed",
+                attempts: 0,
+                last_error: null,
+                reject_reason: null,
+              }
+            : { status: "rejected", reject_reason: "manual reject" },
+        )
+        .eq("id", id)
+        .eq("status", retry ? "rejected" : "proposed")
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data)
+        throw new Error(
+          "This opportunity changed. The queue has been refreshed; review its current status.",
+        );
+      return {
+        title: retry ? "Opportunity returned to queue" : "Opportunity rejected",
       };
-      if (overrideReasonArg && overrideReasonArg.trim().length >= 10) {
-        body.override_reason = overrideReasonArg.trim();
-      }
+    });
+  }
+  function remove(id: string, table: "content_opportunities" | "source_items") {
+    if (
+      !window.confirm(
+        `Delete this ${table === "source_items" ? "signal" : "opportunity"}? This cannot be undone.`,
+      )
+    )
+      return;
+    void action(id, async () => {
+      // Do not delete an opportunity that has been claimed by an active worker.
+      const query = supabase.from(table).delete().eq("id", id);
+      const { data, error } = await (
+        table === "content_opportunities"
+          ? query.neq("status", "drafting")
+          : query
+      )
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data)
+        throw new Error(
+          "Nothing was deleted. The item may have changed or been claimed by a worker.",
+        );
+      return { title: "Item deleted" };
+    });
+  }
+  function publish(postId: string, reason?: string) {
+    void action(postId, async () => {
       const { data, error } = await supabase.functions.invoke(
         "manual-publish",
-        { body },
+        {
+          body: {
+            post_id: postId,
+            ...(reason ? { override_reason: reason } : {}),
+          },
+        },
       );
-      if (error) {
-        // Try to read the 422 body so we can show the failure list
-        let parsed = publishSchema.parse(null);
-        if (
-          error instanceof FunctionsHttpError &&
-          error.context instanceof Response
-        ) {
-          try {
-            parsed = publishSchema.parse(await error.context.json());
-          } catch {
-            /* Use the original error below. */
-          }
+      let response = publishSchema.parse(data);
+      if (
+        error instanceof FunctionsHttpError &&
+        error.context instanceof Response
+      ) {
+        try {
+          response = publishSchema.parse(await error.context.json());
+        } catch {
+          /* Report the original failure. */
         }
-        if (
-          parsed &&
-          parsed.decision === "blocked" &&
-          Array.isArray(parsed.failures)
-        ) {
-          setOverrideFor({ postId, oppId, failures: parsed.failures });
-          setOverrideReason("");
-          return;
-        }
-        toast({
-          title: "Publish failed",
-          description: parsed?.error || error.message,
-          variant: "destructive",
-        });
-        return;
       }
-      if (data?.ok === false && Array.isArray(data.failures)) {
-        setOverrideFor({ postId, oppId, failures: data.failures });
+      if (response.decision === "blocked" && response.failures?.length) {
         setOverrideReason("");
+        setOverrideFor({ postId, failures: response.failures });
         return;
       }
-      toast({
-        title:
-          data?.decision === "published_with_override"
-            ? "Published (override)"
-            : "Published",
-      });
-      await load();
-    } finally {
-      setPublishing(null);
-    }
-  };
-
-  const fixFacts = async (postId: string) => {
-    setFixingFactsId(postId);
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "remediate-post-facts",
-        { body: { post_id: postId } },
-      );
       if (error) throw error;
-      toast({
-        title: data?.changed ? "Facts remediated" : "No remediation needed",
-        description:
-          data?.reason ||
-          (data?.changed ? "Rewrote claims and re-checked." : ""),
-      });
-      await load();
-    } catch (e) {
-      toast({
-        title: "Fix facts failed",
-        description: errorMessage(e),
-        variant: "destructive",
-      });
-    } finally {
-      setFixingFactsId(null);
-    }
-  };
-
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: "hsl(var(--admin-surface))",
-    border: "1px solid hsl(var(--admin-border))",
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 12,
-  };
-
-  // Aggregates
-  const counts = opps.reduce((acc: Record<string, number>, o) => {
-    acc[o.status] = (acc[o.status] || 0) + 1;
-    return acc;
+      const title = confirmedPublish(data);
+      setOverrideFor(null);
+      return { title };
+    });
+  }
+  const snapshot = queue.data;
+  const settings = snapshot?.settings;
+  const disabled = !!busy || !snapshot || !!queue.error;
+  const counts = snapshot?.opps.reduce<Record<string, number>>((sum, item) => {
+    sum[item.status] = (sum[item.status] ?? 0) + 1;
+    return sum;
   }, {});
-  const newItems = items.filter((i) => i.status === "new").length;
-
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
+    <div className="admin-page-stack admin-queue">
+      <header className="admin-page-header">
         <div>
-          <h1
-            className="font-heading italic"
-            style={{
-              fontSize: 32,
-              color: "hsl(var(--admin-text))",
-              marginBottom: 4,
-            }}
-          >
-            Content Queue
-          </h1>
-          <p
-            className="font-body"
-            style={{
-              fontSize: 14,
-              color: "hsl(var(--admin-text-ghost))",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Radio
-              size={12}
-              style={{
-                color: live
-                  ? "hsl(var(--admin-accent))"
-                  : "hsl(var(--admin-text-ghost))",
-              }}
-            />
-            {live ? "Live — auto-updating" : "Connecting…"} · Pipeline runs
-            every 30 min autonomously.
+          <p className="admin-eyebrow">Editorial operations</p>
+          <h1>Queue & automation</h1>
+          <p>
+            Make room for good ideas. Review the evidence before publishing.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={load}
-            disabled={loading}
-            style={{
-              padding: "10px 14px",
-              background: "transparent",
-              border: "1px solid hsl(var(--admin-border))",
-              borderRadius: 6,
-              color: "hsl(var(--admin-text-soft))",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
+            className="admin-btn-ghost"
+            onClick={() => void refetch()}
+            disabled={queue.isFetching}
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />{" "}
+            <RefreshCw
+              size={16}
+              className={queue.isFetching ? "animate-spin" : ""}
+            />{" "}
             Refresh
           </button>
           <button
-            onClick={clearEverything}
-            disabled={opps.length === 0 && items.length === 0}
-            style={{
-              padding: "10px 14px",
-              background: "transparent",
-              border: "1px solid hsl(var(--admin-danger))",
-              borderRadius: 6,
-              color: "hsl(var(--admin-danger))",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
+            className="admin-btn-primary"
+            disabled={disabled || settings?.auto_publish_enabled !== true}
+            onClick={() =>
+              void action("run", async () =>
+                pipelineOutcome(await invoke("daily-content-run", {})),
+              )
+            }
           >
-            <Trash2 size={14} /> Clear all
-          </button>
-          <button
-            onClick={runNow}
-            disabled={running}
-            style={{
-              padding: "10px 16px",
-              background: "hsl(var(--admin-accent))",
-              border: "none",
-              borderRadius: 6,
-              color: "#1a1208",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {running ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Zap size={14} />
-            )}
-            Run now
+            <Zap size={16} />
+            {busy === "run" ? "Running…" : "Run now"}
           </button>
         </div>
-      </div>
-
-      {/* Stats strip */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-          gap: 10,
-          marginBottom: 24,
-        }}
-      >
-        {[
-          { label: "New signals", value: newItems },
-          { label: "Proposed", value: counts.proposed || 0 },
-          { label: "Drafting", value: counts.drafting || 0 },
-          { label: "Ready", value: queued.length },
-          {
-            label: "Rejected (24h)",
-            value: opps.filter(
-              (o) =>
-                o.status === "rejected" &&
-                Date.now() - new Date(o.created_at).getTime() < 86400000,
-            ).length,
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            style={{
-              ...cardStyle,
-              marginBottom: 0,
-              padding: 14,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "hsl(var(--admin-text))",
-              }}
-            >
-              {s.value}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "hsl(var(--admin-text-ghost))",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-              }}
-            >
-              {s.label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Ready */}
-      <h2
-        className="font-heading italic"
-        style={{
-          fontSize: 20,
-          color: "hsl(var(--admin-text))",
-          marginBottom: 12,
-        }}
-      >
-        Ready to publish ({queued.length})
-      </h2>
-      {queued.length === 0 && !loading && (
-        <div
-          style={{
-            ...cardStyle,
-            textAlign: "center",
-            color: "hsl(var(--admin-text-ghost))",
-            fontSize: 13,
-          }}
-        >
-          No drafts waiting. The pipeline runs every 30 minutes; new drafts will
-          appear here automatically.
-        </div>
+      </header>
+      <QueryNotice
+        loading={queue.isPending}
+        error={queue.error}
+        retry={() => void refetch()}
+      />
+      {queue.error && snapshot && (
+        <p className="admin-help" role="status">
+          Showing the last successful snapshot from{" "}
+          {new Date(snapshot.checkedAt).toLocaleTimeString()}. Actions are
+          paused until current data can be loaded.
+        </p>
       )}
-      {queued.map((p) => {
-        const fc = factSchema.parse(p.fact_check);
-        const hasFc = fc && typeof fc === "object" && Array.isArray(fc.claims);
-        const totalClaims = fc.claims?.length ?? 0;
-        const badClaims = hasFc
-          ? (fc.unverified_count ?? 0) + (fc.contradicted_count ?? 0)
-          : 0;
-        const factsAmber = hasFc && badClaims > 0;
-        const oneClickReady =
-          (p.quality_score ?? 0) >= 85 &&
-          hasFc &&
-          totalClaims >= 2 &&
-          (fc.verified_count ?? 0) >= 2 &&
-          fc.contradicted_count === 0 &&
-          (fc.unverified_count ?? Infinity) <= 2;
-        const structural =
-          hasFc && typeof fc.structural_score === "number"
-            ? fc.structural_score
-            : null;
-        const deductions =
-          hasFc && typeof fc.fact_deductions === "number"
-            ? fc.fact_deductions
-            : null;
-        const qualityTip =
-          structural !== null
-            ? `Structural ${structural} − fact deductions ${deductions ?? 0} = ${p.quality_score ?? "—"}`
-            : "Quality score (structural — fact-check pending)";
-        return (
-          <div key={p.id} style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: "hsl(var(--admin-text))",
-                    marginBottom: 6,
-                  }}
-                >
-                  {p.title}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
-                    fontSize: 12,
-                    color: "hsl(var(--admin-text-ghost))",
-                    marginBottom: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <span title={qualityTip} style={{ cursor: "help" }}>
-                    Quality:{" "}
-                    <strong
-                      style={{
-                        color:
-                          (p.quality_score ?? 0) >= 85
-                            ? "hsl(var(--admin-accent))"
-                            : "hsl(var(--admin-text-soft))",
-                      }}
-                    >
-                      {p.quality_score ?? "—"}
-                    </strong>
-                    {structural !== null && (
-                      <span
-                        style={{
-                          marginLeft: 4,
-                          color: "hsl(var(--admin-text-ghost))",
-                        }}
-                      >
-                        ({structural}−{deductions ?? 0})
-                      </span>
-                    )}
-                  </span>
-                  <span>
-                    Originality: <strong>{p.originality_score ?? "—"}%</strong>
-                  </span>
-                  <span>
-                    Fresh: <strong>{p.freshness_hours ?? "—"}h</strong>
-                  </span>
-                  <span>
-                    Sources:{" "}
-                    <strong>
-                      {Array.isArray(p.source_citations)
-                        ? p.source_citations.length
-                        : 0}
-                    </strong>
-                  </span>
-                  <span>Created {timeAgo(p.created_at)}</span>
-                  {Array.isArray(p.lint_flags) && p.lint_flags.length > 0 && (
-                    <span style={{ color: "hsl(var(--admin-danger))" }}>
-                      Lint: {p.lint_flags.length}
-                    </span>
-                  )}
-                  {hasFc &&
-                    (factsAmber ? (
-                      <span
-                        style={{
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: "hsl(38 80% 20%)",
-                          color: "hsl(38 90% 70%)",
-                          border: "1px solid hsl(38 60% 40%)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {fc.contradicted_count ?? 0} contradicted ·{" "}
-                        {fc.unverified_count ?? 0} unverified
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: "hsl(140 40% 18%)",
-                          color: "hsl(140 70% 70%)",
-                          border: "1px solid hsl(140 40% 35%)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Facts verified {fc.verified_count ?? 0}/{totalClaims}
-                      </span>
-                    ))}
-                  {hasFc && fc.remediated && (
-                    <span
-                      style={{
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        background: "hsl(var(--admin-surface))",
-                        color: "hsl(var(--admin-text-ghost))",
-                        border: "1px solid hsl(var(--admin-border))",
-                        fontSize: 10,
-                      }}
-                    >
-                      remediated
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
-              >
-                {factsAmber && !fc?.remediated && (
-                  <button
-                    onClick={() => fixFacts(p.id)}
-                    disabled={fixingFactsId === p.id}
-                    title="Rewrite content to drop contradicted claims and attribute unverified ones, then re-check."
-                    style={{
-                      padding: "8px 12px",
-                      background: "transparent",
-                      border: "1px solid hsl(38 60% 40%)",
-                      borderRadius: 6,
-                      color: "hsl(38 90% 70%)",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    {fixingFactsId === p.id ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <Wrench size={12} />
-                    )}{" "}
-                    Fix facts
-                  </button>
-                )}
-                <button
-                  onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
-                  style={{
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "1px solid hsl(var(--admin-border))",
-                    borderRadius: 6,
-                    color: "hsl(var(--admin-text-soft))",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <Edit3 size={12} /> Edit
-                </button>
-                <button
-                  onClick={() => publish(p.id, p.opportunity_id)}
-                  disabled={publishing === p.id}
-                  style={{
-                    padding: "8px 12px",
-                    background: oneClickReady
-                      ? "hsl(var(--admin-accent))"
-                      : "transparent",
-                    border: `1px solid ${oneClickReady ? "hsl(var(--admin-accent))" : "hsl(var(--admin-border))"}`,
-                    borderRadius: 6,
-                    color: oneClickReady
-                      ? "#1a1208"
-                      : "hsl(var(--admin-text-soft))",
-                    cursor: publishing === p.id ? "wait" : "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  {publishing === p.id ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <CheckCircle2 size={12} />
-                  )}{" "}
-                  Publish
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Opportunities pipeline */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-          marginTop: 32,
-        }}
-      >
-        <h2
-          className="font-heading italic"
-          style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}
-        >
-          Pipeline ({opps.length})
-        </h2>
-        {opps.length > 0 && (
-          <button
-            onClick={clearAllOpps}
-            style={{
-              padding: "6px 10px",
-              background: "transparent",
-              border: "1px solid hsl(var(--admin-danger))",
-              borderRadius: 6,
-              color: "hsl(var(--admin-danger))",
-              cursor: "pointer",
-              fontSize: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
+      {snapshot && (
+        <>
+          <section
+            className="admin-card admin-queue-automation"
+            aria-label="Automation status"
           >
-            <Trash2 size={12} /> Clear all
-          </button>
-        )}
-      </div>
-      {opps.map((o) => (
-        <div key={o.id} style={cardStyle}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "hsl(var(--admin-text))",
-                  marginBottom: 4,
-                }}
-              >
-                {o.angle}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "hsl(var(--admin-text-ghost))",
-                  marginBottom: 8,
-                  display: "flex",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <span>
-                  Status:{" "}
-                  <strong
-                    style={{
-                      color:
-                        STATUS_COLOR[o.status] || "hsl(var(--admin-text-soft))",
-                    }}
-                  >
-                    {o.status}
-                  </strong>
-                </span>
-                <span>
-                  Lane: <strong>{o.topic_lane}</strong>
-                </span>
-                <span>
-                  Kw: <strong>{o.target_keyword || "—"}</strong>
-                </span>
-                <span>
-                  Attempts: <strong>{o.attempts ?? 0}</strong>
-                </span>
-                <span>
-                  <Clock
-                    size={10}
-                    style={{ display: "inline", marginRight: 3 }}
-                  />
-                  {timeAgo(o.created_at)}
-                </span>
-                {o.last_attempt_at && (
-                  <span>Last try {timeAgo(o.last_attempt_at)}</span>
-                )}
-              </div>
-              {o.rationale && (
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "hsl(var(--admin-text-soft))",
-                    marginBottom: 4,
-                  }}
-                >
-                  {o.rationale}
-                </p>
+            <span className="admin-overview-icon">
+              {settings?.auto_publish_enabled ? (
+                <Zap size={22} />
+              ) : (
+                <Clock size={22} />
               )}
-              {o.gap_reason && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--admin-text-ghost))",
-                    fontStyle: "italic",
-                  }}
-                >
-                  Gap: {o.gap_reason}
-                </p>
-              )}
-              {o.reject_reason && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--admin-danger))",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <XCircle size={11} /> Rejected: {o.reject_reason}
-                </p>
-              )}
-              {o.last_error && o.status !== "rejected" && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--admin-danger))",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <AlertTriangle size={11} /> Last error: {o.last_error}
-                </p>
-              )}
-              {Array.isArray(o.brief?.sources) && (
-                <div style={{ marginTop: 8, fontSize: 11 }}>
-                  {o.brief.sources
-                    .filter((s) => safeHref(s.url))
-                    .slice(0, 3)
-                    .map((s) => (
-                      <a
-                        key={s.url}
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 3,
-                          color: "hsl(var(--admin-text-ghost))",
-                          marginRight: 10,
-                          textDecoration: "underline",
-                        }}
-                      >
-                        <ExternalLink size={10} />{" "}
-                        {(() => {
-                          try {
-                            return new URL(s.url).hostname.replace(
-                              /^www\./,
-                              "",
-                            );
-                          } catch {
-                            return s.url;
-                          }
-                        })()}
-                      </a>
-                    ))}
-                </div>
-              )}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                alignItems: "flex-start",
-                flexDirection: "column",
-              }}
-            >
-              {o.status === "proposed" && (
-                <button
-                  onClick={() => draftOne(o.id)}
-                  style={{
-                    padding: "8px 12px",
-                    background: "hsl(var(--admin-accent))",
-                    border: "none",
-                    borderRadius: 6,
-                    color: "#1a1208",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                >
-                  Draft now
-                </button>
-              )}
-              {o.status === "rejected" && (
-                <button
-                  onClick={() => retry(o.id)}
-                  style={{
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "1px solid hsl(var(--admin-border))",
-                    borderRadius: 6,
-                    color: "hsl(var(--admin-text-soft))",
-                    cursor: "pointer",
-                    fontSize: 12,
-                  }}
-                >
-                  Retry
-                </button>
-              )}
-              {o.status !== "rejected" && o.status !== "published" && (
-                <button
-                  onClick={() => reject(o.id, "manual reject")}
-                  style={{
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "1px solid hsl(var(--admin-border))",
-                    borderRadius: 6,
-                    color: "hsl(var(--admin-text-ghost))",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <XCircle size={12} /> Reject
-                </button>
-              )}
-              <button
-                onClick={() => deleteOpp(o.id)}
-                style={{
-                  padding: "8px 12px",
-                  background: "transparent",
-                  border: "1px solid hsl(var(--admin-danger))",
-                  borderRadius: 6,
-                  color: "hsl(var(--admin-danger))",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <Trash2 size={12} /> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-          marginTop: 32,
-        }}
-      >
-        <h2
-          className="font-heading italic"
-          style={{ fontSize: 20, color: "hsl(var(--admin-text))" }}
-        >
-          Latest signals ({items.length})
-        </h2>
-        {items.length > 0 && (
-          <button
-            onClick={clearAllItems}
-            style={{
-              padding: "6px 10px",
-              background: "transparent",
-              border: "1px solid hsl(var(--admin-danger))",
-              borderRadius: 6,
-              color: "hsl(var(--admin-danger))",
-              cursor: "pointer",
-              fontSize: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <Trash2 size={12} /> Clear all
-          </button>
-        )}
-      </div>
-      <div style={cardStyle}>
-        {items.length === 0 && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "hsl(var(--admin-text-ghost))",
-              textAlign: "center",
-            }}
-          >
-            No news items polled yet.
-          </div>
-        )}
-        {items.map((i) => (
-          <div
-            key={i.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "8px 0",
-              borderBottom: "1px solid hsl(var(--admin-border))",
-              gap: 12,
-              fontSize: 13,
-              alignItems: "center",
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <button
-                onClick={() => setEditingId(i.id)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: "hsl(var(--admin-text))",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  textAlign: "left",
-                }}
-              >
-                {i.title || i.url}
-              </button>
-              <span
-                style={{
-                  marginLeft: 8,
-                  fontSize: 11,
-                  color: "hsl(var(--admin-text-ghost))",
-                }}
-              >
-                · {i.topic_lane} · {timeAgo(i.published_at || i.fetched_at)}
+            </span>
+            <div>
+              <h2>
+                {!settings
+                  ? "Automation not configured"
+                  : settings.auto_publish_enabled
+                    ? "Automation enabled"
+                    : "Automation is paused"}
+              </h2>
+              <p className="admin-help">
+                {settings
+                  ? `Daily cap: ${settings.auto_publish_daily_cap} · Minimum quality: ${settings.auto_publish_min_quality}/100. ${settings.auto_publish_enabled ? "Eligible drafts still pass the publishing checks." : "You can continue reviewing and publishing manually."}`
+                  : "Set your publishing preferences before running the pipeline."}
+              </p>
+              <span className="admin-queue-live">
+                <Radio size={12} />
+                {live
+                  ? "Live updates connected"
+                  : "Checking for updates every minute"}
               </span>
             </div>
-            <span
-              style={{
-                fontSize: 11,
-                color: STATUS_COLOR[i.status] || "hsl(var(--admin-text-ghost))",
-                textTransform: "uppercase",
-              }}
-            >
-              {i.status}
-            </span>
-            <button
-              onClick={() => setEditingId(i.id)}
-              title="Edit news article"
-              style={{
-                background: "transparent",
-                border: "1px solid hsl(var(--admin-border))",
-                color: "hsl(var(--admin-text-soft))",
-                cursor: "pointer",
-                padding: "4px 8px",
-                borderRadius: 4,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 11,
-              }}
-            >
-              <Edit3 size={11} /> Edit
-            </button>
-            <a
-              href={i.url}
-              target="_blank"
-              rel="noopener"
-              title="Open source"
-              style={{
-                color: "hsl(var(--admin-text-ghost))",
-                padding: 2,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <ExternalLink size={12} />
-            </a>
-            <button
-              onClick={() => deleteItem(i.id)}
-              title="Delete signal"
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "hsl(var(--admin-text-ghost))",
-                cursor: "pointer",
-                padding: 2,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <Trash2 size={12} />
-            </button>
+            <QueueAutomationSettings
+              settings={settings ?? null}
+              disabled={disabled}
+              onSaved={refetch}
+            />
+          </section>
+          <div>
+            <p className="admin-help mb-3">
+              Recent snapshot · up to 80 opportunities, 30 drafts, and 50
+              signals. These are counts of the records shown below.
+            </p>
+            <div className="admin-queue-stats">
+              {[
+                [
+                  "New signals",
+                  snapshot.items.filter((item) => item.status === "new").length,
+                ],
+                ["Proposed", counts?.proposed ?? 0],
+                ["Drafting", counts?.drafting ?? 0],
+                ["Drafts to review", snapshot.posts.length],
+                ["Rejected", counts?.rejected ?? 0],
+              ].map(([label, value]) => (
+                <div className="admin-card admin-stat" key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-
+          <section aria-labelledby="queue-drafts">
+            <div className="admin-section-header mb-4">
+              <div>
+                <h2 id="queue-drafts" className="text-xl font-semibold">
+                  Drafts to review
+                </h2>
+                <p className="admin-help">
+                  Scores are signals. The full publishing gate runs when you
+                  publish.
+                </p>
+              </div>
+              <Link to="/admin/posts?status=draft" className="admin-btn-ghost">
+                All drafts <ArrowRight size={15} />
+              </Link>
+            </div>
+            {snapshot.posts.length === 0 && (
+              <div className="admin-card admin-queue-empty">
+                <ShieldCheck size={26} />
+                <h3>No pipeline drafts waiting</h3>
+                <p>
+                  Your manually written drafts are available in Articles. New
+                  pipeline drafts will appear here as they are created.
+                </p>
+              </div>
+            )}
+            {snapshot.posts.map((post) => {
+              const facts = factSchema.parse(post.fact_check);
+              const checked = Array.isArray(facts.claims);
+              const issues =
+                (facts.unverified_count ?? 0) + (facts.contradicted_count ?? 0);
+              return (
+                <article className="admin-card admin-queue-item" key={post.id}>
+                  <div className="admin-queue-item-main">
+                    <h3>
+                      <Link to={`/admin/posts/${post.id}/edit`}>
+                        {post.title}
+                      </Link>
+                    </h3>
+                    <div className="admin-queue-meta">
+                      <span>Quality {post.quality_score ?? "—"}/100</span>
+                      <span>Originality {post.originality_score ?? "—"}%</span>
+                      <span>
+                        {Array.isArray(post.source_citations)
+                          ? post.source_citations.length
+                          : 0}{" "}
+                        sources
+                      </span>
+                    </div>
+                    <p
+                      className={`admin-queue-facts ${issues ? "has-issues" : ""}`}
+                    >
+                      {!checked
+                        ? "Fact check pending — review the evidence."
+                        : `${facts.verified_count ?? 0} verified · ${facts.unverified_count ?? 0} unverified · ${facts.contradicted_count ?? 0} contradicted`}
+                    </p>
+                  </div>
+                  <div className="admin-queue-actions">
+                    {issues > 0 && !facts.remediated && (
+                      <button
+                        className="admin-btn-ghost"
+                        disabled={disabled}
+                        onClick={() =>
+                          void action(post.id, async () => {
+                            const result = await invoke(
+                              "remediate-post-facts",
+                              { post_id: post.id },
+                            );
+                            if (typeof result?.changed !== "boolean")
+                              throw new Error(
+                                "Remediation was not confirmed. Review the draft before retrying.",
+                              );
+                            return {
+                              title: result.changed
+                                ? "Facts remediated"
+                                : "No remediation needed",
+                              description: result.reason,
+                            };
+                          })
+                        }
+                      >
+                        Fix facts
+                      </button>
+                    )}
+                    <Link
+                      className="admin-btn-ghost"
+                      to={`/admin/posts/${post.id}/edit`}
+                    >
+                      Review
+                    </Link>
+                    <button
+                      className="admin-btn-primary"
+                      disabled={disabled}
+                      onClick={() => publish(post.id)}
+                    >
+                      {busy === post.id ? "Working…" : "Check & publish"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+          <section aria-labelledby="queue-opportunities">
+            <div className="admin-section-header mb-4">
+              <h2 id="queue-opportunities" className="text-xl font-semibold">
+                Recent opportunities
+              </h2>
+              <span className="admin-help">
+                Latest {snapshot.opps.length} · newest first
+              </span>
+            </div>
+            {!snapshot.opps.length && (
+              <div className="admin-card admin-queue-empty">
+                <p>
+                  No opportunities yet. Configure your sources and publishing
+                  preferences in Integrations.
+                </p>
+              </div>
+            )}
+            {snapshot.opps.map((opp) => (
+              <article className="admin-card admin-queue-item" key={opp.id}>
+                <div className="admin-queue-item-main">
+                  <div className="admin-queue-meta">
+                    <span className="admin-badge">{opp.status}</span>
+                    <span>Score {opp.opportunity_score}</span>
+                    <span>{opp.topic_lane.replaceAll("_", " ")}</span>
+                  </div>
+                  <h3>{opp.angle}</h3>
+                  <p className="admin-help">
+                    {opp.rationale || opp.target_keyword}
+                  </p>
+                  {(opp.last_error || opp.reject_reason) && (
+                    <p className="admin-queue-facts has-issues">
+                      {opp.last_error || opp.reject_reason}
+                    </p>
+                  )}
+                  <div className="admin-queue-meta">
+                    {briefSchema
+                      .parse(opp.brief)
+                      .sources.slice(0, 4)
+                      .map((source, index) => (
+                        <a
+                          key={`${source.url}-${index}`}
+                          href={safeHref(source.url) ?? undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Source {index + 1} <ExternalLink size={11} />
+                        </a>
+                      ))}
+                    <span>{new Date(opp.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="admin-queue-actions">
+                  {opp.status === "proposed" && (
+                    <>
+                      <button
+                        className="admin-btn-ghost"
+                        disabled={disabled}
+                        onClick={() =>
+                          void action(opp.id, async () =>
+                            draftOutcome(
+                              await invoke("draft-from-opportunity", {
+                                opportunity_id: opp.id,
+                              }),
+                            ),
+                          )
+                        }
+                      >
+                        Draft article
+                      </button>
+                      <button
+                        className="admin-btn-ghost"
+                        disabled={disabled}
+                        onClick={() => updateOpportunity(opp.id, false)}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {opp.status === "rejected" && (
+                    <button
+                      className="admin-btn-ghost"
+                      disabled={disabled}
+                      onClick={() => updateOpportunity(opp.id, true)}
+                    >
+                      Return to queue
+                    </button>
+                  )}
+                  {opp.status !== "drafting" && (
+                    <button
+                      className="admin-btn-ghost"
+                      disabled={disabled}
+                      onClick={() => remove(opp.id, "content_opportunities")}
+                      aria-label={`Delete opportunity: ${opp.angle}`}
+                      title="Delete opportunity"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </section>
+          <details className="admin-card admin-section">
+            <summary className="cursor-pointer font-semibold">
+              Source signals{" "}
+              <span className="admin-help">
+                · latest {snapshot.items.length}
+              </span>
+            </summary>
+            {!snapshot.items.length && (
+              <p className="admin-help">
+                No source signals have been collected yet.
+              </p>
+            )}
+            {snapshot.items.map((item) => (
+              <div className="admin-queue-signal" key={item.id}>
+                <div>
+                  <button
+                    className="admin-queue-signal-title"
+                    onClick={() => setEditingId(item.id)}
+                  >
+                    {item.title || item.url}
+                  </button>
+                  <p className="admin-help">
+                    {item.topic_lane?.replaceAll("_", " ")} ·{" "}
+                    {new Date(
+                      item.published_at || item.fetched_at,
+                    ).toLocaleDateString()}{" "}
+                    · {item.status}
+                  </p>
+                </div>
+                <div className="admin-queue-actions">
+                  <a
+                    className="admin-btn-ghost"
+                    href={safeHref(item.url) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open source: ${item.title || item.url}`}
+                  >
+                    <ExternalLink size={15} />
+                  </a>
+                  <button
+                    className="admin-btn-ghost"
+                    disabled={disabled}
+                    onClick={() => remove(item.id, "source_items")}
+                    aria-label={`Delete signal: ${item.title || item.url}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </details>
+        </>
+      )}
       {editingId && (
         <NewsItemEditor
           itemId={editingId}
           onClose={() => setEditingId(null)}
-          onSaved={load}
+          onSaved={() => {
+            void refetch();
+          }}
         />
       )}
-
-      {overrideFor && (
-        <div
-          onClick={() => setOverrideFor(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "hsl(var(--admin-surface))",
-              border: "1px solid hsl(var(--admin-border))",
-              borderRadius: 8,
-              padding: 24,
-              maxWidth: 520,
-              width: "90%",
-            }}
-          >
-            <h3
-              className="font-heading italic"
-              style={{
-                fontSize: 20,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 8,
+      <Dialog
+        open={!!overrideFor}
+        onOpenChange={(open) => {
+          if (!open && !busy) setOverrideFor(null);
+        }}
+      >
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={20} />
+            Publishing checks need attention
+          </DialogTitle>
+          <DialogDescription>
+            Fix these issues in the editor, or give a specific reason to
+            override the checks. Your reason is saved with the article.
+          </DialogDescription>
+          <ul className="list-disc pl-5 text-sm space-y-2">
+            {overrideFor?.failures.map((failure, i) => (
+              <li key={i}>{failure}</li>
+            ))}
+          </ul>
+          <label htmlFor="publish-override">Override reason</label>
+          <textarea
+            id="publish-override"
+            className="admin-input w-full"
+            value={overrideReason}
+            onChange={(event) => setOverrideReason(event.target.value)}
+            rows={3}
+            minLength={10}
+            maxLength={1000}
+            placeholder="Explain why this article can be published (at least 10 characters)."
+          />
+          <div className="flex justify-end gap-2 flex-wrap">
+            <button
+              className="admin-btn-ghost"
+              disabled={!!busy}
+              onClick={() => setOverrideFor(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="admin-btn-primary"
+              disabled={disabled || overrideReason.trim().length < 10}
+              onClick={() => {
+                if (overrideFor)
+                  publish(overrideFor.postId, overrideReason.trim());
               }}
             >
-              Publish gate blocked this post
-            </h3>
-            <p
-              style={{
-                fontSize: 13,
-                color: "hsl(var(--admin-text-ghost))",
-                marginBottom: 12,
-              }}
-            >
-              Fix the issues, or supply an override reason (min 10 characters)
-              to publish anyway. The reason is recorded on the post.
-            </p>
-            <ul
-              style={{
-                fontSize: 13,
-                color: "hsl(var(--admin-danger))",
-                marginBottom: 16,
-                paddingLeft: 18,
-              }}
-            >
-              {overrideFor.failures.map((f, i) => (
-                <li key={i} style={{ marginBottom: 4 }}>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <label className="admin-label">Override reason</label>
-            <textarea
-              value={overrideReason}
-              onChange={(e) => setOverrideReason(e.target.value)}
-              rows={3}
-              placeholder="Why is it OK to publish this despite the failures?"
-              className="admin-input font-body w-full"
-              style={{ marginBottom: 12, resize: "vertical" as const }}
-            />
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
-            >
-              <button
-                onClick={() => setOverrideFor(null)}
-                style={{
-                  padding: "8px 14px",
-                  background: "transparent",
-                  border: "1px solid hsl(var(--admin-border))",
-                  borderRadius: 6,
-                  color: "hsl(var(--admin-text-soft))",
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                disabled={
-                  overrideReason.trim().length < 10 ||
-                  publishing === overrideFor.postId
-                }
-                onClick={async () => {
-                  const target = overrideFor;
-                  const reason = overrideReason;
-                  setOverrideFor(null);
-                  await publish(target.postId, target.oppId, reason);
-                }}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    overrideReason.trim().length >= 10
-                      ? "hsl(var(--admin-danger))"
-                      : "hsl(var(--admin-surface))",
-                  border: "1px solid hsl(var(--admin-danger))",
-                  borderRadius: 6,
-                  color:
-                    overrideReason.trim().length >= 10
-                      ? "#fff"
-                      : "hsl(var(--admin-text-ghost))",
-                  cursor:
-                    overrideReason.trim().length >= 10
-                      ? "pointer"
-                      : "not-allowed",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Publish anyway
-              </button>
-            </div>
+              Publish with recorded override
+            </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { siteConfig } from "@/config/site";
+import { buildRuntimeConfig } from "@/config/runtime";
 import {
   loadShopSitemapOffers,
   SHOP_DISCOVERY_COLUMNS,
@@ -196,19 +197,30 @@ async function loadPublished() {
 export async function buildSitemapXml(): Promise<string> {
   const { siteUrl } = await getSiteSettings();
   const client = publicClient();
-  const [{ posts, schemas, pages, pillars }, shopOffers] = await Promise.all([
-    loadPublished(),
-    loadShopSitemapOffers((from, to) =>
+  const [{ posts, schemas, pages, pillars }, shopOffers, branding] =
+    await Promise.all([
+      loadPublished(),
+      loadShopSitemapOffers((from, to) =>
+        client
+          .from("offers")
+          .select(SHOP_DISCOVERY_COLUMNS)
+          .eq("status", "published")
+          .eq("show_in_shop", true)
+          .eq("funnel_only", false)
+          .order("slug")
+          .range(from, to),
+      ),
       client
-        .from("offers")
-        .select(SHOP_DISCOVERY_COLUMNS)
-        .eq("status", "published")
-        .eq("show_in_shop", true)
-        .eq("funnel_only", false)
-        .order("slug")
-        .range(from, to),
-    ),
-  ]);
+        .from("site_branding")
+        .select("settings")
+        .eq("id", true)
+        .maybeSingle(),
+    ]);
+  if (branding.error)
+    throw new Error(`site_branding read failed: ${branding.error.message}`);
+  const config = branding.data
+    ? buildRuntimeConfig(branding.data.settings)
+    : siteConfig;
   const schemaMap = new Map(schemas.map((s) => [s.id, s.slug]));
   const activeSchemaIds = new Set(
     pages.map((p) => p.content_schema_id).filter(Boolean),
@@ -219,6 +231,13 @@ export async function buildSitemapXml(): Promise<string> {
     { loc: `${siteUrl}/blog`, changefreq: "weekly", priority: "0.8" },
     { loc: `${siteUrl}/shop`, changefreq: "weekly", priority: "0.8" },
   ];
+
+  if (config.sections.speaking)
+    entries.push({
+      loc: `${siteUrl}/speaking`,
+      changefreq: "monthly",
+      priority: "0.7",
+    });
 
   for (const offer of shopOffers) {
     entries.push({

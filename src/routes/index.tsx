@@ -4,8 +4,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import Index from "@/pages/Index";
 import { absoluteUrl } from "@/config/site";
 import { buildPageHead, compactJsonLd } from "@/lib/seoHead";
+import { getShopShowcase } from "@/lib/shop.functions";
 
 export const Route = createFileRoute("/")({
+  loader: async () => ({ shopShowcase: await getShopShowcase() }),
   head: ({ matches }) => {
     const config = configFromMatches(matches);
     const { identity, metadata } = config;
@@ -38,5 +40,10 @@ export const Route = createFileRoute("/")({
       ]),
     });
   },
-  component: Index,
+  component: HomeRoute,
 });
+
+function HomeRoute() {
+  const { shopShowcase } = Route.useLoaderData();
+  return <Index shopShowcase={shopShowcase} />;
+}

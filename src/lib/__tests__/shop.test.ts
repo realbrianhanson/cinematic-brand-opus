@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
+    handler: (run: () => unknown) => run,
     inputValidator: (validate: (data: unknown) => unknown) => ({
       handler:
         (run: (args: { data: unknown }) => unknown) =>
@@ -28,7 +29,15 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("../publicData.server", () => ({
   createPublicServerClient: () => {
     const query: Record<string, unknown> = {};
-    for (const method of ["from", "select", "eq", "ilike", "order"])
+    for (const method of [
+      "from",
+      "select",
+      "eq",
+      "neq",
+      "ilike",
+      "order",
+      "limit",
+    ])
       query[method] = (...args: unknown[]) => {
         mocks.calls.push([method, ...args]);
         return query;
@@ -39,16 +48,53 @@ vi.mock("../publicData.server", () => ({
         mocks.responses.length ? mocks.responses.shift() : mocks.response,
       );
     };
+    query.abortSignal = (...args: unknown[]) => {
+      mocks.calls.push(["abortSignal", ...args]);
+      return Promise.resolve(mocks.response);
+    };
     return query;
   },
 }));
-import { getShopCatalog } from "../shop.functions";
+import {
+  getShopCatalog,
+  getShopShowcase,
+  getRelatedShopOffers,
+} from "../shop.functions";
 beforeEach(() => {
   mocks.calls = [];
   mocks.responses = [];
   mocks.response = { data: [], count: 0, error: null };
 });
 describe("shop catalog boundaries", () => {
+  it("keeps home merchandising public, featured, bounded, and optional", async () => {
+    mocks.response.data = [{ id: "public-offer" }];
+    expect(await getShopShowcase()).toEqual([{ id: "public-offer" }]);
+    for (const [field, value] of [
+      ["status", "published"],
+      ["show_in_shop", true],
+      ["funnel_only", false],
+      ["shop_featured", true],
+    ]) {
+      expect(mocks.calls).toContainEqual(["eq", field, value]);
+    }
+    expect(mocks.calls).toContainEqual(["limit", 3]);
+    mocks.response.error = { message: "Unavailable" };
+    expect(await getShopShowcase()).toEqual([]);
+  });
+  it("related offers exclude the current product and never discover private funnels", async () => {
+    const excludeId = "6689db7a-432b-41d9-8b73-2f89c32c67b4";
+    await getRelatedShopOffers({ data: { excludeId } });
+    expect(mocks.calls).toContainEqual(["neq", "id", excludeId]);
+    expect(mocks.calls).toContainEqual(["eq", "status", "published"]);
+    expect(mocks.calls).toContainEqual(["eq", "show_in_shop", true]);
+    expect(mocks.calls).toContainEqual(["eq", "funnel_only", false]);
+    expect(mocks.calls).toContainEqual(["limit", 2]);
+    mocks.calls = [];
+    expect(
+      await getRelatedShopOffers({ data: { excludeId: "not-an-id" } }),
+    ).toEqual([]);
+    expect(mocks.calls).toEqual([]);
+  });
   it("recovers an out-of-range page without exposing the fallback row", async () => {
     mocks.responses = [
       { data: null, count: null, error: { code: "PGRST103" } },

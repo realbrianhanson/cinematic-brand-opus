@@ -1,6 +1,6 @@
 # Offers and funnels
 
-Open **Admin → Growth → Offers & funnels**. Each offer can use **Website checkout / download** or an **External / affiliate link**. Free downloads and external links work without this site's Stripe keys. You can prepare paid website downloads now; their purchase button stays unavailable until Stripe's server credentials are configured.
+Open **Admin → Business → Offers & shop**. Each offer can use **Website checkout / download** or an **External / affiliate link**. Free downloads and external links work without this site's Stripe keys. You can prepare paid website downloads now; their purchase button stays unavailable until Stripe's server credentials are configured.
 
 ## Build an offer
 

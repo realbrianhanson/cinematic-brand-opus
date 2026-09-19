@@ -1,3 +1,4 @@
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,7 @@ import Footer from "@/components/Footer";
 import { getShopSitemapOffers } from "@/lib/shopSitemap.functions";
 
 const HTMLSitemap = () => {
+  const config = useSiteConfig();
   const shop = useQuery({
     queryKey: ["sitemap-shop-offers"],
     queryFn: () => getShopSitemapOffers(),
@@ -122,6 +124,16 @@ const HTMLSitemap = () => {
             Pages
           </h2>
           <ul className="flex flex-col gap-2">
+            {config.sections.speaking && (
+              <li>
+                <Link
+                  to="/speaking"
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                >
+                  Speaking & Workshops
+                </Link>
+              </li>
+            )}
             <li>
               <Link
                 to="/"

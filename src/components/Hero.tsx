@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Sparkles, Mic, Users } from "lucide-react";
-
-import MagneticButton from "./MagneticButton";
-import SpringText from "./SpringText";
-import DrawLine from "./DrawLine";
+import { ArrowRight, ArrowDown, Pause, Play, Users } from "lucide-react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 
@@ -11,56 +7,51 @@ interface HeroProps {
   loaded?: boolean;
 }
 
-const Hero = ({ loaded = true }: HeroProps) => {
-  const siteConfig = useSiteConfig();
+export default function Hero({ loaded: _loaded = true }: HeroProps) {
+  const { hero, identity } = useSiteConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [paused, setPaused] = useState(false);
   const { lightMode, resolved } = useMediaPreferences();
-  const visible = loaded;
-  const { hero, brand } = siteConfig;
-  const { headlineLines } = hero;
-  const headlineText = headlineLines.map((l) => l.text).join(" ");
 
-  // Lazy-load the decorative hero video after first paint. Skipped entirely for
-  // reduced-motion or data-saver visitors; the poster image carries the design.
+  // Keep the poster visible until the original video really starts playing.
   useEffect(() => {
     if (!hero.videoSrc || lightMode || !resolved) return;
     const start = () => {
-      const v = videoRef.current;
-      if (!v) return;
-      if (!v.src) {
-        v.src = hero.videoSrc!;
-        v.load();
-        // videoReady flips on the `playing` event, so the poster stays put if
-        // playback never actually starts.
-        v.play().catch(() => setVideoReady(false));
-      }
+      const video = videoRef.current;
+      if (!video || video.getAttribute("src")) return;
+      video.src = hero.videoSrc!;
+      video.load();
+      video.play().catch(() => setVideoReady(false));
     };
     if (document.readyState === "complete") {
-      const t = window.setTimeout(start, 400);
-      return () => window.clearTimeout(t);
+      const timer = window.setTimeout(start, 400);
+      return () => window.clearTimeout(timer);
     }
     window.addEventListener("load", start, { once: true });
     return () => window.removeEventListener("load", start);
   }, [hero.videoSrc, lightMode, resolved]);
 
+  const togglePlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) video.play().catch(() => setPaused(true));
+    else video.pause();
+  };
+
   return (
     <section
       id="hero"
-      className="relative min-h-[100svh] flex items-center overflow-hidden"
+      className="relative isolate flex min-h-[min(900px,100svh)] items-center overflow-hidden bg-[var(--brand-backdrop)]"
     >
-      {/* BG Layer 1: Video (lazy) with poster */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 -z-20" aria-hidden="true">
         {hero.posterSrc && (
           <img
             src={hero.posterSrc}
             alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              opacity: videoReady ? 0 : 0.55,
-              transition: "opacity 0.6s ease",
-            }}
+            fetchPriority="high"
+            className="absolute h-full w-full object-cover object-[65%_center]"
+            style={{ opacity: videoReady ? 0 : 0.6 }}
           />
         )}
         {hero.videoSrc && !lightMode && (
@@ -71,256 +62,129 @@ const Hero = ({ loaded = true }: HeroProps) => {
             playsInline
             preload="none"
             poster={hero.posterSrc ?? undefined}
-            aria-hidden="true"
-            onPlaying={() => setVideoReady(true)}
-            onError={() => setVideoReady(false)}
-            onStalled={() => setVideoReady(false)}
-            className="absolute w-full h-full object-cover"
-            style={{
-              opacity: videoReady ? 1 : 0,
-              transition: "opacity 0.8s ease",
+            onPlaying={() => {
+              setVideoReady(true);
+              setPaused(false);
             }}
+            onPause={() => setPaused(true)}
+            onError={() => setVideoReady(false)}
+            className="absolute h-full w-full object-cover object-[65%_center] transition-opacity duration-700"
+            style={{ opacity: videoReady ? 1 : 0 }}
           />
         )}
-        {/* Desktop horizontal scrim: heavy left → light right */}
-        <div
-          className="absolute inset-0 hidden md:block"
-          style={{
-            background:
-              "linear-gradient(90deg, rgba(var(--brand-backdrop-rgb),0.92) 0%, rgba(var(--brand-backdrop-rgb),0.88) 30%, rgba(var(--brand-backdrop-rgb),0.55) 55%, rgba(var(--brand-backdrop-rgb),0.28) 80%, rgba(var(--brand-backdrop-rgb),0.22) 100%)",
-          }}
-        />
-        {/* Desktop bottom scrim for CTA legibility */}
-        <div
-          className="absolute inset-x-0 bottom-0 hidden md:block"
-          style={{
-            height: "45%",
-            background:
-              "linear-gradient(180deg, transparent 0%, rgba(var(--brand-backdrop-rgb),0.55) 100%)",
-          }}
-        />
-        {/* Mobile: stronger uniform scrim */}
-        <div
-          className="absolute inset-0 md:hidden"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(var(--brand-backdrop-rgb),0.82) 0%, rgba(var(--brand-backdrop-rgb),0.85) 100%)",
-          }}
-        />
       </div>
-
-      {/* BG Layer 3: Radial accent */}
       <div
-        className="absolute inset-0 pointer-events-none z-[2]"
-        style={{
-          background:
-            "radial-gradient(ellipse 50% 40% at 15% 75%, rgba(var(--brand-accent-rgb),0.05), transparent)",
-        }}
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.96)_0%,rgba(var(--brand-backdrop-rgb),.83)_40%,rgba(var(--brand-backdrop-rgb),.2)_100%)] max-md:bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.92),rgba(var(--brand-backdrop-rgb),.7))]"
       />
-
-      {/* Corner accent lines */}
-      <DrawLine
-        visible={visible}
-        d="M380,0 L400,0 L400,20"
-        className="absolute top-0 right-0 w-[200px] h-[200px] lg:w-[400px] lg:h-[400px] pointer-events-none z-10"
-      />
-      <DrawLine
-        visible={visible}
-        d="M0,380 L0,400 L20,400"
-        className="absolute bottom-0 left-0 w-[200px] h-[200px] lg:w-[400px] lg:h-[400px] pointer-events-none z-10"
-      />
-
-      {/* Content */}
       <div
-        className="relative z-20 w-full mx-auto px-6 lg:px-14 pt-28 pb-12 md:pt-32 md:pb-16"
-        style={{ maxWidth: 1440 }}
-      >
-        {/* Overline */}
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-gradient-to-t from-[var(--brand-backdrop)] to-transparent"
+      />
+      <div className="mx-auto w-full max-w-[1440px] px-6 pb-24 pt-36 lg:px-14 lg:pb-32 lg:pt-44">
         {hero.overline && (
-          <div
-            className="flex items-center gap-3 mb-5 md:mb-6"
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? "translateY(0)" : "translateY(20px)",
-              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.4s",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                flexShrink: 0,
-                height: 2,
-                background:
-                  "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
-              }}
-            />
-            <span
-              className="font-body font-bold uppercase"
-              style={{
-                fontSize: 12,
-                letterSpacing: "0.14em",
-                color: "var(--brand-accent)",
-              }}
-            >
-              {hero.overline}
-            </span>
-          </div>
+          <p className="mb-7 flex items-center gap-3 font-body text-xs font-semibold uppercase tracking-[.17em] text-[var(--brand-accent)]">
+            <span className="h-px w-9 bg-current" aria-hidden="true" />
+            {hero.overline}
+          </p>
         )}
-
-        {/* Headline */}
         <h1
-          className="font-display leading-none"
+          aria-label={hero.headlineLines.map((line) => line.text).join(" ")}
+          className="max-w-[1000px] font-display text-white"
           style={{
-            maxWidth: 960,
-            fontSize: "clamp(2.75rem, 7vw, 6rem)",
-            lineHeight: 1.02,
-            margin: 0,
+            fontSize: "clamp(3.15rem, 7.8vw, 7rem)",
+            lineHeight: 0.99,
+            letterSpacing: "-.035em",
           }}
-          aria-label={headlineText}
         >
-          {headlineLines.map((line, i) => (
+          {hero.headlineLines.map((line, index) => (
             <span
-              key={i}
-              style={{
-                display: "block",
-                overflow: line.spring ? "visible" : "hidden",
-                paddingTop: "0.1em",
-              }}
+              key={index}
+              className={`block ${line.italic ? "italic" : ""} ${line.gold ? "text-[var(--brand-accent)]" : ""}`}
             >
-              <span
-                style={{
-                  display: "block",
-                  opacity: visible ? 1 : 0,
-                  transform: visible ? "translateY(0)" : "translateY(115%)",
-                  transition: `all 0.8s cubic-bezier(0.22,1,0.36,1) ${0.35 + i * 0.08}s`,
-                }}
-              >
-                <span
-                  className={line.italic ? "italic" : ""}
-                  style={{
-                    display: "block",
-                    color: line.gold ? "var(--brand-accent)" : "#fff",
-                  }}
-                >
-                  {line.spring ? (
-                    <SpringText
-                      text={line.text}
-                      visible={visible}
-                      delay={line.springDelay ?? 0}
-                      charStyle={
-                        line.gold
-                          ? {
-                              background:
-                                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
-                              WebkitBackgroundClip: "text",
-                              WebkitTextFillColor: "transparent",
-                            }
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    line.text
-                  )}
-                </span>
-              </span>
+              {line.text}
+              {index < hero.headlineLines.length - 1 ? " " : ""}
             </span>
           ))}
         </h1>
-
-        {/* Sub-copy */}
-        <p
-          className="font-body mt-6"
-          style={{
-            maxWidth: 570,
-            fontSize: "clamp(1rem, 1.5vw, 1.125rem)",
-            lineHeight: 1.65,
-            color: "rgba(255,255,255,0.85)",
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s",
-          }}
-        >
+        <p className="mt-7 max-w-[540px] font-body text-base leading-relaxed text-white/85 md:text-lg">
           {hero.subtitle}
         </p>
-
-        {/* CTA Buttons */}
-        <div
-          className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mt-7"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(15px)",
-            transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 0.85s",
-          }}
-        >
+        <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {hero.primaryCta && (
-            <MagneticButton
+            <a
               href={hero.primaryCta.href}
               target={hero.primaryCta.external ? "_blank" : undefined}
-              className="hero-cta-primary relative overflow-hidden inline-flex items-center justify-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.05em",
-                background:
-                  "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
-                color: "var(--brand-backdrop)",
-                padding: "18px 24px",
-              }}
+              rel={hero.primaryCta.external ? "noopener noreferrer" : undefined}
+              className="group inline-flex min-h-14 items-center justify-center gap-4 bg-[var(--brand-accent)] px-7 py-4 font-body text-sm font-bold text-[var(--brand-backdrop)] transition-colors hover:bg-[var(--brand-accent-light)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
             >
-              <Sparkles size={15} strokeWidth={2.5} />
               {hero.primaryCta.label}
-              <ArrowRight size={15} strokeWidth={2.5} />
-              <div className="hero-cta-shine" />
-            </MagneticButton>
+              <ArrowRight
+                size={19}
+                aria-hidden="true"
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </a>
           )}
-
           {hero.secondaryCta && (
-            <MagneticButton
+            <a
               href={hero.secondaryCta.href}
               target={hero.secondaryCta.external ? "_blank" : undefined}
-              className="inline-flex items-center justify-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(var(--brand-accent-rgb),0.08)]"
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.05em",
-                border: "1.5px solid var(--brand-accent)",
-                color: "#ffffff",
-                padding: "16.5px 22.5px",
-                background: "transparent",
-              }}
+              rel={
+                hero.secondaryCta.external ? "noopener noreferrer" : undefined
+              }
+              className="inline-flex min-h-14 items-center justify-center gap-3 border border-white/30 bg-black/15 px-7 py-4 font-body text-sm font-semibold text-white transition-colors hover:border-white/60 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             >
-              <Mic size={15} strokeWidth={2.5} color={brand.accent} />
               {hero.secondaryCta.label}
-            </MagneticButton>
+              <ArrowRight size={18} aria-hidden="true" />
+            </a>
           )}
         </div>
-
-        {/* Social proof strip */}
         {hero.socialProof && (
-          <div
-            className="flex items-center gap-3 mt-6"
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? "translateY(0)" : "translateY(15px)",
-              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 1s",
-            }}
-          >
+          <p className="mt-7 flex items-center gap-2.5 font-body text-sm text-white/75">
             <Users
-              size={22}
-              strokeWidth={1.5}
+              size={18}
+              className="shrink-0 text-[var(--brand-accent)]"
               aria-hidden="true"
-              className="shrink-0"
-              style={{ color: "var(--brand-accent)" }}
             />
-            <span
-              className="font-body"
-              style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}
-            >
-              {hero.socialProof}
+            {hero.socialProof}
+          </p>
+        )}
+      </div>
+      <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-6 lg:px-14">
+        <p className="font-body text-xs tracking-wide text-white/60">
+          {identity.name}
+          <span className="mx-3 text-[var(--brand-accent)]" aria-hidden="true">
+            /
+          </span>
+          {identity.tagline}
+        </p>
+        {videoReady && !lightMode ? (
+          <button
+            type="button"
+            onClick={togglePlayback}
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/25 bg-black/20 px-3 text-xs text-white hover:bg-black/50"
+            aria-label={
+              paused ? "Resume background video" : "Pause background video"
+            }
+          >
+            {paused ? (
+              <Play size={15} aria-hidden="true" />
+            ) : (
+              <Pause size={15} aria-hidden="true" />
+            )}
+            <span className="hidden sm:inline">
+              {paused ? "Play" : "Pause"}
             </span>
-          </div>
+          </button>
+        ) : (
+          <ArrowDown
+            className="shrink-0 text-white/40"
+            size={20}
+            aria-hidden="true"
+          />
         )}
       </div>
     </section>
   );
-};
-
-export default Hero;
+}

@@ -1,17 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import {
-  ArrowRight,
-  BookOpen,
-  FileText,
-  PlayCircle,
-  Search,
-  Wrench,
-} from "lucide-react";
+import { ArrowRight, BookOpen, Search } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { Link, useNavigate } from "@/lib/router-compat";
-import { offerPrice } from "@/lib/offers";
+import OfferCard from "@/components/OfferCard";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import {
   SHOP_CATEGORIES,
   shopHref,
@@ -20,12 +14,6 @@ import {
   type ShopCategory,
 } from "@/lib/shop";
 
-const categoryIcons = {
-  training: PlayCircle,
-  resource: FileText,
-  tool: Wrench,
-  course: BookOpen,
-};
 const filterClass =
   "inline-flex items-center rounded-full border px-4 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";
 export default function Shop({
@@ -35,6 +23,7 @@ export default function Shop({
   catalog: ShopResult;
   filters: ShopFilters;
 }) {
+  const { identity } = useSiteConfig();
   const [search, setSearch] = useState(filters.q);
   const navigate = useNavigate();
   useEffect(() => setSearch(filters.q), [filters.q]);
@@ -59,20 +48,19 @@ export default function Shop({
           className="font-bold text-xs tracking-[0.22em] uppercase mt-7 mb-4"
           style={{ color: "var(--brand-accent)" }}
         >
-          The shop
+          The shop · {identity.name}
         </p>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <h1 className="font-display text-4xl md:text-6xl leading-[1.1] max-w-2xl">
-            Trainings, tools
+            Good ideas.
             <br />
             <span className="italic" style={{ color: "var(--brand-accent)" }}>
-              & resources.
+              A place to start.
             </span>
           </h1>
           <p className="max-w-md text-base md:text-lg text-white/75 leading-relaxed">
-            Find a useful next step. Explore courses, practical trainings, and
-            resources you can put to work—with free and paid options in one
-            place.
+            Practical training. Useful tools. Resources worth returning to. Find
+            the next step that fits what you want to learn or build.
           </p>
         </div>
       </header>
@@ -180,93 +168,17 @@ export default function Shop({
           </div>
         </section>
         {catalog.items.length ? (
-          <>
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6 mt-8">
-              {catalog.items.map((offer) => {
-                const Icon = categoryIcons[offer.shop_category] || FileText;
-                return (
-                  <article
-                    key={offer.id}
-                    className="group flex flex-col overflow-hidden rounded-lg border border-white/15 bg-white/[0.025] transition-colors hover:border-white/35"
-                  >
-                    <Link
-                      to={`/offers/${offer.slug}`}
-                      className="flex flex-col h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--brand-accent)]"
-                      aria-label={`${offer.title} — ${offerPrice(offer)}`}
-                    >
-                      <div
-                        className="relative aspect-[16/10] overflow-hidden border-b border-white/10"
-                        style={{
-                          background:
-                            "radial-gradient(ellipse at top right, rgba(var(--brand-accent-rgb),0.18), transparent 75%)",
-                        }}
-                      >
-                        {offer.cover_url ? (
-                          <img
-                            src={offer.cover_url}
-                            alt=""
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                            loading="lazy"
-                            width={640}
-                            height={400}
-                          />
-                        ) : (
-                          <div className="flex h-full flex-col justify-between p-7">
-                            <Icon
-                              size={44}
-                              strokeWidth={1.2}
-                              style={{ color: "var(--brand-accent)" }}
-                              aria-hidden="true"
-                            />
-                            <span className="font-display text-3xl text-white/85">
-                              {SHOP_CATEGORIES[offer.shop_category]}
-                            </span>
-                          </div>
-                        )}
-                        {offer.shop_featured && (
-                          <span className="absolute top-4 right-4 rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs font-semibold text-white">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-6 flex flex-col flex-1">
-                        <p className="text-xs uppercase tracking-widest text-white/60">
-                          {SHOP_CATEGORIES[offer.shop_category]}
-                        </p>
-                        {offer.checkout_mode === "external" && (
-                          <p className="mt-2 text-xs text-white/70">
-                            External offer
-                          </p>
-                        )}
-                        <h2 className="font-display text-2xl leading-tight mt-3">
-                          {offer.title}
-                        </h2>
-                        <p className="mt-3 text-sm leading-relaxed text-white/75 line-clamp-3">
-                          {offer.summary}
-                        </p>
-                        <div className="mt-auto pt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-                          <span
-                            className="font-semibold"
-                            style={{ color: "var(--brand-accent)" }}
-                          >
-                            {offerPrice(offer)}
-                          </span>
-                          <span className="inline-flex items-center gap-2 text-sm text-white/80">
-                            {offer.checkout_mode === "external"
-                              ? "View details"
-                              : offer.kind === "free"
-                                ? "Get the details"
-                                : "Explore offer"}
-                            <ArrowRight size={17} aria-hidden="true" />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  </article>
-                );
-              })}
-            </div>
-          </>
+          <div
+            className={`mt-9 grid gap-6 ${catalog.items.length === 1 ? "max-w-2xl" : catalog.items.length === 2 ? "md:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}
+          >
+            {catalog.items.map((offer) => (
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                compact={catalog.items.length > 2}
+              />
+            ))}
+          </div>
         ) : (
           <section
             className="my-10 rounded-lg border border-white/15 px-6 py-14 md:py-20 text-center"

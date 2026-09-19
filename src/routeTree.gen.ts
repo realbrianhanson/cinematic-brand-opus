@@ -21,9 +21,11 @@ import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SpeakingRouteImport } from './routes/speaking'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
+import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
 import { Route as AdminLibraryRouteImport } from './routes/admin.library'
 import { Route as AdminNichesRouteImport } from './routes/admin.niches'
 import { Route as AdminPseoDashboardRouteImport } from './routes/admin.pseo-dashboard'
@@ -124,6 +126,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpeakingRoute = SpeakingRouteImport.update({
+  id: '/speaking',
+  path: '/speaking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -137,6 +144,11 @@ const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
 const AdminGenerateRoute = AdminGenerateRouteImport.update({
   id: '/generate',
   path: '/generate',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInquiriesRoute = AdminInquiriesRouteImport.update({
+  id: '/inquiries',
+  path: '/inquiries',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLibraryRoute = AdminLibraryRouteImport.update({
@@ -352,8 +364,10 @@ export interface FileRoutesByFullPath {
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speaking': typeof SpeakingRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
@@ -404,8 +418,10 @@ export interface FileRoutesByTo {
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speaking': typeof SpeakingRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
@@ -460,8 +476,10 @@ export interface FileRoutesById {
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speaking': typeof SpeakingRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
@@ -518,8 +536,10 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
+    | '/speaking'
     | '/admin/categories'
     | '/admin/generate'
+    | '/admin/inquiries'
     | '/admin/library'
     | '/admin/niches'
     | '/admin/pseo-dashboard'
@@ -570,8 +590,10 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
+    | '/speaking'
     | '/admin/categories'
     | '/admin/generate'
+    | '/admin/inquiries'
     | '/admin/library'
     | '/admin/niches'
     | '/admin/pseo-dashboard'
@@ -625,8 +647,10 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
+    | '/speaking'
     | '/admin/categories'
     | '/admin/generate'
+    | '/admin/inquiries'
     | '/admin/library'
     | '/admin/niches'
     | '/admin/pseo-dashboard'
@@ -682,6 +706,7 @@ export interface RootRouteChildren {
   ShopRoute: typeof ShopRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SpeakingRoute: typeof SpeakingRoute
   AdminLoginRoute: typeof AdminLoginRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
@@ -779,6 +804,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/speaking': {
+      id: '/speaking'
+      path: '/speaking'
+      fullPath: '/speaking'
+      preLoaderRoute: typeof SpeakingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -798,6 +830,13 @@ declare module '@tanstack/react-router' {
       path: '/generate'
       fullPath: '/admin/generate'
       preLoaderRoute: typeof AdminGenerateRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inquiries': {
+      id: '/admin/inquiries'
+      path: '/inquiries'
+      fullPath: '/admin/inquiries'
+      preLoaderRoute: typeof AdminInquiriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/library': {
@@ -1079,6 +1118,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminGenerateRoute: typeof AdminGenerateRoute
+  AdminInquiriesRoute: typeof AdminInquiriesRoute
   AdminLibraryRoute: typeof AdminLibraryRoute
   AdminNichesRoute: typeof AdminNichesRoute
   AdminPseoDashboardRoute: typeof AdminPseoDashboardRoute
@@ -1107,6 +1147,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminGenerateRoute: AdminGenerateRoute,
+  AdminInquiriesRoute: AdminInquiriesRoute,
   AdminLibraryRoute: AdminLibraryRoute,
   AdminNichesRoute: AdminNichesRoute,
   AdminPseoDashboardRoute: AdminPseoDashboardRoute,
@@ -1198,6 +1239,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShopRoute: ShopRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SpeakingRoute: SpeakingRoute,
   AdminLoginRoute: AdminLoginRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,

@@ -1,5 +1,5 @@
 import type { SiteConfig } from "../types";
-import brianHeadshot from "@/assets/brian-headshot.jpeg";
+const brianHeadshot = "/brian-headshot.webp";
 
 const freeSummitUrl = "https://go.aiforbusiness.com/summit?_go=brian60";
 
@@ -62,13 +62,10 @@ export const brianPreset: SiteConfig = {
   },
 
   nav: {
-    hashLinks: [
-      { label: "Story", href: "#story" },
-      { label: "Expertise", href: "#expertise" },
-      { label: "Speaking", href: "#speaking" },
-    ],
+    hashLinks: [{ label: "Story", href: "#story" }],
     routeLinks: [
       { label: "Shop", href: "/shop" },
+      { label: "Speaking", href: "/speaking" },
       { label: "Resources", href: "/resources" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
@@ -82,19 +79,19 @@ export const brianPreset: SiteConfig = {
   },
 
   hero: {
-    overline: "4× Inc. 5000 · AI Educator · Keynote Speaker",
+    overline: "Brian Hanson · AI for Business",
     headlineLines: [
       { text: "Put AI to work" },
       { text: "in your business.", gold: true, italic: true },
     ],
     subtitle:
-      "Learn how to create better marketing, simplify repetitive work, and build useful tools with Brian Hanson. No coding background required.",
+      "Make better marketing. Get time back. Build the tools your business needs. I’ll show you how to put AI to work—without a coding background.",
     primaryCta: {
       label: "Join Free 3-Day AI Summit",
       href: freeSummitUrl,
       external: true,
     },
-    secondaryCta: { label: "Book Brian to Speak", href: "#speaking" },
+    secondaryCta: { label: "Explore Tools & Training", href: "/shop" },
     socialProof: "150,000+ in the AI For Business community",
     videoSrc: "/videos/hero-bg.mp4",
     posterSrc: "/videos/hero-poster.jpg",
@@ -110,7 +107,7 @@ export const brianPreset: SiteConfig = {
   // These belong to Brian's site; member presets must use their own feedback.
   homepageTestimonials: {
     overline: "From the Community",
-    heading: "What attendees are taking away.",
+    heading: "Less overwhelm. More “I can do this.”",
     intro:
       "Feedback from AI For Business training and events, in attendees' own words.",
     items: [
@@ -154,9 +151,11 @@ export const brianPreset: SiteConfig = {
   },
 
   story: {
-    overline: "The Story",
-    headingLead: "Built businesses.",
-    headingAccent: "Started over. Kept building.",
+    portraitSrc: brianHeadshot,
+    portraitAlt: "Brian Hanson",
+    overline: "The operator behind the advice",
+    headingLead: "I build what",
+    headingAccent: "I teach.",
     intro:
       "I teach the way I had to learn: choose a real problem, try a practical solution, and keep what works.",
     timeline: [
@@ -185,7 +184,7 @@ export const brianPreset: SiteConfig = {
   },
 
   expertise: {
-    overline: "Core Expertise",
+    overline: "Practical by design",
     headingLead: "Start with the work",
     headingAccent: "on your desk.",
     intro:
@@ -285,7 +284,7 @@ export const brianPreset: SiteConfig = {
   speaking: {
     overline: "Keynotes & Workshops",
     headingLead: "Bring Brian",
-    headingAccent: "to Your Stage",
+    headingAccent: "to your stage.",
     intro:
       "Practical AI talks for business owners and teams. I use demonstrations, business examples, and lessons from building and rebuilding companies to make the next step clear.",
     topics: [
@@ -312,10 +311,10 @@ export const brianPreset: SiteConfig = {
   },
 
   newsletter: {
-    headingLead: "A practical AI idea",
-    headingAccent: "for your week.",
+    headingLead: "A smarter start",
+    headingAccent: "to your week.",
     intro:
-      "Get a weekly selection of useful AI articles, tools, and business workflows. See what they can help with and what to check before trying them.",
+      "Useful tools. Ideas worth trying. A weekly selection of AI articles and business workflows, straight to your inbox.",
     privacyNote: "No spam, ever. Unsubscribe anytime.",
     secondaryCta: {
       label: "Join the Free 3-Day AI Summit",
@@ -355,13 +354,10 @@ export const brianPreset: SiteConfig = {
   },
 
   footer: {
-    hashLinks: [
-      { label: "Story", href: "#story" },
-      { label: "Expertise", href: "#expertise" },
-      { label: "Speaking", href: "#speaking" },
-    ],
+    hashLinks: [{ label: "Story", href: "#story" }],
     routeLinks: [
       { label: "Shop", href: "/shop" },
+      { label: "Speaking", href: "/speaking" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
       { label: "Resources", href: "/resources" },

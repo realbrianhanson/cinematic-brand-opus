@@ -97,6 +97,9 @@ export interface StoryConfig {
   headingAccent: string;
   intro: string;
   timeline: StoryEntry[];
+  /** Optional owner portrait; member presets never inherit another person's image. */
+  portraitSrc?: string | null;
+  portraitAlt?: string;
   /** Closing pull quote, or null to hide it. */
   pullQuote: string | null;
 }

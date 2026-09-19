@@ -1,0 +1,374 @@
+/* Workspace-only styles keep the public site and its brand themes untouched. */
+.admin-shell .admin-inquiry-search {
+  padding-left: 2.5rem;
+}
+.admin-shell .admin-btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.admin-shell .admin-btn-secondary:focus-visible {
+  outline: 2px solid hsl(var(--admin-accent));
+  outline-offset: 3px;
+}
+.admin-shell .admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  line-height: 1.35;
+}
+.admin-shell .admin-nav-link svg {
+  flex: none;
+  opacity: 0.85;
+}
+.admin-shell .admin-nav-link.is-active {
+  box-shadow: inset 2px 0 0 hsl(var(--admin-accent));
+}
+.admin-shell .admin-sidebar-inner {
+  gap: 12px;
+}
+.admin-shell .admin-workspace-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 7px;
+  color: hsl(var(--admin-text-soft));
+  font-size: 12px;
+  text-align: left;
+}
+.admin-shell .admin-workspace-search kbd {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 10px;
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.admin-shell .admin-workspace-search svg {
+  flex: none;
+}
+.admin-shell .admin-overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.admin-shell .admin-overview-metric {
+  padding: 23px;
+  text-decoration: none;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+  min-width: 0;
+}
+.admin-shell .admin-overview-metric:hover {
+  border-color: hsl(var(--admin-accent));
+  transform: translateY(-2px);
+}
+.admin-shell .admin-overview-metric > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-overview-metric > div svg {
+  flex: none;
+  color: hsl(var(--admin-accent));
+}
+.admin-shell .admin-overview-metric strong {
+  display: block;
+  font-size: clamp(32px, 3vw, 44px);
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+  margin: 19px 0 10px;
+}
+.admin-shell .admin-overview-metric p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-overview-footnote {
+  margin-top: -14px;
+  font-size: 12px;
+}
+.admin-shell .admin-overview-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.admin-shell .admin-overview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  color: hsl(var(--admin-accent));
+  background: hsl(var(--admin-accent) / 0.08);
+  border: 1px solid hsl(var(--admin-accent) / 0.18);
+  border-radius: 10px;
+}
+.admin-shell .admin-attention-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 0;
+  border-bottom: 1px solid hsl(var(--admin-border));
+  text-decoration: none;
+}
+.admin-shell .admin-attention-row:last-child {
+  border-bottom: 0;
+}
+.admin-shell .admin-attention-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .admin-attention-row > svg {
+  flex: none;
+}
+.admin-shell .admin-attention-row strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.admin-shell .admin-attention-row p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 3px;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-overview-launchpad {
+  background:
+    radial-gradient(
+      ellipse at 100% 0%,
+      hsl(var(--admin-accent) / 0.09),
+      transparent 70%
+    ),
+    hsl(var(--admin-surface));
+}
+.admin-shell .admin-overview-launchpad h2 {
+  font-size: 25px;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  max-width: 17ch;
+}
+.admin-shell .admin-overview-launchpad > .admin-btn-primary {
+  justify-self: start;
+}
+.admin-shell .admin-overview-shortcuts {
+  display: grid;
+  padding-top: 8px;
+  border-top: 1px solid hsl(var(--admin-border));
+}
+.admin-shell .admin-overview-shortcuts a {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  padding: 11px 0;
+  text-decoration: none;
+}
+.admin-shell .admin-overview-shortcuts a span {
+  flex: 1;
+}
+.admin-shell .admin-overview-shortcuts a:hover {
+  color: hsl(var(--admin-accent));
+}
+.admin-shell .admin-editorial-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.admin-shell .admin-editorial-columns > * {
+  min-width: 0;
+  margin: 0 !important;
+}
+.admin-shell .admin-indexing-details[open] {
+  display: block;
+}
+.admin-shell .admin-indexing-details[open] > * + * {
+  margin-top: 18px;
+}
+.admin-shell .admin-queue-automation {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+}
+.admin-shell .admin-queue-automation > div {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .admin-queue-automation h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.admin-shell .admin-queue-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: hsl(var(--admin-text-soft));
+  margin-top: 10px;
+}
+.admin-shell .admin-queue-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.admin-shell .admin-queue-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  padding: 38px 24px;
+  gap: 12px;
+  color: hsl(var(--admin-text-soft));
+  font-size: 14px;
+}
+.admin-shell .admin-queue-empty p {
+  max-width: 55ch;
+  line-height: 1.7;
+}
+.admin-shell .admin-queue-item {
+  display: flex;
+  gap: 20px;
+  padding: 22px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.admin-shell .admin-queue-item-main {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .admin-queue-item h3 {
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 600;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.admin-shell .admin-queue-item h3 a {
+  text-decoration: none;
+}
+.admin-shell .admin-queue-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.admin-shell .admin-queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 11px;
+  color: hsl(var(--admin-text-soft));
+  margin: 9px 0;
+}
+.admin-shell .admin-queue-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.admin-shell .admin-queue-facts {
+  color: hsl(var(--admin-text-soft));
+  font-size: 12px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.admin-shell .admin-queue-facts.has-issues {
+  color: hsl(var(--admin-danger));
+}
+.admin-shell .admin-queue-signal {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid hsl(var(--admin-border));
+  padding: 15px 0;
+}
+.admin-shell .admin-queue-signal > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .admin-queue-signal-title {
+  font-size: 14px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1200px) {
+  .admin-shell .admin-overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-shell .admin-queue-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (max-width: 800px) {
+  .admin-shell .admin-overview-columns,
+  .admin-shell .admin-editorial-columns {
+    grid-template-columns: 1fr;
+  }
+  .admin-shell .admin-overview-launchpad h2 {
+    max-width: none;
+  }
+  .admin-shell .admin-queue-automation {
+    flex-wrap: wrap;
+    padding: 20px;
+  }
+  .admin-shell .admin-queue-automation > .admin-btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+  .admin-shell .admin-queue-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .admin-shell .admin-overview-metrics {
+    gap: 10px;
+  }
+  .admin-shell .admin-overview-metric {
+    padding: 16px;
+  }
+  .admin-shell .admin-overview-metric > div {
+    align-items: flex-start;
+  }
+  .admin-shell .admin-overview-metric > div svg {
+    width: 15px;
+  }
+  .admin-shell .admin-queue-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-shell .admin-queue-item {
+    padding: 17px;
+  }
+  .admin-shell .admin-attention-row {
+    gap: 10px;
+  }
+  .admin-shell .admin-mobile-bar {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    background: hsl(var(--admin-bg));
+  }
+  .admin-shell .admin-mobile-bar strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .admin-overview-metric {
+    transition: none;
+  }
+}

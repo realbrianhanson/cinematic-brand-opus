@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { configFromMatches } from "@/config/runtime";
 import { absoluteUrl } from "@/config/site";
 import { getPublishedOffer } from "@/lib/offers.functions";
+import { getRelatedShopOffers } from "@/lib/shop.functions";
 import { buildPageHead } from "@/lib/seoHead";
 import OfferLanding from "@/pages/OfferLanding";
 import OfferShell from "@/components/OfferShell";
@@ -11,7 +12,10 @@ export const Route = createFileRoute("/offers/$slug")({
   loader: async ({ params }) => {
     const offer = await getPublishedOffer({ data: { slug: params.slug } });
     if (!offer) throw notFound();
-    return { offer };
+    const relatedOffers = offer.funnel_only
+      ? []
+      : await getRelatedShopOffers({ data: { excludeId: offer.id } });
+    return { offer, relatedOffers };
   },
   head: ({ loaderData, matches }) => {
     if (!loaderData)
@@ -49,6 +53,8 @@ export const Route = createFileRoute("/offers/$slug")({
 });
 
 function OfferRoute() {
-  const { offer } = Route.useLoaderData();
-  return <OfferLanding key={offer.id} offer={offer} />;
+  const { offer, relatedOffers } = Route.useLoaderData();
+  return (
+    <OfferLanding key={offer.id} offer={offer} relatedOffers={relatedOffers} />
+  );
 }

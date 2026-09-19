@@ -1,47 +1,41 @@
 import { ArrowUpRight, Check } from "lucide-react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
-import HomeSectionHeading from "./HomeSectionHeading";
 
 export default function EventCTA() {
   const { event } = useSiteConfig();
   return (
     <section
       id="event"
-      className="py-16 lg:py-24"
-      style={{ background: "#0A0B12" }}
+      className="relative overflow-hidden border-y border-white/10 bg-[#111116] py-20 lg:py-28"
     >
-      <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
-        <div
-          className={`grid gap-8 lg:gap-14 items-center mb-10 ${event.imageSrc ? "lg:grid-cols-2" : ""}`}
-        >
-          <div>
-            <HomeSectionHeading overline={event.overline} intro={event.intro}>
-              <em style={{ color: "var(--brand-accent)" }}>
-                {event.headingAccent}
-              </em>{" "}
-              {event.headingRest}
-            </HomeSectionHeading>
-            {event.cta && (
-              <a
-                href={event.cta.href}
-                target={event.cta.external ? "_blank" : undefined}
-                rel={event.cta.external ? "noopener noreferrer" : undefined}
-                className="inline-flex items-center justify-center gap-3 px-6 py-4 font-body font-bold text-sm hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                style={{
-                  background: "var(--brand-accent)",
-                  color: "var(--brand-backdrop)",
-                }}
-              >
-                {event.cta.label}
-                <ArrowUpRight size={18} aria-hidden="true" />
-              </a>
-            )}
-            {event.ctaNote && (
-              <p className="font-body text-sm leading-relaxed text-white/70 mt-4 max-w-md">
-                {event.ctaNote}
-              </p>
-            )}
-          </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(var(--brand-accent-rgb),.09),transparent_70%)]"
+      />
+      <div className="relative mx-auto grid max-w-[1440px] gap-12 px-6 lg:grid-cols-[1fr_1fr] lg:gap-24 lg:px-14">
+        <div className="self-start lg:sticky lg:top-28">
+          <p className="mb-6 flex items-center gap-3 font-body text-xs font-semibold uppercase tracking-[.16em] text-[var(--brand-accent)]">
+            <span
+              className="h-1.5 w-1.5 rounded-full bg-current"
+              aria-hidden="true"
+            />
+            {event.overline}
+          </p>
+          <h2
+            className="max-w-xl font-display text-white"
+            style={{
+              fontSize: "clamp(2.6rem, 4.8vw, 4.4rem)",
+              lineHeight: 1.05,
+            }}
+          >
+            <em className="block text-[var(--brand-accent)]">
+              {event.headingAccent}
+            </em>
+            {event.headingRest}
+          </h2>
+          <p className="mt-6 max-w-xl font-body text-base leading-relaxed text-white/75 lg:text-lg">
+            {event.intro}
+          </p>
           {event.imageSrc && (
             <img
               src={event.imageSrc}
@@ -49,44 +43,68 @@ export default function EventCTA() {
               loading="lazy"
               width={960}
               height={640}
-              className="w-full aspect-[3/2] object-cover border border-white/10"
+              className="mt-7 aspect-[3/2] w-full object-cover"
             />
           )}
-        </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {event.days.map((day) => (
-            <article
-              key={day.day}
-              className="p-6 lg:p-7 border border-white/15 bg-white/[0.02]"
+          {event.cta && (
+            <a
+              href={event.cta.href}
+              target={event.cta.external ? "_blank" : undefined}
+              rel={event.cta.external ? "noopener noreferrer" : undefined}
+              className="group mt-8 inline-flex min-h-14 w-full items-center justify-center gap-4 bg-[var(--brand-accent)] px-6 py-4 font-body text-sm font-bold text-[var(--brand-backdrop)] hover:bg-[var(--brand-accent-light)] sm:w-auto"
             >
-              <p
-                className="font-body text-xs uppercase tracking-widest font-bold mb-3"
-                style={{ color: "var(--brand-accent)" }}
-              >
-                {day.day}
-              </p>
-              <h3 className="font-display text-2xl text-white mb-5">
-                {day.title}
-              </h3>
-              <ul className="space-y-3">
-                {day.bullets.map((bullet) => (
-                  <li
-                    key={bullet}
-                    className="flex gap-3 font-body text-sm lg:text-base leading-relaxed text-white/80"
-                  >
-                    <Check
-                      size={16}
-                      className="shrink-0 mt-1"
-                      aria-hidden="true"
-                      style={{ color: "var(--brand-accent)" }}
-                    />
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
+              {event.cta.label}
+              <ArrowUpRight
+                size={19}
+                aria-hidden="true"
+                className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              />
+            </a>
+          )}
+          {event.ctaNote && (
+            <p className="mt-4 max-w-md font-body text-xs leading-relaxed text-white/60">
+              {event.ctaNote}
+            </p>
+          )}
         </div>
+        <ol className="divide-y divide-white/15 border-y border-white/15">
+          {event.days.map((day, index) => (
+            <li
+              key={day.day}
+              className="grid grid-cols-[auto_1fr] gap-5 py-7 lg:gap-7 lg:py-8"
+            >
+              <span
+                aria-hidden="true"
+                className="font-display text-4xl italic text-[var(--brand-accent)]/50"
+              >
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[.15em] text-[var(--brand-accent)]">
+                  {day.day}
+                </p>
+                <h3 className="mb-4 font-display text-2xl text-white md:text-3xl">
+                  {day.title}
+                </h3>
+                <ul className="space-y-2.5">
+                  {day.bullets.map((bullet) => (
+                    <li
+                      key={bullet}
+                      className="flex gap-3 font-body text-sm leading-relaxed text-white/75"
+                    >
+                      <Check
+                        size={15}
+                        className="mt-1 shrink-0 text-[var(--brand-accent)]"
+                        aria-hidden="true"
+                      />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

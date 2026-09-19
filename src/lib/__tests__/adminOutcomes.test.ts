@@ -47,3 +47,67 @@ describe("truthful admin outcomes", () => {
     ).toThrow();
   });
 });
+
+import {
+  pipelineOutcome,
+  draftOutcome,
+  confirmedPublish,
+} from "../adminOutcomes";
+describe("queue operation receipts", () => {
+  it("distinguishes disabled runs from completed generation", () => {
+    expect(
+      pipelineOutcome({ ok: true, skipped: "automation disabled" }),
+    ).toMatchObject({ title: "Run skipped", failed: false });
+    expect(() => pipelineOutcome({})).toThrow();
+    expect(() => pipelineOutcome({ ok: true })).toThrow();
+  });
+  it("surfaces HTTP 200 nested pipeline failures and held drafts", () => {
+    expect(
+      pipelineOutcome({
+        ok: true,
+        drafted: 1,
+        log: {
+          steps: {
+            poll: { status: 503 },
+            drafts: [
+              {
+                status: 200,
+                post_id: "id",
+                fact_check_status: 500,
+                auto_publish: { status: 200, decision: "blocked" },
+              },
+            ],
+          },
+        },
+      }),
+    ).toMatchObject({
+      title: "Run finished with issues",
+      description:
+        "1 created · 0 auto-published · 1 held for review · 2 stage issue(s).",
+      failed: true,
+    });
+    expect(
+      pipelineOutcome({
+        ok: true,
+        drafted: 0,
+        log: {
+          steps: { drafts: [{ status: 200, error: "rejected: originality" }] },
+        },
+      }).failed,
+    ).toBe(true);
+  });
+  it("requires a saved draft and explicit publication success", () => {
+    expect(() =>
+      draftOutcome({ error: "rejected: freshness", quality_score: 90 }),
+    ).toThrow("rejected: freshness");
+    expect(() => draftOutcome({ ok: true })).toThrow();
+    expect(draftOutcome({ ok: true, post_id: "id" }).title).toBe(
+      "Draft saved for review",
+    );
+    expect(() => confirmedPublish(null)).toThrow();
+    expect(() => confirmedPublish({ decision: "published" })).toThrow();
+    expect(confirmedPublish({ ok: true, already_published: true })).toBe(
+      "Already published",
+    );
+  });
+});

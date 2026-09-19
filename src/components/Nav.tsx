@@ -60,6 +60,7 @@ const Nav = ({ loaded = true }: NavProps) => {
       }
       setActiveSection(current);
     };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [nav.hashLinks]);
@@ -85,10 +86,10 @@ const Nav = ({ loaded = true }: NavProps) => {
         className="fixed top-0 left-0 w-full transition-all duration-500 ease-out"
         style={{
           zIndex: 50,
-          height: scrolled ? 64 : 80,
+          height: scrolled ? 72 : 88,
           background: scrolled
-            ? "rgba(var(--brand-backdrop-rgb),0.82)"
-            : "transparent",
+            ? "rgba(var(--brand-backdrop-rgb),0.94)"
+            : "rgba(var(--brand-backdrop-rgb),0.6)",
           backdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           WebkitBackdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           borderBottom: `1px solid ${scrolled ? "rgba(var(--brand-accent-rgb),0.06)" : "transparent"}`,
@@ -111,8 +112,8 @@ const Nav = ({ loaded = true }: NavProps) => {
             <div
               className="flex items-center justify-center transition-shadow duration-300 group-hover:shadow-[0_0_24px_rgba(var(--brand-accent-rgb),0.25)]"
               style={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 border: "1.5px solid rgba(var(--brand-accent-rgb),0.6)",
               }}
             >
@@ -132,11 +133,11 @@ const Nav = ({ loaded = true }: NavProps) => {
               </span>
             </div>
             <span
-              className="hidden xl:block font-body font-medium uppercase"
+              className="font-body font-medium uppercase"
               style={{
-                fontSize: 11,
-                letterSpacing: "0.25em",
-                color: "rgba(255,255,255,0.5)",
+                fontSize: 12,
+                letterSpacing: "0.18em",
+                color: "rgba(255,255,255,0.9)",
               }}
             >
               {identity.name}
@@ -144,7 +145,7 @@ const Nav = ({ loaded = true }: NavProps) => {
           </a>
 
           {/* Desktop right */}
-          <div className="hidden lg:flex items-center gap-4 xl:gap-8">
+          <div className="hidden xl:flex items-center gap-4 xl:gap-8">
             <div className="flex items-center gap-4 xl:gap-7">
               {navLinks.map((link) =>
                 link.href.startsWith("/") ? (
@@ -157,12 +158,12 @@ const Nav = ({ loaded = true }: NavProps) => {
                     data-hover
                     className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
                     style={{
-                      fontSize: 10,
-                      letterSpacing: "0.18em",
+                      fontSize: 12,
+                      letterSpacing: "0.08em",
                       color:
                         location.pathname === link.href
                           ? brand.accent
-                          : "rgba(255,255,255,0.65)",
+                          : "rgba(255,255,255,0.8)",
                     }}
                   >
                     {link.label}
@@ -175,12 +176,12 @@ const Nav = ({ loaded = true }: NavProps) => {
                     data-hover
                     className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
                     style={{
-                      fontSize: 10,
-                      letterSpacing: "0.18em",
+                      fontSize: 12,
+                      letterSpacing: "0.08em",
                       color:
                         activeSection === link.href.slice(1)
                           ? brand.accent
-                          : "rgba(255,255,255,0.45)",
+                          : "rgba(255,255,255,0.8)",
                     }}
                   >
                     {link.label}
@@ -208,11 +209,11 @@ const Nav = ({ loaded = true }: NavProps) => {
                   data-hover
                   className="inline-flex items-center gap-1.5 font-body font-bold uppercase transition-opacity duration-300 hover:opacity-90"
                   style={{
-                    fontSize: 11,
-                    letterSpacing: "0.1em",
+                    fontSize: 12,
+                    letterSpacing: "0.04em",
                     background: `linear-gradient(135deg, ${brand.accent}, ${brand.accentDark})`,
                     color: brand.backdrop,
-                    padding: "10px 24px",
+                    padding: "13px 20px",
                     borderRadius: 0,
                   }}
                 >
@@ -227,7 +228,7 @@ const Nav = ({ loaded = true }: NavProps) => {
           <button
             ref={menuTrigger}
             type="button"
-            className="lg:hidden inline-flex items-center justify-center"
+            className="xl:hidden inline-flex items-center justify-center"
             onClick={() => setMenuOpen(true)}
             data-hover
             aria-label="Open menu"

@@ -1,10 +1,15 @@
 # PushTen Authority Site
 
+**Last updated:** September 19, 2026
+
 A personal authority website with a built-in content engine: research-backed
 article drafting, quality gating, internal linking, structured data, feeds, a
-double opt-in newsletter, and an admin area to run it all.
+double opt-in newsletter, a configurable Shop, private speaking inquiries, and
+an admin area to run it all.
 
 New here as a PushTen member? Start with **[PUSH_TEN_SETUP.md](./PUSH_TEN_SETUP.md)**.
+For the latest homepage, Shop, and admin changes and their release status, see
+[Authority upgrade](./docs/AUTHORITY_UPGRADE.md).
 
 ---
 
@@ -62,8 +67,10 @@ bunx deno check --no-config supabase/functions/*/index.ts # backend check
 - `presets/member.ts` — a blank starting point with no borrowed proof.
 - `site.ts` — picks the active preset and exposes helpers.
 
-Homepage components read from this config only. There are no names, metrics,
-photos, emails or campaign links hardcoded in components.
+Brand identity, proof, photos, speaking content, and campaign links come from
+this configuration. Product listings come from the offers database, including
+the homepage's optional featured Shop section. Empty member installations do
+not inherit Brian's products or proof.
 
 **Operational settings** — the `site_settings` row in the database, edited in
 Admin > Settings. Drives generation, publishing, feeds and email. See
@@ -103,19 +110,38 @@ database aligned".
 
 **Admin**
 
-- Article, page and media management, live pipeline queue, performance dashboard
+- Business overview with verified counts for published content, confirmed
+  subscribers, Shop listings, fulfilled website orders, and new speaking inquiries
+- Article, page and media management; queue automation controls with explicit
+  disabled, skipped, partial-failure, and error states
+- Searchable navigation with Cmd/Ctrl+K and shortcuts to create articles and offers
 - Offers & funnels: free lead magnets, private downloads, one-time paid offers,
   and explicit timed follow-ups. Build everything before connecting Stripe.
   See [Offers setup](./docs/OFFERS_SETUP.md) for delivery and payment activation.
 - Optional Shop listings group published offers into trainings, resources, tools,
-  and courses, with free/paid filters, search, and featured placements.
+  and courses, with free/paid filters, search, homepage features, and related offers.
+  Listings support website checkout or an external destination with an optional
+  affiliate disclosure.
+- Private speaking inbox with intake controls, status, and notes. See
+  [Speaking inquiries](./docs/SPEAKING_INQUIRIES.md) before enabling intake.
+
+**Public experience**
+
+- Video-led homepage with pause/resume controls, real testimonials, a portrait-led
+  story, and direct paths to the Shop and free event
+- Dedicated `/speaking` page; the homepage keeps a short invitation instead of
+  the full event inquiry form
+- Original typographic product covers when an uploaded cover is absent, and
+  readable offer descriptions supporting headings and bullet lists
 
 ---
 
 ## Deployment
 
-Publish from the Lovable editor, then connect your domain in
-Project Settings > Domains. Because pages are rendered on the server, search
+Edit and test code in the connected GitHub repository, push the reviewed commit,
+verify Lovable has synced that commit, then publish from Lovable. Deploy backend
+functions and apply database migrations separately when a change requires them.
+Connect a new project's domain in Project Settings > Domains. Because pages are rendered on the server, search
 engines and A.I. crawlers get complete HTML from the hosting platform — no proxy
 or extra service is needed.
 
@@ -150,6 +176,12 @@ Lovable instead.
   slower than public pages.
 - Search Console reporting needs its own credentials per project and is off
   until you add them.
+- Paid website checkout remains unavailable until Stripe secrets and its webhook
+  are configured and tested. External checkout uses the destination's setup.
+- External purchases and affiliate commissions are not reported as website
+  orders or revenue; no external purchase attribution is implemented.
+- Speaking inquiries are saved in the admin inbox. They do not trigger email
+  notifications; intake starts disabled on member installations.
 - Legal pages (privacy, terms) are not provided. Nothing is linked until you
   supply real URLs.
 - Production builds fail if the project folder path contains an apostrophe

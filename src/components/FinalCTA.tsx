@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Lock, Mail, Sparkles, ArrowUpRight } from "lucide-react";
-import { useReveal, revealStyle } from "@/hooks/useReveal";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   interpretSubscribeResult,
@@ -13,8 +12,6 @@ const FinalCTA = () => {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<SubscribeUiState>("idle");
   const [message, setMessage] = useState("");
-  const { ref: headerRef, visible: headerVisible } = useReveal();
-  const { ref: formRef, visible: formVisible } = useReveal();
   const newsletter = siteConfig.newsletter;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,182 +62,81 @@ const FinalCTA = () => {
   return (
     <section
       id="contact"
-      className="relative py-16 lg:py-24"
-      style={{ background: "var(--brand-backdrop)" }}
+      className="border-y border-[rgba(var(--brand-accent-rgb),.2)] bg-[linear-gradient(115deg,rgba(var(--brand-accent-rgb),.1),rgba(var(--brand-accent-rgb),.025))] py-16 lg:py-24"
     >
-      <div
-        className="absolute top-0 left-0 w-full h-px"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent 15%, rgba(var(--brand-accent-rgb),0.2) 50%, transparent 85%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, rgba(var(--brand-accent-rgb),0.04), transparent 65%)",
-        }}
-      />
-
-      <div className="relative mx-auto px-6 lg:px-14 max-w-2xl text-center">
-        <div ref={headerRef}>
-          <h2
-            className="font-display mb-5"
-            style={{
-              fontSize: "clamp(2rem, 4.5vw, 3.5rem)",
-              lineHeight: 1.1,
-              color: "#fff",
-              ...revealStyle(headerVisible, 0),
-            }}
-          >
-            {newsletter.headingLead}{" "}
-            <em
-              style={{
-                fontStyle: "italic",
-                background:
-                  "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+      <div className="mx-auto grid max-w-[1440px] items-center gap-9 px-6 lg:grid-cols-2 lg:gap-20 lg:px-14">
+        <header>
+          <p className="mb-5 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">
+            The weekly email
+          </p>
+          <h2 className="font-display text-4xl leading-[1.1] text-white lg:text-5xl">
+            {newsletter.headingLead}
+            <em className="block text-[var(--brand-accent)]">
               {newsletter.headingAccent}
             </em>
           </h2>
-
-          <p
-            className="font-body mb-10"
-            style={{
-              fontSize: "1.1rem",
-              lineHeight: 1.7,
-              color: "rgba(255,255,255,0.85)",
-              ...revealStyle(headerVisible, 0.1),
-            }}
-          >
+          <p className="mt-5 max-w-lg font-body text-base leading-relaxed text-white/70">
             {newsletter.intro}
           </p>
-        </div>
-
-        <div ref={formRef} style={revealStyle(formVisible, 0)}>
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-6"
-          >
-            <label htmlFor="final-cta-email" className="sr-only">
-              Email address
-            </label>
-            <input
-              id="final-cta-email"
-              type="email"
-              required
-              maxLength={255}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="flex-1 min-w-0 font-body outline-none transition-colors duration-300"
-              style={{
-                fontSize: 14,
-                padding: "16px 20px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#fff",
-              }}
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor =
-                  "rgba(var(--brand-accent-rgb),0.4)")
-              }
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")
-              }
-            />
-            <button
-              type="submit"
-              data-hover
-              className="font-body font-bold uppercase shrink-0 transition-opacity duration-300 hover:opacity-90"
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.08em",
-                padding: "16px 32px",
-                background:
-                  "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
-                color: "var(--brand-backdrop)",
-              }}
-              disabled={status === "loading"}
+        </header>
+        <div>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <label
+              htmlFor="final-cta-email"
+              className="block font-body text-sm font-medium text-white/90"
             >
-              {status === "loading" ? "…" : "Get the weekly email"}
-            </button>
+              Your email address
+            </label>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                id="final-cta-email"
+                type="email"
+                autoComplete="email"
+                required
+                maxLength={255}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="min-h-14 min-w-0 flex-1 border border-white/25 bg-black/20 px-4 py-4 font-body text-base text-white outline-offset-4 placeholder:text-white/40 focus:border-[var(--brand-accent)] focus:outline-[var(--brand-accent)]"
+              />
+              <button
+                type="submit"
+                className="inline-flex min-h-14 shrink-0 items-center justify-center gap-3 bg-[var(--brand-accent)] px-6 py-4 font-body text-sm font-bold text-[var(--brand-backdrop)] transition-colors hover:bg-[var(--brand-accent-light)] disabled:opacity-60"
+                disabled={status === "loading"}
+              >
+                {status === "loading" ? "Joining…" : "Get the weekly email"}
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            </div>
           </form>
-
           <p
-            className="font-body mb-4"
             role="status"
             aria-live="polite"
-            style={{
-              fontSize: 13,
-              color: isProblem ? "#ff8080" : "var(--brand-accent)",
-              minHeight: message ? undefined : 0,
-            }}
+            className={`mt-3 font-body text-sm ${isProblem ? "text-red-300" : "text-[var(--brand-accent)]"}`}
           >
             {message}
           </p>
-
-          <div className="flex justify-center gap-6 flex-wrap">
-            {[
-              { icon: Lock, text: "No spam" },
-              { icon: Mail, text: "Weekly" },
-              { icon: Sparkles, text: "Unsubscribe anytime" },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-1.5">
-                <Icon size={13} color="var(--brand-accent)" />
-                <span
-                  className="font-body"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-                >
-                  {text}
-                </span>
-              </div>
-            ))}
-          </div>
-
+          <p className="mt-3 font-body text-xs leading-relaxed text-white/55">
+            {newsletter.privacyNote}
+          </p>
           {newsletter.secondaryCta && (
-            <div className="mt-8">
-              {newsletter.secondaryCtaLabel && (
-                <div
-                  className="inline-block font-body font-semibold uppercase mb-3"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.15em",
-                    color: "rgba(255,255,255,0.7)",
-                    background: "rgba(var(--brand-accent-rgb),0.06)",
-                    border: "1px solid rgba(var(--brand-accent-rgb),0.1)",
-                    padding: "5px 14px",
-                  }}
-                >
-                  {newsletter.secondaryCtaLabel}
-                </div>
-              )}
-              <div>
-                <a
-                  href={newsletter.secondaryCta.href}
-                  target={
-                    newsletter.secondaryCta.external ? "_blank" : undefined
-                  }
-                  rel={
-                    newsletter.secondaryCta.external
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
-                  data-hover
-                  className="inline-flex items-center gap-1.5 font-display italic group"
-                  style={{ fontSize: "1rem", color: "var(--brand-accent)" }}
-                >
-                  {newsletter.secondaryCta.label}
-                  <ArrowUpRight
-                    size={15}
-                    className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                  />
-                </a>
-              </div>
+            <div className="mt-7 border-t border-white/15 pt-5">
+              <p className="mb-2 font-body text-xs text-white/60">
+                {newsletter.secondaryCtaLabel}
+              </p>
+              <a
+                href={newsletter.secondaryCta.href}
+                target={newsletter.secondaryCta.external ? "_blank" : undefined}
+                rel={
+                  newsletter.secondaryCta.external
+                    ? "noopener noreferrer"
+                    : undefined
+                }
+                className="inline-flex min-h-11 items-center gap-2 font-body text-sm font-semibold text-[var(--brand-accent)] underline-offset-4 hover:underline"
+              >
+                {newsletter.secondaryCta.label}
+                <ArrowUpRight size={17} aria-hidden="true" />
+              </a>
             </div>
           )}
         </div>

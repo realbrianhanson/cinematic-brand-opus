@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
+import { offerBodyBlocks } from "@/lib/offerBody";
+import type { ShopOffer } from "@/lib/shop";
+import RelatedOffers from "@/components/RelatedOffers";
 import {
   invokeOfferApi,
   clearOfferAttempt,
@@ -16,7 +19,11 @@ import {
 
 const fieldClass =
   "w-full mt-2 rounded border border-white/25 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]";
-type OfferLandingProps = { offer: PublicOffer; preview?: boolean };
+type OfferLandingProps = {
+  offer: PublicOffer;
+  preview?: boolean;
+  relatedOffers?: ShopOffer[];
+};
 
 export default function OfferLanding(props: OfferLandingProps) {
   return props.offer.checkout_mode === "external" ? (
@@ -26,47 +33,78 @@ export default function OfferLanding(props: OfferLandingProps) {
   );
 }
 
-function OfferDescription({ offer }: { offer: PublicOffer }) {
+function OfferIntro({ offer }: { offer: PublicOffer }) {
   return (
-    <article className="min-w-0 break-words">
+    <header className="min-w-0 break-words lg:col-start-1">
       <p
         className="text-sm uppercase tracking-widest font-bold mb-4"
         style={{ color: "var(--brand-accent)" }}
       >
         {offer.checkout_mode === "external"
-          ? "External offer"
+          ? "Explore the offer"
           : offer.kind === "free"
             ? "Free download"
             : "Digital download"}
       </p>
-      <h1 className="font-display text-4xl md:text-5xl leading-tight">
+      <h1 className="font-display text-4xl md:text-6xl leading-[1.04]">
         {offer.title}
       </h1>
-      <p className="mt-6 text-lg leading-relaxed text-white/85">
+      <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
         {offer.summary}
       </p>
+    </header>
+  );
+}
+
+function OfferDetails({ offer }: { offer: PublicOffer }) {
+  return (
+    <article
+      aria-label="Offer details"
+      className="min-w-0 break-words border-t border-white/15 pt-8 lg:col-start-1 lg:row-start-2"
+    >
       {offer.cover_url && (
         <img
           src={offer.cover_url}
           alt={offer.title}
-          className="mt-8 w-full max-h-[480px] object-contain rounded border border-white/10"
+          className="mb-8 w-full max-h-[480px] object-contain rounded-lg border border-white/10"
         />
       )}
-      <div className="mt-8 space-y-5 text-base leading-relaxed text-white/80">
-        {offer.body
-          .split(/\n\s*\n/)
-          .filter(Boolean)
-          .map((paragraph, i) => (
+      <div className="space-y-5 text-base leading-relaxed text-white/75">
+        {offerBodyBlocks(offer.body).map((block, i) =>
+          block.type === "heading" ? (
+            <h2
+              key={i}
+              className="pt-4 font-display text-3xl leading-tight text-white"
+            >
+              {block.text}
+            </h2>
+          ) : block.type === "list" ? (
+            <ul
+              key={i}
+              className="space-y-3 pl-5 list-disc marker:text-[var(--brand-accent)]"
+            >
+              {block.items.map((item, index) => (
+                <li key={index} className="pl-1">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : (
             <p key={i} className="whitespace-pre-line">
-              {paragraph}
+              {block.text}
             </p>
-          ))}
+          ),
+        )}
       </div>
     </article>
   );
 }
 
-function ExternalOfferLanding({ offer, preview = false }: OfferLandingProps) {
+function ExternalOfferLanding({
+  offer,
+  preview = false,
+  relatedOffers = [],
+}: OfferLandingProps) {
   const destination = offer.funnel_only
     ? null
     : safeExternalOfferUrl(offer.external_url);
@@ -83,9 +121,9 @@ function ExternalOfferLanding({ offer, preview = false }: OfferLandingProps) {
           the page.
         </div>
       )}
-      <div className="grid lg:grid-cols-[1.25fr_0.8fr] gap-10 lg:gap-16 items-start">
-        <OfferDescription offer={offer} />
-        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-lg p-6 md:p-8 lg:sticky lg:top-8">
+      <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start">
+        <OfferIntro offer={offer} />
+        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <ArrowUpRight
             size={25}
             aria-hidden="true"
@@ -95,7 +133,7 @@ function ExternalOfferLanding({ offer, preview = false }: OfferLandingProps) {
           <p className="text-sm leading-relaxed mt-3 text-white/80">
             {offer.kind === "free"
               ? "Continue to the provider’s website for access and availability."
-              : "Review current pricing, payment terms, and access details on the provider’s website."}
+              : "See what’s included, review the current terms, and complete your purchase on the linked website."}
           </p>
           {disclosure && (
             <p className="mt-6 rounded border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-4 text-sm leading-relaxed text-white/90 whitespace-pre-line">
@@ -143,18 +181,30 @@ function ExternalOfferLanding({ offer, preview = false }: OfferLandingProps) {
             </p>
           )}
         </aside>
+        <OfferDetails offer={offer} />
       </div>
+      {!preview && !offer.funnel_only && (
+        <RelatedOffers offers={relatedOffers} />
+      )}
     </OfferShell>
   );
 }
 
-function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
+function NativeOfferLanding({
+  offer,
+  preview = false,
+  relatedOffers = [],
+}: OfferLandingProps) {
+  const [hydrated, setHydrated] = useState(false);
   const [ready, setReady] = useState<boolean | null>(
     offer.kind === "free" ? true : null,
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const tokenRef = useRef<{ identity: string; token: string } | null>(null);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
   useEffect(() => {
     if (preview || offer.kind === "free") return;
     let active = true;
@@ -174,7 +224,7 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
   }, [offer.kind, offer.slug, preview]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || preview || !ready || offer.funnel_only) return;
+    if (!hydrated || busy || preview || !ready || offer.funnel_only) return;
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "")
       .trim()
@@ -225,9 +275,9 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
           create an order.
         </div>
       )}
-      <div className="grid lg:grid-cols-[1.25fr_0.8fr] gap-10 lg:gap-16 items-start">
-        <OfferDescription offer={offer} />
-        <aside className="border border-white/20 bg-white/[0.035] rounded-lg p-6 md:p-8 lg:sticky lg:top-8">
+      <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start">
+        <OfferIntro offer={offer} />
+        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <Download
             size={25}
             aria-hidden="true"
@@ -245,7 +295,7 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
               the link on your download page to continue.
             </p>
           ) : (
-            <form onSubmit={submit} className="mt-6 space-y-4">
+            <form method="post" onSubmit={submit} className="mt-6 space-y-4">
               <label className="block text-sm">
                 Your name <span className="text-white/60">(optional)</span>
                 <input
@@ -253,7 +303,7 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
                   autoComplete="name"
                   maxLength={120}
                   className={fieldClass}
-                  disabled={busy || preview}
+                  disabled={!hydrated || busy || preview}
                 />
               </label>
               <label className="block text-sm">
@@ -265,11 +315,11 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
                   required
                   maxLength={254}
                   className={fieldClass}
-                  disabled={busy || preview}
+                  disabled={!hydrated || busy || preview}
                 />
               </label>
               <button
-                disabled={busy || preview || ready !== true}
+                disabled={!hydrated || busy || preview || ready !== true}
                 className="w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 font-bold text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                 style={{
                   background: "var(--brand-accent)",
@@ -285,6 +335,12 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
                       : `Continue to checkout · ${offerPrice(offer)}`}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
+              <noscript>
+                <p className="text-sm text-white/75">
+                  Enable JavaScript to securely request this resource or start
+                  checkout.
+                </p>
+              </noscript>
               {offer.kind === "paid" && !preview && ready !== true && (
                 <p role="status" className="text-sm text-white/75">
                   {ready === null
@@ -319,7 +375,11 @@ function NativeOfferLanding({ offer, preview = false }: OfferLandingProps) {
             </form>
           )}
         </aside>
+        <OfferDetails offer={offer} />
       </div>
+      {!preview && !offer.funnel_only && (
+        <RelatedOffers offers={relatedOffers} />
+      )}
     </OfferShell>
   );
 }

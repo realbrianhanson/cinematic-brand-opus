@@ -7,7 +7,8 @@ import {
   Plus,
   RefreshCw,
 } from "lucide-react";
-import { Link } from "@/lib/router-compat";
+import { Link, useNavigate } from "@/lib/router-compat";
+import type { AdminOfferView } from "@/lib/adminOfferViews";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeOfferApi, offerPrice, type OfferHealth } from "@/lib/offers";
 import QueryNotice from "./QueryNotice";
@@ -128,8 +129,14 @@ function SetupGuide({
   );
 }
 
-export default function OffersManager() {
-  const [tab, setTab] = useState<"offers" | "orders" | "setup">("offers");
+export default function OffersManager({
+  tab = "offers",
+}: {
+  tab?: AdminOfferView;
+}) {
+  const navigate = useNavigate();
+  const setTab = (next: AdminOfferView) =>
+    navigate(next === "offers" ? "/admin/offers" : `/admin/offers?tab=${next}`);
   const [status, setStatus] = useState("all");
   const [shopFilter, setShopFilter] = useState("all");
   const [orderStatus, setOrderStatus] = useState("all");

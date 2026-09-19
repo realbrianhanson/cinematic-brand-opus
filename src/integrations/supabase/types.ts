@@ -1520,6 +1520,7 @@ export type Database = {
           id: string;
           report_email: string | null;
           report_enabled: boolean | null;
+          speaking_inquiries_enabled: boolean;
           updated_at: string;
           voice_profile: string | null;
         };
@@ -1533,6 +1534,7 @@ export type Database = {
           id?: string;
           report_email?: string | null;
           report_enabled?: boolean | null;
+          speaking_inquiries_enabled?: boolean;
           updated_at?: string;
           voice_profile?: string | null;
         };
@@ -1546,8 +1548,60 @@ export type Database = {
           id?: string;
           report_email?: string | null;
           report_enabled?: boolean | null;
+          speaking_inquiries_enabled?: boolean;
           updated_at?: string;
           voice_profile?: string | null;
+        };
+        Relationships: [];
+      };
+      speaking_inquiries: {
+        Row: {
+          id: string;
+          request_id: string;
+          payload_hash: string;
+          name: string;
+          email: string;
+          event_name: string;
+          event_date: string;
+          event_format: string;
+          audience: string;
+          message: string;
+          status: string;
+          admin_notes: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          payload_hash: string;
+          name: string;
+          email: string;
+          event_name: string;
+          event_date?: string;
+          event_format?: string;
+          audience?: string;
+          message?: string;
+          status?: string;
+          admin_notes?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          request_id?: string;
+          payload_hash?: string;
+          name?: string;
+          email?: string;
+          event_name?: string;
+          event_date?: string;
+          event_format?: string;
+          audience?: string;
+          message?: string;
+          status?: string;
+          admin_notes?: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -1723,6 +1777,20 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      submit_speaking_inquiry: {
+        Args: {
+          _request_id: string;
+          _payload_hash: string;
+          _name: string;
+          _email: string;
+          _event_name: string;
+          _event_date: string;
+          _event_format: string;
+          _audience: string;
+          _message: string;
+        };
+        Returns: boolean;
+      };
       admin_content_breakdown: { Args: never; Returns: Json };
       admin_performance_snapshot: { Args: { days?: number }; Returns: Json };
       admin_read_niches: {
