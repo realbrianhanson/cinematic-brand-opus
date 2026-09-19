@@ -28,6 +28,8 @@ export function brandStyles(brand: BrandTokens): CSSProperties {
     "--brand-accent-light": brand.accentLight,
     "--brand-accent-dark": brand.accentDark,
     "--brand-backdrop": brand.backdrop,
+    // Resolve this alias where the brand is applied; :root cannot see body tokens.
+    "--bg-deep": brand.backdrop,
     "--brand-backdrop-rgb": [1, 3, 5]
       .map((i) => parseInt(brand.backdrop.slice(i, i + 2), 16))
       .join(","),
