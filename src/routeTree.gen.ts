@@ -18,6 +18,7 @@ import { Route as NewsRouteImport } from './routes/news'
 import { Route as OfferAccessRouteImport } from './routes/offer-access'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
+import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -106,6 +107,11 @@ const ResourcesRoute = ResourcesRouteImport.update({
 const RssDotxmlRoute = RssDotxmlRouteImport.update({
   id: '/rss.xml',
   path: '/rss.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopRoute = ShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapRoute = SitemapRouteImport.update({
@@ -343,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/offer-access': typeof OfferAccessRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
+  '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -394,6 +401,7 @@ export interface FileRoutesByTo {
   '/llms.txt': typeof LlmsDottxtRoute
   '/offer-access': typeof OfferAccessRoute
   '/rss.xml': typeof RssDotxmlRoute
+  '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -449,6 +457,7 @@ export interface FileRoutesById {
   '/offer-access': typeof OfferAccessRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
+  '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -506,6 +515,7 @@ export interface FileRouteTypes {
     | '/offer-access'
     | '/resources'
     | '/rss.xml'
+    | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/offer-access'
     | '/rss.xml'
+    | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
@@ -611,6 +622,7 @@ export interface FileRouteTypes {
     | '/offer-access'
     | '/resources'
     | '/rss.xml'
+    | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/admin/categories'
@@ -667,6 +679,7 @@ export interface RootRouteChildren {
   OfferAccessRoute: typeof OfferAccessRoute
   ResourcesRoute: typeof ResourcesRouteWithChildren
   RssDotxmlRoute: typeof RssDotxmlRoute
+  ShopRoute: typeof ShopRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -743,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/rss.xml'
       fullPath: '/rss.xml'
       preLoaderRoute: typeof RssDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shop': {
+      id: '/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof ShopRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap': {
@@ -1175,6 +1195,7 @@ const rootRouteChildren: RootRouteChildren = {
   OfferAccessRoute: OfferAccessRoute,
   ResourcesRoute: ResourcesRouteWithChildren,
   RssDotxmlRoute: RssDotxmlRoute,
+  ShopRoute: ShopRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AdminLoginRoute: AdminLoginRoute,

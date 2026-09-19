@@ -9,6 +9,12 @@ Open **Admin → Growth → Offers & funnels**. Free downloads work without Stri
 3. Choose free or a one-time price in USD, CAD, EUR, GBP, or AUD. Save as a draft and use **Preview** to check the page without creating an order.
 4. Publish when ready and share the `/offers/your-slug` link. Drafts and archived pages are not publicly available.
 
+## Include selected offers in the Shop
+
+The site's **Shop** link opens `/shop`, a searchable catalog for trainings, resources, tools, and courses. In each offer editor, choose a category and enable **Show in Shop** if you want people to find that offer while browsing. **Feature in Shop** moves it ahead of other listings. Free and paid items appear together, with price filters and clear prices. Cards lead to the same offer page and existing opt-in or checkout flow, so its follow-up offers still work.
+
+An offer appears only after it is published and explicitly listed. Existing offers start unlisted. Leave campaign pages unlisted to keep them out of the catalog and Shop sitemaps; their direct links continue to work. This setting does not make a published page private. Funnel-only offers cannot be listed because they require a qualifying earlier offer. Archiving removes a listing without taking downloads away from existing customers.
+
 ## Add an upsell or timed follow-up
 
 Create the follow-up offer first, then select it as the next offer on your initial offer. Enable **Funnel-only** on a follow-up if it should require a valid preceding download or purchase. You may set a time window (30 minutes to 7 days) or leave it without a timer.

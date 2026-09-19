@@ -111,6 +111,9 @@ const row = {
   next_offer_id: null,
   next_offer_window_minutes: 0,
   funnel_only: false,
+  show_in_shop: false,
+  shop_category: "resource",
+  shop_featured: false,
   created_at: "2026-09-19T00:00:00Z",
   updated_at: "2026-09-19T00:00:00Z",
 };
@@ -131,6 +134,111 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("offer editor save and upload safety", () => {
+  it("shows the canonical Shop link only for the saved published listing", async () => {
+    const published = {
+      ...row,
+      status: "published",
+      show_in_shop: true,
+      asset_path: "offer/version.pdf",
+      asset_name: "Guide.pdf",
+    };
+    mock.read.mockResolvedValue({ data: published, error: null });
+    mock.update.mockImplementation(async (values) => ({
+      data: { ...published, ...values, updated_at: "2026-09-19T00:01:00Z" },
+      error: null,
+    }));
+    mount(row.id);
+    expect(
+      (await screen.findByRole("link", { name: "View Shop" })).getAttribute(
+        "href",
+      ),
+    ).toBe("https://example.com/shop");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
+    expect(screen.getByRole("link", { name: "View Shop" })).toBeTruthy();
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    );
+    await screen.findByText(/Offer published/);
+    expect(screen.queryByRole("link", { name: "View Shop" })).toBeNull();
+  });
+  it("persists Shop category and feature settings while keeping an offer in draft", async () => {
+    mock.read.mockResolvedValue({ data: row, error: null });
+    mock.update.mockImplementation(async (values) => ({
+      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
+      error: null,
+    }));
+    mount(row.id);
+    const listed = await screen.findByRole("checkbox", {
+      name: "Show in Shop",
+    });
+    expect((listed as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(listed);
+    fireEvent.change(screen.getByLabelText("Shop category"), {
+      target: { value: "training" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Feature in Shop" }));
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
+    );
+    await screen.findByText("Offer saved.");
+    expect(mock.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        show_in_shop: true,
+        shop_category: "training",
+        shop_featured: true,
+        status: "draft",
+      }),
+    );
+    expect(
+      (screen.getByLabelText("Shop category") as HTMLSelectElement).value,
+    ).toBe("training");
+    expect(screen.queryByRole("link", { name: "View Shop" })).toBeNull();
+  });
+  it("clears and disables Shop placement when an offer becomes follow-up only", async () => {
+    mock.read.mockResolvedValue({
+      data: {
+        ...row,
+        show_in_shop: true,
+        shop_category: "course",
+        shop_featured: true,
+      },
+      error: null,
+    });
+    mock.update.mockImplementation(async (values) => ({
+      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
+      error: null,
+    }));
+    mount(row.id);
+    await screen.findByLabelText("Shop category");
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /Make this offer available only as a follow-up/,
+      }),
+    );
+    const listed = screen.getByRole("checkbox", {
+      name: "Show in Shop",
+    }) as HTMLInputElement;
+    const featured = screen.getByRole("checkbox", {
+      name: "Feature in Shop",
+    }) as HTMLInputElement;
+    expect(listed.checked).toBe(false);
+    expect(listed.disabled).toBe(true);
+    expect(featured.checked).toBe(false);
+    expect(featured.disabled).toBe(true);
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
+    );
+    await screen.findByText("Offer saved.");
+    expect(mock.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        funnel_only: true,
+        show_in_shop: false,
+        shop_featured: false,
+        shop_category: "course",
+        status: "draft",
+      }),
+    );
+  });
   it("reuses its creation id after an uncertain save and recovers an earlier successful insert", async () => {
     mount();
     fireEvent.change(screen.getByLabelText("Title"), {

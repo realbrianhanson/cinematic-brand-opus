@@ -1,6 +1,12 @@
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 export type Offer = Tables<"offers">;
+export const shopCategories = {
+  training: "Training",
+  resource: "Resource",
+  tool: "Tool",
+  course: "Course",
+} as const;
 export type Form = {
   title: string;
   slug: string;
@@ -17,6 +23,9 @@ export type Form = {
   nextOffer: string;
   window: string;
   funnelOnly: boolean;
+  showInShop: boolean;
+  shopCategory: keyof typeof shopCategories;
+  shopFeatured: boolean;
 };
 export const empty: Form = {
   title: "",
@@ -34,6 +43,9 @@ export const empty: Form = {
   nextOffer: "",
   window: "0",
   funnelOnly: false,
+  showInShop: false,
+  shopCategory: "resource",
+  shopFeatured: false,
 };
 export function toForm(offer: Offer): Form {
   return {
@@ -52,6 +64,9 @@ export function toForm(offer: Offer): Form {
     nextOffer: offer.next_offer_id || "",
     window: String(offer.next_offer_window_minutes),
     funnelOnly: offer.funnel_only,
+    showInShop: offer.show_in_shop,
+    shopCategory: offer.shop_category as Form["shopCategory"],
+    shopFeatured: offer.shop_featured,
   };
 }
 export const slugify = (value: string) =>
@@ -66,6 +81,14 @@ export function payload(form: Form): TablesInsert<"offers"> {
   const title = form.title.trim();
   const slug = form.slug.trim();
   if (!title) throw new Error("Add an offer title before saving.");
+  if (!Object.hasOwn(shopCategories, form.shopCategory))
+    throw new Error(
+      "Choose Training, Resource, Tool, or Course for the Shop category.",
+    );
+  if (form.showInShop && form.funnelOnly)
+    throw new Error(
+      "Follow-up-only offers cannot appear in the Shop. Turn off Shop visibility or the follow-up-only setting.",
+    );
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
     throw new Error(
       "Use a URL slug with lowercase letters, numbers, and single hyphens.",
@@ -125,5 +148,8 @@ export function payload(form: Form): TablesInsert<"offers"> {
     next_offer_id: form.nextOffer || null,
     next_offer_window_minutes: form.nextOffer ? window : 0,
     funnel_only: form.funnelOnly,
+    show_in_shop: form.showInShop,
+    shop_category: form.shopCategory,
+    shop_featured: form.shopFeatured,
   };
 }

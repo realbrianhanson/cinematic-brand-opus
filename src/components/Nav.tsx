@@ -132,7 +132,7 @@ const Nav = ({ loaded = true }: NavProps) => {
               </span>
             </div>
             <span
-              className="hidden lg:block font-body font-medium uppercase"
+              className="hidden xl:block font-body font-medium uppercase"
               style={{
                 fontSize: 11,
                 letterSpacing: "0.25em",
@@ -144,19 +144,25 @@ const Nav = ({ loaded = true }: NavProps) => {
           </a>
 
           {/* Desktop right */}
-          <div className="hidden lg:flex items-center gap-8">
-            <div className="flex items-center gap-7">
+          <div className="hidden lg:flex items-center gap-4 xl:gap-8">
+            <div className="flex items-center gap-4 xl:gap-7">
               {navLinks.map((link) =>
                 link.href.startsWith("/") ? (
                   <Link
                     key={link.label}
                     to={link.href}
+                    aria-current={
+                      location.pathname === link.href ? "page" : undefined
+                    }
                     data-hover
                     className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
                     style={{
                       fontSize: 10,
                       letterSpacing: "0.18em",
-                      color: "rgba(255,255,255,0.45)",
+                      color:
+                        location.pathname === link.href
+                          ? brand.accent
+                          : "rgba(255,255,255,0.65)",
                     }}
                   >
                     {link.label}
@@ -271,6 +277,9 @@ const Nav = ({ loaded = true }: NavProps) => {
                   <Link
                     key={link.label}
                     to={link.href}
+                    aria-current={
+                      location.pathname === link.href ? "page" : undefined
+                    }
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center justify-between py-5 font-display italic text-foreground"
                     style={{

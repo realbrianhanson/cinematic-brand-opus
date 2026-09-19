@@ -1,4 +1,8 @@
 import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
+import {
+  loadShopSitemapOffers,
+  SHOP_DISCOVERY_COLUMNS,
+} from "../_shared/shopDiscovery.ts";
 // Dynamic sitemap. A reverse proxy maps /sitemap.xml on the site domain to this
 // function. `type=main` returns ONE complete <urlset> with every published URL —
 // search engines reject cross-host sitemap index entries pointing at supabase.co.
@@ -111,6 +115,30 @@ async function mainEntries(
 
   // Homepage
   entries.push({ loc: `${siteUrl}/`, changefreq: "weekly", priority: "1.0" });
+
+  entries.push({
+    loc: `${siteUrl}/shop`,
+    changefreq: "weekly",
+    priority: "0.8",
+  });
+  const shopOffers = await loadShopSitemapOffers((from, to) =>
+    supabase
+      .from("offers")
+      .select(SHOP_DISCOVERY_COLUMNS)
+      .eq("status", "published")
+      .eq("show_in_shop", true)
+      .eq("funnel_only", false)
+      .order("slug")
+      .range(from, to),
+  );
+  for (const offer of shopOffers) {
+    entries.push({
+      loc: `${siteUrl}/offers/${offer.slug}`,
+      lastmod: isoDate(offer.updated_at),
+      changefreq: "monthly",
+      priority: "0.7",
+    });
+  }
 
   // Blog index + posts
   const { data: posts } = await supabase

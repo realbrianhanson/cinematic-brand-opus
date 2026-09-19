@@ -4,8 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import PageHead from "@/components/PageHead";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { getShopSitemapOffers } from "@/lib/shopSitemap.functions";
 
 const HTMLSitemap = () => {
+  const shop = useQuery({
+    queryKey: ["sitemap-shop-offers"],
+    queryFn: () => getShopSitemapOffers(),
+    staleTime: 60000,
+  });
   const { data: siteSettings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {
@@ -143,8 +149,49 @@ const HTMLSitemap = () => {
                 Resources
               </Link>
             </li>
+            <li>
+              <Link
+                to="/shop"
+                className="font-body hover:text-[var(--brand-accent)] transition-colors"
+                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+              >
+                Shop
+              </Link>
+            </li>
           </ul>
         </section>
+
+        {shop.isError && (
+          <p role="status" className="font-body mb-8 text-white/70">
+            Shop listings could not be loaded.{" "}
+            <button className="underline" onClick={() => void shop.refetch()}>
+              Try again
+            </button>
+          </p>
+        )}
+        {!!shop.data?.length && (
+          <section className="mb-12">
+            <h2
+              className="font-display italic mb-4"
+              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            >
+              Shop offers
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {shop.data.map((offer) => (
+                <li key={offer.slug}>
+                  <Link
+                    to={`/offers/${offer.slug}`}
+                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
+                    style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                  >
+                    {offer.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Pillar guides */}
         {pillarPages && pillarPages.length > 0 && (

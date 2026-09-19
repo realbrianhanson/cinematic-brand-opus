@@ -67,6 +67,7 @@ export const brianPreset: SiteConfig = {
       { label: "Speaking", href: "#speaking" },
     ],
     routeLinks: [
+      { label: "Shop", href: "/shop" },
       { label: "Resources", href: "/resources" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
@@ -313,6 +314,7 @@ export const brianPreset: SiteConfig = {
       { label: "Speaking", href: "#speaking" },
     ],
     routeLinks: [
+      { label: "Shop", href: "/shop" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
       { label: "Resources", href: "/resources" },

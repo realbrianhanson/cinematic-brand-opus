@@ -1042,6 +1042,9 @@ export type Database = {
           kind: string;
           next_offer_id: string | null;
           next_offer_window_minutes: number;
+          shop_category: string;
+          shop_featured: boolean;
+          show_in_shop: boolean;
           slug: string;
           status: string;
           summary: string;
@@ -1062,6 +1065,9 @@ export type Database = {
           kind?: string;
           next_offer_id?: string | null;
           next_offer_window_minutes?: number;
+          shop_category?: string;
+          shop_featured?: boolean;
+          show_in_shop?: boolean;
           slug: string;
           status?: string;
           summary?: string;
@@ -1082,6 +1088,9 @@ export type Database = {
           kind?: string;
           next_offer_id?: string | null;
           next_offer_window_minutes?: number;
+          shop_category?: string;
+          shop_featured?: boolean;
+          show_in_shop?: boolean;
           slug?: string;
           status?: string;
           summary?: string;

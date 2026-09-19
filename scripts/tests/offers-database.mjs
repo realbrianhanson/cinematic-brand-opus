@@ -92,6 +92,25 @@ const paid = await offer({
   next_offer_id: free.id,
   next_offer_window_minutes: 30,
 });
+// Apply the catalog migration over existing offers: no campaign is auto-listed.
+await db.exec(
+  readFileSync(
+    "supabase/migrations/20260919123000_offer_shop_catalog.sql",
+    "utf8",
+  ),
+);
+assert.deepEqual(
+  (
+    await db.query(
+      "SELECT show_in_shop,shop_category,shop_featured FROM offers",
+    )
+  ).rows,
+  Array.from({ length: 3 }, () => ({
+    show_in_shop: false,
+    shop_category: "resource",
+    shop_featured: false,
+  })),
+);
 await db.exec("SET ROLE anon");
 assert.equal(
   (await db.query("SELECT id,title,amount_minor FROM offers")).rows.length,
@@ -101,6 +120,15 @@ await reject("SELECT asset_path FROM offers", [], /permission denied/);
 await reject("SELECT next_offer_id FROM offers", [], /permission denied/);
 await reject("SELECT * FROM offer_orders", [], /permission denied/);
 await reject("SELECT * FROM offer_stripe_events", [], /permission denied/);
+assert.equal(
+  (
+    await db.query(
+      "SELECT show_in_shop,shop_category,shop_featured FROM offers",
+    )
+  ).rows.length,
+  2,
+  "catalog columns are public only on published rows",
+);
 await reject(
   "SELECT offer_reserve_order($1,$2,$3,$4)",
   [free.id, token(), "reader@example.com", ""],
@@ -437,7 +465,107 @@ await reject(
   /permission denied/,
 );
 await reject("SELECT * FROM offer_stripe_events", [], /permission denied/);
+
+// Catalog inclusion and funnel exclusivity remain enforced for all admin saves.
+await reject(
+  "UPDATE offers SET shop_category='subscription' WHERE id=$1",
+  [free.id],
+  /offers_shop_category/,
+);
+await reject(
+  "UPDATE offers SET show_in_shop=true,funnel_only=true WHERE id=$1",
+  [free.id],
+  /offers_shop_excludes_funnel_only/,
+);
+await db.exec("RESET ROLE");
+const hiddenCampaign = await offer({ shop_featured: true });
+const exclusiveUpsell = await offer({ funnel_only: true });
+const draftListed = await offer({ status: "draft", show_in_shop: true });
+const archivedListed = await offer({ status: "archived", show_in_shop: true });
+const listed = [];
+for (const category of ["training", "resource", "tool", "course"]) {
+  listed.push(
+    await offer({
+      show_in_shop: true,
+      shop_category: category,
+      shop_featured: category === "tool",
+    }),
+  );
+}
+assert.deepEqual(
+  await one(
+    "SELECT show_in_shop,shop_category,shop_featured FROM offers WHERE id=$1",
+    [hiddenCampaign.id],
+  ),
+  { show_in_shop: false, shop_category: "resource", shop_featured: true },
+  "featured alone does not opt an offer into the Shop",
+);
+await db.exec(`SET ROLE authenticated;SET test.uid='${admin}'`);
+await reject(
+  "UPDATE offers SET funnel_only=true WHERE id=$1",
+  [listed[0].id],
+  /offers_shop_excludes_funnel_only/,
+);
+await reject(
+  "UPDATE offers SET show_in_shop=true WHERE id=$1",
+  [exclusiveUpsell.id],
+  /offers_shop_excludes_funnel_only/,
+);
+await reject(
+  "UPDATE offers SET funnel_only=true WHERE id=$1",
+  [draftListed.id],
+  /offers_shop_excludes_funnel_only/,
+);
+await db.exec("SET ROLE anon");
+const catalog = (
+  await db.query(
+    "SELECT id,shop_category,shop_featured FROM offers WHERE status='published' AND show_in_shop AND NOT funnel_only ORDER BY shop_featured DESC,updated_at DESC,id",
+  )
+).rows;
+assert.deepEqual(
+  new Set(catalog.map((item) => item.id)),
+  new Set(listed.map((item) => item.id)),
+);
+assert.equal(catalog[0].shop_category, "tool");
+assert.equal(
+  (
+    await db.query(
+      "SELECT id FROM offers WHERE show_in_shop AND shop_category='course' AND NOT funnel_only",
+    )
+  ).rows[0].id,
+  listed[3].id,
+);
+assert.equal(
+  (await db.query("SELECT id FROM offers WHERE id=$1", [hiddenCampaign.id]))
+    .rows.length,
+  1,
+  "unlisted campaigns remain available through their direct published pages",
+);
+assert.equal(
+  (
+    await db.query("SELECT id FROM offers WHERE id IN ($1,$2)", [
+      draftListed.id,
+      archivedListed.id,
+    ])
+  ).rows.length,
+  0,
+);
+await reject(
+  "SELECT asset_path FROM offers WHERE show_in_shop",
+  [],
+  /permission denied/,
+);
+await reject(
+  "SELECT next_offer_id FROM offers WHERE show_in_shop",
+  [],
+  /permission denied/,
+);
+await reject(
+  "UPDATE offers SET show_in_shop=true WHERE id=$1",
+  [hiddenCampaign.id],
+  /permission denied/,
+);
 await db.close();
 console.log(
-  "PASS: offer admin/public isolation, private immutable files, validated publishing, graph/ancestry cycles, immutable fulfillment snapshots, token retries, one-child eligibility, deadlines, checkout races, payment tamper checks, duplicate events, refund revocation, delayed payment recovery, and order retention.",
+  "PASS: offer admin/public isolation, private immutable files, validated publishing, graph/ancestry cycles, immutable fulfillment snapshots, token retries, one-child eligibility, deadlines, checkout races, payment tamper checks, duplicate events, refund revocation, delayed payment recovery, order retention, opt-in Shop categories/filtering, and exclusive-funnel catalog protection.",
 );

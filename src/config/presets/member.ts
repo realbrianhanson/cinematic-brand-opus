@@ -55,6 +55,7 @@ export const memberPreset: SiteConfig = {
   nav: {
     hashLinks: [],
     routeLinks: [
+      { label: "Shop", href: "/shop" },
       { label: "Resources", href: "/resources" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
@@ -135,6 +136,7 @@ export const memberPreset: SiteConfig = {
   footer: {
     hashLinks: [],
     routeLinks: [
+      { label: "Shop", href: "/shop" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
       { label: "Resources", href: "/resources" },

@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  Copy,
-  FileText,
-  Loader2,
-  Upload,
-} from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Upload } from "lucide-react";
 import { Link, useNavigate } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
@@ -20,10 +13,11 @@ import {
   type Offer,
   type Form,
 } from "./offerEditorState";
-import { useSiteConfig } from "@/config/SiteConfigContext";
 import { errorMessage } from "@/lib/errorMessage";
 import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
 import QueryNotice from "./QueryNotice";
+import OfferShopSettings from "./OfferShopSettings";
+import OfferSharePanel from "./OfferSharePanel";
 
 export default function OfferEditor({ id }: { id?: string }) {
   const [reset, setReset] = useState(0);
@@ -84,7 +78,6 @@ function OfferForm({
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const config = useSiteConfig();
   const [form, setForm] = useState<Form>(() =>
     initial ? toForm(initial) : { ...empty },
   );
@@ -97,6 +90,9 @@ function OfferForm({
   const [savedId, setSavedId] = useState(initial?.id || "");
   const [savedSlug, setSavedSlug] = useState(initial?.slug || "");
   const [savedStatus, setSavedStatus] = useState(initial?.status || "draft");
+  const [savedInShop, setSavedInShop] = useState(
+    initial?.show_in_shop || false,
+  );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const busy = useRef(false);
@@ -105,7 +101,6 @@ function OfferForm({
   const [notice, setNotice] = useState("");
   const [manualSlug, setManualSlug] = useState(!!initial);
   const fileRef = useRef<HTMLInputElement>(null);
-  const linkRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== baseline.current;
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
@@ -152,9 +147,6 @@ function OfferForm({
     staleTime: 30000,
     retry: false,
   });
-  const savedLink = savedId
-    ? `${config.identity.siteUrl}/offers/${savedSlug}`
-    : "";
   const qualifyingParents =
     choices.data?.filter(
       (offer) =>
@@ -191,6 +183,7 @@ function OfferForm({
           setSavedId(id);
           setSavedSlug(result.data.slug);
           setSavedStatus(result.data.status);
+          setSavedInShop(result.data.show_in_shop);
           setNotice(
             "Your earlier save was received. Your current edits are still here; review them, then save again if needed.",
           );
@@ -225,6 +218,7 @@ function OfferForm({
       setSavedId(data.id);
       setSavedSlug(data.slug);
       setSavedStatus(data.status);
+      setSavedInShop(data.show_in_shop);
       setNotice(
         data.status === "published"
           ? "Offer published. Existing orders keep the download and price they originally received."
@@ -310,16 +304,6 @@ function OfferForm({
     }
   }
 
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(savedLink);
-      setNotice("Published page link copied.");
-    } catch {
-      linkRef.current?.focus();
-      linkRef.current?.select();
-      setNotice("Select and copy the page link below.");
-    }
-  }
   async function reloadSaved() {
     if (
       busy.current ||
@@ -612,7 +596,15 @@ function OfferForm({
                 type="checkbox"
                 className="mt-1"
                 checked={form.funnelOnly}
-                onChange={(event) => update("funnelOnly", event.target.checked)}
+                onChange={(event) =>
+                  setForm((old) => ({
+                    ...old,
+                    funnelOnly: event.target.checked,
+                    ...(event.target.checked
+                      ? { showInShop: false, shopFeatured: false }
+                      : {}),
+                  }))
+                }
               />
               <span>
                 <strong>Make this offer available only as a follow-up</strong>
@@ -633,6 +625,10 @@ function OfferForm({
           </section>
         </div>
         <aside className="space-y-6 min-w-0">
+          <OfferShopSettings
+            form={form}
+            onChange={(changes) => setForm((old) => ({ ...old, ...changes }))}
+          />
           <section className="admin-card p-5 space-y-5">
             <h2 className="text-lg font-semibold">Price & availability</h2>
             <label className="block text-sm font-medium">
@@ -714,70 +710,15 @@ function OfferForm({
               requires a title, summary, valid slug, and uploaded file.
             </p>
           </section>
-          <section className="admin-card p-5 space-y-4">
-            <h2 className="text-lg font-semibold">Preview & share</h2>
-            {savedId ? (
-              <>
-                <a
-                  className="admin-btn-secondary w-full"
-                  href={`/offers/preview/${savedId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Preview saved version <ArrowUpRight size={15} />
-                </a>
-                {dirty && (
-                  <p className="admin-help">
-                    Save first to include your latest edits in the preview.
-                  </p>
-                )}
-                {savedStatus === "published" ? (
-                  <>
-                    <label className="block text-sm font-medium">
-                      Published page
-                      <input
-                        ref={linkRef}
-                        readOnly
-                        className="admin-input mt-2 w-full"
-                        value={savedLink}
-                        onFocus={(event) => event.currentTarget.select()}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="admin-btn-secondary w-full"
-                      onClick={copyLink}
-                    >
-                      <Copy size={15} /> Copy page link
-                    </button>
-                    <a
-                      className="admin-btn-ghost w-full"
-                      href={savedLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Open published page <ArrowUpRight size={15} />
-                    </a>
-                    {form.funnelOnly && (
-                      <p className="admin-help">
-                        Share the parent offer first. A direct link does not
-                        bypass the follow-up requirement.
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="admin-help">
-                    Publish when ready to get a public share link. Draft
-                    previews require an administrator session.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="admin-help">
-                Save your draft to open a private preview.
-              </p>
-            )}
-          </section>
+          <OfferSharePanel
+            savedId={savedId}
+            savedSlug={savedSlug}
+            savedStatus={savedStatus}
+            savedInShop={savedInShop}
+            dirty={dirty}
+            funnelOnly={form.funnelOnly}
+            onNotice={setNotice}
+          />
         </aside>
       </fieldset>
     </form>

@@ -3,6 +3,10 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { siteConfig } from "@/config/site";
+import {
+  loadShopSitemapOffers,
+  SHOP_DISCOVERY_COLUMNS,
+} from "../../supabase/functions/_shared/shopDiscovery";
 
 export function publicClient() {
   const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -191,7 +195,20 @@ async function loadPublished() {
 
 export async function buildSitemapXml(): Promise<string> {
   const { siteUrl } = await getSiteSettings();
-  const { posts, schemas, pages, pillars } = await loadPublished();
+  const client = publicClient();
+  const [{ posts, schemas, pages, pillars }, shopOffers] = await Promise.all([
+    loadPublished(),
+    loadShopSitemapOffers((from, to) =>
+      client
+        .from("offers")
+        .select(SHOP_DISCOVERY_COLUMNS)
+        .eq("status", "published")
+        .eq("show_in_shop", true)
+        .eq("funnel_only", false)
+        .order("slug")
+        .range(from, to),
+    ),
+  ]);
   const schemaMap = new Map(schemas.map((s) => [s.id, s.slug]));
   const activeSchemaIds = new Set(
     pages.map((p) => p.content_schema_id).filter(Boolean),
@@ -200,7 +217,17 @@ export async function buildSitemapXml(): Promise<string> {
   const entries: UrlEntry[] = [
     { loc: `${siteUrl}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${siteUrl}/blog`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${siteUrl}/shop`, changefreq: "weekly", priority: "0.8" },
   ];
+
+  for (const offer of shopOffers) {
+    entries.push({
+      loc: `${siteUrl}/offers/${offer.slug}`,
+      lastmod: isoDate(offer.updated_at),
+      changefreq: "monthly",
+      priority: "0.7",
+    });
+  }
 
   for (const p of posts) {
     entries.push({

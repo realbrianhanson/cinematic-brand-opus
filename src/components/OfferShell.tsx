@@ -30,6 +30,9 @@ export default function OfferShell({ children }: { children: ReactNode }) {
       <main className="mx-auto max-w-6xl px-6 py-10 lg:py-16">{children}</main>
       <footer className="mx-auto max-w-6xl px-6 py-8 border-t border-white/10 text-sm text-white/70 flex flex-wrap justify-between gap-4">
         <a href="/">{config.identity.name}</a>
+        <a href="/shop" className="underline underline-offset-4">
+          Browse the Shop
+        </a>
         {config.identity.contactEmail && (
           <a href={`mailto:${config.identity.contactEmail}`}>
             Need help? Contact us

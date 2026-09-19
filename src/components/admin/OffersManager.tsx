@@ -11,6 +11,7 @@ import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
 import QueryNotice from "./QueryNotice";
+import { shopCategories } from "./offerEditorState";
 
 const PAGE_SIZE = 25;
 const price = (amount: number, currency: string) =>
@@ -129,6 +130,7 @@ function SetupGuide({
 export default function OffersManager() {
   const [tab, setTab] = useState<"offers" | "orders" | "setup">("offers");
   const [status, setStatus] = useState("all");
+  const [shopFilter, setShopFilter] = useState("all");
   const [orderStatus, setOrderStatus] = useState("all");
   const [orderKind, setOrderKind] = useState("all");
   const [search, setSearch] = useState("");
@@ -143,16 +145,23 @@ export default function OffersManager() {
     return () => clearTimeout(timer);
   }, [search]);
   const offers = useQuery({
-    queryKey: ["admin-offers", status, term, page],
+    queryKey: ["admin-offers", status, shopFilter, term, page],
     enabled: tab === "offers",
     queryFn: async () => {
       let query = supabase
         .from("offers")
         .select(
-          "id,title,slug,summary,status,kind,amount_minor,currency,funnel_only,updated_at",
+          "id,title,slug,summary,status,kind,amount_minor,currency,funnel_only,show_in_shop,shop_category,shop_featured,updated_at",
           { count: "exact" },
         );
       if (status !== "all") query = query.eq("status", status);
+      if (shopFilter === "listed" || shopFilter === "featured")
+        query = query
+          .eq("show_in_shop", true)
+          .eq("status", "published")
+          .eq("funnel_only", false);
+      if (shopFilter === "featured") query = query.eq("shop_featured", true);
+      if (shopFilter === "unlisted") query = query.eq("show_in_shop", false);
       if (term)
         query = query.ilike("title", `%${term.replace(/[\\%_]/g, "\\$&")}%`);
       const { data, count, error } = await query
@@ -291,6 +300,20 @@ export default function OffersManager() {
               <option value="published">Published</option>
               <option value="archived">Archived</option>
             </select>
+            <select
+              className="admin-input"
+              aria-label="Shop visibility"
+              value={shopFilter}
+              onChange={(event) => {
+                setShopFilter(event.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="all">All Shop visibility</option>
+              <option value="listed">In Shop now</option>
+              <option value="featured">Featured in Shop</option>
+              <option value="unlisted">Not listed in Shop</option>
+            </select>
           </div>
           <QueryNotice
             loading={offers.isPending}
@@ -306,7 +329,7 @@ export default function OffersManager() {
           {offers.data?.items.length === 0 && (
             <div className="admin-card p-8 text-center">
               <h2 className="font-semibold text-lg">
-                {term || status !== "all"
+                {term || status !== "all" || shopFilter !== "all"
                   ? "No offers match this view"
                   : "Your first useful offer starts here"}
               </h2>
@@ -341,6 +364,32 @@ export default function OffersManager() {
                     {offer.summary ||
                       "Add a short promise that tells visitors what they will get."}
                   </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="admin-badge">
+                    {shopCategories[
+                      offer.shop_category as keyof typeof shopCategories
+                    ] || "Resource"}
+                  </span>
+                  <span className="admin-badge">
+                    {offer.show_in_shop && !offer.funnel_only
+                      ? offer.status === "published"
+                        ? "In Shop"
+                        : offer.status === "draft"
+                          ? "Shop on publish"
+                          : "Shop hidden · archived"
+                      : "Not listed in Shop"}
+                  </span>
+                  {offer.shop_featured &&
+                    offer.show_in_shop &&
+                    !offer.funnel_only &&
+                    offer.status !== "archived" && (
+                      <span className="admin-badge">
+                        {offer.status === "published"
+                          ? "Featured"
+                          : "Feature on publish"}
+                      </span>
+                    )}
                 </div>
                 <p className="admin-help">
                   {offer.funnel_only
