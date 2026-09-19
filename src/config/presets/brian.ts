@@ -105,6 +105,53 @@ export const brianPreset: SiteConfig = {
     "3,000+ Revven users",
   ],
 
+  // Source documents and excerpt boundaries are recorded in docs/TESTIMONIALS.md.
+  // These belong to Brian's site; member presets must use their own feedback.
+  homepageTestimonials: {
+    overline: "From the Community",
+    heading: "What attendees are taking away.",
+    intro:
+      "Feedback from AI For Business training and events, in attendees' own words.",
+    items: [
+      {
+        quote:
+          "This training has been awesome. I did not know much about AI and I now feel like I at least know where to start. Awesome... Brian!",
+        attribution: "Robin Leal",
+        context: "Summit attendee · January 2026",
+      },
+      {
+        quote:
+          "Your intro to the tools is great Brian… it is so helpful to have the voice over and quick suggestions and examples for possible uses makes them so much more easy to get acquainted with them…",
+        attribution: "James Linton",
+        context: "Summit attendee · April 2026",
+      },
+      {
+        quote:
+          "@BrianHanson built me an Accountability App for Network Marketers that was Absolutely Brilliant... in about 30 mins!",
+        attribution: "Steve Cunningham",
+        context: "App-building feedback · January 2026",
+      },
+      {
+        quote:
+          "I have been working with Claude over a year and I learn something new this morning. Thanks, Brian!",
+        attribution: "Lynda Menge",
+        context: "Summit attendee · July 2026",
+      },
+      {
+        quote:
+          "No longer want to reinvent the wheel. I am able to move faster and still put my spin on things and it is curated.",
+        attribution: "lisa bond",
+        context: "Summit attendee · April 2026",
+      },
+      {
+        quote:
+          "Today's content was beyond my expectations. Fantastic details I haven't gotten in any other presentation.",
+        attribution: "Wendy Kazi",
+        context: "Summit attendee · February 2026",
+      },
+    ],
+  },
+
   story: {
     overline: "The Story",
     headingLead: "Built businesses.",

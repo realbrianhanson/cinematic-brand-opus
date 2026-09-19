@@ -77,6 +77,7 @@ describe("a different member identity actually renders", () => {
     expect(html).toContain("Practical home care guidance");
     expect(html).toContain("--brand-accent:#44AA88");
     expect(html).toContain("var(--brand-accent)");
+    expect(html).not.toContain('id="testimonials"');
     for (const marker of [
       "Brian",
       "Hanson",

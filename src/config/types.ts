@@ -236,6 +236,13 @@ export interface SiteConfig {
   hero: HeroConfig;
   /** Readable proof labels. Empty array hides the proof bar. */
   proofBadges: string[];
+  /** Verified customer or attendee quotes. Omit or leave empty to hide. */
+  homepageTestimonials?: {
+    overline: string;
+    heading: string;
+    intro?: string;
+    items: Array<Testimonial & { context?: string }>;
+  };
   story: StoryConfig;
   expertise: ExpertiseConfig;
   results: ResultStat[];

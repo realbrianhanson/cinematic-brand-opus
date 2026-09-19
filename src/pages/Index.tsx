@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
 import HomeResources from "@/components/HomeResources";
+import HomeTestimonials from "@/components/HomeTestimonials";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
 import { useSiteConfig } from "@/config/SiteConfigContext";
@@ -52,6 +53,7 @@ const Index = () => {
           <Hero loaded />
           {sections.proofBar && <ProofBar />}
           {sections.event && <EventCTA />}
+          <HomeTestimonials />
           {sections.story && (
             <>
               <Story />

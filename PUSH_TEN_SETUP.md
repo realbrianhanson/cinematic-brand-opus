@@ -126,6 +126,7 @@ first public visitor an administrator. Sign in at `/admin/login`.
 
 - [ ] Complete Admin > Site setup and review its preview. Use a source preset only for advanced custom sections.
 - [ ] Check the homepage: nothing should mention anyone but you.
+- [ ] Add only your own testimonials. The optional `homepageTestimonials` block in your preset accepts a quote, attribution, and context for each item; leave it absent or empty until you have real feedback. Brian's six homepage testimonials are excluded from the member preset. See [testimonial setup](docs/TESTIMONIALS.md).
 
 **E. Email**
 
