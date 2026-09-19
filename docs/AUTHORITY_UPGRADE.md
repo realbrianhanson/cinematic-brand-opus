@@ -1,7 +1,7 @@
 # Authority, Shop, and admin upgrade
 
 **Last updated:** September 19, 2026
-**Release status:** Implementation and local verification complete; live publishing and final production verification are pending. Do not treat this document as proof of deployment.
+**Release status:** Published and verified. The full 351-page recrawl and release CI passed; release receipts and measured checks are recorded in [AUDIT.md](../AUDIT.md).
 
 ## Visitor experience
 
@@ -46,6 +46,12 @@ Mobbin references informed the hierarchy and interaction patterns. The implement
 
 ## Verification record
 
-The release integrator reports all 322 unit/component tests passing, successful TypeScript and Deno checks, a production build, and all nine isolated database suites passing. ESLint reports zero errors and 290 existing warnings; the dependency audit reports zero advisories. The speaking-inquiry migration has been applied and its database state verified; intake remains paused pending backend deployment and release verification.
+All **329 tests across 51 files** pass, along with TypeScript, Deno checks, formatting, the production build, and all nine isolated database suites. The final [release CI](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35431065671) passed every step. ESLint reports zero errors and 290 existing warnings; the dependency audit reports zero advisories. Fourteen isolated admin journeys passed. Read-only browser checks covered the live homepage, Shop, speaking page, and authenticated admin at desktop and phone widths, including 1440, 390, and 320 pixels.
 
-Production verification is still pending at this handoff. Record the final commit, Lovable deployment, migration/function activation, and read-only desktop/mobile checks in [AUDIT.md](../AUDIT.md) before marking the release complete. No fabricated live inquiries, orders, subscriptions, payments, or outbound emails are needed for these checks. Automated checks demonstrate the tested behavior; they do not guarantee search rankings, conversions, or revenue.
+The speaking-inquiry migration and function are deployed, and Brian's intake is enabled. Production readback found zero inquiries and zero orders; QA did not create either. The member bootstrap protects inquiry records and leaves member intake disabled.
+
+A crawl of 351 public pages exposed three issues: a resource-category parameter causing a 500 response, missing server-rendered HTML sitemap metadata, and a duplicate legacy article heading. Follow-up commit `7dd07074dd5f444a83592b91261e035c9cd1bc26` fixes these paths and adds regressions. Release source `529cab4a79dae02caf8b63b4a2ac29ea1da95c0b` includes those fixes and normalized generated types; frontend deployment `8fb599cc-64bf-4245-b88b-02856958139e` is verified by the live custom-domain GET response header. Its deployed crawler returns the checked article successfully with the correct title and exactly one H1. The confirming published recrawl passed **351 of 351 pages**, with no recorded failures or duplicate page titles.
+
+The final-deployment Shop browser rerun passed at 390px and 1440px with both real products, search/filter behavior, and outbound destinations checked. It recorded zero page errors and zero order API calls.
+
+See [AUDIT.md](../AUDIT.md) for deployment receipts and final release status. No fabricated live inquiries, orders, subscriptions, payments, or outbound emails were created for these checks. Automated checks demonstrate the tested behavior; they do not guarantee search rankings, conversions, or revenue.

@@ -117,3 +117,33 @@ Owner-authorized homepage refresh, retaining `/videos/hero-bg.mp4` and its exist
 Moved the free event before the condensed three-part story, added concrete workflow examples and three configured guide links, improved small-text contrast, and reduced section/divider spacing. Preserved the speaking portrait and added on-demand playback of the existing event video. The inquiry form creates an explicitly unsent email draft addressed to the configured recipient, with a copy fallback; it does not create a new delivery service or claim to send messages. External member booking links remain supported. Featured resources are optional and absent from the neutral member preset.
 
 Code and security review covered the new inquiry path. Fixed review findings in navigation configuration and encoded email-recipient handling. Validation includes the full application suite, five focused inquiry regressions, member rendering, TypeScript, lint, formatting, production build, and actual server-rendered homepage content/order. Browser review checked desktop and phone layout, retained video, both hero actions, and speaking navigation. No production email or subscription was sent for QA. Deployment evidence is captured in the task's final release checks.
+
+## September 19 authority, Shop, and admin upgrade
+
+### Delivered behavior
+
+- Preserved Brian's `/videos/hero-bg.mp4` hero video, added pause/resume controls, strengthened product and event paths, and removed the blocking intro, custom cursor, and animated film-grain canvas from the homepage composition. Real testimonials and a portrait-led story provide the proof; no reference-site metrics or testimonials were copied.
+- Added featured homepage Shop listings, consistent product cards with original fallback artwork, clearer offer-page actions, safe plain-text heading/bullet formatting, and related public offers. Owner product copy remains separate from member defaults. Native checkout, external destinations, and affiliate disclosures remain distinct.
+- Moved the full speaking form to `/speaking` and added a private admin inquiry inbox. The new bounded, rate-limited submission endpoint stores inquiries with retry protection; only administrators can read them or change status/notes. Intake defaults off for member installations. Brian's intake is now enabled after migration and function deployment. No automatic inquiry email is sent.
+- Reworked the admin overview around exact content, subscriber, Shop, order, and inquiry counts; added attention links, grouped navigation, Cmd/Ctrl+K commands, and article/offer creation shortcuts. Offer tabs retain their state in the URL. Queue controls report saved automation state and distinguish skipped work, partial failures, and actual publication success.
+- The final crawl follow-up also protects copied inquiry records in member bootstrap checks. See [Authority upgrade](./docs/AUTHORITY_UPGRADE.md), [Speaking inquiries](./docs/SPEAKING_INQUIRIES.md), and [Offers setup](./docs/OFFERS_SETUP.md) for operation and limitations. Canonical Mobbin design references are recorded in the authority guide.
+
+### Verification and crawl findings
+
+- **329 tests in 51 files pass**, with TypeScript, formatting, production build, changed-backend Deno checks, and all **nine isolated database suites** passing.
+- ESLint reports **zero errors and 290 existing warnings**. The dependency audit reports **zero advisories**; lint rules were not relaxed.
+- **Fourteen isolated admin journeys** pass. Read-only live checks covered the homepage, Shop, speaking page, and authenticated admin across 1440px desktop and 390px/320px phone layouts.
+- A **351-page public crawl** found three defects: a resource-category route using the wrong parameter and returning 500, missing server-rendered metadata on the HTML sitemap, and a duplicate legacy article H1. Follow-up source `7dd07074dd5f444a83592b91261e035c9cd1bc26` corrects these paths and adds regressions. The confirming published recrawl passed **351 of 351 pages** at `2026-09-19T08:07:43.767Z`, with `failures: []` and `duplicateTitles: []`, on release `529cab4` (`/tmp/authority-live-crawl-report.json`).
+- The final-deployment Shop browser rerun passed at 390px and 1440px for both real products, search/filter behavior, and exact outbound destinations. It recorded **zero page errors and zero order API calls** (`/tmp/external-shop-production-qa-report.json`).
+- Production readback verified the inquiry migration, deployed intake, and Brian-only activation. The database contained **zero inquiries and zero orders** at that check. No production test inquiries, leads, subscribers, orders, payments, or outbound emails were created.
+
+### Publication evidence
+
+- The initial authority frontend, source `e1895e7`, is live on deployment `a75247b7-7b11-4912-acac-0a356eeb837c`.
+- The speaking migration was applied and the submission function deployed before enabling Brian's intake. The narrowly scoped backend deployment used **0.4 Lovable credits**.
+- Follow-up source `7dd07074dd5f444a83592b91261e035c9cd1bc26` is pushed. Its `render-page` crawler function is deployed: operation `umsg_01m2wayrk1epbtekpx8je9ex5j` reports a completed nested deployment, with receipt `43b777fedac1118f64215379f1e17cfeb233ca72`. This deployment-only operation used **0.8 credits**, bringing this upgrade's backend deployment total to **1.2 credits**.
+- Final release source `529cab4a79dae02caf8b63b4a2ac29ea1da95c0b` contains the follow-up fixes and normalized Lovable-generated database types. Frontend deployment `8fb599cc-64bf-4245-b88b-02856958139e` is verified by the live custom-domain GET response header.
+- A direct GET to the deployed `render-page` function for `/blog/rank-higher-in-2026-ai-seo-for-small-businesses` returns 200, the proper article title, and exactly one H1.
+- Final [release CI](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35431065671) **passed every step**, including TypeScript, formatting, lint, 329 application tests, nine database suites, Deno checks, and the production build. The confirming 351-page live recrawl also passed. This release is published and the checks recorded above are complete.
+
+Stripe keys intentionally remain unconfigured, so paid native checkout remains unavailable. External purchases and affiliate commissions are not included in website order counts. Inquiry notifications are manual through the private inbox. These measured checks do not establish guaranteed rankings, conversions, revenue, or freedom from every possible future defect.
