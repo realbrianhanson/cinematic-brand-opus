@@ -139,7 +139,7 @@ Code and security review covered the new inquiry path. Fixed review findings in 
 
 ### Publication evidence
 
-- The initial authority frontend, source `e1895e7`, is live on deployment `a75247b7-7b11-4912-acac-0a356eeb837c`.
+- The initial authority frontend, source `e1895e7`, was published on deployment `a75247b7-7b11-4912-acac-0a356eeb837c`, superseded by the final deployment below.
 - The speaking migration was applied and the submission function deployed before enabling Brian's intake. The narrowly scoped backend deployment used **0.4 Lovable credits**.
 - Follow-up source `7dd07074dd5f444a83592b91261e035c9cd1bc26` is pushed. Its `render-page` crawler function is deployed: operation `umsg_01m2wayrk1epbtekpx8je9ex5j` reports a completed nested deployment, with receipt `43b777fedac1118f64215379f1e17cfeb233ca72`. This deployment-only operation used **0.8 credits**, bringing this upgrade's backend deployment total to **1.2 credits**.
 - Final release source `529cab4a79dae02caf8b63b4a2ac29ea1da95c0b` contains the follow-up fixes and normalized Lovable-generated database types. Frontend deployment `8fb599cc-64bf-4245-b88b-02856958139e` is verified by the live custom-domain GET response header.
