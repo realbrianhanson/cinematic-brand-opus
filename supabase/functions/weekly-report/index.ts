@@ -85,12 +85,6 @@ Deno.serve(async (req) => {
       limit_count: 5,
     });
 
-    const { count: ctaClicks } = await supabase
-      .from("cta_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event_type", "click")
-      .gte("created_at", weekAgo);
-
     const { count: refreshNeeded } = await supabase
       .from("generated_pages")
       .select("id", { count: "exact", head: true })
@@ -118,11 +112,8 @@ Deno.serve(async (req) => {
           <div style="font-size: 24px; font-weight: 700; color: #0a0a0a;">${vt}</div>
           <div style="font-size: 11px; color: #666; margin-top: 4px;">Views (${changePercent}%)</div>
         </div>
-        <div style="flex: 1; background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
-          <div style="font-size: 24px; font-weight: 700; color: #0a0a0a;">${ctaClicks ?? 0}</div>
-          <div style="font-size: 11px; color: #666; margin-top: 4px;">CTA Clicks</div>
-        </div>
       </div>
+      <p style="font-size: 13px; line-height: 1.6; color: #555; margin: 0 0 24px;">For current offer views, outbound clicks, and confirmed native outcomes, open <strong>Admin → Conversions</strong>. Its visit-based rates cover visitors who allow measurement. Legacy offer-click collection ended September 19, 2026, so this report no longer presents those records as current weekly clicks.</p>
       <h3 style="font-size: 14px; font-weight: 600; color: #0a0a0a; margin: 0 0 12px;">Top Pages</h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         ${(topPages ?? [])
@@ -187,7 +178,6 @@ Deno.serve(async (req) => {
           viewsThisWeek: vt,
           viewsLastWeek: vl,
           changePercent,
-          ctaClicks,
           refreshNeeded,
         },
       }),

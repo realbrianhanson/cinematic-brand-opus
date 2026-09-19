@@ -127,6 +127,8 @@ const FinalCTA = () => {
               </p>
               <a
                 href={newsletter.secondaryCta.href}
+                data-conversion-destination="summit"
+                data-conversion-placement="footer"
                 target={newsletter.secondaryCta.external ? "_blank" : undefined}
                 rel={
                   newsletter.secondaryCta.external

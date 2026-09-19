@@ -374,3 +374,361 @@
     transition: none;
   }
 }
+
+/* First-party conversion reporting. All measurements stay inside the workspace. */
+.admin-shell .admin-conversions,
+.admin-shell .admin-conversion-section,
+.admin-shell .admin-conversion-overview {
+  min-width: 0;
+}
+.admin-shell .admin-conversion-toolbar,
+.admin-shell .admin-conversion-report-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.admin-shell .admin-conversion-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 10px;
+}
+.admin-shell .admin-conversion-ranges a {
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-decoration: none;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-conversion-ranges a.is-active {
+  background: hsl(var(--admin-accent) / 0.14);
+  color: hsl(var(--admin-text));
+  box-shadow: inset 0 0 0 1px hsl(var(--admin-accent) / 0.35);
+}
+.admin-shell .admin-conversion-ranges a:focus-visible,
+.admin-shell .admin-conversion-table-wrap:focus-visible,
+.admin-shell .admin-conversion-details summary:focus-visible {
+  outline: 2px solid hsl(var(--admin-accent));
+  outline-offset: 3px;
+}
+.admin-shell .admin-conversion-report-time {
+  font-size: 11px;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-conversion-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.admin-shell .admin-conversion-metric {
+  padding: 23px;
+  min-width: 0;
+}
+.admin-shell .admin-conversion-metric > span {
+  font-size: 12px;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-conversion-metric > strong {
+  display: block;
+  font-size: clamp(29px, 3vw, 42px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+  margin: 17px 0 12px;
+}
+.admin-shell .admin-conversion-metric > p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-conversion-start {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 25px;
+  background:
+    linear-gradient(120deg, hsl(var(--admin-accent) / 0.08), transparent),
+    hsl(var(--admin-surface));
+}
+.admin-shell .admin-conversion-start > svg {
+  flex: none;
+  color: hsl(var(--admin-accent));
+}
+.admin-shell .admin-conversion-start h2,
+.admin-shell .admin-conversion-section h2,
+.admin-shell .admin-conversion-overview h2 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.admin-shell .admin-conversion-start p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: hsl(var(--admin-text-soft));
+  margin: 10px 0;
+}
+.admin-shell .admin-conversion-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.admin-shell .admin-conversion-section > div:first-child > .admin-help {
+  margin-top: 7px;
+}
+.admin-shell .admin-conversion-section > * {
+  min-width: 0;
+}
+.admin-shell .admin-conversion-journey {
+  display: grid;
+  gap: 19px;
+}
+.admin-shell .admin-conversion-journey-row > div:first-child {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.admin-shell .admin-conversion-journey-row strong {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.admin-shell .admin-conversion-journey-row small {
+  color: hsl(var(--admin-text-soft));
+  font-weight: 400;
+  margin-left: 7px;
+}
+.admin-shell .admin-conversion-meter {
+  height: 5px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: hsl(var(--admin-border));
+  margin-top: 8px;
+}
+.admin-shell .admin-conversion-meter > span {
+  display: block;
+  height: 100%;
+  background: hsl(var(--admin-accent));
+  border-radius: inherit;
+}
+.admin-shell .admin-conversion-chart {
+  height: 180px;
+  display: flex;
+  gap: 12px;
+}
+.admin-shell .admin-conversion-chart-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: hsl(var(--admin-text-soft));
+  font-size: 10px;
+}
+.admin-shell .admin-conversion-bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 3px;
+  border-bottom: 1px solid hsl(var(--admin-border));
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent calc(25% - 1px),
+    hsl(var(--admin-border) / 0.6) calc(25% - 1px),
+    hsl(var(--admin-border) / 0.6) 25%
+  );
+}
+.admin-shell .admin-conversion-bar-column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: center;
+}
+.admin-shell .admin-conversion-bar-column > div {
+  width: 100%;
+  max-width: 28px;
+  background: hsl(var(--admin-accent));
+  border-radius: 3px 3px 0 0;
+}
+.admin-shell .admin-conversion-chart-dates {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: hsl(var(--admin-text-soft));
+  font-size: 10px;
+  margin-top: -8px;
+}
+.admin-shell .admin-conversion-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid hsl(var(--admin-border));
+  border-radius: 8px;
+}
+.admin-shell .admin-conversion-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+.admin-shell .admin-conversion-table th,
+.admin-shell .admin-conversion-table td {
+  padding: 14px 15px;
+  vertical-align: top;
+  line-height: 1.5;
+  border-bottom: 1px solid hsl(var(--admin-border));
+}
+.admin-shell .admin-conversion-table thead th {
+  font-weight: 500;
+  color: hsl(var(--admin-text-soft));
+  white-space: nowrap;
+  background: hsl(var(--admin-bg));
+}
+.admin-shell .admin-conversion-table tbody th {
+  font-weight: 500;
+  min-width: 150px;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.admin-shell .admin-conversion-table td {
+  min-width: 90px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-shell .admin-conversion-table small {
+  display: block;
+  color: hsl(var(--admin-text-soft));
+  font-size: 10px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+.admin-shell .admin-conversion-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.admin-shell .admin-conversion-table a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.admin-shell .admin-conversion-empty {
+  padding: 24px;
+  font-size: 13px;
+  color: hsl(var(--admin-text-soft));
+  line-height: 1.7;
+  border: 1px dashed hsl(var(--admin-border));
+  border-radius: 8px;
+}
+.admin-shell .admin-conversion-native-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  padding: 20px 0;
+  border-block: 1px solid hsl(var(--admin-border));
+}
+.admin-shell .admin-conversion-native-grid strong {
+  display: block;
+  font-size: 29px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 7px;
+}
+.admin-shell .admin-conversion-native-grid span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: hsl(var(--admin-text-soft));
+}
+.admin-shell .admin-conversion-revenue h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.admin-shell .admin-conversion-revenue ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 25px;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.admin-shell .admin-conversion-details {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+.admin-shell .admin-conversion-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.admin-shell .admin-conversion-details[open] > * + * {
+  margin-top: 18px;
+}
+.admin-shell .admin-conversion-methodology {
+  display: grid;
+  gap: 12px;
+  color: hsl(var(--admin-text-soft));
+  font-size: 12px;
+  line-height: 1.8;
+}
+.admin-shell .admin-conversion-overview-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.admin-shell .admin-conversion-overview-counts strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.admin-shell .admin-conversion-overview-counts span {
+  font-size: 11px;
+  color: hsl(var(--admin-text-soft));
+  line-height: 1.6;
+}
+@media (max-width: 1100px) {
+  .admin-shell .admin-conversion-metrics,
+  .admin-shell .admin-conversion-native-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-shell .admin-conversion-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .admin-shell .admin-conversion-metrics {
+    gap: 10px;
+  }
+  .admin-shell .admin-conversion-metric {
+    padding: 16px;
+  }
+  .admin-shell .admin-conversion-ranges a {
+    font-size: 11px;
+    padding: 9px 10px;
+  }
+  .admin-shell .admin-conversion-start {
+    flex-direction: column;
+    padding: 20px;
+  }
+  .admin-shell .admin-conversion-overview-counts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .admin-shell .admin-conversion-overview-counts p {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .admin-shell .admin-conversion-bars {
+    gap: 1px;
+  }
+}

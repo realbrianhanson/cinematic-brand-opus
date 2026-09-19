@@ -114,6 +114,8 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
           {hero.primaryCta && (
             <a
               href={hero.primaryCta.href}
+              data-conversion-destination="summit"
+              data-conversion-placement="hero"
               target={hero.primaryCta.external ? "_blank" : undefined}
               rel={hero.primaryCta.external ? "noopener noreferrer" : undefined}
               className="group inline-flex min-h-14 items-center justify-center gap-4 bg-[var(--brand-accent)] px-7 py-4 font-body text-sm font-bold text-[var(--brand-backdrop)] transition-colors hover:bg-[var(--brand-accent-light)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"

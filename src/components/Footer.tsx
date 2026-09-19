@@ -1,3 +1,4 @@
+import { MeasurementPreferencesButton } from "@/components/PublicMeasurement";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import WidgetRenderer from "@/components/WidgetRenderer";
 import { copyrightLine } from "@/config/site";
@@ -200,6 +201,7 @@ const Footer = () => {
           >
             {copyrightLine(siteConfig)}
           </span>
+          <MeasurementPreferencesButton />
           {legalLinks.length > 0 && (
             <div className="flex flex-wrap justify-center gap-6">
               {legalLinks.map((l) => (

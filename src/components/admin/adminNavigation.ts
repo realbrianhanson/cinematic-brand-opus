@@ -16,6 +16,7 @@ import {
   Tags,
   PanelsTopLeft,
   Mic,
+  MousePointerClick,
 } from "lucide-react";
 export const adminNavigation = [
   {
@@ -28,6 +29,11 @@ export const adminNavigation = [
   {
     label: "Business",
     items: [
+      {
+        to: "/admin/conversions",
+        label: "Conversions",
+        icon: MousePointerClick,
+      },
       { to: "/admin/offers", label: "Offers & shop", icon: ShoppingBag },
       { to: "/admin/inquiries", label: "Speaking inquiries", icon: Mic },
       {

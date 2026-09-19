@@ -1,0 +1,160 @@
+import { queryOptions } from "@tanstack/react-query";
+import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+
+export type ConversionDays = 7 | 30 | 90;
+export function conversionSearch(raw: Record<string, unknown>): {
+  days: ConversionDays;
+} {
+  return {
+    days:
+      raw.days === 7 || raw.days === "7"
+        ? 7
+        : raw.days === 90 || raw.days === "90"
+          ? 90
+          : 30,
+  };
+}
+
+const count = z.number().int().nonnegative();
+const outcomes = {
+  outbound_sessions: count,
+  free_claim_sessions: count,
+  paid_order_sessions: count,
+};
+export const conversionReportSchema = z.object({
+  generated_at: z.string().datetime({ offset: true }),
+  measurement_started_at: z.string().datetime({ offset: true }),
+  range: z.object({
+    start: z.string(),
+    end: z.string(),
+    timezone: z.literal("UTC"),
+  }),
+  summary: z.object({
+    measured_sessions: count,
+    page_views: count,
+    shop_sessions: count,
+    offer_sessions: count,
+    outbound_sessions: count,
+    attributed_free_claim_sessions: count,
+    attributed_paid_order_sessions: count,
+  }),
+  native_totals: z.object({
+    free_claims: count,
+    paid_orders: count,
+    test_paid_orders: count,
+    unknown_mode_paid_orders: count,
+    refunded_orders: count,
+    download_links_issued: count,
+    revenue_by_currency: z.array(
+      z.object({
+        currency: z.string().regex(/^[a-zA-Z]{3}$/),
+        amount_minor: count,
+      }),
+    ),
+  }),
+  coverage: z.object({
+    session_retention_days: count,
+    unattributed_free_claims: count,
+    unattributed_paid_orders: count,
+  }),
+  daily: z.array(z.object({ date: z.string(), sessions: count, ...outcomes })),
+  sources: z.array(
+    z.object({
+      source: z.string(),
+      medium: z.string(),
+      campaign: z.string().nullable(),
+      sessions: count,
+      shop_sessions: count,
+      offer_sessions: count,
+      ...outcomes,
+      free_claims: count,
+      paid_orders: count,
+    }),
+  ),
+  offers: z.array(
+    z.object({
+      offer_id: z.string().uuid(),
+      title: z.string(),
+      slug: z.string(),
+      checkout_mode: z.enum(["native", "external"]),
+      view_sessions: count,
+      ...outcomes,
+      free_claims: count,
+      paid_orders: count,
+    }),
+  ),
+  placements: z.array(
+    z.object({
+      placement: z.string(),
+      destination: z.string(),
+      clicks: count,
+      sessions: count,
+    }),
+  ),
+});
+export type ConversionReport = z.infer<typeof conversionReportSchema>;
+
+// The generated database types are updated after the additive migration deploys.
+type ConversionRpc = {
+  rpc(
+    name: "admin_conversion_snapshot",
+    args: { _days: ConversionDays },
+  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+};
+export async function loadConversionReport(
+  days: ConversionDays,
+): Promise<ConversionReport> {
+  const { data, error } = await (supabase as unknown as ConversionRpc).rpc(
+    "admin_conversion_snapshot",
+    { _days: days },
+  );
+  if (error) throw new Error(error.message);
+  return conversionReportSchema.parse(data);
+}
+export function conversionQueryOptions(days: ConversionDays) {
+  return queryOptions({
+    queryKey: ["admin-conversions", days],
+    queryFn: () => loadConversionReport(days),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function conversionRate(outcomes: number, sessions: number): string {
+  if (
+    !Number.isFinite(outcomes) ||
+    !Number.isFinite(sessions) ||
+    sessions <= 0 ||
+    outcomes < 0 ||
+    outcomes > sessions
+  )
+    return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(outcomes / sessions);
+}
+export function conversionMoney(amountMinor: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    currencyDisplay: "code",
+  }).format(amountMinor / 100);
+}
+export function conversionDate(date: string, withTime = false): string {
+  const parsed = new Date(date);
+  if (!Number.isFinite(parsed.getTime())) return "Unavailable";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    ...(withTime ? ({ hour: "numeric", minute: "2-digit" } as const) : {}),
+  }).format(parsed);
+}
+export function conversionLabel(value: string): string {
+  return value
+    .replace(/[_-]/g, " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}

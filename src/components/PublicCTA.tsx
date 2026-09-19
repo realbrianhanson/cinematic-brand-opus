@@ -19,8 +19,6 @@ const PublicCTA = ({
   nicheSlug,
   contentTypeSlug,
   nicheName,
-  pageId,
-  pageType,
 }: PublicCTAProps) => {
   const siteConfig = useSiteConfig();
   const { data: settings } = useQuery({
@@ -71,20 +69,6 @@ const PublicCTA = ({
     }
   }, [settings?.cta_url, nicheSlug, contentTypeSlug]);
 
-  const logClick = () => {
-    supabase
-      .from("cta_events")
-      .insert({
-        page_id: pageId || null,
-        page_type: pageType || null,
-        cta_variant: variant,
-        event_type: "click",
-        niche_slug: nicheSlug || null,
-        content_type_slug: contentTypeSlug || null,
-      })
-      .then(() => {});
-  };
-
   if (!settings?.cta_url) return null;
 
   const subtext =
@@ -130,9 +114,10 @@ const PublicCTA = ({
         </div>
         <a
           href={href}
+          data-conversion-destination="external_resource"
+          data-conversion-placement="resource"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={logClick}
           className="font-body uppercase shrink-0 inline-flex items-center gap-2 px-6 py-3 transition-all duration-200"
           style={{
             fontSize: 11,
@@ -180,9 +165,10 @@ const PublicCTA = ({
         <div className="flex items-center gap-3 shrink-0">
           <a
             href={href}
+            data-conversion-destination="external_resource"
+            data-conversion-placement="resource"
             target="_blank"
             rel="noopener noreferrer"
-            onClick={logClick}
             className="font-body uppercase px-4 py-1.5 transition-all"
             style={{
               fontSize: 10,
@@ -250,9 +236,10 @@ const PublicCTA = ({
       )}
       <a
         href={href}
+        data-conversion-destination="external_resource"
+        data-conversion-placement="resource"
         target="_blank"
         rel="noopener noreferrer"
-        onClick={logClick}
         className="font-body uppercase inline-flex items-center gap-2 px-8 py-4 transition-all duration-200"
         style={{
           fontSize: 12,

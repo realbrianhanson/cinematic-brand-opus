@@ -1,3 +1,4 @@
+import PublicMeasurement from "@/components/PublicMeasurement";
 import { brandStyles } from "@/config/brandStyles";
 import {
   createRootRouteWithContext,
@@ -139,6 +140,7 @@ function RootComponent() {
               <Toaster />
               <Sonner />
               <Outlet />
+              <PublicMeasurement />
             </TooltipProvider>
           </AriaLiveAnnouncer>
         </AuthProvider>

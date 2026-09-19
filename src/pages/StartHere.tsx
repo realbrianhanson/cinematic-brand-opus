@@ -96,6 +96,10 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
             <p className="mt-4 flex-1 text-white/75">{description}</p>
             <a
               href={href}
+              data-conversion-destination={
+                href === event?.href ? "summit" : undefined
+              }
+              data-conversion-placement="event"
               className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-accent)] underline underline-offset-4"
             >
               {label}

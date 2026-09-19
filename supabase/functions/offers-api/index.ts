@@ -1,5 +1,9 @@
 import { readBoundedJson } from "../_shared/boundedJson.ts";
 import {
+  bindOrderMeasurement,
+  recordDownloadMeasurement,
+} from "../_shared/conversionOrders.ts";
+import {
   backgroundOfferDelivery,
   deliverOfferAccess,
   offerDeliveryState,
@@ -290,6 +294,14 @@ Deno.serve(async (req) => {
           });
           if (error) throw offerDatabaseError(error);
           reservedOrder = data as OfferOrder;
+          await bindOrderMeasurement(admin, {
+            request: req,
+            measurement: body.measurement,
+            origin,
+            anonKey: Deno.env.get("SUPABASE_ANON_KEY"),
+            orderId: reservedOrder.id,
+            paymentMode: readiness.mode,
+          });
           return reservedOrder;
         },
         provider: {
@@ -390,6 +402,7 @@ Deno.serve(async (req) => {
           "download_unavailable",
           "The file could not be prepared. Please try again.",
         );
+      await recordDownloadMeasurement(admin, order.id);
       return offerJson(200, { url: data.signedUrl, filename });
     }
     if (action === "decline") {

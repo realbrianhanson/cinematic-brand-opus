@@ -57,9 +57,23 @@ create table offer_orders(id uuid);
 create table offer_stripe_events(event_id text);
 create table offer_access_deliveries(id uuid,email text);
 create table offer_access_grants(token_hash text);
+create table conversion_sessions(id uuid);
+create table conversion_events(id uuid);
+create table conversion_order_links(id uuid);
+create table conversion_order_facts(id uuid);
 create schema storage;
 create table storage.objects(bucket_id text,name text);`;
 for (const [label, seed, count] of [
+  ...[
+    "conversion_sessions",
+    "conversion_events",
+    "conversion_order_links",
+    "conversion_order_facts",
+  ].map((table) => [
+    table,
+    `insert into ${table} values(gen_random_uuid())`,
+    `select count(*)::int n from ${table}`,
+  ]),
   [
     "offers",
     "insert into offers values(gen_random_uuid())",

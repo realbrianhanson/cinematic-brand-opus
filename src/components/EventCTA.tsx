@@ -49,6 +49,8 @@ export default function EventCTA() {
           {event.cta && (
             <a
               href={event.cta.href}
+              data-conversion-destination="summit"
+              data-conversion-placement="event"
               target={event.cta.external ? "_blank" : undefined}
               rel={event.cta.external ? "noopener noreferrer" : undefined}
               className="group mt-8 inline-flex min-h-14 w-full items-center justify-center gap-4 bg-[var(--brand-accent)] px-6 py-4 font-body text-sm font-bold text-[var(--brand-backdrop)] hover:bg-[var(--brand-accent-light)] sm:w-auto"

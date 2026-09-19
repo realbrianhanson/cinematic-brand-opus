@@ -369,6 +369,8 @@ const Nav = ({ loaded = true }: NavProps) => {
                 />
                 <a
                   href={nav.cta.href}
+                  data-conversion-destination="summit"
+                  data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}
                   rel={nav.cta.external ? "noopener noreferrer" : undefined}
                   data-hover
@@ -451,6 +453,8 @@ const Nav = ({ loaded = true }: NavProps) => {
               <div className="px-8 pb-10">
                 <a
                   href={nav.cta.href}
+                  data-conversion-destination="summit"
+                  data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}
                   rel={nav.cta.external ? "noopener noreferrer" : undefined}
                   className="block w-full text-center font-body font-bold uppercase"

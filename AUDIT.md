@@ -226,3 +226,32 @@ placement were not tested by sending a production email, and no Stripe payment
 was attempted. The news checks improve selection and attribution; they do not
 constitute fact-checking every historical third-party report. A new member remix
 still requires its own launch check with that member's configuration.
+
+## Conversion dashboard implementation — September 19, 2026
+
+Added Business → Conversions and a cached Overview summary: 7/30/90 UTC-day
+measured sessions, traffic sources/campaigns, offer views, outbound clicks,
+confirmed native claims, live orders and revenue by currency. Test/unknown-mode
+payments and unattributed native outcomes stay explicit. External clicks never
+become claimed sales. Privacy controls default off, respect DNT/GPC, exclude
+admin/local/preview traffic, and revoke cross-tab sessions safely. Collection
+uses bounded allowlists, session capabilities, private tables, admin-only reports,
+and scheduled 90-day retention. Native tracking hooks have a 500 ms ceiling.
+
+Code, TypeScript, security-focused, and database reviews resolved storage-failure
+revocation, redundant legacy tracking/report labels, shared-IP revocation quota,
+and report scaling. In isolated PGlite, the 5,000-session/5,000-claim report improved
+from 3,249 ms to 53 ms with preaggregated counts. This is a local regression
+benchmark, not a production latency guarantee.
+
+Pre-release validation: 440 tests across 65 files; all eleven isolated database
+suites; TypeScript, formatting, lint (zero errors, 289 existing warnings), the
+production build, and actual Deno checks for all four changed edge entrypoints.
+Eight isolated admin browser checks covered populated/empty/stale-error states,
+320/390/1440px, light/dark themes, date history and keyboard table access.
+Isolated public browser checks covered default-off consent, accepted Shop and
+resolved offer events, revocation, QA exclusion, and enabled native claims without
+submission at the same widths. No fabricated live measurements, orders, payments,
+inquiries or emails were created. Deployment evidence is recorded separately below.
+
+See [conversion measurement definitions and operation](docs/CONVERSION_MEASUREMENT.md).

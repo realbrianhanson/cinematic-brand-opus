@@ -1,3 +1,4 @@
+import { MeasurementPreferencesButton } from "@/components/PublicMeasurement";
 import type { ReactNode } from "react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
@@ -60,6 +61,7 @@ export default function OfferShell({ children }: { children: ReactNode }) {
             Terms
           </a>
         )}
+        <MeasurementPreferencesButton />
       </footer>
     </div>
   );

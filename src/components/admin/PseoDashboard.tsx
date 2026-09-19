@@ -19,7 +19,6 @@ const schema = z.object({
   generated_at: z.string(),
   published_resources: number,
   resource_views_all_time: number,
-  cta_clicks: number,
   review_needed: number,
   top_pages: z.array(
     z.object({
@@ -169,11 +168,10 @@ export default function PseoDashboard() {
               ))}
             </select>
           </label>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-3 gap-4">
             {[
               [data.published_resources, "Published resources"],
               [data.resource_views_all_time, "Resource views · all time"],
-              [data.cta_clicks, `Offer clicks · ${days} days`],
               [data.review_needed, "Resources flagged for review"],
             ].map(([value, label]) => (
               <div className="admin-card p-5" key={String(label)}>
@@ -183,6 +181,21 @@ export default function PseoDashboard() {
                 </p>
               </div>
             ))}
+          </div>
+          <div className="admin-card p-5">
+            <h2 className="font-semibold">
+              Offer activity moved to Conversions
+            </h2>
+            <p className="admin-help mt-2">
+              Legacy offer-click collection ended September 19, 2026. The
+              conversion dashboard now shows measured public visits, outbound
+              clicks, and confirmed native outcomes. Its visit-based rates cover
+              visitors who allow measurement; they are separate from these
+              resource and search records.
+            </p>
+            <Link className="admin-btn-secondary mt-4" to="/admin/conversions">
+              Open conversion dashboard →
+            </Link>
           </div>
           {data.review_needed > 0 && (
             <Link

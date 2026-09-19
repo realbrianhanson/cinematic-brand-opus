@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   state: vi.fn(),
   background: vi.fn(),
   signed: vi.fn(),
+  rpc: vi.fn(),
 }));
 vi.mock("../../../supabase/functions/_shared/offersRuntime.ts", () => ({
   offerAdminClient: mocks.admin,
@@ -100,6 +101,7 @@ beforeEach(() => {
   vi.stubGlobal("Deno", { env: { get: () => undefined } });
   mocks.admin.mockReturnValue({
     from,
+    rpc: mocks.rpc,
     storage: { from: () => ({ createSignedUrl: mocks.signed }) },
   });
   mocks.mailer.mockResolvedValue({ ok: true, config: {} });
@@ -110,6 +112,7 @@ beforeEach(() => {
   mocks.throttle.mockResolvedValue(undefined);
   mocks.ipThrottle.mockResolvedValue(undefined);
   mocks.requireAdmin.mockResolvedValue(undefined);
+  mocks.rpc.mockResolvedValue({ data: null, error: null });
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("offer access HTTP security boundaries", () => {
@@ -196,6 +199,51 @@ describe("offer access HTTP security boundaries", () => {
     expect(response.status).toBe(403);
     expect((await response.json()).code).toBe("download_unavailable");
     expect(mocks.signed).not.toHaveBeenCalled();
+  });
+  it("counts a download only after storage successfully issues its signed URL", async () => {
+    currentOrder = {
+      id: "order-id",
+      status: "fulfilled",
+      token_hash: original,
+      asset_name_snapshot: "guide.pdf",
+      asset_path_snapshot: "private/guide.pdf",
+    };
+    mocks.signed.mockResolvedValueOnce({
+      data: null,
+      error: new Error("Storage unavailable"),
+    });
+    expect((await request({ action: "download", token })).status).toBe(503);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    mocks.signed.mockResolvedValue({
+      data: { signedUrl: "https://storage.example.com/signed" },
+      error: null,
+    });
+    const response = await request({ action: "download", token });
+    expect(response.status).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledWith("conversion_record_download", {
+      _order_id: "order-id",
+    });
+    expect(await response.json()).toEqual({
+      url: "https://storage.example.com/signed",
+      filename: "guide.pdf",
+    });
+  });
+  it("returns the authorized download when optional accounting is unavailable", async () => {
+    currentOrder = {
+      id: "order-id",
+      status: "fulfilled",
+      token_hash: original,
+      asset_name_snapshot: "guide.pdf",
+      asset_path_snapshot: "private/guide.pdf",
+    };
+    mocks.signed.mockResolvedValue({
+      data: { signedUrl: "https://storage.example.com/signed" },
+      error: null,
+    });
+    mocks.rpc.mockRejectedValue(new Error("Measurement unavailable"));
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect((await request({ action: "download", token })).status).toBe(200);
+    warning.mockRestore();
   });
   it("never treats an email address as download authorization", async () => {
     const response = await request({

@@ -1,3 +1,4 @@
+import { measurementForClaim } from "@/lib/measurement";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
@@ -36,7 +37,11 @@ export default function OfferLanding(props: OfferLandingProps) {
 
 function OfferIntro({ offer }: { offer: PublicOffer }) {
   return (
-    <header className="min-w-0 break-words lg:col-start-1">
+    <header
+      data-conversion-offer-id={offer.id}
+      data-conversion-offer-slug={offer.slug}
+      className="min-w-0 break-words lg:col-start-1"
+    >
       <p
         className="text-sm uppercase tracking-widest font-bold mb-4"
         style={{ color: "var(--brand-accent)" }}
@@ -152,6 +157,9 @@ function ExternalOfferLanding({
           ) : destination ? (
             <a
               href={destination}
+              data-conversion-destination="external_offer"
+              data-conversion-placement="offer"
+              data-conversion-offer-id={offer.id}
               target="_blank"
               rel={
                 offer.is_affiliate
@@ -244,6 +252,7 @@ function NativeOfferLanding({
     try {
       const result = await invokeOfferApi<OfferClaim>({
         action: "claim",
+        measurement: await measurementForClaim(),
         offer_id: offer.id,
         email,
         name,

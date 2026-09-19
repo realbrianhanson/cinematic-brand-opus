@@ -24,6 +24,7 @@ import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
 import BriansNotesWidget from "./BriansNotesWidget";
 import NewsletterPreviewCard from "./NewsletterPreviewCard";
 import QueryNotice from "./QueryNotice";
+import { ConversionOverview } from "./ConversionDashboard";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -173,9 +174,9 @@ export default function Dashboard() {
                 to: "/admin/offers",
               },
               {
-                label: "Paid orders",
+                label: "Fulfilled paid orders",
                 value: overview.data.paidOrders,
-                detail: "All-time fulfilled · native checkout",
+                detail: "All-time native · all payment modes",
                 icon: PackageCheck,
                 to: "/admin/offers?tab=orders",
               },
@@ -207,6 +208,7 @@ export default function Dashboard() {
           </p>
         </>
       )}
+      <ConversionOverview />
       <div className="admin-overview-columns">
         <section className="admin-card admin-section">
           <div className="admin-section-header">

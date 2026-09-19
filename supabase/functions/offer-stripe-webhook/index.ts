@@ -18,6 +18,7 @@ import {
   deliverOfferAccess,
   prepareOfferDelivery,
 } from "../_shared/offerAccessMailRuntime.ts";
+import { recordVerifiedPaymentMode } from "../_shared/conversionOrders.ts";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST")
@@ -88,6 +89,19 @@ Deno.serve(async (req) => {
       mutation,
     );
     if (error) throw new Error("Payment event could not be applied");
+    if (
+      mutation._order_id &&
+      [
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+      ].includes(mutation._event_type)
+    ) {
+      await recordVerifiedPaymentMode(
+        admin,
+        mutation._order_id,
+        mode as "test" | "live",
+      );
+    }
     // A failed/uncertain mail attempt returns a retryable response after payment
     // is durably recorded. Duplicate payment events retry the same frozen email.
     if (
