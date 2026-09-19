@@ -73,7 +73,7 @@ export interface HeroConfig {
   subtitle: string;
   primaryCta: LinkItem | null;
   secondaryCta: LinkItem | null;
-  /** Avatar-stack caption, e.g. "150,000+ business owners". Null hides the strip. */
+  /** Community caption. Null hides the strip. */
   socialProof: string | null;
   /** Background video served from /public, or null for the poster only. */
   videoSrc: string | null;
@@ -116,7 +116,7 @@ export interface ExpertiseConfig {
 }
 
 export interface ResultStat {
-  /** Numeric target for the count-up animation. */
+  /** Published numeric value. */
   end: number;
   prefix?: string;
   suffix?: string;
@@ -234,7 +234,7 @@ export interface SiteConfig {
   brand: BrandTokens;
   nav: NavConfig;
   hero: HeroConfig;
-  /** Marquee strings. Empty array hides the proof bar. */
+  /** Readable proof labels. Empty array hides the proof bar. */
   proofBadges: string[];
   story: StoryConfig;
   expertise: ExpertiseConfig;
@@ -242,6 +242,13 @@ export interface SiteConfig {
   event: EventConfig;
   speaking: SpeakingConfig;
   newsletter: NewsletterConfig;
+  /** Curated links for this site's audience. Omit until member resources exist. */
+  featuredResources?: {
+    overline: string;
+    heading: string;
+    intro: string;
+    items: Array<LinkItem & { description: string; category: string }>;
+  };
   footer: FooterConfig;
   sections: SectionVisibility;
 }
@@ -325,6 +332,9 @@ export function validateSiteConfig(config: SiteConfig): SiteConfig {
   checkLink(config.event.cta, "event.cta", errors);
   checkLink(config.speaking.bookingCta, "speaking.bookingCta", errors);
   checkLink(config.newsletter.secondaryCta, "newsletter.secondaryCta", errors);
+  config.featuredResources?.items.forEach((link, i) =>
+    checkLink(link, `featuredResources.items[${i}]`, errors),
+  );
   config.nav.hashLinks.forEach((l, i) =>
     checkLink(l, `nav.hashLinks[${i}]`, errors),
   );

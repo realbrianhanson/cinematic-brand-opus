@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Sparkles, Mic } from "lucide-react";
+import { ArrowRight, Sparkles, Mic, Users } from "lucide-react";
 
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
@@ -13,9 +13,6 @@ interface HeroProps {
 
 const Hero = ({ loaded = true }: HeroProps) => {
   const siteConfig = useSiteConfig();
-  const sectionRef = useRef<HTMLElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
   const { lightMode, resolved } = useMediaPreferences();
@@ -47,27 +44,10 @@ const Hero = ({ loaded = true }: HeroProps) => {
     return () => window.removeEventListener("load", start);
   }, [hero.videoSrc, lightMode, resolved]);
 
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      if (contentRef.current) {
-        const o = Math.max(1 - y / 600, 0);
-        contentRef.current.style.opacity = String(o);
-        contentRef.current.style.transform = `translateY(${y * 0.25}px)`;
-      }
-      if (scrollRef.current) {
-        scrollRef.current.style.opacity = String(Math.max(1 - y / 200, 0));
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <section
       id="hero"
-      ref={sectionRef}
-      className="relative min-h-screen flex items-center overflow-hidden"
+      className="relative min-h-[100svh] flex items-center overflow-hidden"
     >
       {/* BG Layer 1: Video (lazy) with poster */}
       <div className="absolute inset-0 z-0 overflow-hidden">
@@ -152,14 +132,13 @@ const Hero = ({ loaded = true }: HeroProps) => {
 
       {/* Content */}
       <div
-        ref={contentRef}
-        className="relative z-20 w-full mx-auto px-6 lg:px-14 pt-28 pb-20"
+        className="relative z-20 w-full mx-auto px-6 lg:px-14 pt-28 pb-12 md:pt-32 md:pb-16"
         style={{ maxWidth: 1440 }}
       >
         {/* Overline */}
         {hero.overline && (
           <div
-            className="flex items-center gap-4 mb-10"
+            className="flex items-center gap-3 mb-5 md:mb-6"
             style={{
               opacity: visible ? 1 : 0,
               transform: visible ? "translateY(0)" : "translateY(20px)",
@@ -168,7 +147,8 @@ const Hero = ({ loaded = true }: HeroProps) => {
           >
             <div
               style={{
-                width: 60,
+                width: 36,
+                flexShrink: 0,
                 height: 2,
                 background:
                   "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
@@ -178,7 +158,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
               className="font-body font-bold uppercase"
               style={{
                 fontSize: 12,
-                letterSpacing: "0.25em",
+                letterSpacing: "0.14em",
                 color: "var(--brand-accent)",
               }}
             >
@@ -191,9 +171,9 @@ const Hero = ({ loaded = true }: HeroProps) => {
         <h1
           className="font-display leading-none"
           style={{
-            maxWidth: 1000,
-            fontSize: "clamp(3rem, 8vw, 7.5rem)",
-            lineHeight: 0.95,
+            maxWidth: 960,
+            fontSize: "clamp(2.75rem, 7vw, 6rem)",
+            lineHeight: 1.02,
             margin: 0,
           }}
           aria-label={headlineText}
@@ -219,7 +199,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
                   className={line.italic ? "italic" : ""}
                   style={{
                     display: "block",
-                    ...(!line.gold ? { color: "#fff" } : {}),
+                    color: line.gold ? "var(--brand-accent)" : "#fff",
                   }}
                 >
                   {line.spring ? (
@@ -249,11 +229,11 @@ const Hero = ({ loaded = true }: HeroProps) => {
 
         {/* Sub-copy */}
         <p
-          className="font-body mt-10"
+          className="font-body mt-6"
           style={{
-            maxWidth: 560,
-            fontSize: "1.15rem",
-            lineHeight: 1.7,
+            maxWidth: 570,
+            fontSize: "clamp(1rem, 1.5vw, 1.125rem)",
+            lineHeight: 1.65,
             color: "rgba(255,255,255,0.85)",
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(15px)",
@@ -265,7 +245,7 @@ const Hero = ({ loaded = true }: HeroProps) => {
 
         {/* CTA Buttons */}
         <div
-          className="flex flex-wrap gap-4 mt-12"
+          className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mt-7"
           style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(15px)",
@@ -276,14 +256,14 @@ const Hero = ({ loaded = true }: HeroProps) => {
             <MagneticButton
               href={hero.primaryCta.href}
               target={hero.primaryCta.external ? "_blank" : undefined}
-              className="hero-cta-primary relative overflow-hidden inline-flex items-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
+              className="hero-cta-primary relative overflow-hidden inline-flex items-center justify-center gap-2 font-body font-bold uppercase transition-transform duration-200 hover:-translate-y-0.5"
               style={{
                 fontSize: 13,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.05em",
                 background:
                   "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
                 color: "var(--brand-backdrop)",
-                padding: "20px 40px",
+                padding: "18px 24px",
               }}
             >
               <Sparkles size={15} strokeWidth={2.5} />
@@ -297,13 +277,13 @@ const Hero = ({ loaded = true }: HeroProps) => {
             <MagneticButton
               href={hero.secondaryCta.href}
               target={hero.secondaryCta.external ? "_blank" : undefined}
-              className="inline-flex items-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(var(--brand-accent-rgb),0.08)]"
+              className="inline-flex items-center justify-center gap-2 font-body font-bold uppercase transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(var(--brand-accent-rgb),0.08)]"
               style={{
                 fontSize: 13,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.05em",
                 border: "1.5px solid var(--brand-accent)",
                 color: "#ffffff",
-                padding: "18.5px 38.5px",
+                padding: "16.5px 22.5px",
                 background: "transparent",
               }}
             >
@@ -316,69 +296,28 @@ const Hero = ({ loaded = true }: HeroProps) => {
         {/* Social proof strip */}
         {hero.socialProof && (
           <div
-            className="flex items-center gap-4 mt-16"
+            className="flex items-center gap-3 mt-6"
             style={{
               opacity: visible ? 1 : 0,
               transform: visible ? "translateY(0)" : "translateY(15px)",
               transition: "all 0.6s cubic-bezier(0.22,1,0.36,1) 1s",
             }}
           >
-            <div className="flex -space-x-2">
-              {[
-                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-dark))",
-                "linear-gradient(135deg, var(--brand-accent-light), var(--brand-accent))",
-                "linear-gradient(135deg, var(--brand-accent-dark), #8B7023)",
-                "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
-                "linear-gradient(135deg, #8B7023, var(--brand-accent))",
-              ].map((bg, i) => (
-                <div
-                  key={i}
-                  className="rounded-full border-2"
-                  style={{
-                    width: 34,
-                    height: 34,
-                    background: bg,
-                    borderColor: "var(--brand-backdrop)",
-                  }}
-                />
-              ))}
-            </div>
+            <Users
+              size={22}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className="shrink-0"
+              style={{ color: "var(--brand-accent)" }}
+            />
             <span
               className="font-body"
-              style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}
             >
               {hero.socialProof}
             </span>
           </div>
         )}
-      </div>
-
-      {/* Scroll indicator */}
-      <div
-        ref={scrollRef}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-        style={{ zIndex: 10 }}
-      >
-        <div
-          className="relative flex justify-center"
-          style={{
-            width: 16,
-            height: 26,
-            borderRadius: 9999,
-            border: "1.5px solid rgba(255,255,255,0.25)",
-          }}
-        >
-          <div
-            className="absolute rounded-full hero-scroll-dot"
-            style={{
-              width: 2,
-              height: 6,
-              background: "rgba(255,255,255,0.7)",
-              top: 5,
-              borderRadius: 9999,
-            }}
-          />
-        </div>
       </div>
     </section>
   );

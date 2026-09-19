@@ -67,7 +67,7 @@ describe("live preset", () => {
       "https://aiforbeginners.com",
     );
     expect(brianPreset.proofBadges.length).toBeGreaterThan(0);
-    expect(brianPreset.results.length).toBe(4);
+    expect(brianPreset.results.length).toBe(3);
   });
 
   it("omits footer legal links while no policy pages exist", () => {

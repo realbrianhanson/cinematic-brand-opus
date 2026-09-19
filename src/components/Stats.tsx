@@ -1,62 +1,14 @@
-import { useEffect, useRef, useState } from "react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { ResultStat } from "@/config/types";
 
-/** Longer counts get a longer run so the animation reads at a similar speed. */
-const durationFor = (end: number) =>
-  end >= 1000 ? 2200 : end >= 50 ? 2000 : 1000;
-
-const useCounter = (end: number, duration: number, start: boolean) => {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!start) return;
-    let raf: number;
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min((now - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 4);
-      setVal(Math.round(eased * end));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [start, end, duration]);
-  return val;
-};
-
-const StatItem = ({ stat, index }: { stat: ResultStat; index: number }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  const count = useCounter(stat.end, durationFor(stat.end), visible);
-  const display = stat.locale ? count.toLocaleString() : String(count);
+const StatItem = ({ stat }: { stat: ResultStat }) => {
+  // Render the actual result in the server HTML and for reduced-motion visitors.
+  const display = stat.locale
+    ? stat.end.toLocaleString("en-US")
+    : String(stat.end);
 
   return (
-    <div
-      ref={ref}
-      className="text-center lg:text-left"
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(30px)",
-        transition: `all 0.6s cubic-bezier(0.22,1,0.36,1) ${index * 0.12}s`,
-      }}
-    >
+    <div className="text-center lg:text-left">
       <div
         className="font-display italic"
         style={{
@@ -79,8 +31,8 @@ const StatItem = ({ stat, index }: { stat: ResultStat; index: number }) => {
         {stat.label}
       </div>
       <div
-        className="font-body mt-1"
-        style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+        className="font-body mt-2 leading-relaxed"
+        style={{ fontSize: 14, color: "rgba(255,255,255,0.78)" }}
       >
         {stat.sub}
       </div>
@@ -96,8 +48,8 @@ const Stats = () => {
   return (
     <section
       id="results"
-      className="relative py-28"
-      style={{ background: "#09090F" }}
+      className="relative py-14 md:py-16"
+      style={{ background: "var(--brand-backdrop)" }}
     >
       <div
         className="absolute top-0 left-0 w-full h-px"
@@ -114,11 +66,15 @@ const Stats = () => {
         }}
       />
       <div
-        className="relative mx-auto px-6 lg:px-14 grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-4"
+        className={`relative mx-auto px-6 lg:px-14 grid gap-8 lg:gap-8 ${
+          stats.length === 3
+            ? "grid-cols-1 sm:grid-cols-3"
+            : "grid-cols-2 lg:grid-cols-4"
+        }`}
         style={{ maxWidth: 1440 }}
       >
         {stats.map((s, i) => (
-          <StatItem key={i} stat={s} index={i} />
+          <StatItem key={i} stat={s} />
         ))}
       </div>
     </section>

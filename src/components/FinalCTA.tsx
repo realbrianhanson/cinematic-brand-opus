@@ -65,7 +65,7 @@ const FinalCTA = () => {
   return (
     <section
       id="contact"
-      className="relative py-32 lg:py-40"
+      className="relative py-16 lg:py-24"
       style={{ background: "var(--brand-backdrop)" }}
     >
       <div
@@ -137,7 +137,7 @@ const FinalCTA = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
-              className="flex-1 font-body outline-none transition-colors duration-300"
+              className="flex-1 min-w-0 font-body outline-none transition-colors duration-300"
               style={{
                 fontSize: 14,
                 padding: "16px 20px",
@@ -167,7 +167,7 @@ const FinalCTA = () => {
               }}
               disabled={status === "loading"}
             >
-              {status === "loading" ? "…" : "Subscribe"}
+              {status === "loading" ? "…" : "Get the weekly email"}
             </button>
           </form>
 
@@ -203,14 +203,14 @@ const FinalCTA = () => {
           </div>
 
           {newsletter.secondaryCta && (
-            <div className="mt-14">
+            <div className="mt-8">
               {newsletter.secondaryCtaLabel && (
                 <div
                   className="inline-block font-body font-semibold uppercase mb-3"
                   style={{
                     fontSize: 10,
                     letterSpacing: "0.15em",
-                    color: "rgba(255,255,255,0.3)",
+                    color: "rgba(255,255,255,0.7)",
                     background: "rgba(var(--brand-accent-rgb),0.06)",
                     border: "1px solid rgba(var(--brand-accent-rgb),0.1)",
                     padding: "5px 14px",

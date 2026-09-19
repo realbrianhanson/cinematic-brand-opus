@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Star } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Play, X } from "lucide-react";
 import MagneticButton from "./MagneticButton";
+import SpeakingInquiry from "./SpeakingInquiry";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
@@ -11,46 +13,14 @@ const TopicCard = ({
   topic: { title: string; desc: string };
   index: number;
 }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.2 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+  const { ref, visible } = useReveal();
+  const { reducedMotion } = useMediaPreferences();
 
   return (
     <div
       ref={ref}
-      className="p-6"
-      style={{
-        borderLeft: `2px solid ${hovered ? "var(--brand-accent)" : "rgba(var(--brand-accent-rgb),0.15)"}`,
-        background: hovered
-          ? "rgba(var(--brand-accent-rgb),0.02)"
-          : "rgba(255,255,255,0.015)",
-        transform: visible
-          ? hovered
-            ? "translateX(8px)"
-            : "translateX(0)"
-          : "translateY(50px)",
-        opacity: visible ? 1 : 0,
-        transition: `all 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      data-hover
+      className="border-l-2 border-[var(--brand-accent)]/30 bg-white/[0.025] px-5 py-4"
+      style={reducedMotion ? undefined : revealStyle(visible, index * 0.05)}
     >
       <h3
         className="font-display text-foreground"
@@ -77,19 +47,23 @@ const Speaking = () => {
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: rightRef, visible: rightVisible } = useReveal();
   const speaking = siteConfig.speaking;
-  const hasVisual = Boolean(speaking.portraitSrc || speaking.testimonial);
+  const [showFootage, setShowFootage] = useState(false);
+  const emailBooking = /^mailto:/i.test(speaking.bookingCta?.href || "");
+  const hasVisual = Boolean(
+    speaking.portraitSrc || speaking.testimonial || siteConfig.hero.videoSrc,
+  );
 
   return (
     <section
       id="speaking"
-      className="relative py-36 lg:py-44"
+      className="relative py-20 lg:py-24"
       style={{ background: "#0A0B12" }}
     >
       <div
         className="relative mx-auto px-6 lg:px-14"
         style={{ maxWidth: 1440 }}
       >
-        <div className="grid lg:grid-cols-12 gap-16 lg:gap-20">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-14">
           {/* Left */}
           <div className={hasVisual ? "lg:col-span-7" : "lg:col-span-12"}>
             <div ref={headerRef}>
@@ -108,7 +82,7 @@ const Speaking = () => {
                 <span
                   className="font-body font-bold uppercase"
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     letterSpacing: "0.3em",
                     color: "var(--brand-accent)",
                   }}
@@ -141,7 +115,7 @@ const Speaking = () => {
               </h2>
 
               <p
-                className="font-body mb-12"
+                className="font-body mb-7"
                 style={{
                   fontSize: "1.1rem",
                   lineHeight: 1.7,
@@ -160,7 +134,7 @@ const Speaking = () => {
               ))}
             </div>
 
-            {speaking.bookingCta && (
+            {speaking.bookingCta && !emailBooking && (
               <div className="mt-10">
                 <MagneticButton
                   href={speaking.bookingCta.href}
@@ -187,7 +161,7 @@ const Speaking = () => {
           {hasVisual && (
             <div
               ref={rightRef}
-              className="lg:col-span-5 flex items-center"
+              className="lg:col-span-5"
               style={revealStyle(rightVisible, 0.2)}
             >
               <div className="relative w-full">
@@ -196,7 +170,8 @@ const Speaking = () => {
                   <div
                     className="relative w-full overflow-hidden"
                     style={{
-                      aspectRatio: "3/4",
+                      aspectRatio: "4/5",
+                      maxHeight: 540,
                     }}
                   >
                     <img
@@ -252,28 +227,66 @@ const Speaking = () => {
                   </div>
                 )}
 
+                {siteConfig.hero.videoSrc && (
+                  <div className="mt-5">
+                    <button
+                      type="button"
+                      aria-expanded={showFootage}
+                      aria-controls="speaking-event-footage"
+                      onClick={() => setShowFootage((show) => !show)}
+                      className="inline-flex items-center gap-2 border border-white/25 px-5 py-3 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
+                    >
+                      {showFootage ? (
+                        <X size={17} aria-hidden="true" />
+                      ) : (
+                        <Play size={17} aria-hidden="true" />
+                      )}
+                      {showFootage
+                        ? "Close event footage"
+                        : "Watch event footage"}
+                    </button>
+                    <div
+                      id="speaking-event-footage"
+                      hidden={!showFootage}
+                      className="mt-4"
+                    >
+                      {showFootage && (
+                        <video
+                          src={siteConfig.hero.videoSrc}
+                          poster={siteConfig.hero.posterSrc || undefined}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          aria-label="Event footage"
+                          className="aspect-video w-full bg-black"
+                        >
+                          Your browser does not support this video.{" "}
+                          <a href={siteConfig.hero.videoSrc}>
+                            Open event footage
+                          </a>
+                          .
+                        </video>
+                      )}
+                      <p className="mt-2 text-sm leading-relaxed text-white/75">
+                        Footage from the homepage video. Use the player controls
+                        to watch.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Testimonial card */}
                 {speaking.testimonial && (
                   <div
-                    className="relative lg:absolute lg:-bottom-16 lg:-right-10 mt-6 lg:mt-0 p-6"
+                    className="relative mt-6 p-6"
                     style={{
-                      maxWidth: 320,
+                      maxWidth: "100%",
                       background: "rgba(10,10,18,0.95)",
                       backdropFilter: "blur(24px)",
                       WebkitBackdropFilter: "blur(24px)",
                       border: "1px solid rgba(var(--brand-accent-rgb),0.2)",
                     }}
                   >
-                    <div className="flex gap-0.5 mb-3">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={12}
-                          fill="var(--brand-accent)"
-                          color="var(--brand-accent)"
-                        />
-                      ))}
-                    </div>
                     <p
                       className="font-display italic"
                       style={{
@@ -296,6 +309,11 @@ const Speaking = () => {
             </div>
           )}
         </div>
+        {speaking.bookingCta && emailBooking && (
+          <div className="mt-10 max-w-3xl">
+            <SpeakingInquiry href={speaking.bookingCta.href} />
+          </div>
+        )}
       </div>
     </section>
   );

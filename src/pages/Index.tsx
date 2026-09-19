@@ -13,7 +13,7 @@ import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 import Divider from "@/components/Divider";
 import Loader from "@/components/Loader";
-import SectionReveal from "@/components/SectionReveal";
+import HomeResources from "@/components/HomeResources";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
 import { useSiteConfig } from "@/config/SiteConfigContext";
@@ -51,34 +51,22 @@ const Index = () => {
         <main id="main-content">
           <Hero loaded />
           {sections.proofBar && <ProofBar />}
-          <Divider />
+          {sections.event && <EventCTA />}
           {sections.story && (
             <>
-              <SectionReveal>
-                <Story />
-              </SectionReveal>
+              <Story />
               <Divider />
             </>
           )}
           {sections.expertise && <Expertise />}
           {sections.results && <Stats />}
-          <Divider />
-          {sections.event && (
-            <>
-              <SectionReveal>
-                <EventCTA />
-              </SectionReveal>
-              <Divider />
-            </>
-          )}
           {sections.speaking && (
             <>
-              <SectionReveal>
-                <Speaking />
-              </SectionReveal>
               <Divider />
+              <Speaking />
             </>
           )}
+          <HomeResources />
           {sections.newsletter && <FinalCTA />}
         </main>
         <Footer />

@@ -1,71 +1,50 @@
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const ProofBar = () => {
-  const siteConfig = useSiteConfig();
-  const items = siteConfig.proofBadges;
+  const { proofBadges: items } = useSiteConfig();
   if (items.length === 0) return null;
-
-  const repeated = [...items, ...items, ...items, ...items];
-  const accent = siteConfig.brand.accent;
 
   return (
     <section
       id="proof"
-      className="relative py-10 overflow-hidden"
-      style={{ background: "#08080F" }}
+      aria-label="Experience and community"
+      className="relative py-6 md:py-7"
+      style={{ background: "var(--brand-backdrop)" }}
     >
-      {/* Top border */}
       <div
-        className="absolute top-0 left-0 w-full h-px"
+        className="absolute inset-x-0 top-0 h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.12), transparent)",
+            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.25), transparent)",
         }}
       />
-      {/* Bottom border */}
+      <ul className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 px-6 md:flex-row md:flex-wrap md:gap-x-12 md:gap-y-5">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-center gap-3 text-center">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 rotate-45"
+              style={{ background: "var(--brand-accent)" }}
+            />
+            <span
+              className="font-body text-xs font-semibold uppercase leading-relaxed md:text-sm"
+              style={{
+                letterSpacing: "0.09em",
+                color: "rgba(255,255,255,0.86)",
+              }}
+            >
+              {item}
+            </span>
+          </li>
+        ))}
+      </ul>
       <div
-        className="absolute bottom-0 left-0 w-full h-px"
+        className="absolute inset-x-0 bottom-0 h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.12), transparent)",
+            "linear-gradient(90deg, transparent, rgba(var(--brand-accent-rgb),0.25), transparent)",
         }}
       />
-
-      {/* Marquee container with edge fade */}
-      <div
-        style={{
-          maskImage:
-            "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
-          WebkitMaskImage:
-            "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
-        }}
-      >
-        <div className="flex items-center gap-16 proof-marquee">
-          {repeated.map((item, i) => (
-            <div key={i} className="flex items-center gap-2 shrink-0">
-              <div
-                className="shrink-0"
-                style={{
-                  width: 3,
-                  height: 3,
-                  background: accent,
-                  transform: "rotate(45deg)",
-                }}
-              />
-              <span
-                className="font-body font-semibold uppercase whitespace-nowrap"
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.18em",
-                  color: "rgba(255,255,255,0.22)",
-                }}
-              >
-                {item}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
     </section>
   );
 };

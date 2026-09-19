@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from "react";
 import { Brain, Target, Code2, Users } from "lucide-react";
-import { useReveal, revealStyle } from "@/hooks/useReveal";
 import { useSiteConfig } from "@/config/SiteConfigContext";
-import type { ExpertiseCard } from "@/config/types";
+import HomeSectionHeading from "./HomeSectionHeading";
 
 const ICONS = {
   brain: Brain,
@@ -10,209 +8,50 @@ const ICONS = {
   code: Code2,
   users: Users,
 } as const;
-
-const TiltCard = ({ card, index }: { card: ExpertiseCard; index: number }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [glow, setGlow] = useState({ x: 50, y: 50 });
-  const [hovered, setHovered] = useState(false);
-  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.12 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  const onMove = useCallback((e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setGlow({ x, y });
-    const rx = ((y - 50) / 50) * -8;
-    const ry = ((x - 50) / 50) * 8;
-    setTilt({ rx, ry });
-  }, []);
-
-  const onLeave = useCallback(() => {
-    setHovered(false);
-    setTilt({ rx: 0, ry: 0 });
-  }, []);
-
-  const Icon = ICONS[card.icon];
-
-  return (
-    <div
-      ref={ref}
-      className="relative overflow-hidden"
-      style={{
-        padding: 0,
-        border: `1px solid ${hovered ? "rgba(var(--brand-accent-rgb),0.25)" : "rgba(255,255,255,0.06)"}`,
-        opacity: visible ? 1 : 0,
-        transform: visible
-          ? `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`
-          : "translateY(50px)",
-        transition: hovered
-          ? "border-color 0.5s, transform 0.1s"
-          : `border-color 0.5s, opacity 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s, transform 1s cubic-bezier(0.22,1,0.36,1) ${index * 0.1}s`,
-        willChange: "transform",
-      }}
-      onMouseMove={onMove}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={onLeave}
-      data-hover
-    >
-      {hovered && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(400px circle at ${glow.x}% ${glow.y}%, rgba(var(--brand-accent-rgb),0.1), transparent 60%)`,
-          }}
-        />
-      )}
-
-      <div className="relative p-8 lg:p-10">
-        <Icon
-          size={24}
-          strokeWidth={1.5}
-          color="var(--brand-accent)"
-          className="mb-6"
-        />
-
-        <h3
-          className="font-display text-foreground mb-3"
-          style={{ fontSize: "1.4rem", fontWeight: 500 }}
-        >
-          {card.title}
-        </h3>
-
-        <p
-          className="font-body"
-          style={{
-            fontSize: "1rem",
-            lineHeight: 1.7,
-            color: "rgba(255,255,255,0.85)",
-          }}
-        >
-          {card.text}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-const Expertise = () => {
-  const siteConfig = useSiteConfig();
-  const { ref: headerRef, visible: headerVisible } = useReveal();
-  const expertise = siteConfig.expertise;
-  const cards = expertise.cards;
-
+export default function Expertise() {
+  const { expertise } = useSiteConfig();
   return (
     <section
       id="expertise"
-      className="relative py-36 lg:py-44"
+      className="py-16 lg:py-24"
       style={{ background: "#0A0B12" }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(var(--brand-accent-rgb),0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--brand-accent-rgb),0.02) 1px, transparent 1px)",
-          backgroundSize: "80px 80px",
-        }}
-      />
-
-      <div
-        className="relative mx-auto px-6 lg:px-14"
-        style={{ maxWidth: 1440 }}
-      >
-        {/* Header */}
-        <div
-          ref={headerRef}
-          className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-20 gap-8"
+      <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
+        <HomeSectionHeading
+          overline={expertise.overline}
+          intro={expertise.intro}
         >
-          <div>
-            <div
-              className="flex items-center gap-4 mb-6"
-              style={revealStyle(headerVisible, 0)}
-            >
-              <div
-                style={{
-                  width: 60,
-                  height: 2,
-                  background:
-                    "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-light))",
-                }}
-              />
-              <span
-                className="font-body font-bold uppercase"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.3em",
-                  color: "var(--brand-accent)",
-                }}
-              >
-                {expertise.overline}
-              </span>
-            </div>
-            <h2
-              className="font-display"
-              style={{
-                fontSize: "clamp(2.5rem, 5vw, 4.2rem)",
-                lineHeight: 1.05,
-                color: "#fff",
-                ...revealStyle(headerVisible, 0.1),
-              }}
-            >
-              {expertise.headingLead}{" "}
-              <em
-                style={{
-                  fontStyle: "italic",
-                  background:
-                    "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light))",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                {expertise.headingAccent}
-              </em>
-            </h2>
-          </div>
-
-          <p
-            className="font-body lg:text-right"
-            style={{
-              fontSize: "1rem",
-              lineHeight: 1.7,
-              color: "rgba(255,255,255,0.85)",
-              maxWidth: 400,
-              ...revealStyle(headerVisible, 0.2),
-            }}
-          >
-            {expertise.intro}
-          </p>
-        </div>
-
-        {/* Card grid */}
+          {expertise.headingLead}{" "}
+          <em style={{ color: "var(--brand-accent)" }}>
+            {expertise.headingAccent}
+          </em>
+        </HomeSectionHeading>
         <div className="grid md:grid-cols-2 gap-5">
-          {cards.map((card, i) => (
-            <TiltCard key={i} card={card} index={i} />
-          ))}
+          {expertise.cards.map((card) => {
+            const Icon = ICONS[card.icon];
+            return (
+              <article
+                key={card.title}
+                className="border border-white/15 p-6 lg:p-8 bg-white/[0.02]"
+              >
+                <Icon
+                  size={24}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                  className="mb-5"
+                  style={{ color: "var(--brand-accent)" }}
+                />
+                <h3 className="font-display text-2xl text-white mb-3">
+                  {card.title}
+                </h3>
+                <p className="font-body text-base leading-relaxed text-white/80">
+                  {card.text}
+                </p>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
   );
-};
-
-export default Expertise;
+}

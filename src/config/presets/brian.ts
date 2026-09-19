@@ -42,11 +42,11 @@ export const brianPreset: SiteConfig = {
 
   metadata: {
     googleSiteVerification: "K_UDj1XvNR1AVquMTg9QMT_LfxDmHKiPwdzM3pcOQW4",
-    defaultTitle: "Brian Hanson | Authority, Leadership, Legacy",
+    defaultTitle: "Brian Hanson | AI for Business Educator & Keynote Speaker",
     defaultDescription:
-      "Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses with applied A.I. and modern leadership.",
+      "Learn practical AI for marketing, sales, and everyday business with Brian Hanson. Explore free training, useful guides, and keynote speaking.",
     socialDescription:
-      "Keynote speaker and advisor Brian Hanson helps founders build authority, lead with clarity, and grow durable businesses through applied A.I. and modern leadership.",
+      "Practical AI education for business owners. Join Brian Hanson for free training, explore step-by-step guides, or bring him to your next event.",
     socialImageUrl: "https://brianhanson.com/og-default.png",
     faviconHref: "/brian-favicon-v1.png",
     appleTouchIconHref: "/brian-touch-icon-v1.png",
@@ -65,7 +65,6 @@ export const brianPreset: SiteConfig = {
       { label: "Story", href: "#story" },
       { label: "Expertise", href: "#expertise" },
       { label: "Speaking", href: "#speaking" },
-      { label: "Results", href: "#results" },
     ],
     routeLinks: [
       { label: "Resources", href: "/resources" },
@@ -83,85 +82,53 @@ export const brianPreset: SiteConfig = {
   hero: {
     overline: "4× Inc. 5000 · AI Educator · Keynote Speaker",
     headlineLines: [
-      { text: "AI Doesn't" },
-      { text: "Replace People." },
-      {
-        text: "It Replaces",
-        gold: true,
-        italic: true,
-        spring: true,
-        springDelay: 0.9,
-      },
-      {
-        text: "Inefficiency.",
-        gold: true,
-        italic: true,
-        spring: true,
-        springDelay: 1.1,
-      },
+      { text: "Put AI to work" },
+      { text: "in your business.", gold: true, italic: true },
     ],
     subtitle:
-      "Multi-million dollar companies built. 4× Inc. 5000 earned. Now helping 150,000+ business owners use AI to scale. No coding required.",
+      "Learn how to create better marketing, simplify repetitive work, and build useful tools with Brian Hanson. No coding background required.",
     primaryCta: {
       label: "Join Free 3-Day AI Event",
       href: "https://aiforbeginners.com",
       external: true,
     },
     secondaryCta: { label: "Book Brian to Speak", href: "#speaking" },
-    socialProof: "150,000+ business owners in the community",
+    socialProof: "150,000+ in the AI For Business community",
     videoSrc: "/videos/hero-bg.mp4",
     posterSrc: "/videos/hero-poster.jpg",
   },
 
   proofBadges: [
-    "4× INC. 5000",
-    "150,000+ COMMUNITY",
-    "REAL ADVISORS",
-    "AI FOR BUSINESS",
-    "REVVEN — 3,000+ USERS",
-    "$50M+ REVENUE INFLUENCED",
-    "20+ YEARS MARKETING",
-    "BUILT WITHOUT CODE",
+    "4× Inc. 5000 · Real Advisors",
+    "150,000+ AI For Business community",
+    "3,000+ Revven users",
   ],
 
   story: {
     overline: "The Story",
-    headingLead: "From Nothing to",
-    headingAccent: "150,000 Strong",
+    headingLead: "Built businesses.",
+    headingAccent: "Started over. Kept building.",
     intro:
-      "Every chapter taught me one thing: the rules only apply if you accept them. I never did.",
+      "I teach the way I had to learn: choose a real problem, try a practical solution, and keep what works.",
     timeline: [
       {
-        icon: "flame",
-        tag: "The Beginning",
-        time: "Small-Town Iowa",
-        text: "No money. No connections. No degree. Just necessity and an obsession with figuring out what actually works.",
-      },
-      {
-        icon: "zap",
-        tag: "First Bet",
-        time: "Mid-20s",
-        text: "Built one of the largest engine and transmission companies in the US, without knowing how to change my own oil. Systems and selling beat credentials every time.",
-      },
-      {
         icon: "award",
-        tag: "The Scale",
-        time: "Real Advisors",
-        accent: true,
-        text: "Earned 4× Inc. 5000 recognition, highest ranking #80 in the nation. Mastered direct response marketing from the legends: Halbert, Schwartz, Kennedy, Cialdini.",
+        tag: "Build",
+        time: "From Iowa to Real Advisors",
+        text: "I grew up in small-town Iowa without money or connections. Building an engine and transmission business taught me systems and selling. Real Advisors later earned four Inc. 5000 appearances, reaching #80.",
       },
       {
         icon: "flame",
-        tag: "The Fire",
+        tag: "Rebuild",
         time: "2020",
-        text: "COVID destroyed my live events business. Over $1 million in debt. Could have filed bankruptcy. Chose to rebuild. Let it burn, then build something better from the ashes.",
+        text: "When COVID shut down my live events business, I faced more than $1 million in debt. I chose to rebuild. That experience still shapes how I think about risk, resilience, and useful work.",
       },
       {
         icon: "sparkles",
-        tag: "The Rebuild",
-        time: "Now · Age 46",
+        tag: "Teach",
+        time: "AI For Business & Revven",
         accent: true,
-        text: "Built AI For Business, 150,000+ members strong. Created Revven, a SaaS with 3,000+ users, without writing a single line of code. The playing field has never been more level.",
+        text: "Today, AI For Business brings together a community of 150,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. I share the practical lessons so you can start applying them to your own business.",
       },
     ],
     pullQuote:
@@ -170,30 +137,30 @@ export const brianPreset: SiteConfig = {
 
   expertise: {
     overline: "Core Expertise",
-    headingLead: "Where AI Meets",
-    headingAccent: "Real Results",
+    headingLead: "Start with the work",
+    headingAccent: "on your desk.",
     intro:
-      "Four disciplines. One unfair advantage. The intersection most \u2018experts\u2019 can\u2019t touch.",
+      "Choose a task you already understand. Use AI to help with it, check the result, and build from there.",
     cards: [
       {
         icon: "brain",
-        title: "AI Implementation",
-        text: "Practical AI workflows, automation stacks, and custom tools that replace entire departments. No PhD. Just results.",
+        title: "Simplify repetitive work",
+        text: "Organize customer information, summarize a meeting, or draft a follow-up. Keep your team in control of the decisions that matter.",
       },
       {
         icon: "target",
-        title: "Direct Response Marketing",
-        text: "20+ years of frameworks that convert strangers into customers. The psychology behind $50M+ in revenue influenced.",
+        title: "Create clearer marketing",
+        text: "Turn customer questions into useful articles, emails, and offers. Bring your experience; use AI to help shape the draft.",
       },
       {
         icon: "code",
-        title: "No-Code Building",
-        text: "I built Revven, a full SaaS platform with 3,000+ users, without writing a single line of code. I teach others to do the same.",
+        title: "Build a useful tool",
+        text: "Explore a simple calculator, intake form, or internal app. Start with one job the tool needs to do, then test it before expanding.",
       },
       {
         icon: "users",
-        title: "Community & Education",
-        text: "150,000+ business owners trained through live events, workshops, and virtual summits. Real education that creates immediate ROI.",
+        title: "Learn with a practical example",
+        text: "Follow a demonstration, try the steps in your own business, and learn what to check before relying on the output.",
       },
     ],
   },
@@ -209,14 +176,7 @@ export const brianPreset: SiteConfig = {
       end: 150,
       suffix: "K+",
       label: "Community",
-      sub: "Business owners trained",
-    },
-    {
-      end: 50,
-      prefix: "$",
-      suffix: "M+",
-      label: "Revenue",
-      sub: "Influenced across ventures",
+      sub: "AI For Business community",
     },
     {
       end: 3000,
@@ -230,9 +190,9 @@ export const brianPreset: SiteConfig = {
   event: {
     overline: "Free Virtual Event",
     headingAccent: "3 Days",
-    headingRest: "That Will Change How You Do Business",
+    headingRest: "to Get Started with AI",
     intro:
-      "Simple, push-button AI solutions with high impact. No tech background needed...",
+      "A free virtual training for business owners who want to understand the tools and put them to work. Follow practical demonstrations, then plan your next step.",
     imageSrc: eventCrowd,
     imageAlt:
       "Brian Hanson's AI for Business live event with hundreds of attendees",
@@ -252,25 +212,26 @@ export const brianPreset: SiteConfig = {
         bullets: [
           "Hands-on building with push-button tools",
           "Automate content, marketing, and ops",
-          "Real results before the day ends",
+          "Check the output before using it",
         ],
       },
       {
         day: "Day 3",
         title: "Scale & Automate",
         bullets: [
-          "Systems that run while you live",
-          "The AI stack that replaces busywork",
+          "Choose which tasks to automate next",
+          "Keep a human review where it matters",
           "Your 90-day implementation roadmap",
         ],
       },
     ],
     cta: {
-      label: "Register Free — AIForBeginners.com",
+      label: "See Dates & Register Free",
       href: "https://aiforbeginners.com",
       external: true,
     },
-    ctaNote: "100% free. No credit card. Just show up ready to learn.",
+    ctaNote:
+      "Free virtual training. Visit the event page for current dates and registration details.",
   },
 
   speaking: {
@@ -278,15 +239,15 @@ export const brianPreset: SiteConfig = {
     headingLead: "Bring Brian",
     headingAccent: "to Your Stage",
     intro:
-      "On stage, I make complex AI simple. I blend hard-won lessons with humor and deliver frameworks audiences use immediately. No recycled TED talks.",
+      "Practical AI talks for business owners and teams. I use demonstrations, business examples, and lessons from building and rebuilding companies to make the next step clear.",
     topics: [
       {
         title: "AI for Business Leaders",
-        desc: "Making AI profitable and actionable for non-technical executives. Walk away knowing exactly what to implement Monday morning.",
+        desc: "Understand where AI can help your team, where it needs oversight, and how to choose a useful first project.",
       },
       {
-        title: "The Unfair Advantage",
-        desc: "How to build systems that let you compete against anyone, regardless of size or budget. Technology, psychology, and strategy combined.",
+        title: "From Idea to Useful Tool",
+        desc: "See how business knowledge, clear instructions, and no-code tools can turn a recurring problem into a working prototype.",
       },
       {
         title: "From Burnout to Breakthrough",
@@ -299,24 +260,50 @@ export const brianPreset: SiteConfig = {
     },
     portraitSrc: brianHeadshot,
     portraitAlt: "Brian Hanson",
-    testimonial: {
-      quote: "Brian's keynote was the highlight of our entire conference.",
-      attribution: "Event Director, Fortune 500 Company",
-    },
+    testimonial: null,
   },
 
   newsletter: {
-    headingLead: "Ready for Your",
-    headingAccent: "Unfair Advantage?",
+    headingLead: "A practical AI idea",
+    headingAccent: "for your week.",
     intro:
-      "Weekly AI strategies, tools, and frameworks from the front lines. No spam. No fluff. Just what moves the needle.",
+      "Get a weekly selection of useful AI articles, tools, and business workflows. See what they can help with and what to check before trying them.",
     privacyNote: "No spam, ever. Unsubscribe anytime.",
     secondaryCta: {
       label: "Join the Free 3-Day AI Event",
       href: "https://aiforbeginners.com",
       external: true,
     },
-    secondaryCtaLabel: "Or skip ahead",
+    secondaryCtaLabel: "Prefer to learn live?",
+  },
+
+  featuredResources: {
+    overline: "Useful starting points",
+    heading: "Pick one problem. Try one idea.",
+    intro: "Start with a guide you can use in the work you already do.",
+    items: [
+      {
+        label: "Start using AI in your business",
+        href: "/guides/ai-for-small-business",
+        description:
+          "Choose a manageable first project and decide how you will check the result.",
+        category: "Start here",
+      },
+      {
+        label: "Build a marketing workflow",
+        href: "/guides/ai-marketing-automation",
+        description:
+          "Connect your research, drafting, review, and publishing into a repeatable process.",
+        category: "Marketing",
+      },
+      {
+        label: "Improve sales and customer service",
+        href: "/guides/ai-sales-customer-service",
+        description:
+          "Plan helpful follow-ups and answers, with clear points for human review.",
+        category: "Sales & service",
+      },
+    ],
   },
 
   footer: {
@@ -324,7 +311,6 @@ export const brianPreset: SiteConfig = {
       { label: "Story", href: "#story" },
       { label: "Expertise", href: "#expertise" },
       { label: "Speaking", href: "#speaking" },
-      { label: "Results", href: "#results" },
     ],
     routeLinks: [
       { label: "Blog", href: "/blog" },
@@ -342,7 +328,7 @@ export const brianPreset: SiteConfig = {
     proofBar: true,
     story: true,
     expertise: true,
-    results: true,
+    results: false,
     event: true,
     speaking: true,
     newsletter: true,
