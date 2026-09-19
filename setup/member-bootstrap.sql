@@ -10,7 +10,7 @@ alter table public.member_bootstrap_state enable row level security;
 revoke all on public.member_bootstrap_state from public,anon,authenticated;
 
 do $$
-declare table_name text; populated boolean; active_jobs integer;
+declare table_name text; populated boolean; active_jobs integer; has_conversion boolean;
 begin
   perform pg_advisory_xact_lock(hashtext('member-empty-bootstrap'));
   -- Customer records and speaking inquiries can contain private information.
@@ -25,7 +25,19 @@ begin
     execute 'select exists(select 1 from storage.objects where bucket_id=''offer-files'')' into populated;
     if populated then raise exception 'Refusing bootstrap: offer-files already contains files. Use an empty remix.'; end if;
   end if;
-  if exists(select 1 from public.member_bootstrap_state where key='neutral-v1') then return; end if;
+  has_conversion := to_regclass('public.conversion_measurement_config') is not null;
+  if has_conversion then
+    if to_regprocedure('public.conversion_cleanup()') is null then
+      raise exception 'Refusing bootstrap: conversion schema is incomplete. Copy the current schema before setup.';
+    end if;
+    if to_regclass('cron.job') is null or to_regprocedure('cron.schedule(text,text,text)') is null then
+      raise exception 'Refusing bootstrap: conversion measurement requires pg_cron for its 90-day retention job. Enable pg_cron in this remix, then rerun setup.';
+    end if;
+    -- A recognized cleanup job is safe to preserve; never replace a different job.
+    execute 'select exists(select 1 from cron.job where jobname=''conversion-retention-daily'' and (command is distinct from ''SELECT public.conversion_cleanup()'' or database is distinct from current_database() or username is distinct from current_user))' into populated;
+    if populated then raise exception 'Refusing bootstrap: the conversion retention job conflicts with an existing job. Verify this is an isolated empty remix.'; end if;
+  end if;
+  if not exists(select 1 from public.member_bootstrap_state where key='neutral-v1') then
   foreach table_name in array array['site_settings','site_settings_private','posts','generated_pages','pillar_pages','newsletter_subscribers','newsletter_sends','niches','content_schemas','source_items','content_sources','expert_notes','widget_config'] loop
     if to_regclass('public.'||table_name) is not null then
       execute format('select exists(select 1 from public.%I)',table_name) into populated;
@@ -33,7 +45,7 @@ begin
     end if;
   end loop;
   if to_regclass('cron.job') is not null then
-    execute 'select count(*) from cron.job where active' into active_jobs;
+    execute 'select count(*) from cron.job where active and not ($1 and jobname=''conversion-retention-daily'' and command=''SELECT public.conversion_cleanup()'' and database=current_database() and username=current_user)' into active_jobs using has_conversion;
     if active_jobs>0 then raise exception 'Refusing bootstrap: active jobs exist. Verify this is an isolated empty remix.'; end if;
   end if;
   insert into public.site_settings(site_name,site_url,author_name,author_title,author_bio,publisher_name,publisher_url,cta_url,cta_headline,cta_subtext,cta_button_text,cta_social_proof,image_generation_enabled,newsletter_from_address,newsletter_reply_to,newsletter_postal_address)
@@ -47,6 +59,13 @@ begin
   -- No widgets are required for the site to render. Add only widgets you configure
   -- in Admin; in particular newsletter/CTA widgets remain absent until configured.
   insert into public.member_bootstrap_state(key) values('neutral-v1');
+  end if;
+  if has_conversion then
+    -- Cloud copies schema, not rows or scheduler jobs. Initialize only after all
+    -- applicable empty-remix guards; reruns preserve the original measurement start.
+    insert into public.conversion_measurement_config(singleton) values(true) on conflict(singleton) do nothing;
+    perform cron.schedule('conversion-retention-daily','23 4 * * *','SELECT public.conversion_cleanup()');
+  end if;
 end $$;
 commit;
 

@@ -255,3 +255,10 @@ submission at the same widths. No fabricated live measurements, orders, payments
 inquiries or emails were created. Deployment evidence is recorded separately below.
 
 See [conversion measurement definitions and operation](docs/CONVERSION_MEASUREMENT.md).
+
+Follow-up release review also covered schema-only member remixes: bootstrap now
+initializes the measurement-start singleton and the real retention job, repairs
+missing setup on a clean rerun, and refuses missing/conflicting scheduling or
+inherited private data. The expanded bootstrap suite and independent code review
+passed. Regenerated backend types contain only the 190 expected schema additions;
+the frontend report now uses the generated RPC signature directly.

@@ -420,7 +420,7 @@ export default function PseoDashboard() {
                   {breakdown.data.niches.map((r) => (
                     <p key={r.name} className="py-2">
                       {r.name}: {r.pages} pages · {r.views} views · {r.clicks}{" "}
-                      offer clicks
+                      legacy offer clicks
                     </p>
                   ))}
                 </div>

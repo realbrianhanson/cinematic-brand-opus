@@ -95,20 +95,12 @@ export const conversionReportSchema = z.object({
 });
 export type ConversionReport = z.infer<typeof conversionReportSchema>;
 
-// The generated database types are updated after the additive migration deploys.
-type ConversionRpc = {
-  rpc(
-    name: "admin_conversion_snapshot",
-    args: { _days: ConversionDays },
-  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
-};
 export async function loadConversionReport(
   days: ConversionDays,
 ): Promise<ConversionReport> {
-  const { data, error } = await (supabase as unknown as ConversionRpc).rpc(
-    "admin_conversion_snapshot",
-    { _days: days },
-  );
+  const { data, error } = await supabase.rpc("admin_conversion_snapshot", {
+    _days: days,
+  });
   if (error) throw new Error(error.message);
   return conversionReportSchema.parse(data);
 }

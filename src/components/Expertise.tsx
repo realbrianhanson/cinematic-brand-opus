@@ -30,6 +30,8 @@ export default function Expertise() {
           {sections.event && event.cta && (
             <a
               href={event.cta.href}
+              data-conversion-destination="summit"
+              data-conversion-placement="other"
               target={event.cta.external ? "_blank" : undefined}
               rel={event.cta.external ? "noopener noreferrer" : undefined}
               className="mt-7 inline-flex min-h-11 items-center gap-3 font-body text-sm font-semibold text-[var(--brand-accent)] underline-offset-4 hover:underline"

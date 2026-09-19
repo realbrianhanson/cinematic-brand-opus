@@ -87,8 +87,14 @@ Work top to bottom. Nothing later works properly if an earlier step is skipped.
       Referenced public media may still be owner-specific: replace those assets.
 - [ ] Verify the remix has its own Cloud backend and that its public environment
       URL points to that backend before using the admin or running setup.
+- [ ] On the current conversion-dashboard schema, enable **pg_cron** in your
+      remix before running setup. The bootstrap initializes your measurement start
+      and installs `conversion-retention-daily` at **04:23 UTC** to remove optional
+      sessions and their events after 90 days. It stops with a clear error if the
+      scheduler is unavailable. Verify this one cleanup job exists in your own
+      backend before publishing; it sends no emails and publishes no content.
 - [ ] Run `setup/member-bootstrap.sql` in the **empty remix** Cloud SQL editor.
-      It refuses populated databases and existing active scheduled jobs. It seeds
+      It refuses populated databases and unrecognized active scheduled jobs. It seeds
       neutral settings and one guide format, with automated publishing, reports
       and paid image generation disabled. Re-running it does not overwrite edits.
       Existing speaking inquiries also block setup, including when a copied
@@ -176,9 +182,17 @@ files, and historical migrations contain source-site configuration. Do not
 replay that directory into a fresh database or copy the owner's scheduling setup.
 
 `setup/member-bootstrap.sql` adds neutral records to an empty remixed schema.
-It creates no accounts, role assignments, schedules, subscribers, public content
-or provider secrets. It does not enable newsletter sends. Set up your own
-credentials and review each automation before enabling it.
+It creates no accounts, role assignments, subscribers, public content or provider
+secrets. On the current schema it also initializes conversion reporting and its
+daily retention cleanup. This is the only schedule it creates; it does not enable
+newsletter sends or content publishing. Cloud does not copy the original project's
+configuration rows or scheduler jobs, so these are set up in your own backend.
+A clean rerun restores missing conversion configuration or cleanup without
+overwriting your site settings or an existing measurement start. Inherited
+customer or analytics records still cause refusal, even if a bootstrap marker
+exists. Older schemas without conversion reporting remain supported without
+requiring pg_cron. Set up your own credentials and review each other automation
+before enabling it.
 
 Source project: [Brian Hanson Authority](https://lovable.dev/projects/aad54f9f-2dc1-4e99-9396-88f3e07eb70c).
 Public remixing was verified enabled on September 17, 2026. Anyone with that link

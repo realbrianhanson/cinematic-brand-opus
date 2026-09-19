@@ -245,6 +245,217 @@ for (const alreadyBootstrapped of [false, true]) {
   );
   await inquiries.close();
 }
+// A current Cloud remix copies conversion schema, but no config rows or cron jobs.
+const conversionFixture = `
+create table conversion_measurement_config(singleton boolean primary key default true check(singleton),started_at timestamptz not null default clock_timestamp());
+create function public.conversion_cleanup() returns void language sql as $$select$$;`;
+const cronFixture = `
+create schema cron;
+create table cron.job(jobid bigint generated always as identity primary key,jobname text unique,schedule text,command text,active boolean not null default true,database text not null default current_database(),username text not null default current_user);
+create function cron.schedule(text,text,text) returns bigint language plpgsql as $$
+declare job_id bigint;
+begin
+ insert into cron.job(jobname,schedule,command) values($1,$2,$3)
+ on conflict(jobname) do update set schedule=excluded.schedule,command=excluded.command,active=true
+ returning jobid into job_id;
+ return job_id;
+end $$;`;
+const one = async (database, query) => (await database.query(query)).rows[0];
+const current = new PGlite();
+await current.exec(fixture + commerceFixture + conversionFixture + cronFixture);
+await current.exec(sql);
+const start = (
+  await one(
+    current,
+    "select started_at from conversion_measurement_config where singleton",
+  )
+).started_at;
+assert.ok(
+  start instanceof Date,
+  "current schema-only remix has a real measurement start",
+);
+const scheduled = await one(
+  current,
+  "select jobid,jobname,schedule,command,active from cron.job",
+);
+assert.deepEqual(scheduled, {
+  jobid: 1,
+  jobname: "conversion-retention-daily",
+  schedule: "23 4 * * *",
+  command: "SELECT public.conversion_cleanup()",
+  active: true,
+});
+await current.exec(
+  "update site_settings set site_name='My Member Brand';update cron.job set active=false",
+);
+await current.exec(sql);
+assert.deepEqual(
+  (
+    await one(
+      current,
+      "select started_at from conversion_measurement_config where singleton",
+    )
+  ).started_at,
+  start,
+  "rerun preserves measurement start",
+);
+assert.equal(
+  (await one(current, "select count(*)::int n from cron.job")).n,
+  1,
+  "rerun does not duplicate scheduled cleanup",
+);
+assert.equal(
+  (await one(current, "select active from cron.job")).active,
+  true,
+  "rerun repairs paused retention",
+);
+assert.equal(
+  (await one(current, "select site_name from site_settings")).site_name,
+  "My Member Brand",
+  "rerun preserves member settings",
+);
+await current.exec(
+  "delete from conversion_measurement_config;delete from cron.job",
+);
+await current.exec(sql);
+assert.equal(
+  (
+    await one(
+      current,
+      "select count(*)::int n from conversion_measurement_config",
+    )
+  ).n,
+  1,
+  "an existing clean bootstrap marker does not skip missing config",
+);
+assert.equal(
+  (await one(current, "select count(*)::int n from cron.job")).n,
+  1,
+  "an existing clean bootstrap marker does not skip missing retention",
+);
+await current.close();
+
+for (const marked of [false, true]) {
+  const noCron = new PGlite();
+  await noCron.exec(fixture + commerceFixture);
+  if (marked) {
+    await noCron.exec(sql);
+    await noCron.exec("update site_settings set site_name='Existing Member'");
+  }
+  await noCron.exec(conversionFixture);
+  await assert.rejects(noCron.exec(sql), /requires pg_cron.*90-day retention/);
+  await noCron.exec("rollback");
+  assert.equal(
+    (
+      await one(
+        noCron,
+        "select count(*)::int n from conversion_measurement_config",
+      )
+    ).n,
+    0,
+    "missing scheduler cannot initialize measurement",
+  );
+  assert.equal(
+    (await one(noCron, "select count(*)::int n from site_settings")).n,
+    marked ? 1 : 0,
+    "missing scheduler rolls back fresh neutral setup",
+  );
+  if (marked)
+    assert.equal(
+      (await one(noCron, "select site_name from site_settings")).site_name,
+      "Existing Member",
+    );
+  await noCron.close();
+}
+for (const table of [
+  "conversion_sessions",
+  "conversion_events",
+  "conversion_order_links",
+  "conversion_order_facts",
+]) {
+  const marked = new PGlite();
+  await marked.exec(
+    fixture + commerceFixture + conversionFixture + cronFixture,
+  );
+  await marked.exec(sql);
+  await marked.exec(
+    `insert into ${table} values(gen_random_uuid());delete from conversion_measurement_config;delete from cron.job`,
+  );
+  await assert.rejects(
+    marked.exec(sql),
+    new RegExp(`Refusing bootstrap: ${table}`),
+  );
+  await marked.exec("rollback");
+  assert.equal(
+    (await one(marked, `select count(*)::int n from ${table}`)).n,
+    1,
+    "inherited private conversion data is preserved",
+  );
+  assert.equal(
+    (
+      await one(
+        marked,
+        "select count(*)::int n from conversion_measurement_config",
+      )
+    ).n,
+    0,
+    "inherited data guard runs before configuration seeding even with an existing marker",
+  );
+  assert.equal(
+    (await one(marked, "select count(*)::int n from cron.job")).n,
+    0,
+    "inherited data guard runs before scheduler writes even with an existing marker",
+  );
+  await marked.close();
+}
+for (const [jobName, command, error] of [
+  [
+    "conversion-retention-daily",
+    "SELECT unrelated_operation()",
+    /retention job conflicts/,
+  ],
+  ["owner-newsletter", "SELECT unrelated_operation()", /active jobs exist/],
+]) {
+  const inheritedJob = new PGlite();
+  await inheritedJob.exec(
+    fixture + commerceFixture + conversionFixture + cronFixture,
+  );
+  await inheritedJob.query(
+    "insert into cron.job(jobname,schedule,command) values($1,'* * * * *',$2)",
+    [jobName, command],
+  );
+  await assert.rejects(inheritedJob.exec(sql), error);
+  await inheritedJob.exec("rollback");
+  assert.equal(
+    (await one(inheritedJob, "select command from cron.job")).command,
+    command,
+    "unrecognized scheduler job is never replaced",
+  );
+  assert.equal(
+    (
+      await one(
+        inheritedJob,
+        "select count(*)::int n from conversion_measurement_config",
+      )
+    ).n,
+    0,
+  );
+  await inheritedJob.close();
+}
+const knownRetention = new PGlite();
+await knownRetention.exec(
+  fixture + commerceFixture + conversionFixture + cronFixture,
+);
+await knownRetention.exec(
+  "select cron.schedule('conversion-retention-daily','23 4 * * *','SELECT public.conversion_cleanup()')",
+);
+await knownRetention.exec(sql);
+assert.equal(
+  (await one(knownRetention, "select count(*)::int n from cron.job")).n,
+  1,
+  "a schema installed with its recognized retention job can initialize safely",
+);
+await knownRetention.close();
 console.log(
-  "PASS: empty member bootstrap, automation and inquiry intake off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file/inquiry refusal, preserved inherited data, and older schema compatibility",
+  "PASS: empty member bootstrap, automation and inquiry intake off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file/inquiry refusal, preserved inherited data, current conversion config/retention initialization and repair, scheduler refusal, and older schema compatibility",
 );
