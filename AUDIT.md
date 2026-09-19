@@ -262,3 +262,38 @@ missing setup on a clean rerun, and refuses missing/conflicting scheduling or
 inherited private data. The expanded bootstrap suite and independent code review
 passed. Regenerated backend types contain only the 190 expected schema additions;
 the frontend report now uses the generated RPC signature directly.
+
+### Published conversion release
+
+- Runtime/frontend source: `10c5be317b2c7a12aedb49e4d08db911016bd276`.
+  GitHub verification **35458556236 passed** (including all edge entrypoints).
+  The earlier feature source `4263af681d4b382eba727adb7ae464bc991d0c9c` also
+  passed run **35458263374**. An intermediate automatic types-only update failed
+  formatting; the final source includes its reviewed normalization.
+- Migration `20260919220000` was applied and recorded atomically. Production
+  readback verified private-table grants, no anonymous report access, and the
+  active daily retention job. Measurement start: **2026-09-19 17:30:06 UTC**.
+- Lovable confirmed deployment of `conversion-events`, `offers-api`,
+  `offer-stripe-webhook`, and `weekly-report` from the reviewed feature source,
+  with unchanged shared helpers. This narrowly scoped deployment used **0.7
+  Lovable credits**. The 15 older queued prompts remained paused and untouched.
+- Frontend deployment **c1ad55e6-6b66-4cd6-b470-251cff48dfd5** was independently
+  confirmed in the `x-deployment-id` returned by a normal visitor request to
+  **https://brianhanson.com**. The authenticated live `/admin/conversions` report
+  loaded successfully, its 7/30/90-day dates were correct, and the Overview card
+  linked back correctly. The initial empty state is real, not seeded demo data.
+- Read-only live checks verified collector method protection (405), canonical
+  preflight (200), and anonymous report/private-table denial (401). Seven public
+  pages passed at 1440/390/320px with correct headings/canonicals, no overflow,
+  and no browser errors. Shop filtering, the enabled starter-kit form without
+  submission, demonstration controls, and access-recovery navigation passed.
+- Final production readback found **zero** conversion sessions, events, order
+  links, order facts and orders: QA introduced no fabricated customer/analytics
+  records. Stripe keys remain unset; no payment or real email was sent. Future
+  live payment attribution depends on connecting Stripe and receiving verified
+  webhooks. External affiliate/Summit clicks remain interest signals only.
+
+Evidence: `/tmp/conversion-admin-qa-report.json`,
+`/tmp/conversion-public-qa-report.json`, `/tmp/nextlevel-public-qa-report.json`,
+`/tmp/conversion-final-ci.log`. This documentation commit does not change the
+published runtime above.
