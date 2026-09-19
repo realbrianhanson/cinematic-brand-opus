@@ -1,10 +1,15 @@
+import {
+  isReadableNewsHeadline,
+  newsUrlIdentity,
+  newsHeadlineIdentity,
+} from "./newsQuality.ts";
 import { safeHref } from "./safeHref.ts";
 export interface DigestItem {
   url: string;
   title: string;
   author?: string;
   raw_excerpt: string;
-  published_at: string;
+  published_at?: string;
 }
 export const digestResponseFormat = {
   type: "json_schema",
@@ -21,8 +26,9 @@ export const digestResponseFormat = {
               url: { type: "string" },
               publisher: { type: "string" },
               summary: { type: "string" },
+              published_at: { type: ["string", "null"] },
             },
-            required: ["title", "url", "publisher", "summary"],
+            required: ["title", "url", "publisher", "summary", "published_at"],
             additionalProperties: false,
           },
         },
@@ -51,12 +57,14 @@ export function parseNewsDigest(
   )
     return [];
   const result: DigestItem[] = [],
-    seen = new Set<string>();
+    seen = new Set<string>(),
+    seenTitles = new Set<string>();
   for (const item of parsed.items) {
     if (!item || typeof item !== "object") continue;
     const { title, url, publisher, summary } = item;
     const href = safeHref(url);
-    if (!href || !/^https?:\/\//.test(href) || seen.has(href)) continue;
+    if (!href || !/^https?:\/\//.test(href) || seen.has(newsUrlIdentity(href)))
+      continue;
     if (
       typeof title !== "string" ||
       typeof summary !== "string" ||
@@ -64,7 +72,8 @@ export function parseNewsDigest(
     )
       continue;
     if (
-      title.trim().length < 15 ||
+      !isReadableNewsHeadline(title) ||
+      seenTitles.has(newsHeadlineIdentity(title)) ||
       title.length > 300 ||
       summary.trim().length < 20 ||
       summary.length > 1500
@@ -76,13 +85,25 @@ export function parseNewsDigest(
       )
     )
       continue;
-    seen.add(href);
+    const publishedAt =
+      typeof item.published_at === "string"
+        ? new Date(item.published_at)
+        : null;
+    // Unknown dates stay unknown. Ingestion time is not a source publication date.
+    if (
+      publishedAt &&
+      (Number.isNaN(publishedAt.getTime()) ||
+        publishedAt.getTime() > now.getTime() + 300_000)
+    )
+      continue;
+    seen.add(newsUrlIdentity(href));
+    seenTitles.add(newsHeadlineIdentity(title));
     result.push({
       url: href,
       title: title.trim(),
       author: publisher.trim().slice(0, 200),
       raw_excerpt: summary.trim(),
-      published_at: now.toISOString(),
+      published_at: publishedAt?.toISOString(),
     });
     if (result.length === 5) break;
   }

@@ -32,6 +32,10 @@ export interface OfferHealth {
   payments_ready: boolean;
   mode: "test" | "live" | "unconfigured";
   webhook_url: string;
+  delivery_ready?: boolean;
+  delivery_missing?: string[];
+  delivery_pending?: number;
+  delivery_needs_review?: number;
 }
 export interface OfferAccess {
   order: {
@@ -50,6 +54,8 @@ export interface OfferAccess {
   access_url: string;
   payments_ready: boolean;
   thank_you_message?: string;
+  delivery_state?: "sent" | "processing" | "not_sent" | "needs_review";
+  delivery_ready?: boolean;
 }
 export interface OfferClaim {
   status: "pending" | "fulfilled" | "expired" | "failed" | "refunded";

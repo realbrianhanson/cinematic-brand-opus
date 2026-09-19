@@ -1,3 +1,7 @@
+import {
+  newsSourceLabel,
+  uniqueNewsItems,
+} from "../../supabase/functions/_shared/newsQuality";
 import { formatPublicDate } from "@/lib/publicDate";
 import { fetchNewsPage } from "@/lib/publicLists";
 import { useSiteConfig } from "@/config/SiteConfigContext";
@@ -6,11 +10,8 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Search } from "lucide-react";
-import { absoluteUrl, pageTitle } from "@/config/site";
-import PageHead from "@/components/PageHead";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
-import CustomCursor from "@/components/CustomCursor";
 
 const hashSeed = (s: string) => {
   let h = 0;
@@ -99,25 +100,12 @@ const NewsImage = ({
   );
 };
 
-const sourceName = (n: {
-  source_name?: string | null;
-  url: string;
-}): string => {
-  if (n?.source_name) return n.source_name;
-  try {
-    return new URL(n.url).hostname.replace(/^www\./, "");
-  } catch {
-    return "Source";
-  }
-};
-
-const PAGE_SIZE = 18;
+const sourceName = newsSourceLabel;
 
 const NewsCardSkeleton = () => (
   <div
-    className="grid gap-6 py-6 md:py-8 animate-pulse"
+    className="grid grid-cols-1 gap-6 py-6 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] md:py-8 animate-pulse"
     style={{
-      gridTemplateColumns: "minmax(120px, 220px) 1fr",
       borderBottom: "1px solid rgba(255,255,255,0.08)",
     }}
   >
@@ -246,18 +234,10 @@ const News = ({ initialPage }: NewsProps = {}) => {
     return () => io.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const allItems = useMemo(() => {
-    const seen = new Set<string>();
-    const out: Awaited<ReturnType<typeof fetchNewsPage>>["items"] = [];
-    for (const page of data?.pages ?? []) {
-      for (const it of page.items) {
-        if (seen.has(it.id)) continue;
-        seen.add(it.id);
-        out.push(it);
-      }
-    }
-    return out;
-  }, [data]);
+  const allItems = useMemo(
+    () => uniqueNewsItems((data?.pages ?? []).flatMap((page) => page.items)),
+    [data],
+  );
 
   const filtered = allItems;
 
@@ -269,7 +249,6 @@ const News = ({ initialPage }: NewsProps = {}) => {
       className="public-site min-h-screen"
       style={{ background: "var(--brand-backdrop)", color: "#fff" }}
     >
-      <CustomCursor />
       <Nav />
 
       <header
@@ -302,7 +281,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
             color: "#fff",
           }}
         >
-          Latest News
+          Business Briefings
         </h1>
         <p
           className="font-body mt-4"
@@ -336,6 +315,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
             />
             <input
               type="search"
+              aria-label="Search news"
               placeholder="Search news…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -364,6 +344,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 <button
                   key={l.value}
                   onClick={() => setLane(l.value)}
+                  aria-pressed={active}
                   className="font-body uppercase transition-colors"
                   style={{
                     fontSize: 11,
@@ -404,14 +385,14 @@ const News = ({ initialPage }: NewsProps = {}) => {
             Failed to load news. Please refresh the page.
           </p>
         )}
-        {!isLoading && !isError && filtered.length === 0 && (
+        {!isLoading && !isError && !hasNextPage && filtered.length === 0 && (
           <p
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             {query || lane !== "all"
               ? "No news matches your search."
-              : "No AI, Marketing, or Sales news is available at the moment."}
+              : "No briefings are available at the moment."}
           </p>
         )}
 
@@ -451,7 +432,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   />
                 )}
               </div>
-              <div className="flex flex-col justify-center">
+              <div className="flex min-w-0 flex-col justify-center [overflow-wrap:anywhere]">
                 <span
                   className="font-body uppercase mb-3"
                   style={{
@@ -520,9 +501,8 @@ const News = ({ initialPage }: NewsProps = {}) => {
             <Link
               key={n.id}
               to={`/news/${n.id}`}
-              className="group grid gap-6 py-6 md:py-8"
+              className="group grid grid-cols-1 gap-6 py-6 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] md:py-8"
               style={{
-                gridTemplateColumns: "minmax(120px, 220px) 1fr",
                 borderBottom: "1px solid rgba(255,255,255,0.08)",
                 textDecoration: "none",
                 transition: "background-color 0.25s",
@@ -556,7 +536,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   />
                 )}
               </div>
-              <div className="flex flex-col justify-center">
+              <div className="flex min-w-0 flex-col justify-center [overflow-wrap:anywhere]">
                 <span
                   className="font-body uppercase mb-2"
                   style={{
@@ -622,6 +602,17 @@ const News = ({ initialPage }: NewsProps = {}) => {
             ))}
         </div>
 
+        {hasNextPage && !isLoading && (
+          <div className="mt-8 text-center">
+            <button
+              className="public-secondary-action"
+              disabled={isFetchingNextPage}
+              onClick={() => void fetchNextPage()}
+            >
+              {isFetchingNextPage ? "Loading more…" : "Load more briefings"}
+            </button>
+          </div>
+        )}
         {/* Sentinel */}
         <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
 

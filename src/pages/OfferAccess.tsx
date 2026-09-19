@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Copy, Download, RefreshCw } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
+import OfferRecovery from "@/components/OfferRecovery";
 import {
   invokeOfferApi,
   isOfferToken,
@@ -33,11 +34,13 @@ export default function OfferAccess() {
       const fragment = new URLSearchParams(window.location.hash.slice(1));
       const supplied = fragment.get("token");
       const accessToken =
-        supplied !== null
-          ? isOfferToken(supplied)
-            ? supplied
-            : ""
-          : restoreOfferToken();
+        new URLSearchParams(window.location.search).get("recover") === "1"
+          ? ""
+          : supplied !== null
+            ? isOfferToken(supplied)
+              ? supplied
+              : ""
+            : restoreOfferToken();
       if (window.location.hash)
         window.history.replaceState(
           window.history.state,
@@ -93,7 +96,11 @@ export default function OfferAccess() {
         if (!active || currentToken.current !== token) return;
         setData(result);
         setError("");
-        if (result.order.status === "pending" && ++attempts < 20)
+        if (
+          (result.order.status === "pending" ||
+            result.delivery_state === "processing") &&
+          ++attempts < 20
+        )
           timer = setTimeout(poll, 3000);
       } catch (err) {
         if (active && currentToken.current === token)
@@ -179,6 +186,7 @@ export default function OfferAccess() {
             download. This page needs that private link to find your resource.
           </p>
         ) : null}
+        {initialized && (!token || (error && !data)) && <OfferRecovery />}
         {data && (
           <section
             className="mt-8 p-6 md:p-8 rounded-lg border border-white/20 bg-white/[0.035]"
@@ -311,8 +319,62 @@ export default function OfferAccess() {
               </button>
               <p className="mt-2 text-xs leading-relaxed text-white/65">
                 Save this link before leaving. Anyone with it can access your
-                resource. It is not automatically emailed.
+                resource.
               </p>
+              {data.order.status === "fulfilled" && (
+                <div className="mt-5 text-sm leading-relaxed text-white/75">
+                  <p>
+                    {data.delivery_state === "sent"
+                      ? "Your access email was accepted by the email provider. Check your inbox and spam folder; delivery is not guaranteed."
+                      : data.delivery_state === "processing"
+                        ? "Your access email is being prepared. You can download now and save this private link."
+                        : data.delivery_state === "needs_review"
+                          ? "We couldn’t confirm the access email. Save your private link or use email recovery below."
+                          : data.delivery_ready
+                            ? "Your access email has not been confirmed. Your download is available here."
+                            : "Email delivery is currently unavailable. Save your private link to return to this download."}
+                  </p>
+                  {data.delivery_ready &&
+                    data.delivery_state !== "sent" &&
+                    data.delivery_state !== "needs_review" && (
+                      <button
+                        disabled={!!busy}
+                        className={`${buttonClass} mt-3`}
+                        onClick={() =>
+                          void act("email", async () => {
+                            const result = await invokeOfferApi<{
+                              delivery_state: AccessData["delivery_state"];
+                            }>({ action: "email_access", token });
+                            if (currentToken.current !== token) return;
+                            setData((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    delivery_state: result.delivery_state,
+                                  }
+                                : current,
+                            );
+                            setNotice(
+                              result.delivery_state === "sent"
+                                ? "Access email accepted by the provider. Check your inbox and spam folder."
+                                : "The email has not been confirmed yet. Save your private link and try again in a minute, or contact support.",
+                            );
+                          })
+                        }
+                      >
+                        {busy === "email"
+                          ? "Checking email…"
+                          : "Retry access email"}
+                      </button>
+                    )}
+                  <a
+                    href="/offer-access?recover=1"
+                    className="mt-3 block underline underline-offset-4"
+                  >
+                    Recover access by email
+                  </a>
+                </div>
+              )}
               {copyFallback && (
                 <label className="block mt-3 text-sm">
                   Select and copy your private link

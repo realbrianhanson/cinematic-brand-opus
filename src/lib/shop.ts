@@ -31,11 +31,17 @@ export type ShopOffer = Pick<
   | "currency"
   | "updated_at"
 > & { shop_category: ShopCategory; shop_featured: boolean };
+export interface ShopAvailability {
+  categories: ShopCategory[];
+  prices: Array<"free" | "paid">;
+}
 export interface ShopResult {
   items: ShopOffer[];
   total: number;
   page: number;
   pageSize: number;
+  /** Catalog-wide availability, never inferred from a filtered or paginated page. */
+  availableFilters?: ShopAvailability | null;
 }
 export const SHOP_PAGE_SIZE = 24;
 export const SHOP_COLUMNS =

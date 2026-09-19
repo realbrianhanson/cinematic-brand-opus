@@ -1,9 +1,17 @@
+import { buildNewsDigestPrompt } from "../_shared/newsDigestPrompt.ts";
+import {
+  BUSINESS_NEWS_LANES,
+  hasBusinessUseCase,
+  newsImportNeedsLanguageReview,
+  newsHeadlineIdentity,
+  newsUrlIdentity,
+} from "../_shared/newsQuality.ts";
 import {
   digestResponseFormat,
   parseNewsDigest,
 } from "../_shared/newsDigest.ts";
 // Polls all active content_sources (RSS + Perplexity daily digests),
-// dedupes by url, embeds, upserts into source_items.
+// deduplicates source URLs/headlines before enrichment; holds unsuitable items for review.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { embedText, toPgVector } from "../_shared/embeddings.ts";
@@ -135,20 +143,7 @@ async function fetchPerplexityDigest(
   perplexityKey: string,
   sourceName: string,
 ): Promise<Item[]> {
-  const promptByLane: Record<string, string> = {
-    ai_tools:
-      "List the 5 most important AI product/model launches, feature releases, or major AI-industry news items from the last 24 hours. For each: exact headline, official source URL, publisher, one-sentence factual summary. Only real news with real URLs.",
-    smb_marketing:
-      "List the 5 most notable news items from the last 48 hours about AI use in small-business marketing, sales, conversions, or SEO. For each: headline, source URL, publisher, one-sentence factual summary. Only real news with real URLs.",
-    ai_training:
-      "List the 5 most notable news items from the last 48 hours about AI training, adoption in the workforce, upskilling programs, or enterprise AI enablement. For each: headline, source URL, publisher, one-sentence factual summary. Only real news with real URLs.",
-    industry:
-      "List the 5 most notable news items from the last 48 hours about AI adoption in specific service industries (dentists, plumbers, roofers, contractors, med spas, real estate, law firms, local retail). For each: headline, source URL, publisher, one-sentence factual summary. Only real news with real URLs.",
-  };
-  const prompt =
-    (promptByLane[topicLane] ||
-      `Find up to five recent, verifiable news stories about ${sourceName}. Use real source URLs and factual summaries.`) +
-    " Return plain-text headlines, publisher names, URLs and summaries in the requested JSON structure. Omit unsupported stories.";
+  const prompt = buildNewsDigestPrompt(topicLane, sourceName);
 
   try {
     const res = await fetch("https://api.perplexity.ai/v1/sonar", {
@@ -278,8 +273,42 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Cross-run deduplication uses recent ingestion dates, not unreliable source
+  // timestamps. Fail closed if the history cannot be checked completely.
+  const knownUrls = new Set<string>();
+  const knownTitles = new Set<string>();
+  const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+  for (let page = 0; ; page++) {
+    const { data: recent, error: historyError } = await supabase
+      .from("source_items")
+      .select("url,title,ai_title")
+      .gte("fetched_at", since)
+      .order("id")
+      .range(page * 1000, page * 1000 + 999);
+    if (historyError || page >= 10) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "News history could not be checked. No new items were published.",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    for (const row of recent ?? []) {
+      knownUrls.add(newsUrlIdentity(row.url));
+      for (const title of [row.title, row.ai_title])
+        if (title) knownTitles.add(newsHeadlineIdentity(title));
+    }
+    if ((recent?.length ?? 0) < 1000) break;
+  }
+
   let totalInserted = 0;
   let totalScanned = 0;
+  let totalHeldForReview = 0;
+  let totalDuplicates = 0;
   const perSource: Record<string, number> = {};
 
   for (const src of sources || []) {
@@ -311,22 +340,28 @@ Deno.serve(async (req) => {
       if (!item.url || !/^https?:\/\//i.test(item.url)) continue;
       if (!item.title || item.title.trim().length < 15) continue;
 
-      // Skip if url already exists
-      const { data: existing } = await supabase
-        .from("source_items")
-        .select("id")
-        .eq("url", item.url)
-        .maybeSingle();
-      if (existing) continue;
+      const urlKey = newsUrlIdentity(item.url);
+      const titleKey = newsHeadlineIdentity(item.title);
+      if (!urlKey || knownUrls.has(urlKey) || knownTitles.has(titleKey)) {
+        totalDuplicates++;
+        continue;
+      }
+      const needsReview =
+        newsImportNeedsLanguageReview(item.title) ||
+        (src.kind === "perplexity_topic" &&
+          BUSINESS_NEWS_LANES.has(src.topic_lane) &&
+          !hasBusinessUseCase(item.title, item.raw_excerpt ?? ""));
 
       const embeddingText = [item.title, item.raw_excerpt]
         .filter(Boolean)
         .join(" — ");
-      const vec = await embedText(embeddingText, lovableKey);
+      const vec = needsReview
+        ? null
+        : await embedText(embeddingText, lovableKey);
 
       // If RSS didn't include an image, try to pull og:image from the article.
       let imageUrl = item.image_url;
-      if (!imageUrl) {
+      if (!imageUrl && !needsReview) {
         const og = await fetchOgImage(item.url);
         if (og) imageUrl = og;
       }
@@ -341,13 +376,18 @@ Deno.serve(async (req) => {
         image_url: imageUrl?.slice(0, 1000),
         topic_lane: src.topic_lane,
         embedding: vec ? toPgVector(vec) : null,
-        status: "published",
-        pipeline_status: "new",
+        status: needsReview ? "pending" : "published",
+        pipeline_status: needsReview ? "skipped" : "new",
         engagement_score: item.engagement ?? 0,
       });
 
-      if (!insErr) inserted++;
-      else console.warn("insert source_item failed", item.url, insErr.message);
+      if (!insErr) {
+        inserted++;
+        knownUrls.add(urlKey);
+        knownTitles.add(titleKey);
+        if (needsReview) totalHeldForReview++;
+      } else
+        console.warn("insert source_item failed", item.url, insErr.message);
     }
     perSource[src.name] = inserted;
     totalInserted += inserted;
@@ -369,7 +409,14 @@ Deno.serve(async (req) => {
     );
 
   return new Response(
-    JSON.stringify({ ok: true, totalScanned, totalInserted, perSource }),
+    JSON.stringify({
+      ok: true,
+      totalScanned,
+      totalInserted,
+      totalHeldForReview,
+      totalDuplicates,
+      perSource,
+    }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });

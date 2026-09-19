@@ -843,13 +843,16 @@ function OfferForm({
                 {!external && (
                   <div className="admin-notice text-sm">
                     {health.isPending
-                      ? "Checking Stripe setup…"
+                      ? "Checking payment and download-email setup…"
                       : health.isError
-                        ? "Stripe readiness is unknown. Check setup before sharing a paid offer."
+                        ? "Checkout readiness is unknown. Check payment and download-email setup before sharing a paid offer."
                         : health.data?.payments_ready
-                          ? `Stripe ${health.data.mode} configuration is present. A real checkout has not been verified by this check.`
-                          : "You can save or publish this page now. Checkout stays unavailable until Stripe setup is complete."}
-                    <Link to="/admin/offers" className="underline block mt-2">
+                          ? `Stripe ${health.data.mode} and download-email configuration are present. A real checkout or email delivery has not been verified by this check.`
+                          : "You can save or publish this page now. Checkout stays unavailable until Stripe and download-email setup are complete."}
+                    <Link
+                      to="/admin/offers?tab=setup"
+                      className="underline block mt-2"
+                    >
                       Offers setup
                     </Link>
                   </div>

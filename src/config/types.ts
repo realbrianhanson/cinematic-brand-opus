@@ -194,7 +194,16 @@ export interface FooterConfig {
   termsUrl: string | null;
 }
 
+export interface NavGroup {
+  label: string;
+  children: Array<LinkItem & { description?: string }>;
+}
+
+export type NavItem = LinkItem | NavGroup;
+
 export interface NavConfig {
+  /** Ordered links and resource groups. Omit to use legacy hash/route links. */
+  items?: NavItem[];
   /** Homepage anchors, in order. */
   hashLinks: LinkItem[];
   /** Route links appended after the anchors. */
@@ -345,6 +354,19 @@ export function validateSiteConfig(config: SiteConfig): SiteConfig {
   config.featuredResources?.items.forEach((link, i) =>
     checkLink(link, `featuredResources.items[${i}]`, errors),
   );
+  config.nav.items?.forEach((item, i) => {
+    if ("children" in item) {
+      if (!isNonEmpty(item.label))
+        errors.push(`nav.items[${i}].label must not be empty`);
+      if (!item.children.length)
+        errors.push(`nav.items[${i}].children must not be empty`);
+      item.children.forEach((link, j) =>
+        checkLink(link, `nav.items[${i}].children[${j}]`, errors),
+      );
+    } else {
+      checkLink(item, `nav.items[${i}]`, errors);
+    }
+  });
   config.nav.hashLinks.forEach((l, i) =>
     checkLink(l, `nav.hashLinks[${i}]`, errors),
   );

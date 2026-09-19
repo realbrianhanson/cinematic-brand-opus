@@ -1,3 +1,8 @@
+import {
+  newsFeedIssue,
+  newsSourceLabel,
+  uniqueNewsItems,
+} from "../../supabase/functions/_shared/newsQuality";
 import { formatPublicDate } from "@/lib/publicDate";
 import { newsDisplay } from "@/lib/newsDisplay";
 import type {
@@ -8,7 +13,7 @@ import type {
   PublicNewsItem,
 } from "@/lib/publicTypes";
 import type { Tables, Json } from "@/integrations/supabase/types";
-import { renderNewsMarkdown } from "@/lib/newsMarkdown";
+import { renderNewsMarkdown, safeHref } from "@/lib/newsMarkdown";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,17 +48,7 @@ const laneLabel = (lane?: string | null) => {
   }
 };
 
-const sourceName = (n: {
-  source_name?: string | null;
-  url: string;
-}): string => {
-  if (n?.source_name) return n.source_name;
-  try {
-    return new URL(n.url).hostname.replace(/^www\./, "");
-  } catch {
-    return "Source";
-  }
-};
+const sourceName = newsSourceLabel;
 
 interface NewsDetailProps {
   /** Server-rendered news item (published only). */
@@ -89,14 +84,19 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
       const { data } = await supabase
         .from("source_items")
         .select(
-          "id, title, image_url, topic_lane, published_at, source_name, url",
+          "id, title, ai_title, ai_summary, raw_excerpt, image_url, topic_lane, published_at, source_name, url",
         )
         .eq("topic_lane", item!.topic_lane!)
         .eq("status", "published")
         .neq("id", id!)
         .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(6);
-      return data ?? [];
+        .limit(30);
+      return uniqueNewsItems([
+        item!,
+        ...(data ?? []).filter((row) => !newsFeedIssue(row)),
+      ])
+        .filter((row) => row.id !== item!.id)
+        .slice(0, 4);
     },
     enabled: !!item?.topic_lane,
   });
@@ -213,7 +213,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
               : "Recent"}
           </span>
           <span
-            className="font-body"
+            className="font-body min-w-0 [overflow-wrap:anywhere]"
             style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
           >
             Source: {src}
@@ -221,7 +221,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         </div>
 
         <h1
-          className="font-display italic mb-6"
+          className="font-display italic mb-6 [overflow-wrap:anywhere]"
           style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", lineHeight: 1.15 }}
         >
           {title}
@@ -274,8 +274,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                   fontStyle: "italic",
                 }}
               >
-                The full write-up for this story is not published yet. Read the
-                original report below.
+                This briefing summarizes a third-party report. Read the source
+                for its full reporting and context.
               </p>
             </div>
           )}
@@ -296,13 +296,16 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                 Reference
               </span>
               <a
-                href={item.url}
+                href={safeHref(item.url) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 font-body"
+                className="inline-flex max-w-full items-center gap-2 font-body"
                 style={{ color: "var(--brand-accent)", fontSize: 14 }}
               >
-                Original report on {src} <ExternalLink size={13} />
+                <span className="min-w-0 [overflow-wrap:anywhere]">
+                  Read the report on {src}
+                </span>{" "}
+                <ExternalLink className="shrink-0" size={13} />
               </a>
             </div>
           )}
@@ -376,7 +379,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         {/* Related */}
         {related && related.length > 0 && (
           <section className="mt-16">
-            <h2 className="font-display italic mb-6" style={{ fontSize: 24 }}>
+            <h2
+              className="font-display italic mb-6 [overflow-wrap:anywhere]"
+              style={{ fontSize: 24 }}
+            >
               Related News
             </h2>
             <div className="grid md:grid-cols-2 gap-5">
@@ -418,10 +424,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                     className="font-display italic group-hover:text-[var(--brand-accent)] transition-colors"
                     style={{ fontSize: 17, lineHeight: 1.35, color: "#fff" }}
                   >
-                    {r.title}
+                    {newsDisplay(r).title}
                   </h3>
                   <p
-                    className="font-body mt-2"
+                    className="font-body mt-2 [overflow-wrap:anywhere]"
                     style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}
                   >
                     {sourceName(r)}

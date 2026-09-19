@@ -3,10 +3,13 @@ import { createPublicServerClient } from "./publicData.server";
 import {
   escapeShopSearch,
   SHOP_COLUMNS,
+  SHOP_CATEGORIES,
   SHOP_PAGE_SIZE,
   shopFilters,
   type ShopResult,
   type ShopOffer,
+  type ShopAvailability,
+  type ShopCategory,
 } from "./shop";
 
 /** Optional home-page merchandising must never take down the main landing page. */
@@ -62,6 +65,50 @@ export const getRelatedShopOffers = createServerFn({ method: "GET" })
     }
   });
 
+/** Facet checks remain bounded even when a member has thousands of products. */
+async function shopAvailability(): Promise<ShopAvailability | null> {
+  const categories = Object.keys(SHOP_CATEGORIES) as ShopCategory[];
+  const prices = ["free", "paid"] as const;
+  try {
+    const checks = await Promise.all(
+      [
+        ...categories.map((value) => ({ field: "shop_category", value })),
+        ...prices.map((value) => ({ field: "kind", value })),
+      ].map(async ({ field, value }) => {
+        const { data, error } = await createPublicServerClient()
+          .from("offers")
+          .select("id")
+          .eq("status", "published")
+          .eq("show_in_shop", true)
+          .eq("funnel_only", false)
+          .eq(field, value)
+          .limit(1)
+          .abortSignal(AbortSignal.timeout(4000));
+        if (error) throw error;
+        return Boolean(data?.length);
+      }),
+    );
+    return {
+      categories: categories.filter((_, index) => checks[index]),
+      prices: prices.filter((_, index) => checks[categories.length + index]),
+    };
+  } catch {
+    // A facet outage must not falsely claim categories are empty or hide the catalog.
+    return null;
+  }
+}
+
+function availabilityFromItems(items: ShopOffer[]): ShopAvailability {
+  return {
+    categories: (Object.keys(SHOP_CATEGORIES) as ShopCategory[]).filter(
+      (category) => items.some((item) => item.shop_category === category),
+    ),
+    prices: (["free", "paid"] as const).filter((price) =>
+      items.some((item) => item.kind === price),
+    ),
+  };
+}
+
 export const getShopCatalog = createServerFn({ method: "GET" })
   .inputValidator((input: Record<string, unknown>) => shopFilters(input))
   .handler(async ({ data }): Promise<ShopResult> => {
@@ -76,6 +123,13 @@ export const getShopCatalog = createServerFn({ method: "GET" })
       query = query.eq("shop_category", data.category);
     if (data.price !== "all") query = query.eq("kind", data.price);
     if (data.q) query = query.ilike("title", `%${escapeShopSearch(data.q)}%`);
+    const completeFirstPage =
+      !data.q &&
+      data.category === "all" &&
+      data.price === "all" &&
+      data.page === 1;
+    // Filtered pages need catalog-wide facets, fetched alongside the listing.
+    const pendingAvailability = completeFirstPage ? null : shopAvailability();
     const start = (data.page - 1) * SHOP_PAGE_SIZE;
     const {
       data: items,
@@ -97,6 +151,7 @@ export const getShopCatalog = createServerFn({ method: "GET" })
         total: first.count || 0,
         page: data.page,
         pageSize: SHOP_PAGE_SIZE,
+        availableFilters: await (pendingAvailability ?? shopAvailability()),
       };
     }
     if (error)
@@ -106,5 +161,9 @@ export const getShopCatalog = createServerFn({ method: "GET" })
       total: count || 0,
       page: data.page,
       pageSize: SHOP_PAGE_SIZE,
+      availableFilters:
+        completeFirstPage && (count || 0) <= (items?.length || 0)
+          ? availabilityFromItems((items || []) as ShopOffer[])
+          : await (pendingAvailability ?? shopAvailability()),
     };
   });

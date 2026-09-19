@@ -1,6 +1,7 @@
 import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import FormPrivacyLink from "@/components/FormPrivacyLink";
 import {
   interpretSubscribeResult,
   type SubscribeUiState,
@@ -141,6 +142,9 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
           )}
         </form>
       )}
+      <p className="mt-3 text-xs leading-relaxed text-white/60">
+        <FormPrivacyLink />
+      </p>
     </div>
   );
 };

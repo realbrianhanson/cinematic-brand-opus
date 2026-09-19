@@ -49,6 +49,75 @@ const free: ShopOffer = {
   shop_featured: true,
 };
 describe("shop browsing", () => {
+  it("only offers populated categories and omits a redundant single-price filter", () => {
+    render(
+      <Shop
+        catalog={{
+          items: [{ ...free, kind: "paid", shop_category: "training" }],
+          total: 1,
+          page: 1,
+          pageSize: 24,
+          availableFilters: {
+            categories: ["training", "tool"],
+            prices: ["paid"],
+          },
+        }}
+        filters={shopFilters({})}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Trainings" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Tools" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Courses" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Resources" })).toBeNull();
+    expect(
+      screen.queryByRole("navigation", { name: "Price filter" }),
+    ).toBeNull();
+  });
+  it("keeps a selected empty saved filter visible and recoverable", () => {
+    render(
+      <Shop
+        catalog={{
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 24,
+          availableFilters: { categories: ["training"], prices: ["paid"] },
+        }}
+        filters={shopFilters({ category: "course", price: "free" })}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "Courses" })
+        .getAttribute("aria-current"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("link", { name: "Free" }).getAttribute("aria-current"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("link", { name: "Paid" }).getAttribute("href"),
+    ).toBe("/shop?category=course&price=paid");
+    expect(
+      screen.getByRole("link", { name: "Clear filters" }).getAttribute("href"),
+    ).toBe("/shop");
+  });
+  it("retains all filters if catalog-wide availability is unknown", () => {
+    render(
+      <Shop
+        catalog={{
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 24,
+          availableFilters: null,
+        }}
+        filters={shopFilters({ q: "missing" })}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Courses" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Free" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Paid" })).toBeTruthy();
+  });
   it("shows provider pricing honestly and keeps external cards on local detail pages", () => {
     render(
       <Shop

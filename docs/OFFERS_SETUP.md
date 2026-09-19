@@ -1,6 +1,6 @@
 # Offers and funnels
 
-Open **Admin → Business → Offers & shop**. Each offer can use **Website checkout / download** or an **External / affiliate link**. Free downloads and external links work without this site's Stripe keys. You can prepare paid website downloads now; their purchase button stays unavailable until Stripe's server credentials are configured.
+Open **Admin → Business → Offers & shop**. Each offer can use **Website checkout / download** or an **External / affiliate link**. Free downloads and external links work without this site's Stripe keys. You can prepare paid website downloads now; their purchase button stays unavailable until Stripe's server credentials and download email delivery are configured.
 
 ## Build an offer
 
@@ -52,7 +52,9 @@ Open the **Stripe setup** tab and refresh configuration. “Configured” means 
 
 Customers receive a download on their confirmation page. They can copy a private access link for later. Anyone with that link can access the resource, so keep it private. A file download uses a link valid for five minutes; the saved access page can issue another while the order remains fulfilled.
 
-The **Leads & orders** tab records free opt-ins and paid checkout states. Emails are self-reported, not verified. This feature does not automatically email files or enroll anyone in the newsletter. Pending, failed, expired, and refunded orders are not counted as fulfilled purchases. Do not treat a browser redirect as proof of payment.
+The **Leads & orders** tab records free opt-ins and paid checkout states. Emails are self-reported, not verified. Fulfilled website downloads attempt to email a private access link using the configured sender; they never enroll the recipient in the newsletter or attach the private file. Visitors can download immediately from their access page and save its private link even when email is unavailable. Pending, failed, expired, and refunded orders are not counted as fulfilled purchases. Do not treat a browser redirect as proof of payment.
+
+Lost links can be requested at `/offer-access?recover=1`. The public response does not reveal whether an address has orders. Only the emailed private link grants access. The **Stripe setup** tab also shows download email configuration, pending deliveries, and a bounded retry action. See [Download access and email recovery](./OFFER_ACCESS_DELIVERY.md) for deployment, retry behavior, and provider limitations.
 
 ## Sharing this theme
 

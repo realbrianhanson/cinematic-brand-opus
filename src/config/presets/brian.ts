@@ -62,14 +62,38 @@ export const brianPreset: SiteConfig = {
   },
 
   nav: {
-    hashLinks: [{ label: "Story", href: "#story" }],
-    routeLinks: [
+    items: [
       { label: "Shop", href: "/shop" },
+      {
+        label: "Free Resources",
+        children: [
+          {
+            label: "Start Here",
+            href: "/start-here",
+            description: "Find the right next step.",
+          },
+          {
+            label: "Guides & Resources",
+            href: "/resources",
+            description: "Practical ideas you can put to work.",
+          },
+          {
+            label: "Articles",
+            href: "/blog",
+            description: "Go deeper on the topics that matter.",
+          },
+          {
+            label: "AI News",
+            href: "/news",
+            description: "See what is changing and why it matters.",
+          },
+        ],
+      },
+      { label: "About Brian", href: "#story" },
       { label: "Speaking", href: "/speaking" },
-      { label: "Resources", href: "/resources" },
-      { label: "Blog", href: "/blog" },
-      { label: "News", href: "/news" },
     ],
+    hashLinks: [{ label: "About Brian", href: "#story" }],
+    routeLinks: [],
     cta: {
       label: "Free AI Summit",
       href: freeSummitUrl,
@@ -354,19 +378,21 @@ export const brianPreset: SiteConfig = {
   },
 
   footer: {
-    hashLinks: [{ label: "Story", href: "#story" }],
+    hashLinks: [{ label: "About Brian", href: "#story" }],
     routeLinks: [
+      { label: "Start Here", href: "/start-here" },
       { label: "Shop", href: "/shop" },
       { label: "Speaking", href: "/speaking" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
       { label: "Resources", href: "/resources" },
+      { label: "Support", href: "/support" },
       { label: "Sitemap", href: "/sitemap" },
     ],
-    contactNote: "Speaking · Partnerships · Media",
-    // Not published yet: the links stay hidden until real policy pages exist.
-    privacyUrl: null,
-    termsUrl: null,
+    contactNote:
+      "Questions about a purchase, speaking, or working together? Get in touch.",
+    privacyUrl: "/privacy",
+    termsUrl: "/terms",
   },
 
   sections: {

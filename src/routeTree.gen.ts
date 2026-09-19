@@ -16,12 +16,16 @@ import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as OfferAccessRouteImport } from './routes/offer-access'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SitemapRouteImport } from './routes/sitemap'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SpeakingRouteImport } from './routes/speaking'
+import { Route as StartHereRouteImport } from './routes/start-here'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
@@ -101,6 +105,11 @@ const OfferAccessRoute = OfferAccessRouteImport.update({
   path: '/offer-access',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResourcesRoute = ResourcesRouteImport.update({
   id: '/resources',
   path: '/resources',
@@ -129,6 +138,21 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const SpeakingRoute = SpeakingRouteImport.update({
   id: '/speaking',
   path: '/speaking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StartHereRoute = StartHereRouteImport.update({
+  id: '/start-here',
+  path: '/start-here',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -359,12 +383,16 @@ export interface FileRoutesByFullPath {
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
   '/offer-access': typeof OfferAccessRoute
+  '/privacy': typeof PrivacyRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speaking': typeof SpeakingRoute
+  '/start-here': typeof StartHereRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -414,11 +442,15 @@ export interface FileRoutesByTo {
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/offer-access': typeof OfferAccessRoute
+  '/privacy': typeof PrivacyRoute
   '/rss.xml': typeof RssDotxmlRoute
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speaking': typeof SpeakingRoute
+  '/start-here': typeof StartHereRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -471,12 +503,16 @@ export interface FileRoutesById {
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
   '/offer-access': typeof OfferAccessRoute
+  '/privacy': typeof PrivacyRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/shop': typeof ShopRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speaking': typeof SpeakingRoute
+  '/start-here': typeof StartHereRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -531,12 +567,16 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/news'
     | '/offer-access'
+    | '/privacy'
     | '/resources'
     | '/rss.xml'
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/speaking'
+    | '/start-here'
+    | '/support'
+    | '/terms'
     | '/admin/categories'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -586,11 +626,15 @@ export interface FileRouteTypes {
     | '/llms-full.txt'
     | '/llms.txt'
     | '/offer-access'
+    | '/privacy'
     | '/rss.xml'
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/speaking'
+    | '/start-here'
+    | '/support'
+    | '/terms'
     | '/admin/categories'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -642,12 +686,16 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/news'
     | '/offer-access'
+    | '/privacy'
     | '/resources'
     | '/rss.xml'
     | '/shop'
     | '/sitemap'
     | '/sitemap.xml'
     | '/speaking'
+    | '/start-here'
+    | '/support'
+    | '/terms'
     | '/admin/categories'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -701,12 +749,16 @@ export interface RootRouteChildren {
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   NewsRoute: typeof NewsRouteWithChildren
   OfferAccessRoute: typeof OfferAccessRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResourcesRoute: typeof ResourcesRouteWithChildren
   RssDotxmlRoute: typeof RssDotxmlRoute
   ShopRoute: typeof ShopRoute
   SitemapRoute: typeof SitemapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeakingRoute: typeof SpeakingRoute
+  StartHereRoute: typeof StartHereRoute
+  SupportRoute: typeof SupportRoute
+  TermsRoute: typeof TermsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
@@ -769,6 +821,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfferAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resources': {
       id: '/resources'
       path: '/resources'
@@ -809,6 +868,27 @@ declare module '@tanstack/react-router' {
       path: '/speaking'
       fullPath: '/speaking'
       preLoaderRoute: typeof SpeakingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/start-here': {
+      id: '/start-here'
+      path: '/start-here'
+      fullPath: '/start-here'
+      preLoaderRoute: typeof StartHereRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -1234,12 +1314,16 @@ const rootRouteChildren: RootRouteChildren = {
   LlmsDottxtRoute: LlmsDottxtRoute,
   NewsRoute: NewsRouteWithChildren,
   OfferAccessRoute: OfferAccessRoute,
+  PrivacyRoute: PrivacyRoute,
   ResourcesRoute: ResourcesRouteWithChildren,
   RssDotxmlRoute: RssDotxmlRoute,
   ShopRoute: ShopRoute,
   SitemapRoute: SitemapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeakingRoute: SpeakingRoute,
+  StartHereRoute: StartHereRoute,
+  SupportRoute: SupportRoute,
+  TermsRoute: TermsRoute,
   AdminLoginRoute: AdminLoginRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,

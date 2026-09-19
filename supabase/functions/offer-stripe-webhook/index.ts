@@ -14,6 +14,10 @@ import {
   offerStripe,
   Stripe,
 } from "../_shared/offersRuntime.ts";
+import {
+  deliverOfferAccess,
+  prepareOfferDelivery,
+} from "../_shared/offerAccessMailRuntime.ts";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST")
@@ -84,6 +88,21 @@ Deno.serve(async (req) => {
       mutation,
     );
     if (error) throw new Error("Payment event could not be applied");
+    // A failed/uncertain mail attempt returns a retryable response after payment
+    // is durably recorded. Duplicate payment events retry the same frozen email.
+    if (
+      mutation._order_id &&
+      [
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+      ].includes(mutation._event_type)
+    ) {
+      const deliveryId = await prepareOfferDelivery(admin, {
+        orderId: mutation._order_id,
+      });
+      if (deliveryId && !(await deliverOfferAccess(admin, deliveryId)))
+        throw new Error("Access email awaiting retry");
+    }
     return offerJson(200, {
       received: true,
       duplicate: data?.duplicate === true,

@@ -230,6 +230,10 @@ export async function buildSitemapXml(): Promise<string> {
     { loc: `${siteUrl}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${siteUrl}/blog`, changefreq: "weekly", priority: "0.8" },
     { loc: `${siteUrl}/shop`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${siteUrl}/start-here`, changefreq: "monthly", priority: "0.8" },
+    { loc: `${siteUrl}/support`, changefreq: "monthly", priority: "0.4" },
+    { loc: `${siteUrl}/privacy`, changefreq: "monthly", priority: "0.3" },
+    { loc: `${siteUrl}/terms`, changefreq: "monthly", priority: "0.3" },
   ];
 
   if (config.sections.speaking)

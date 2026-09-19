@@ -6,6 +6,7 @@ import {
   type SubscribeUiState,
 } from "@/lib/newsletterClient";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import FormPrivacyLink from "@/components/FormPrivacyLink";
 
 const FinalCTA = () => {
   const siteConfig = useSiteConfig();
@@ -117,7 +118,7 @@ const FinalCTA = () => {
             {message}
           </p>
           <p className="mt-3 font-body text-xs leading-relaxed text-white/55">
-            {newsletter.privacyNote}
+            {newsletter.privacyNote} <FormPrivacyLink />
           </p>
           {newsletter.secondaryCta && (
             <div className="mt-7 border-t border-white/15 pt-5">

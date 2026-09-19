@@ -29,6 +29,18 @@ export default function Shop({
   useEffect(() => setSearch(filters.q), [filters.q]);
   const filtered =
     !!filters.q || filters.category !== "all" || filters.price !== "all";
+  const categories = Object.entries(SHOP_CATEGORIES).filter(
+    ([value]) =>
+      !catalog.availableFilters ||
+      catalog.availableFilters.categories.includes(value as ShopCategory) ||
+      filters.category === value,
+  );
+  const prices = (["free", "paid"] as const).filter(
+    (value) =>
+      !catalog.availableFilters ||
+      catalog.availableFilters.prices.includes(value) ||
+      filters.price === value,
+  );
   const totalPages = Math.max(1, Math.ceil(catalog.total / catalog.pageSize));
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,7 +90,7 @@ export default function Shop({
               className="flex flex-wrap gap-2"
             >
               {(
-                [["all", "All"], ...Object.entries(SHOP_CATEGORIES)] as [
+                [["all", "All"], ...categories] as [
                   ShopCategory | "all",
                   string,
                 ][]
@@ -128,31 +140,35 @@ export default function Shop({
             </form>
           </div>
           <div className="flex flex-wrap justify-between items-center gap-4">
-            <nav
-              className="flex flex-wrap gap-4 text-sm"
-              aria-label="Price filter"
-            >
-              {(
-                [
-                  ["all", "Free & paid"],
-                  ["free", "Free"],
-                  ["paid", "Paid"],
-                ] as const
-              ).map(([value, label]) => (
-                <Link
-                  key={value}
-                  to={shopHref({ ...filters, price: value, page: 1 })}
-                  aria-current={filters.price === value ? "true" : undefined}
-                  className={
-                    filters.price === value
-                      ? "font-semibold underline underline-offset-8 decoration-[var(--brand-accent)] text-white"
-                      : "text-white/65 hover:text-white"
-                  }
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
+            {(prices.length > 1 || filters.price !== "all") && (
+              <nav
+                className="flex flex-wrap gap-4 text-sm"
+                aria-label="Price filter"
+              >
+                {(
+                  [
+                    ["all", "All prices"],
+                    ...prices.map(
+                      (price) =>
+                        [price, price === "free" ? "Free" : "Paid"] as const,
+                    ),
+                  ] as const
+                ).map(([value, label]) => (
+                  <Link
+                    key={value}
+                    to={shopHref({ ...filters, price: value, page: 1 })}
+                    aria-current={filters.price === value ? "true" : undefined}
+                    className={
+                      filters.price === value
+                        ? "font-semibold underline underline-offset-8 decoration-[var(--brand-accent)] text-white"
+                        : "text-white/65 hover:text-white"
+                    }
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            )}
             <p className="text-sm text-white/65" role="status">
               {catalog.total} {catalog.total === 1 ? "item" : "items"}
               {filters.q && <> matching “{filters.q}”</>}

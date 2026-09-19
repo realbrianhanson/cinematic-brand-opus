@@ -1,4 +1,8 @@
 import { newsDisplay } from "./newsDisplay";
+import {
+  newsFeedIssue,
+  uniqueNewsItems,
+} from "../../supabase/functions/_shared/newsQuality";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -21,32 +25,48 @@ export async function fetchNewsPage(
   search = "",
   lanes: string[] = [],
 ) {
-  let query = client
-    .from("source_items")
-    .select(NEWS_CARD_COLUMNS)
-    .eq("status", "published");
-  if (lanes.length) query = query.in("topic_lane", lanes);
   const term = search.trim().slice(0, 200);
-  if (term) {
-    const filter = literalSearchFilter(term);
-    query = query.or(
-      ["title", "ai_title", "ai_summary", "raw_excerpt", "source_name"]
-        .map((column) => `${column}.ilike.${filter}`)
-        .join(","),
-    );
+  // The cursor is a raw database page. Filtering must never turn a short
+  // visible page into an end-of-feed signal or discard unreturned matches.
+  let cursor = Math.max(0, Math.floor(page));
+  const items = [] as Array<Awaited<ReturnType<typeof readPage>>[number]>;
+  async function readPage(rawPage: number) {
+    let query = client
+      .from("source_items")
+      .select(NEWS_CARD_COLUMNS)
+      .eq("status", "published");
+    if (lanes.length) query = query.in("topic_lane", lanes);
+    if (term) {
+      const filter = literalSearchFilter(term);
+      query = query.or(
+        ["title", "ai_title", "ai_summary", "raw_excerpt", "source_name"]
+          .map((column) => `${column}.ilike.${filter}`)
+          .join(","),
+      );
+    }
+    const { data, error } = await query
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(rawPage * NEWS_PAGE_SIZE, (rawPage + 1) * NEWS_PAGE_SIZE - 1);
+    if (error) throw error;
+    return data ?? [];
   }
-  const { data, error } = await query
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("id", { ascending: false })
-    .range(page * NEWS_PAGE_SIZE, (page + 1) * NEWS_PAGE_SIZE - 1);
-  if (error) throw error;
-  return {
-    items: (data ?? []).map((item) => {
-      const display = newsDisplay(item);
-      return { ...item, ai_title: display.title, ai_summary: display.summary };
-    }),
-    nextPage: data?.length === NEWS_PAGE_SIZE ? page + 1 : null,
-  };
+  for (let batch = 0; batch < 8; batch++) {
+    const raw = await readPage(cursor++);
+    const display = raw
+      .map((item) => {
+        const text = newsDisplay(item);
+        return { ...item, ai_title: text.title, ai_summary: text.summary };
+      })
+      .filter((item) => !newsFeedIssue(item));
+    items.push(...display);
+    const visible = uniqueNewsItems(items);
+    if (raw.length < NEWS_PAGE_SIZE) return { items: visible, nextPage: null };
+    // Return the entire final batch, rather than lose any eligible results.
+    if (visible.length >= NEWS_PAGE_SIZE || batch === 7)
+      return { items: visible, nextPage: cursor };
+  }
+  return { items: uniqueNewsItems(items), nextPage: cursor };
 }
 
 export async function fetchBlogPage(

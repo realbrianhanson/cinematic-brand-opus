@@ -39,9 +39,9 @@ export default function Index({
       <main id="main-content">
         <Hero />
         {sections.proofBar && <ProofBar />}
-        <HomeShop offers={shopShowcase} />
         {sections.event && <EventCTA />}
         <HomeTestimonials />
+        <HomeShop offers={shopShowcase} />
         {sections.story && <Story />}
         {sections.expertise && <Expertise />}
         {sections.results && <Stats />}

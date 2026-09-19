@@ -32,3 +32,43 @@ describe("news import integrity", () => {
     }
   });
 });
+
+describe("digest source dates and languages", () => {
+  it("does not represent poll time as an unverified source publication time", () => {
+    expect(
+      parseNewsDigest(JSON.stringify({ items: [good] }))[0].published_at,
+    ).toBeUndefined();
+    expect(
+      parseNewsDigest(
+        JSON.stringify({
+          items: [{ ...good, published_at: "2026-09-16T10:00:00Z" }],
+        }),
+        new Date("2026-09-17"),
+      )[0].published_at,
+    ).toBe("2026-09-16T10:00:00.000Z");
+  });
+  it("rejects future/invalid dates and clearly non-English headlines", () => {
+    for (const patch of [
+      { published_at: "bad date" },
+      { published_at: "2099-01-01" },
+      { title: "徐汇企业MiniMax多款产品纳入新加坡国民AI技能培训计划" },
+    ]) {
+      expect(
+        parseNewsDigest(JSON.stringify({ items: [{ ...good, ...patch }] })),
+      ).toEqual([]);
+    }
+  });
+  it("deduplicates tracking variants and repeated headlines", () => {
+    expect(
+      parseNewsDigest(
+        JSON.stringify({
+          items: [
+            good,
+            { ...good, url: good.url + "?utm_source=one" },
+            { ...good, url: "https://other.com/report" },
+          ],
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+});

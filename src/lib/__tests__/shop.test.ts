@@ -9,6 +9,8 @@ import {
 const mocks = vi.hoisted(() => ({
   calls: [] as unknown[][],
   responses: [] as unknown[],
+  facets: {} as Record<string, boolean>,
+  facetError: false,
   response: {
     data: [] as unknown[],
     count: 0,
@@ -29,6 +31,8 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("../publicData.server", () => ({
   createPublicServerClient: () => {
     const query: Record<string, unknown> = {};
+    let selected = "";
+    let facet = "";
     for (const method of [
       "from",
       "select",
@@ -40,6 +44,12 @@ vi.mock("../publicData.server", () => ({
     ])
       query[method] = (...args: unknown[]) => {
         mocks.calls.push([method, ...args]);
+        if (method === "select") selected = String(args[0]);
+        if (
+          method === "eq" &&
+          ["shop_category", "kind"].includes(String(args[0]))
+        )
+          facet = `${args[0]}:${args[1]}`;
         return query;
       };
     query.range = (...args: unknown[]) => {
@@ -50,7 +60,14 @@ vi.mock("../publicData.server", () => ({
     };
     query.abortSignal = (...args: unknown[]) => {
       mocks.calls.push(["abortSignal", ...args]);
-      return Promise.resolve(mocks.response);
+      return Promise.resolve(
+        selected === "id"
+          ? {
+              data: mocks.facets[facet] ? [{ id: "public" }] : [],
+              error: mocks.facetError ? { message: "Facet unavailable" } : null,
+            }
+          : mocks.response,
+      );
     };
     return query;
   },
@@ -63,9 +80,94 @@ import {
 beforeEach(() => {
   mocks.calls = [];
   mocks.responses = [];
+  mocks.facets = {};
+  mocks.facetError = false;
   mocks.response = { data: [], count: 0, error: null };
 });
 describe("shop catalog boundaries", () => {
+  it("derives facets without extra calls when the complete public catalog fits on the first page", async () => {
+    mocks.response = {
+      data: [
+        { shop_category: "tool", kind: "paid" },
+        { shop_category: "resource", kind: "free" },
+      ],
+      count: 2,
+      error: null,
+    };
+    const catalog = await getShopCatalog({ data: {} });
+    expect(catalog.availableFilters).toEqual({
+      categories: ["resource", "tool"],
+      prices: ["free", "paid"],
+    });
+    expect(mocks.calls.filter(([method]) => method === "from")).toHaveLength(1);
+  });
+  it("keeps categories available beyond the current search, filter and page", async () => {
+    mocks.response = {
+      data: [{ shop_category: "resource", kind: "free" }],
+      count: 1,
+      error: null,
+    };
+    mocks.facets = {
+      "shop_category:training": true,
+      "shop_category:resource": true,
+      "shop_category:course": true,
+      "kind:free": true,
+      "kind:paid": true,
+    };
+    const catalog = await getShopCatalog({
+      data: { category: "resource", price: "free", q: "guide", page: 3 },
+    });
+    expect(catalog.availableFilters).toEqual({
+      categories: ["training", "resource", "course"],
+      prices: ["free", "paid"],
+    });
+    expect(
+      mocks.calls.filter(
+        ([method, columns]) => method === "select" && columns === "id",
+      ),
+    ).toHaveLength(6);
+    expect(
+      mocks.calls.filter(
+        ([method, limit]) => method === "limit" && limit === 1,
+      ),
+    ).toHaveLength(6);
+    for (const [field, value] of [
+      ["status", "published"],
+      ["show_in_shop", true],
+      ["funnel_only", false],
+    ]) {
+      expect(
+        mocks.calls.filter(
+          ([method, key, requested]) =>
+            method === "eq" && key === field && requested === value,
+        ),
+      ).toHaveLength(7);
+    }
+  });
+  it("does not infer global availability from a partial first page", async () => {
+    mocks.response = {
+      data: [{ shop_category: "resource", kind: "free" }],
+      count: 25,
+      error: null,
+    };
+    mocks.facets = {
+      "shop_category:resource": true,
+      "shop_category:course": true,
+      "kind:free": true,
+      "kind:paid": true,
+    };
+    expect((await getShopCatalog({ data: {} })).availableFilters).toEqual({
+      categories: ["resource", "course"],
+      prices: ["free", "paid"],
+    });
+  });
+  it("keeps the catalog usable when optional availability checks fail", async () => {
+    mocks.response = { data: [{ id: "visible" }], count: 1, error: null };
+    mocks.facetError = true;
+    const catalog = await getShopCatalog({ data: { q: "guide" } });
+    expect(catalog.items).toEqual([{ id: "visible" }]);
+    expect(catalog.availableFilters).toBeNull();
+  });
   it("keeps home merchandising public, featured, bounded, and optional", async () => {
     mocks.response.data = [{ id: "public-offer" }];
     expect(await getShopShowcase()).toEqual([{ id: "public-offer" }]);
@@ -110,6 +212,7 @@ describe("shop catalog boundaries", () => {
       total: 3,
       page: 9,
       pageSize: SHOP_PAGE_SIZE,
+      availableFilters: { categories: [], prices: [] },
     });
     expect(mocks.calls).toContainEqual(["range", 0, 0]);
   });

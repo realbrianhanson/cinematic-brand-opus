@@ -207,3 +207,24 @@ another.
 Rule of thumb: change it in Admin > Settings first, then ask in chat to "sync
 my public config to the settings I just saved". The rebrand prompt in Section 1
 does both at once.
+
+## 5. Navigation, policies, and downloads
+
+The neutral member preset includes Shop and a Free Resources menu. Configure
+`nav.items` to change their order or destinations; old `nav.links` configurations
+still work. `/start-here` uses the active brand and actual catalog. Brian's worked
+example, postal address, provider-specific policy copy, and starter-kit offer are
+restricted to his installation.
+
+Review `/privacy` and `/terms` against your own business practices, providers,
+contact details, and purchase terms before launch. You can point the configured
+footer policy links at your own policies instead. These starter pages are not
+legal certification. `/support` uses your configured contact address and separates
+website downloads from purchases delivered by external providers.
+
+Native downloads support transactional access emails and private recovery links.
+Configure your own verified sender and Resend credential; paid website checkout
+also requires Stripe configuration. Review [download delivery](docs/OFFER_ACCESS_DELIVERY.md)
+for retry controls and deployment order. A free claim never silently subscribes
+someone to the newsletter. Never copy Brian's orders, grants, delivery records,
+or private files into a member backend; the bootstrap checks reject inherited data.

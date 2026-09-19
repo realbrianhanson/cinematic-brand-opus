@@ -116,7 +116,7 @@ export async function offerIpThrottle(
   await offerThrottle(
     admin,
     `ip:${action}:${await hashOfferToken(ip)}`,
-    action === "claim" ? 30 : 300,
+    action === "recover" ? 10 : action === "claim" ? 30 : 300,
   );
 }
 /** Known business rejections are safe to summarize; DB internals are never returned. */

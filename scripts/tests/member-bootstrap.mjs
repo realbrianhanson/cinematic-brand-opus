@@ -55,6 +55,8 @@ const commerceFixture = `
 create table offers(id uuid);
 create table offer_orders(id uuid);
 create table offer_stripe_events(event_id text);
+create table offer_access_deliveries(id uuid,email text);
+create table offer_access_grants(token_hash text);
 create schema storage;
 create table storage.objects(bucket_id text,name text);`;
 for (const [label, seed, count] of [
@@ -72,6 +74,16 @@ for (const [label, seed, count] of [
     "offer_stripe_events",
     "insert into offer_stripe_events values('evt_inherited')",
     "select count(*)::int n from offer_stripe_events",
+  ],
+  [
+    "offer_access_deliveries",
+    "insert into offer_access_deliveries values(gen_random_uuid(),'private@example.com')",
+    "select count(*)::int n from offer_access_deliveries",
+  ],
+  [
+    "offer_access_grants",
+    "insert into offer_access_grants values(repeat('a',64))",
+    "select count(*)::int n from offer_access_grants",
   ],
   [
     "offer-files",
@@ -98,6 +110,27 @@ for (const [label, seed, count] of [
 }
 
 const cleanCommerce = new PGlite();
+for (const table of ["offer_access_deliveries", "offer_access_grants"]) {
+  const marked = new PGlite();
+  await marked.exec(fixture + commerceFixture);
+  await marked.exec(sql);
+  await marked.exec(
+    table === "offer_access_deliveries"
+      ? "insert into offer_access_deliveries values(gen_random_uuid(),'private@example.com')"
+      : "insert into offer_access_grants values(repeat('a',64))",
+  );
+  await assert.rejects(
+    marked.exec(sql),
+    new RegExp(`Refusing bootstrap: ${table}`),
+    "inherited marker must not bypass private access-delivery data guard",
+  );
+  await marked.exec("rollback");
+  assert.equal(
+    (await marked.query(`select count(*)::int n from ${table}`)).rows[0].n,
+    1,
+  );
+  await marked.close();
+}
 await cleanCommerce.exec(fixture + commerceFixture);
 await cleanCommerce.exec(
   "insert into storage.objects values('blog-images','public-cover.jpg')",

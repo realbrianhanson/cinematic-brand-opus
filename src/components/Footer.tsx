@@ -157,7 +157,7 @@ const Footer = () => {
                   color: brand.accent,
                 }}
               >
-                Contact
+                Help & contact
               </h4>
               {identity.contactEmail && (
                 <a
@@ -201,7 +201,7 @@ const Footer = () => {
             {copyrightLine(siteConfig)}
           </span>
           {legalLinks.length > 0 && (
-            <div className="flex gap-6">
+            <div className="flex flex-wrap justify-center gap-6">
               {legalLinks.map((l) => (
                 <a
                   key={l.label}

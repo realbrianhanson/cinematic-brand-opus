@@ -41,9 +41,23 @@ export default function OfferShell({ children }: { children: ReactNode }) {
         <a href="/shop" className="underline underline-offset-4">
           Browse the Shop
         </a>
-        {config.identity.contactEmail && (
-          <a href={`mailto:${config.identity.contactEmail}`}>
-            Need help? Contact us
+        <a href="/support" className="underline underline-offset-4">
+          Help with access
+        </a>
+        {config.footer.privacyUrl && (
+          <a
+            href={config.footer.privacyUrl}
+            className="underline underline-offset-4"
+          >
+            Privacy
+          </a>
+        )}
+        {config.footer.termsUrl && (
+          <a
+            href={config.footer.termsUrl}
+            className="underline underline-offset-4"
+          >
+            Terms
           </a>
         )}
       </footer>

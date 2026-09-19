@@ -1,5 +1,13 @@
 import { readBoundedJson } from "../_shared/boundedJson.ts";
 import {
+  backgroundOfferDelivery,
+  deliverOfferAccess,
+  offerDeliveryState,
+  prepareOfferDelivery,
+  resolveOfferMailer,
+  resolveOrderTokenHash,
+} from "../_shared/offerAccessMailRuntime.ts";
+import {
   accessUrl,
   claimReservedOffer,
   hashOfferToken,
@@ -45,6 +53,9 @@ Deno.serve(async (req) => {
         "status",
         "download",
         "decline",
+        "recover",
+        "email_access",
+        "retry_deliveries",
       ].includes(action)
     )
       throw new OfferError(400, "invalid_action", "Unknown offer action.");
@@ -53,13 +64,51 @@ Deno.serve(async (req) => {
     const webhook = Deno.env.get("STRIPE_WEBHOOK_SECRET")?.trim();
     const readiness = paymentReadiness(secret, webhook);
 
-    if (action === "health" || action === "preview") {
+    if (
+      action === "health" ||
+      action === "preview" ||
+      action === "retry_deliveries"
+    ) {
       await requireOfferAdmin(req, admin);
-      if (action === "health")
+      if (action === "retry_deliveries") {
+        const { data: items, error } = await admin
+          .from("offer_access_deliveries")
+          .select("id")
+          .in("status", ["pending", "sending"])
+          .lte("next_attempt_at", new Date().toISOString())
+          .order("created_at")
+          .limit(3);
+        if (error) throw error;
+        const results = await Promise.all(
+          (items ?? []).map((item) => deliverOfferAccess(admin, item.id)),
+        );
+        return offerJson(200, {
+          sent: results.filter(Boolean).length,
+          remaining: results.filter((value) => !value).length,
+        });
+      }
+      if (action === "health") {
+        const mailer = await resolveOfferMailer(admin);
+        const { count: deliveryPending, error: pendingError } = await admin
+          .from("offer_access_deliveries")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["pending", "sending"]);
+        const { count: deliveryReview, error: reviewError } = await admin
+          .from("offer_access_deliveries")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "needs_review");
+        if (pendingError || reviewError)
+          throw new Error("Delivery overview unavailable");
         return offerJson(200, {
           ...readiness,
+          payments_ready: readiness.payments_ready && mailer.ok,
+          delivery_ready: mailer.ok,
+          delivery_missing: mailer.ok ? [] : mailer.missing,
+          delivery_pending: deliveryPending ?? 0,
+          delivery_needs_review: deliveryReview ?? 0,
           webhook_url: `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/functions/v1/offer-stripe-webhook`,
         });
+      }
       const id = requireOfferId(body.offer_id);
       const { data, error } = await admin
         .from("offers")
@@ -69,11 +118,39 @@ Deno.serve(async (req) => {
       if (error) throw error;
       return offerJson(200, {
         offer: data,
-        payments_ready: readiness.payments_ready,
+        payments_ready:
+          readiness.payments_ready && (await resolveOfferMailer(admin)).ok,
       });
     }
 
     await offerIpThrottle(admin, req, action);
+    if (action === "recover") {
+      const email = normalizedEmail(body.email);
+      if (body.website) return offerJson(200, { accepted: true });
+      const mailer = await resolveOfferMailer(admin);
+      if (!mailer.ok)
+        throw new OfferError(
+          503,
+          "delivery_unavailable",
+          "Email recovery is temporarily unavailable. Use a saved private access link or contact support.",
+        );
+      try {
+        await offerThrottle(
+          admin,
+          `email:recover:${await hashOfferToken(email)}`,
+          3,
+          86400,
+        );
+      } catch (error) {
+        if (error instanceof OfferError && error.status === 429)
+          return offerJson(200, { accepted: true });
+        throw error;
+      }
+      const deliveryId = await prepareOfferDelivery(admin, { email });
+      if (deliveryId)
+        backgroundOfferDelivery(deliverOfferAccess(admin, deliveryId));
+      return offerJson(200, { accepted: true });
+    }
     if (action === "get") {
       if (
         typeof body.slug !== "string" ||
@@ -88,18 +165,28 @@ Deno.serve(async (req) => {
         .eq("status", "published")
         .maybeSingle();
       if (error) throw error;
+      const mailer = await resolveOfferMailer(admin);
       return offerJson(200, {
         offer: data,
-        payments_ready: readiness.payments_ready,
+        payments_ready: readiness.payments_ready && mailer.ok,
       });
     }
 
     const token = requireToken(body.token);
-    const tokenHash = await hashOfferToken(token);
+    const suppliedHash = await hashOfferToken(token);
+    const resolvedHash = await resolveOrderTokenHash(admin, suppliedHash);
+    if (action === "claim" && resolvedHash && resolvedHash !== suppliedHash)
+      throw new OfferError(
+        409,
+        "request_mismatch",
+        "Use a new request for this offer.",
+      );
+    const tokenHash =
+      action === "claim" ? suppliedHash : (resolvedHash ?? suppliedHash);
     await offerThrottle(
       admin,
       `token:${action}:${tokenHash}`,
-      action === "claim" ? 12 : 240,
+      action === "claim" ? 12 : action === "email_access" ? 4 : 240,
     );
     const origin = await offerOrigin(admin);
 
@@ -108,7 +195,16 @@ Deno.serve(async (req) => {
       const parentHash =
         body.parent_token === undefined
           ? null
-          : await hashOfferToken(requireToken(body.parent_token));
+          : await resolveOrderTokenHash(
+              admin,
+              await hashOfferToken(requireToken(body.parent_token)),
+            );
+      if (body.parent_token !== undefined && !parentHash)
+        throw new OfferError(
+          404,
+          "access_not_found",
+          "This access link was not found.",
+        );
       let email: string;
       let name = normalizedName(body.name);
       if (parentHash) {
@@ -166,6 +262,17 @@ Deno.serve(async (req) => {
         paid = offer.kind === "paid";
         checkoutMode = offer.checkout_mode;
       }
+      if (
+        paid &&
+        checkoutMode !== "external" &&
+        !(await resolveOfferMailer(admin)).ok
+      )
+        throw new OfferError(
+          503,
+          "delivery_unavailable",
+          "Paid checkout is unavailable until download email delivery is configured.",
+        );
+      let reservedOrder: OfferOrder | null = null;
       const result = await claimReservedOffer({
         paid,
         checkoutMode,
@@ -182,7 +289,8 @@ Deno.serve(async (req) => {
             _parent_hash: parentHash,
           });
           if (error) throw offerDatabaseError(error);
-          return data as OfferOrder;
+          reservedOrder = data as OfferOrder;
+          return reservedOrder;
         },
         provider: {
           create: async (input, idempotencyKey) => {
@@ -210,6 +318,15 @@ Deno.serve(async (req) => {
           },
         },
       });
+      if (result.status === "fulfilled" && reservedOrder) {
+        const orderId = (reservedOrder as OfferOrder).id;
+        backgroundOfferDelivery(
+          (async () => {
+            const deliveryId = await prepareOfferDelivery(admin, { orderId });
+            if (deliveryId) await deliverOfferAccess(admin, deliveryId);
+          })(),
+        );
+      }
       return offerJson(200, result);
     }
 
@@ -226,6 +343,27 @@ Deno.serve(async (req) => {
         "This access link was not found.",
       );
     const order = rawOrder as OfferOrder;
+    if (action === "email_access") {
+      if (order.status !== "fulfilled")
+        throw new OfferError(
+          409,
+          "delivery_unavailable",
+          "Email access is available after the download is unlocked.",
+        );
+      if (!(await resolveOfferMailer(admin)).ok)
+        throw new OfferError(
+          503,
+          "delivery_unavailable",
+          "Email delivery is unavailable. Save your private access link and contact support if needed.",
+        );
+      const deliveryId = await prepareOfferDelivery(admin, {
+        orderId: order.id,
+      });
+      if (deliveryId) await deliverOfferAccess(admin, deliveryId);
+      return offerJson(200, {
+        delivery_state: await offerDeliveryState(admin, order.id),
+      });
+    }
     if (action === "download") {
       if (order.status !== "fulfilled")
         throw new OfferError(
@@ -289,6 +427,7 @@ Deno.serve(async (req) => {
       .eq("id", order.offer_id)
       .maybeSingle();
     if (copyError) throw copyError;
+    const mailer = await resolveOfferMailer(admin);
     return offerJson(200, {
       order: publicOrder(order),
       thank_you_message: offerCopy?.thank_you_message ?? "",
@@ -300,7 +439,12 @@ Deno.serve(async (req) => {
           ? safeCheckoutUrl(order.stripe_checkout_url)
           : null,
       access_url: accessUrl(origin, token),
-      payments_ready: readiness.payments_ready,
+      payments_ready: readiness.payments_ready && mailer.ok,
+      delivery_state:
+        order.status === "fulfilled"
+          ? await offerDeliveryState(admin, order.id, suppliedHash)
+          : "not_sent",
+      delivery_ready: mailer.ok,
     });
   } catch (error) {
     return offerFailure(error);

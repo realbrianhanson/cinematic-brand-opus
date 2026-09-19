@@ -4,6 +4,7 @@ import OfferShell from "@/components/OfferShell";
 import { offerBodyBlocks } from "@/lib/offerBody";
 import type { ShopOffer } from "@/lib/shop";
 import RelatedOffers from "@/components/RelatedOffers";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import {
   invokeOfferApi,
   clearOfferAttempt,
@@ -195,6 +196,7 @@ function NativeOfferLanding({
   preview = false,
   relatedOffers = [],
 }: OfferLandingProps) {
+  const { footer } = useSiteConfig();
   const [hydrated, setHydrated] = useState(false);
   const [ready, setReady] = useState<boolean | null>(
     offer.kind === "free" ? true : null,
@@ -364,7 +366,21 @@ function NativeOfferLanding({
               <p className="text-xs text-white/65 leading-relaxed">
                 Your details are shared with the site owner for this request.
                 This does not sign you up for a newsletter. Your download opens
-                here; it is not automatically emailed.
+                here, and we’ll attempt to email a private access link when
+                email delivery is available. Save the link shown on your
+                download page as a backup.
+                {footer.privacyUrl && (
+                  <>
+                    {" "}
+                    <a
+                      href={footer.privacyUrl}
+                      className="underline underline-offset-4"
+                    >
+                      Privacy policy
+                    </a>
+                    .
+                  </>
+                )}
               </p>
               {offer.kind === "paid" && (
                 <p className="text-xs text-white/70 flex items-center gap-2">

@@ -1,11 +1,128 @@
 import { useState, useEffect, useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
+import { ArrowUpRight, ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import type { LinkItem, NavGroup, NavItem } from "@/config/types";
 
 interface NavProps {
   loaded?: boolean;
+}
+
+const currentRoute = (pathname: string, href: string) =>
+  pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+/** Native disclosure keeps resource links usable even before hydration. */
+function ResourceNavigation({
+  group,
+  mobile,
+  pathname,
+  onNavigate,
+}: {
+  group: NavGroup;
+  mobile: boolean;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const detail = useRef<HTMLDetailsElement>(null);
+  const active = group.children.some((link) =>
+    currentRoute(pathname, link.href),
+  );
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !detail.current?.contains(event.target) &&
+        detail.current
+      )
+        detail.current.open = false;
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, []);
+  return (
+    <details
+      ref={detail}
+      className={mobile ? "group border-b border-white/10" : "group relative"}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && detail.current?.open) {
+          event.preventDefault();
+          event.stopPropagation();
+          detail.current.open = false;
+          detail.current.querySelector("summary")?.focus();
+        }
+      }}
+      onBlur={(event) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          event.currentTarget.open = false;
+      }}
+    >
+      <summary
+        className={`list-none cursor-pointer flex items-center justify-between gap-2 [&::-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)] ${mobile ? "py-4 font-display italic text-[clamp(1.8rem,6vw,2.6rem)]" : "font-body font-medium uppercase text-xs tracking-[0.08em] py-3"}`}
+        style={{
+          color: active ? "var(--brand-accent)" : "rgba(255,255,255,0.8)",
+        }}
+      >
+        {group.label}
+        <ChevronDown
+          size={mobile ? 20 : 14}
+          className="transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+      <div
+        className={
+          mobile
+            ? "pb-4 pl-4 grid gap-1"
+            : "absolute top-full left-0 mt-2 w-80 rounded-lg border border-white/15 bg-[var(--brand-backdrop)] p-2 shadow-2xl"
+        }
+      >
+        {group.children.map((link) => {
+          const content = (
+            <>
+              <span className="block font-medium text-sm text-white">
+                {link.label}
+              </span>
+              {link.description && (
+                <span className="block mt-1 text-xs leading-relaxed text-white/65">
+                  {link.description}
+                </span>
+              )}
+            </>
+          );
+          const props = {
+            className:
+              "block rounded-md px-4 py-3 hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]",
+            "aria-current": currentRoute(pathname, link.href)
+              ? ("page" as const)
+              : undefined,
+            onClick: () => {
+              if (detail.current) detail.current.open = false;
+              onNavigate();
+            },
+          };
+          return link.href.startsWith("/") && !link.external ? (
+            <Link key={link.href} to={link.href} {...props}>
+              {content}
+            </Link>
+          ) : (
+            <a
+              key={link.href}
+              href={link.href}
+              target={link.external ? "_blank" : undefined}
+              rel={link.external ? "noopener noreferrer" : undefined}
+              {...props}
+            >
+              {content}
+            </a>
+          );
+        })}
+      </div>
+    </details>
+  );
 }
 
 const Nav = ({ loaded = true }: NavProps) => {
@@ -13,33 +130,54 @@ const Nav = ({ loaded = true }: NavProps) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
+  const mobileMenuContent = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
-
-  const { identity, nav, brand } = siteConfig;
-  const navLinks = [...nav.hashLinks, ...nav.routeLinks];
+  const { identity, nav, brand, sections } = siteConfig;
+  const configuredItems: NavItem[] = nav.items ?? [
+    ...nav.hashLinks,
+    ...nav.routeLinks,
+  ];
+  const availableLink = (link: LinkItem) =>
+    (link.href !== "/speaking" || sections.speaking) &&
+    (!["#story", "/#story"].includes(link.href) || sections.story);
+  const navItems = configuredItems.flatMap((item): NavItem[] => {
+    if (!("children" in item)) return availableLink(item) ? [item] : [];
+    const children = item.children.filter(availableLink);
+    return children.length ? [{ ...item, children }] : [];
+  });
+  const sectionIds = navItems
+    .flatMap((item) => ("children" in item ? item.children : [item]))
+    .filter((link) => link.href.startsWith("#") || link.href.startsWith("/#"))
+    .map((link) => link.href.split("#")[1])
+    .join(",");
 
   const handleHashClick = (e: React.MouseEvent, hash: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)
+      return;
     e.preventDefault();
     setMenuOpen(false);
-    const id = hash.replace("#", "");
+    const id = hash.split("#")[1];
     if (isHome) {
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      history.replaceState(null, "", `/#${id}`);
+      document
+        .getElementById(id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(history.state, "", `/#${id}`);
     } else {
       navigate(`/#${id}`);
     }
   };
 
   const handleLogoClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)
+      return;
     e.preventDefault();
     setMenuOpen(false);
     if (isHome) {
       window.scrollTo({ top: 0, behavior: "smooth" });
-      history.replaceState(null, "", "/");
+      history.replaceState(history.state, "", "/");
     } else {
       navigate("/");
     }
@@ -48,22 +186,17 @@ const Nav = ({ loaded = true }: NavProps) => {
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 80);
-
-      // Track active section
-      const sections = nav.hashLinks.map((l) => l.href.slice(1));
       let current = "";
-      for (const id of sections) {
+      for (const id of sectionIds.split(",").filter(Boolean)) {
         const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= 120) {
-          current = id;
-        }
+        if (el && el.getBoundingClientRect().top <= 120) current = id;
       }
       setActiveSection(current);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [nav.hashLinks]);
+  }, [sectionIds, location.pathname]);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -72,9 +205,87 @@ const Nav = ({ loaded = true }: NavProps) => {
     };
   }, [menuOpen]);
 
+  const renderItem = (item: NavItem, mobile = false) => {
+    if ("children" in item)
+      return (
+        <ResourceNavigation
+          key={item.label}
+          group={item}
+          mobile={mobile}
+          pathname={location.pathname}
+          onNavigate={() => setMenuOpen(false)}
+        />
+      );
+    const hash = item.href.startsWith("#") || item.href.startsWith("/#");
+    const active = hash
+      ? isHome && activeSection === item.href.split("#")[1]
+      : currentRoute(location.pathname, item.href);
+    const props = {
+      "aria-current": active
+        ? hash
+          ? ("location" as const)
+          : ("page" as const)
+        : undefined,
+      className: mobile
+        ? "flex items-center justify-between py-4 font-display italic border-b border-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+        : "nav-link-underline relative font-body font-medium uppercase transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]",
+      style: mobile
+        ? {
+            fontSize: "clamp(1.8rem, 6vw, 2.6rem)",
+            color: active ? brand.accent : "rgba(255,255,255,0.9)",
+          }
+        : {
+            fontSize: 12,
+            letterSpacing: "0.08em",
+            color: active ? brand.accent : "rgba(255,255,255,0.8)",
+          },
+    };
+    const content = (
+      <>
+        {item.label}
+        {mobile && (
+          <ArrowRight
+            size={22}
+            color="rgba(255,255,255,0.35)"
+            aria-hidden="true"
+          />
+        )}
+      </>
+    );
+    return hash ? (
+      <a
+        key={item.label}
+        href={`/#${item.href.split("#")[1]}`}
+        onClick={(event) => handleHashClick(event, item.href)}
+        {...props}
+      >
+        {content}
+      </a>
+    ) : item.href.startsWith("/") && !item.external ? (
+      <Link
+        key={item.label}
+        to={item.href}
+        onClick={() => setMenuOpen(false)}
+        {...props}
+      >
+        {content}
+      </Link>
+    ) : (
+      <a
+        key={item.label}
+        href={item.href}
+        target={item.external ? "_blank" : undefined}
+        rel={item.external ? "noopener noreferrer" : undefined}
+        onClick={() => setMenuOpen(false)}
+        {...props}
+      >
+        {content}
+      </a>
+    );
+  };
+
   return (
     <>
-      {/* Keyboard users can jump straight past the fixed header. */}
       <a
         href="#main-content"
         className="skip-to-content font-body font-bold uppercase"
@@ -83,6 +294,7 @@ const Nav = ({ loaded = true }: NavProps) => {
         Skip to content
       </a>
       <nav
+        aria-label="Main navigation"
         className="fixed top-0 left-0 w-full transition-all duration-500 ease-out"
         style={{
           zIndex: 50,
@@ -102,7 +314,6 @@ const Nav = ({ loaded = true }: NavProps) => {
           className="mx-auto flex items-center justify-between h-full px-6 lg:px-14"
           style={{ maxWidth: 1440 }}
         >
-          {/* Logo */}
           <a
             href="/"
             onClick={handleLogoClick}
@@ -143,56 +354,12 @@ const Nav = ({ loaded = true }: NavProps) => {
               {identity.name}
             </span>
           </a>
-
-          {/* Desktop right */}
           <div className="hidden xl:flex items-center gap-4 xl:gap-8">
             <div className="flex items-center gap-4 xl:gap-7">
-              {navLinks.map((link) =>
-                link.href.startsWith("/") ? (
-                  <Link
-                    key={link.label}
-                    to={link.href}
-                    aria-current={
-                      location.pathname === link.href ? "page" : undefined
-                    }
-                    data-hover
-                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                    style={{
-                      fontSize: 12,
-                      letterSpacing: "0.08em",
-                      color:
-                        location.pathname === link.href
-                          ? brand.accent
-                          : "rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    {link.label}
-                  </Link>
-                ) : (
-                  <a
-                    key={link.label}
-                    href={isHome ? link.href : `/${link.href}`}
-                    onClick={(e) => handleHashClick(e, link.href)}
-                    data-hover
-                    className="nav-link-underline relative font-body font-medium uppercase transition-colors duration-300"
-                    style={{
-                      fontSize: 12,
-                      letterSpacing: "0.08em",
-                      color:
-                        activeSection === link.href.slice(1)
-                          ? brand.accent
-                          : "rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    {link.label}
-                  </a>
-                ),
-              )}
+              {navItems.map((item) => renderItem(item))}
             </div>
-
             {nav.cta && (
               <>
-                {/* Divider */}
                 <div
                   style={{
                     width: 1,
@@ -200,8 +367,6 @@ const Nav = ({ loaded = true }: NavProps) => {
                     background: "rgba(255,255,255,0.1)",
                   }}
                 />
-
-                {/* CTA */}
                 <a
                   href={nav.cta.href}
                   target={nav.cta.external ? "_blank" : undefined}
@@ -218,13 +383,15 @@ const Nav = ({ loaded = true }: NavProps) => {
                   }}
                 >
                   {nav.cta.label}
-                  <ArrowUpRight size={13} strokeWidth={2.5} />
+                  <ArrowUpRight
+                    size={13}
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                  />
                 </a>
               </>
             )}
           </div>
-
-          {/* Mobile hamburger */}
           <button
             ref={menuTrigger}
             type="button"
@@ -240,12 +407,20 @@ const Nav = ({ loaded = true }: NavProps) => {
           </button>
         </div>
       </nav>
-
-      {/* Mobile menu: a real dialog, so focus is trapped, Escape closes it and
-          focus returns to the hamburger on close. */}
       <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
+            ref={mobileMenuContent}
+            onEscapeKeyDown={(event) => {
+              const disclosure =
+                mobileMenuContent.current?.querySelector<HTMLDetailsElement>(
+                  "details[open]",
+                );
+              if (!disclosure) return;
+              event.preventDefault();
+              disclosure.open = false;
+              disclosure.querySelector("summary")?.focus();
+            }}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
               menuTrigger.current?.focus();
@@ -259,7 +434,6 @@ const Nav = ({ loaded = true }: NavProps) => {
             <DialogPrimitive.Title className="sr-only">
               Site menu
             </DialogPrimitive.Title>
-            {/* Close */}
             <div className="flex justify-end px-6 pt-5">
               <DialogPrimitive.Close
                 aria-label="Close menu"
@@ -270,48 +444,9 @@ const Nav = ({ loaded = true }: NavProps) => {
                 <X size={28} color="rgba(255,255,255,0.6)" />
               </DialogPrimitive.Close>
             </div>
-
-            {/* Links */}
-            <div className="flex-1 flex flex-col justify-center px-8">
-              {navLinks.map((link, i) =>
-                link.href.startsWith("/") ? (
-                  <Link
-                    key={link.label}
-                    to={link.href}
-                    aria-current={
-                      location.pathname === link.href ? "page" : undefined
-                    }
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center justify-between py-5 font-display italic text-foreground"
-                    style={{
-                      fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
-                    }}
-                  >
-                    {link.label}
-                    <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-                  </Link>
-                ) : (
-                  <a
-                    key={link.label}
-                    href={isHome ? link.href : `/${link.href}`}
-                    onClick={(e) => handleHashClick(e, link.href)}
-                    className="flex items-center justify-between py-5 font-display italic text-foreground"
-                    style={{
-                      fontSize: "clamp(2rem, 6vw, 2.8rem)",
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      animation: `mobileNavIn 0.4s ease-out ${i * 0.07}s both`,
-                    }}
-                  >
-                    {link.label}
-                    <ArrowRight size={22} color="rgba(255,255,255,0.25)" />
-                  </a>
-                ),
-              )}
+            <div className="flex-1 flex flex-col justify-center px-8 pb-8">
+              {navItems.map((item) => renderItem(item, true))}
             </div>
-
-            {/* Mobile CTA */}
             {nav.cta && (
               <div className="px-8 pb-10">
                 <a
@@ -325,7 +460,6 @@ const Nav = ({ loaded = true }: NavProps) => {
                     background: `linear-gradient(135deg, ${brand.accent}, ${brand.accentDark})`,
                     color: brand.backdrop,
                     padding: "16px 24px",
-                    animation: "mobileNavIn 0.4s ease-out 0.35s both",
                   }}
                 >
                   {nav.mobileCtaLabel ?? nav.cta.label}
@@ -338,5 +472,4 @@ const Nav = ({ loaded = true }: NavProps) => {
     </>
   );
 };
-
 export default Nav;

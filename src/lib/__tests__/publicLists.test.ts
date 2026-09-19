@@ -26,7 +26,15 @@ function client(responses: unknown[]) {
 }
 describe("public listing filters", () => {
   it("sends search and lane constraints to the database along with the requested page", async () => {
-    const h = client([[{ id: "older-match", title: "Older topic" }]]);
+    const h = client([
+      [
+        {
+          id: "older-match",
+          title: "Older topic for business owners",
+          url: "https://example.com/story",
+        },
+      ],
+    ]);
     const result = await fetchNewsPage(h.db, 0, "Older topic", ["health"]);
     expect(result.items[0].id).toBe("older-match");
     expect(h.urls[0].searchParams.get("topic_lane")).toBe("in.(health)");
@@ -53,5 +61,54 @@ describe("public listing filters", () => {
       nextPage: null,
     });
     expect(h.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("news pagination after editorial filtering", () => {
+  const row = (index: number, good = true) => ({
+    id: `story-${index}`,
+    title: good
+      ? `A new scheduling feature for business owners ${index}`
+      : `An executive addresses a security council ${index}`,
+    url: `https://example.com/article/${index}`,
+    raw_excerpt: good
+      ? "A useful scheduling update."
+      : "International coordination is discussed.",
+    source_name: "Perplexity Daily",
+    topic_lane: "ai_tools",
+  });
+  it("continues past filtered pages without losing eligible results", async () => {
+    const h = client([
+      Array.from({ length: 18 }, (_, i) => row(i, false)),
+      Array.from({ length: 18 }, (_, i) => row(i + 18)),
+      [row(36)],
+    ]);
+    const first = await fetchNewsPage(h.db, 0);
+    expect(first.items).toHaveLength(18);
+    expect(first.nextPage).toBe(2);
+    expect(h.urls[1].searchParams.get("offset")).toBe("18");
+    const next = await fetchNewsPage(h.db, first.nextPage!);
+    expect(next.items.map((item) => item.id)).toEqual(["story-36"]);
+    expect(next.nextPage).toBeNull();
+  });
+  it("deduplicates within fetched batches but preserves a real end cursor", async () => {
+    const h = client([
+      [
+        row(1),
+        { ...row(1), id: "repeat", url: "https://another.com/reprint" },
+        row(2),
+      ],
+    ]);
+    const result = await fetchNewsPage(h.db, 0);
+    expect(result.items).toHaveLength(2);
+    expect(result.nextPage).toBeNull();
+  });
+  it("does not present an exhausted batch limit as an exhausted feed", async () => {
+    const h = client(
+      Array.from({ length: 8 }, (_, page) =>
+        Array.from({ length: 18 }, (_, i) => row(page * 18 + i, false)),
+      ),
+    );
+    expect(await fetchNewsPage(h.db, 0)).toEqual({ items: [], nextPage: 8 });
   });
 });

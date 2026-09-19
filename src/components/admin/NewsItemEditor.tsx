@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { safeMutation } from "@/lib/withTimeout";
-import { RichTextEditor } from "./RichTextEditor";
+import {
+  newsFeedIssue,
+  newsSourceLabel,
+} from "../../../supabase/functions/_shared/newsQuality";
+import { safeHref } from "@/lib/newsMarkdown";
 import { Loader2, X, Upload, ImageOff, ExternalLink } from "lucide-react";
 
 type NewsItem = {
@@ -20,6 +24,7 @@ type NewsItem = {
   published_at: string | null;
   status: string;
   source_id: string | null;
+  source_name?: string | null;
 };
 
 interface Props {
@@ -31,6 +36,10 @@ interface Props {
 const STATUSES = ["draft", "pending", "published", "archived"];
 
 const LANES = [
+  "ai_tools",
+  "smb_marketing",
+  "ai_training",
+  "industry",
   "local_news",
   "ai",
   "marketing",
@@ -117,10 +126,19 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
 
   const save = async () => {
     if (!item) return;
+    const sourceUrl = safeHref(item.url);
+    if (!sourceUrl || !/^https?:\/\//.test(sourceUrl)) {
+      toast({
+        title: "Use a valid report URL",
+        description: "Link to the original HTTPS or HTTP source.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
       await safeMutation(async () => {
-        const { error } = await supabase
+        const { data: saved, error } = await supabase
           .from("source_items")
           .update({
             title: item.title,
@@ -130,13 +148,17 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
             full_content: item.full_content,
             image_url: item.image_url,
             author: item.author,
-            url: item.url,
+            url: sourceUrl,
             topic_lane: item.topic_lane,
             published_at: item.published_at,
             status: item.status,
           })
-          .eq("id", item.id);
+          .eq("id", item.id)
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
+        if (!saved)
+          throw new Error("The article was not saved. Refresh and try again.");
       });
       toast({ title: "News updated successfully" });
       onSaved();
@@ -216,6 +238,17 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {(item.status === "pending" || newsFeedIssue(item)) && (
+              <div className="admin-card p-4" role="status">
+                <strong>Editorial review</strong>
+                <p className="admin-help mt-2">
+                  {newsFeedIssue(item) ||
+                    "This report is awaiting review before it appears publicly."}{" "}
+                  Check the original report, write a clear English headline and
+                  factual summary, then choose Published when it is ready.
+                </p>
+              </div>
+            )}
             <div>
               <label style={labelStyle}>Title (displayed)</label>
               <input
@@ -251,11 +284,25 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
 
             <div>
               <label style={labelStyle}>Full article content</label>
-              <RichTextEditor
-                content={item.full_content || ""}
-                onChange={(html) => patch({ full_content: html })}
-                placeholder="Write or paste the full article…"
+              <textarea
+                aria-label="Full article content"
+                style={{
+                  ...inputStyle,
+                  minHeight: 240,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+                value={item.full_content || ""}
+                onChange={(event) =>
+                  patch({ full_content: event.target.value })
+                }
+                placeholder="Write a factual briefing. Use ## for headings and [source](https://…) for links."
               />
+              <p className="admin-help mt-2">
+                Use Markdown headings and links. Keep claims tied to the source;
+                distinguish reporting from interpretation. Do not attribute an
+                opinion to the site owner unless they supplied it.
+              </p>
             </div>
 
             <div>
@@ -361,7 +408,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
               }}
             >
               <div>
-                <label style={labelStyle}>Source name</label>
+                <label style={labelStyle}>Collection feed</label>
                 <input
                   style={{ ...inputStyle, opacity: 0.7 }}
                   value={sourceName}
@@ -374,7 +421,9 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                     marginTop: 4,
                   }}
                 >
-                  Managed via Sources.
+                  Public attribution uses the linked website:{" "}
+                  {newsSourceLabel(item)}. The collection feed is managed in
+                  Sources.
                 </div>
               </div>
               <div>
@@ -394,9 +443,9 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                     onChange={(e) => patch({ url: e.target.value })}
                   />
                   <a
-                    href={item.url}
+                    href={safeHref(item.url) ?? undefined}
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
                     style={{
                       padding: "8px 10px",
                       background: "transparent",
@@ -454,8 +503,10 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                     marginTop: 4,
                   }}
                 >
-                  Only <strong>published</strong> items appear on the public
-                  News page.
+                  Only <strong>published</strong> items can appear publicly. The
+                  listing also excludes repeated stories and entries that fail
+                  the headline or business-relevance checks. Existing published
+                  article URLs remain accessible.
                 </div>
               </div>
               <div>

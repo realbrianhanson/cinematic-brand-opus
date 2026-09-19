@@ -31,9 +31,12 @@ function SetupGuide({
   refresh: () => void;
   loading: boolean;
 }) {
+  const [retrying, setRetrying] = useState(false);
+  const [deliveryNotice, setDeliveryNotice] = useState("");
   const checks = [
     ["Stripe secret key configured", health?.secret_configured],
     ["Stripe webhook signing secret configured", health?.webhook_configured],
+    ["Download email sender configured", health?.delivery_ready],
   ] as const;
   return (
     <section
@@ -48,7 +51,7 @@ function SetupGuide({
           <p className="admin-help mt-2">
             Free downloads and external or affiliate links work now. Website
             Stripe Checkout stays unavailable until both Stripe secrets are
-            configured.
+            configured and download email delivery is ready.
           </p>
         </div>
         <button
@@ -120,11 +123,69 @@ function SetupGuide({
         </label>
       )}
       <p className="admin-help">
-        Customers download from their confirmation page. This feature does not
-        automatically email files or subscribe anyone to your newsletter. Each
-        paid follow-up opens a new checkout with an explicit price; it never
-        charges a saved card automatically.
+        Customers download from their confirmation page. Private access links
+        are emailed using the configured newsletter sender and reply-to, without
+        subscribing anyone to your newsletter. Each paid follow-up opens a new
+        checkout with an explicit price; it never charges a saved card
+        automatically.
       </p>
+      <div className="border-t pt-4 space-y-3">
+        <h3 className="font-semibold">Download email delivery</h3>
+        <p className="admin-help">
+          {health?.delivery_pending ?? 0} pending ·{" "}
+          {health?.delivery_needs_review ?? 0} need review. Provider acceptance
+          does not prove inbox delivery. Recovery is available at
+          /offer-access?recover=1.
+        </p>
+        {!!health?.delivery_missing?.length && (
+          <p className="admin-help">
+            Missing: {health.delivery_missing.join(", ")}. Set sender/reply-to
+            in Brand & publishing and RESEND_API_KEY in server secrets.
+          </p>
+        )}
+        <button
+          className="admin-btn-secondary"
+          disabled={
+            retrying || !health?.delivery_ready || !health?.delivery_pending
+          }
+          onClick={async () => {
+            setRetrying(true);
+            setDeliveryNotice("");
+            try {
+              const result = await invokeOfferApi<{
+                sent: number;
+                remaining: number;
+              }>({ action: "retry_deliveries" });
+              setDeliveryNotice(
+                `${result.sent} accepted by the provider; ${result.remaining} still pending or needing review in this batch.`,
+              );
+              refresh();
+            } catch (reason) {
+              setDeliveryNotice(
+                reason instanceof Error
+                  ? reason.message
+                  : "Delivery retry failed.",
+              );
+            } finally {
+              setRetrying(false);
+            }
+          }}
+        >
+          {retrying ? "Retrying…" : "Retry pending email (up to 3)"}
+        </button>
+        {deliveryNotice && (
+          <p role="status" className="admin-help">
+            {deliveryNotice}
+          </p>
+        )}
+        {!!health?.delivery_needs_review && (
+          <p className="admin-help">
+            An uncertain send exceeded its safe retry window. Do not blindly
+            resend it. Check the provider receipt or ask the customer to request
+            fresh recovery links.
+          </p>
+        )}
+      </div>
     </section>
   );
 }
@@ -245,8 +306,8 @@ export default function OffersManager({
             : health.isPending
               ? "Checking payment configuration…"
               : health.data?.payments_ready
-                ? `Stripe ${health.data.mode} configuration present`
-                : "Free downloads & external links ready · website payments need Stripe setup"}
+                ? `Stripe ${health.data.mode} and download-email configuration present`
+                : "Free downloads & external links ready · website payments need Stripe and download-email setup"}
         </span>
         <button className="admin-btn-ghost" onClick={() => setTab("setup")}>
           View setup

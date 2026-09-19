@@ -20,6 +20,13 @@ export default function HomeResources() {
             {featuredResources.intro}
           </p>
           <a
+            href="/start-here"
+            className="mt-6 mr-6 inline-flex min-h-11 items-center gap-3 font-body text-sm font-semibold text-[var(--brand-accent)] hover:underline"
+          >
+            New here? Start with one task
+            <ArrowUpRight size={18} aria-hidden="true" />
+          </a>
+          <a
             href="/resources"
             className="mt-6 inline-flex min-h-11 items-center gap-3 font-body text-sm font-semibold text-[var(--brand-accent)] hover:underline"
           >

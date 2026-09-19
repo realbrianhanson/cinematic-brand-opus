@@ -147,3 +147,39 @@ Code and security review covered the new inquiry path. Fixed review findings in 
 - Final [release CI](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35431065671) **passed every step**, including TypeScript, formatting, lint, 329 application tests, nine database suites, Deno checks, and the production build. The confirming 351-page live recrawl also passed. This release is published and the checks recorded above are complete.
 
 Stripe keys intentionally remain unconfigured, so paid native checkout remains unavailable. External purchases and affiliate commissions are not included in website order counts. Inquiry notifications are manual through the private inbox. These measured checks do not establish guaranteed rankings, conversions, revenue, or freedom from every possible future defect.
+
+## September 19 navigation, visitor onboarding, and download delivery
+
+This follow-up simplifies the primary navigation to Shop, Free Resources, About
+Brian, and Speaking, with the Free AI Summit as the primary action. The resources
+menu groups Start Here, resources, articles, and news. The homepage preserves the
+exact hero video and puts the Summit and real testimonials ahead of the Shop.
+Shop filters reflect available catalog categories and prices.
+
+New server-rendered Start Here, Support, Privacy, and Terms pages have canonical
+metadata and sitemap entries. The owner-only Start Here demonstration uses a
+clearly fictional example with a copyable prompt and human review checks.
+The original seven-page [AI Follow-Up Starter Kit](docs/STARTER_KIT.md) supplies a
+practical free resource. Publication requires its guarded owner-content transaction
+and a verified private file; member sites do not inherit this offer.
+
+News ingestion now normalizes URL/title identity, holds uncertain automated
+imports for review, labels the actual linked source, and avoids generating full
+articles from thin source material. The feed deduplicates across pages and hides
+clearly unsuitable imports without deleting historical rows or detail URLs.
+Member news lanes retain their own topics. Mobile list cards stack and long source
+names wrap. Admin news editing saves the Markdown the reader renderer expects.
+
+Native download fulfillment prepares encrypted, durable transactional mail and
+hashed expiring access grants. Recovery does not expose whether an email has
+orders, and access always rechecks order eligibility. Admin controls show delivery
+readiness, pending/uncertain counts, and bounded retries. Stripe remains unset.
+See [delivery operations](docs/OFFER_ACCESS_DELIVERY.md) for precise behavior and
+limitations. No live claims, payments, subscribers, or emails were created for QA.
+
+Prepublication verification: **387 application tests in 61 files** and all **ten
+isolated database suites** pass. Code, security, database, and TypeScript reviews
+were completed, with legacy-email compatibility, readiness consistency, and mobile
+layout findings corrected. The local browser checks cover six routes at 1440,
+390, and 320 pixels, the worked-example control, and the recovery entry point.
+Final publication receipts and production verification follow below.

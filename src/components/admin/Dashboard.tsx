@@ -275,13 +275,13 @@ export default function Dashboard() {
                       <ShoppingBag size={18} />
                     </span>
                     <div>
-                      <strong>Connect Stripe for your paid offers</strong>
+                      <strong>Finish setup for your paid offers</strong>
                       <p>
                         {overview.data.nativePaidOffers} published native{" "}
                         {overview.data.nativePaidOffers === 1
                           ? "offer needs"
                           : "offers need"}{" "}
-                        payment setup.
+                        Stripe or download-email setup.
                       </p>
                     </div>
                     <ArrowRight size={16} />

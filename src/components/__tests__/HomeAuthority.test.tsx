@@ -6,6 +6,7 @@ import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { brianPreset } from "@/config/presets/brian";
 import { memberPreset } from "@/config/presets/member";
 import type { SiteConfig } from "@/config/types";
+import type { ShopOffer } from "@/lib/shop";
 
 vi.mock("@/lib/router-compat", () => ({
   Link: ({
@@ -49,6 +50,37 @@ function markup(page: React.ReactNode, config: SiteConfig = brianPreset) {
 }
 
 describe("authority home and dedicated speaking journey", () => {
+  it("explains the primary event and supplies real proof before the store showcase", () => {
+    const offer: ShopOffer = {
+      id: "fixture",
+      slug: "example-training",
+      title: "Example training",
+      summary: "Practical training",
+      cover_url: null,
+      kind: "paid",
+      checkout_mode: "external",
+      price_display_mode: "provider",
+      external_url: "https://example.com/training",
+      external_button_text: "Learn more",
+      is_affiliate: false,
+      affiliate_disclosure: null,
+      amount_minor: 0,
+      currency: "usd",
+      updated_at: "2026-09-20T00:00:00Z",
+      shop_category: "training",
+      shop_featured: true,
+    };
+    const html = markup(<Index shopShowcase={[offer]} />);
+    expect(html.indexOf('id="event"')).toBeLessThan(
+      html.indexOf('id="testimonials"'),
+    );
+    expect(html.indexOf('id="testimonials"')).toBeLessThan(
+      html.indexOf('id="shop"'),
+    );
+    expect(html).toContain('href="/support"');
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain('href="/terms"');
+  });
   it("keeps the homepage focused on the free event and shop while moving inquiries to speaking", () => {
     const html = markup(<Index />);
     expect(html).toContain('href="/speaking"');

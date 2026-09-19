@@ -53,13 +53,36 @@ export const memberPreset: SiteConfig = {
   },
 
   nav: {
-    hashLinks: [],
-    routeLinks: [
+    items: [
       { label: "Shop", href: "/shop" },
-      { label: "Resources", href: "/resources" },
-      { label: "Blog", href: "/blog" },
-      { label: "News", href: "/news" },
+      {
+        label: "Free Resources",
+        children: [
+          {
+            label: "Start Here",
+            href: "/start-here",
+            description: "Find the right next step.",
+          },
+          {
+            label: "Guides & Resources",
+            href: "/resources",
+            description: "Practical ideas you can put to work.",
+          },
+          {
+            label: "Articles",
+            href: "/blog",
+            description: "Go deeper on the topics that matter.",
+          },
+          {
+            label: "News",
+            href: "/news",
+            description: "See what is changing and why it matters.",
+          },
+        ],
+      },
     ],
+    hashLinks: [],
+    routeLinks: [],
     cta: null,
     mobileCtaLabel: null,
   },
@@ -136,15 +159,17 @@ export const memberPreset: SiteConfig = {
   footer: {
     hashLinks: [],
     routeLinks: [
+      { label: "Start Here", href: "/start-here" },
       { label: "Shop", href: "/shop" },
       { label: "Blog", href: "/blog" },
       { label: "News", href: "/news" },
       { label: "Resources", href: "/resources" },
+      { label: "Support", href: "/support" },
       { label: "Sitemap", href: "/sitemap" },
     ],
     contactNote: "",
-    privacyUrl: null,
-    termsUrl: null,
+    privacyUrl: "/privacy",
+    termsUrl: "/terms",
   },
 
   sections: {

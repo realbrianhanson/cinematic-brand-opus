@@ -6,6 +6,7 @@ import {
   type SpeakingInquiryInput,
 } from "@/lib/speakingInquiries";
 import { parseSpeakingInquiry } from "../../supabase/functions/_shared/speakingInquiries";
+import FormPrivacyLink from "@/components/FormPrivacyLink";
 
 interface SpeakingInquiryProps {
   href: string;
@@ -218,7 +219,7 @@ export default function SpeakingInquiry({ href }: SpeakingInquiryProps) {
             </button>
             <p className="mt-3 text-xs leading-relaxed text-white/55">
               Your details are used to respond to this inquiry. You won’t be
-              added to a mailing list.
+              added to a mailing list. <FormPrivacyLink />
             </p>
             {error && (
               <div

@@ -44,9 +44,9 @@ describe("member preset", () => {
     expect(memberPreset.sections.speaking).toBe(false);
   });
 
-  it("omits legal links instead of shipping dead anchors", () => {
-    expect(memberPreset.footer.privacyUrl).toBeNull();
-    expect(memberPreset.footer.termsUrl).toBeNull();
+  it("links to identity-aware policy pages", () => {
+    expect(memberPreset.footer.privacyUrl).toBe("/privacy");
+    expect(memberPreset.footer.termsUrl).toBe("/terms");
   });
 
   it("passes validation", () => {
@@ -71,13 +71,38 @@ describe("live preset", () => {
     expect(brianPreset.results.length).toBe(3);
   });
 
-  it("omits footer legal links while no policy pages exist", () => {
-    expect(brianPreset.footer.privacyUrl).toBeNull();
-    expect(brianPreset.footer.termsUrl).toBeNull();
+  it("links to the published policy destinations", () => {
+    expect(brianPreset.footer.privacyUrl).toBe("/privacy");
+    expect(brianPreset.footer.termsUrl).toBe("/terms");
   });
 });
 
 describe("validation", () => {
+  it("rejects empty resource groups and unsafe nested links", () => {
+    expect(() =>
+      validateSiteConfig({
+        ...memberPreset,
+        nav: {
+          ...memberPreset.nav,
+          items: [{ label: "Resources", children: [] }],
+        },
+      }),
+    ).toThrow(SiteConfigError);
+    expect(() =>
+      validateSiteConfig({
+        ...memberPreset,
+        nav: {
+          ...memberPreset.nav,
+          items: [
+            {
+              label: "Resources",
+              children: [{ label: "Unsafe", href: "javascript:alert(1)" }],
+            },
+          ],
+        },
+      }),
+    ).toThrow(SiteConfigError);
+  });
   it("rejects a site URL with a trailing slash", () => {
     expect(() =>
       validateSiteConfig({

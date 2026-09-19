@@ -103,6 +103,21 @@ const HTMLSitemap = () => {
             Pages
           </h2>
           <ul className="flex flex-col gap-2">
+            {[
+              ["/start-here", "Start Here"],
+              ["/support", "Help & Support"],
+              ["/privacy", "Privacy Notice"],
+              ["/terms", "Website Terms"],
+            ].map(([path, label]) => (
+              <li key={path}>
+                <Link
+                  to={path}
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
             {config.sections.speaking && (
               <li>
                 <Link
