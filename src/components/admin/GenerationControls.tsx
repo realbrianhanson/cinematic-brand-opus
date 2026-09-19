@@ -133,7 +133,7 @@ const GenerationControls = () => {
     },
   });
 
-  // Fetch active/recent jobs on mount + auto-recover stale jobs
+  // Read active jobs. Recovery is owned by the server worker, never a page visit.
   useEffect(() => {
     const fetchJobs = async () => {
       const { data } = await supabase
@@ -143,32 +143,8 @@ const GenerationControls = () => {
         .order("created_at", { ascending: false });
       if (!data) return;
 
-      const now = Date.now();
-      const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-      const staleJobs: GenerationJob[] = [];
-      const liveJobs: GenerationJob[] = [];
-
-      for (const job of data as GenerationJob[]) {
-        const updatedAt = new Date(job.updated_at).getTime();
-        if (now - updatedAt > STALE_THRESHOLD_MS) {
-          staleJobs.push(job);
-        } else {
-          liveJobs.push(job);
-        }
-      }
-
-      // Mark stale jobs as completed with timeout message
-      for (const stale of staleJobs) {
-        await supabase
-          .from("generation_jobs")
-          .update({
-            status: "completed",
-            error_message: `Timed out after completing ${stale.completed_count} of ${stale.total_combinations} pages`,
-          })
-          .eq("id", stale.id);
-      }
-
-      setActiveJobs(liveJobs);
+      // Opening this page must never complete or cancel a background job.
+      setActiveJobs(data as GenerationJob[]);
     };
     fetchJobs();
   }, []);

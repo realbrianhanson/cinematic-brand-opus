@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Brain, Target, Code2, Users } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { ExpertiseCard } from "@/config/types";
 
 const ICONS = {
@@ -113,6 +113,7 @@ const TiltCard = ({ card, index }: { card: ExpertiseCard; index: number }) => {
 };
 
 const Expertise = () => {
+  const siteConfig = useSiteConfig();
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const expertise = siteConfig.expertise;
   const cards = expertise.cards;

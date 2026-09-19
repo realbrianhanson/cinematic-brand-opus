@@ -1,3 +1,5 @@
+import { articleReading } from "@/lib/articleReading";
+import { ArticleContents, ArticleDetails } from "@/components/ArticleDetails";
 import { formatPublicDate } from "@/lib/publicDate";
 import type {
   PublicPost,
@@ -169,6 +171,7 @@ const PillarPage = ({
     );
   }
 
+  const reading = articleReading(pillar.content);
   const readingTime = Math.max(1, Math.ceil(wordCount(pillar.content) / 250));
   const authorName = siteSettings?.author_name || "Author";
 
@@ -205,8 +208,8 @@ const PillarPage = ({
         </h1>
 
         <div
-          className="flex items-center gap-4 mb-10"
-          style={{ color: "rgba(255,255,255,0.4)" }}
+          className="flex flex-wrap items-center gap-4 mb-10"
+          style={{ color: "rgba(255,255,255,0.65)" }}
         >
           <span className="font-body" style={{ fontSize: 12 }}>
             By {authorName}
@@ -233,18 +236,22 @@ const PillarPage = ({
           </span>
         </div>
 
+        <ArticleContents headings={reading.headings} />
         <div
-          className="blog-content font-body"
+          className="blog-content article-reading font-body"
           style={{
             fontSize: 16,
             lineHeight: 1.8,
             color: "rgba(255,255,255,0.8)",
           }}
-          dangerouslySetInnerHTML={{ __html: safeHtml(pillar.content) }}
+          dangerouslySetInnerHTML={{ __html: reading.html }}
         />
 
-        <SiloNavigation nicheId={nicheId!} pillarTitle={pillar.title} />
+        {nicheId && (
+          <SiloNavigation nicheId={nicheId} pillarTitle={pillar.title} />
+        )}
 
+        <ArticleDetails settings={siteSettings} />
         {/* Related Pillar Guides */}
         {relatedPillars && relatedPillars.length > 0 && (
           <section

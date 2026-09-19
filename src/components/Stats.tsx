@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { ResultStat } from "@/config/types";
 
 /** Longer counts get a longer run so the animation reads at a similar speed. */
@@ -89,6 +89,7 @@ const StatItem = ({ stat, index }: { stat: ResultStat; index: number }) => {
 };
 
 const Stats = () => {
+  const siteConfig = useSiteConfig();
   const stats = siteConfig.results;
   if (stats.length === 0) return null;
 

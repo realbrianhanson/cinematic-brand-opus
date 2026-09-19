@@ -1,17 +1,18 @@
+import { configFromMatches } from "@/config/runtime";
 import { createFileRoute } from "@tanstack/react-router";
 
 import Index from "@/pages/Index";
-import { absoluteUrl, siteConfig } from "@/config/site";
+import { absoluteUrl } from "@/config/site";
 import { buildPageHead, compactJsonLd } from "@/lib/seoHead";
 
-const { identity, metadata } = siteConfig;
-
 export const Route = createFileRoute("/")({
-  head: () =>
-    buildPageHead({
+  head: ({ matches }) => {
+    const config = configFromMatches(matches);
+    const { identity, metadata } = config;
+    return buildPageHead({
       title: metadata.defaultTitle,
       description: metadata.defaultDescription,
-      url: absoluteUrl("/"),
+      url: absoluteUrl("/", config),
       type: "website",
       jsonLd: compactJsonLd([
         {
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/")({
           "@type": "Person",
           name: identity.name,
           jobTitle: identity.role,
-          url: absoluteUrl("/"),
+          url: absoluteUrl("/", config),
           description: metadata.socialDescription,
           knowsAbout: identity.knowsAbout,
         },
@@ -27,14 +28,15 @@ export const Route = createFileRoute("/")({
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: identity.name,
-          url: absoluteUrl("/"),
+          url: absoluteUrl("/", config),
           potentialAction: {
             "@type": "SearchAction",
-            target: `${absoluteUrl("/resources")}?q={search_term_string}`,
+            target: `${absoluteUrl("/resources", config)}?q={search_term_string}`,
             "query-input": "required name=search_term_string",
           },
         },
       ]),
-    }),
+    });
+  },
   component: Index,
 });

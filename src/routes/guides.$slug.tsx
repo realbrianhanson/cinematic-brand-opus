@@ -1,3 +1,4 @@
+import { configFromMatches } from "@/config/runtime";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import PillarPage from "@/pages/PillarPage";
@@ -26,11 +27,12 @@ export const Route = createFileRoute("/guides/$slug")({
     if (!pillar) throw notFound();
     return { pillar, settings };
   },
-  head: ({ loaderData, params }) => {
+  head: ({ loaderData, params, matches }) => {
+    const config = configFromMatches(matches);
     if (!loaderData) return {};
     const { pillar, settings } = loaderData;
     const seo = (pillar.seo_meta ?? {}) as Record<string, string | undefined>;
-    const url = absoluteUrl(`/guides/${params.slug}`);
+    const url = absoluteUrl(`/guides/${params.slug}`, config);
     const description = seo["description"] ?? "";
     const publishedAt = pillar.published_at ?? pillar.created_at;
 
@@ -55,8 +57,8 @@ export const Route = createFileRoute("/guides/$slug")({
           settings,
         }),
         breadcrumbJsonLd([
-          { name: "Home", url: absoluteUrl("/") },
-          { name: "Guides", url: absoluteUrl("/resources") },
+          { name: "Home", url: absoluteUrl("/", config) },
+          { name: "Guides", url: absoluteUrl("/resources", config) },
           { name: pillar.title, url },
         ]),
         speakableJsonLd(),

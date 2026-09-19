@@ -92,7 +92,7 @@ const GeneratedPageEditor = () => {
     }
   }, [page]);
 
-  // Compute SEO score
+  // Formatting completeness only; not a ranking prediction.
   const seoData = useMemo(() => {
     const criteria: { label: string; done: boolean; points: string }[] = [];
     let score = 0;
@@ -131,18 +131,18 @@ const GeneratedPageEditor = () => {
     } catch {
       /* ignore */
     }
-    const hasWords = wordCount >= 300;
+    const hasWords = wordCount > 0;
     criteria.push({
-      label: "Content has 300+ words",
+      label: "Content is present (review depth manually)",
       done: hasWords,
       points: "+15",
     });
     if (hasWords) score += 15;
 
     const titleStr = page?.title || "";
-    const hasYear = /20\d{2}/.test(titleStr);
+    const hasYear = titleStr.trim().length > 0;
     criteria.push({
-      label: "Title contains a year",
+      label: "Descriptive title present",
       done: hasYear,
       points: "+10",
     });
@@ -792,7 +792,7 @@ const GeneratedPageEditor = () => {
                   letterSpacing: "0.08em",
                 }}
               >
-                SEO Score
+                Formatting completeness
               </p>
             </div>
 

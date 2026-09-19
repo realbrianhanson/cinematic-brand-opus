@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import WidgetRenderer from "@/components/WidgetRenderer";
-import { siteConfig, copyrightLine } from "@/config/site";
+import { copyrightLine } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const linkStyle: React.CSSProperties = {
   fontSize: 15,
@@ -14,6 +15,7 @@ const linkStyle: React.CSSProperties = {
 };
 
 const Footer = () => {
+  const siteConfig = useSiteConfig();
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
@@ -66,7 +68,15 @@ const Footer = () => {
                   className="font-display italic"
                   style={{ fontSize: 14, color: brand.accent, lineHeight: 1 }}
                 >
-                  {identity.logoInitials}
+                  {identity.logoUrl ? (
+                    <img
+                      src={identity.logoUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    identity.logoInitials
+                  )}
                 </span>
               </div>
               <span
@@ -185,7 +195,7 @@ const Footer = () => {
             className="font-body"
             style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
           >
-            {copyrightLine()}
+            {copyrightLine(siteConfig)}
           </span>
           {legalLinks.length > 0 && (
             <div className="flex gap-6">

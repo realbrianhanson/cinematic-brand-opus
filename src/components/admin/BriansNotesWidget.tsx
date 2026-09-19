@@ -19,15 +19,17 @@ export default function BriansNotesWidget() {
   const [hint, setHint] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("expert_notes")
       .select("id, note, topic_hint, created_at, used_in_post_id")
       .eq("archived", false)
       .order("created_at", { ascending: false })
       .limit(6);
-    setNotes((data || []) as Note[]);
+    setLoadError(!!error);
+    if (!error) setNotes((data || []) as Note[]);
   };
   useEffect(() => {
     load();
@@ -56,7 +58,20 @@ export default function BriansNotesWidget() {
   };
 
   const del = async (id: string) => {
-    await supabase.from("expert_notes").update({ archived: true }).eq("id", id);
+    const { error } = await supabase
+      .from("expert_notes")
+      .update({ archived: true })
+      .eq("id", id)
+      .select("id")
+      .single();
+    if (error) {
+      toast({
+        title: "Could not archive note",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     load();
   };
 
@@ -90,10 +105,16 @@ export default function BriansNotesWidget() {
         Drop 1-3 sentences. The autonomous engine weaves the freshest matching
         note into every draft's "From the trenches" callout.
       </p>
+      {loadError && (
+        <p role="alert">
+          Notes could not be loaded. <button onClick={load}>Try again</button>
+        </p>
+      )}
       <textarea
+        aria-label="Expert note"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Yesterday a plumber I coached went from 4 to 11 leads a week just by putting AI-drafted follow-up texts on a 2-minute delay..."
+        placeholder="Share a real observation, lesson, or result from your work. Include the context and evidence."
         rows={3}
         style={{
           width: "100%",
@@ -109,6 +130,7 @@ export default function BriansNotesWidget() {
       />
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         <select
+          aria-label="Note topic"
           value={hint}
           onChange={(e) => setHint(e.target.value)}
           style={{
@@ -210,6 +232,7 @@ export default function BriansNotesWidget() {
               </div>
               <button
                 onClick={() => del(n.id)}
+                aria-label="Archive note"
                 style={{
                   background: "none",
                   border: "none",

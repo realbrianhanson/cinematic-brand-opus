@@ -60,11 +60,11 @@ const PostEditorAiHelper = ({
           lineHeight: 1.5,
         }}
       >
-        Generate all AEO/GEO &amp; SEO fields in one click based on your post
-        content.
+        Draft metadata and summaries from your article. This checklist does not
+        predict rankings or verify factual accuracy.
       </p>
 
-      {/* Overall Score Ring */}
+      {/* Metadata completeness Ring */}
       <div style={{ marginBottom: 16, textAlign: "center" }}>
         <div
           style={{
@@ -139,7 +139,7 @@ const PostEditorAiHelper = ({
             letterSpacing: "0.08em",
           }}
         >
-          Overall Score
+          Metadata completeness
         </p>
       </div>
 
@@ -164,7 +164,7 @@ const PostEditorAiHelper = ({
               letterSpacing: "0.05em",
             }}
           >
-            AEO/GEO
+            Structure
           </p>
           <span
             className="font-heading"
@@ -371,7 +371,7 @@ const PostEditorAiHelper = ({
         ) : (
           <>
             <Sparkles size={14} />
-            Generate SEO &amp; AEO/GEO
+            Generate SEO &amp; Structure
           </>
         )}
       </button>

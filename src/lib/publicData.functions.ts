@@ -91,27 +91,43 @@ export const getPublicPillarBySlug = createServerFn({ method: "GET" })
 export const getPublicResourceIndex = createServerFn({ method: "GET" }).handler(
   async () => {
     const supabase = createPublicServerClient();
-    const [schemasRes, countsRes] = await Promise.all([
+    const [schemasRes, countsRes, guidesRes] = await Promise.all([
       supabase
         .from("content_schemas")
         .select("*")
         .eq("is_active", true)
         .order("name"),
+      supabase.rpc("public_resource_counts"),
       supabase
-        .from("generated_pages")
-        .select("content_schema_id")
-        .eq("status", "published"),
+        .from("pillar_pages")
+        .select("id,title,slug,seo_meta")
+        .eq("status", "published")
+        .order("title")
+        .limit(100),
     ]);
+    if (guidesRes.error) throw new Error(guidesRes.error.message);
     if (schemasRes.error) throw new Error(schemasRes.error.message);
     if (countsRes.error) throw new Error(countsRes.error.message);
     const counts: Record<string, number> = {};
     for (const row of countsRes.data ?? []) {
       if (row.content_schema_id) {
-        counts[row.content_schema_id] =
-          (counts[row.content_schema_id] ?? 0) + 1;
+        counts[row.content_schema_id] = row.page_count;
       }
     }
-    return { schemas: schemasRes.data ?? [], counts };
+    return {
+      schemas: schemasRes.data ?? [],
+      counts,
+      guides: (guidesRes.data ?? []).map((g) => ({
+        id: g.id,
+        title: g.title,
+        slug: g.slug,
+        meta_description:
+          typeof (g.seo_meta as { meta_description?: unknown })
+            ?.meta_description === "string"
+            ? (g.seo_meta as { meta_description: string }).meta_description
+            : null,
+      })),
+    };
   },
 );
 
@@ -210,4 +226,16 @@ export const getPublicNewsItem = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     return data ?? null;
+  });
+
+export const getPublicPostSeo = createServerFn({ method: "GET" })
+  .inputValidator((input: { postId: string }) => input)
+  .handler(async ({ data }) => {
+    const { data: seo, error } = await createPublicServerClient()
+      .from("seo_metadata")
+      .select("meta_title,meta_description,og_image,keywords")
+      .eq("post_id", data.postId)
+      .maybeSingle();
+    if (error) throw error;
+    return seo;
   });

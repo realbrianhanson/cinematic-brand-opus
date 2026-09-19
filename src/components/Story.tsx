@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Flame, Zap, Award, Sparkles, Quote } from "lucide-react";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
 import DrawLine from "./DrawLine";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { StoryEntry } from "@/config/types";
 
 const ICONS = {
@@ -130,6 +130,7 @@ const TimelineEntry = ({
 };
 
 const Story = () => {
+  const siteConfig = useSiteConfig();
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: quoteRef, visible: quoteVisible } = useReveal();
   const story = siteConfig.story;

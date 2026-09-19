@@ -1,3 +1,4 @@
+import { configFromMatches } from "@/config/runtime";
 import { newsDisplay } from "@/lib/newsDisplay";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
@@ -13,13 +14,14 @@ export const Route = createFileRoute("/news/$id")({
     if (!item) throw notFound();
     return item;
   },
-  head: ({ loaderData, params }) => {
+  head: ({ loaderData, params, matches }) => {
+    const config = configFromMatches(matches);
     if (!loaderData) return {};
     const { title, summary } = newsDisplay(loaderData);
     return buildPageHead({
-      title: pageTitle(title),
+      title: pageTitle(title, config),
       description: summary,
-      url: absoluteUrl(`/news/${params.id}`),
+      url: absoluteUrl(`/news/${params.id}`, config),
       image: loaderData.image_url,
       type: "article",
       publishedAt: loaderData.published_at,

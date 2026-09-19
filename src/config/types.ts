@@ -26,6 +26,7 @@ export interface SiteIdentity {
   tagline: string;
   /** 1–2 characters used in the nav mark, footer mark and loader. */
   logoInitials: string;
+  logoUrl?: string | null;
   /** Canonical site origin with no trailing slash, e.g. "https://example.com". */
   siteUrl: string;
   /** Public contact address. Leave empty to hide contact links. */

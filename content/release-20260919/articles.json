@@ -1,0 +1,220 @@
+[
+  {
+    "id": "38e79e40-6d33-4d0a-b103-8d1fbfb84f83",
+    "slug": "how-to-put-your-shopify-store-on-autopilot-using-new-ai-sales-tools",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Shopify AI Automation: Start With Sidekick and Flow",
+    "excerpt": "Use Sidekick to assist with store tasks and Flow for a tested automation. Keep approvals, failure handling, and customer communication under control.",
+    "tldr": "Use Sidekick to assist with store tasks and Flow for a tested automation. Keep approvals, failure handling, and customer communication under control.",
+    "content": "<h2>Which Shopify tools should you start with?</h2><p>For a manageable first project, separate an assistant from an automation. <a href=\"https://help.shopify.com/en/manual/ai-powered-tools/sidekick\">Shopify describes Sidekick</a> as an assistant inside the merchant admin that helps with questions, content, and store tasks. It presents changes for review. That does not make it a customer-facing sales representative or give it permission to run every part of your store unattended.</p><h2>Build one workflow before expanding</h2><p><a href=\"https://help.shopify.com/en/manual/shopify-flow/create-workflow\">Shopify Flow documentation</a> explains how to create a workflow manually, from a template, or with Sidekick. A generated workflow starts inactive and must be reviewed, tested, and enabled. Begin with a reversible internal task, such as tagging an order for staff review. Save customer messages, refunds, discounts, and inventory changes for later, after you understand the behavior.</p><ol><li>Write the trigger in plain language: exactly what event should start the workflow?</li><li>List the condition that must be true, including exclusions.</li><li>Choose one action and identify who owns failures.</li><li>Run test cases for a match, a non-match, and missing data.</li><li>Enable it only after reviewing the output.</li></ol><h2>Example brief to give your assistant</h2><p>Try: \u201cHelp me draft a workflow that tags qualifying orders for manual review. Show the trigger, conditions, and action. Do not enable it. Tell me which fields you need and what happens when a field is missing.\u201d Replace \u201cqualifying\u201d with your real order rule before using the prompt.</p><p>This is a proposed implementation pattern, not a claim that it has produced a particular sales increase. Track the number of correct tags and the staff time required to fix mistakes.</p><h2>Keep the exception path visible</h2><p>A workflow should have an owner, a stop switch, and a small log of unexpected results. Check for repeat triggers and whether the action can happen twice. Shopify notes that workflow execution may be delayed; do not promise an instant response to a customer based on a background automation. Review the store\u2019s current capabilities and app permissions before adding paid tools.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Shopify: Sidekick",
+        "url": "https://help.shopify.com/en/manual/ai-powered-tools/sidekick"
+      },
+      {
+        "title": "Shopify: Create and test workflows",
+        "url": "https://help.shopify.com/en/manual/shopify-flow/create-workflow"
+      }
+    ],
+    "key_takeaways": [
+      "Use Sidekick for assistance and Flow for a defined automation.",
+      "Review and test generated workflows before enabling them.",
+      "Begin with an internal action that is easy to reverse."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "90a81816-c11b-40dc-8531-6b920e5acd91",
+    "slug": "stop-typing-and-start-talking-running-a-global-desk-with-gemini-live",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Gemini Live for Business: A Practical Voice and Screen-Sharing Workflow",
+    "excerpt": "Use Gemini Live to talk through a task or review what is on screen. Verify the answer before acting and keep sensitive customer information out of demonstrations.",
+    "tldr": "Use Gemini Live to talk through a task or review what is on screen. Verify the answer before acting and keep sensitive customer information out of demonstrations.",
+    "content": "<h2>Use Live as an assistant to the operator</h2><p><a href=\"https://support.google.com/gemini/answer/15274899?hl=en\">Google\u2019s Gemini Live help page</a> documents voice conversations and camera or screen sharing on supported mobile devices. A useful business starting point is helping an employee understand a task while the employee remains responsible for the result. It is not evidence that the consumer app can independently operate a global customer-support desk.</p><h2>Try a short, non-sensitive task</h2><p>Choose a demonstration document, a mock product display, or a training example. Explain the objective before sharing the camera or screen. Ask the assistant to describe what it can observe, separate uncertain details, and suggest the next step. A simple prompt is: \u201cHelp me review this sample display for readability. Describe what you can see, list anything you cannot read confidently, and suggest three changes.\u201d</p><p>Check the description against the actual screen. If it misreads a label, correct it and repeat the observation before using its recommendation.</p><h2>Control what is shared</h2><p>Google notes that screen sharing exposes the full screen, not only the one item you are discussing. Close unrelated messages and customer records first. Stopping or muting audio is not a substitute for checking whether screen or camera sharing is active. Review the app\u2019s visible sharing controls and the current help instructions when beginning and ending the session.</p><h2>Measure whether the workflow helps</h2><p>Compare the time to finish the same small task with and without assistance. Record misunderstandings and corrections, not just how natural the conversation feels. Keep customer commitments, account access, and final instructions with a person. Check language, device, and account availability in current Google documentation before planning a team rollout.</p><p>This revision removes the earlier unsupported model-version and language-count claims. The workflow relies on documented Live capabilities, not a promised release name or guaranteed service coverage.</p><p>Continue with the <a href=\"/guides/ai-for-small-business\">AI for small business guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Google: Talk naturally with Gemini Live",
+        "url": "https://support.google.com/gemini/answer/15274899?hl=en"
+      }
+    ],
+    "key_takeaways": [
+      "Use Gemini Live to assist a person who checks the result.",
+      "Screen sharing can expose the full screen; control what is visible.",
+      "Verify current device and account availability before rollout."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "1b715111-6060-4a20-8809-485cfa4d5015",
+    "slug": "stop-paying-for-3d-product-renders-how-to-use-ai-to-create-design-assets",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "AI 3D Product Assets: How to Evaluate Quality Before Replacing a Render",
+    "excerpt": "Evaluate an AI-generated product model against the real item, your export requirements, and mobile performance before putting it on a sales page.",
+    "tldr": "Evaluate an AI-generated product model against the real item, your export requirements, and mobile performance before putting it on a sales page.",
+    "content": "<h2>Start with a product-accuracy requirement</h2><p>An attractive image is not enough for a product listing. The model must represent the item a customer will receive: shape, proportions, finish, visible controls, and included accessories. Write a short acceptance checklist before choosing a tool. Use concept imagery for exploration, and label it appropriately when it does not depict the finished product.</p><h2>What Cartesian currently describes</h2><p><a href=\"https://www.formas.ai/cartesian\">Cartesian by Formas</a> presents AI-assisted 3D modeling for architecture and product design, with editable components and downloadable model studies. Its site offers a preview waitlist. These product descriptions are useful for evaluation, but they are not independent evidence of a particular time saving, price advantage, or conversion lift.</p><p>Confirm access, supported inputs, export formats, commercial usage terms, and compatibility with your storefront before treating the tool as a production dependency.</p><h2>Use a one-product acceptance test</h2><ol><li>Choose one uncomplicated product and gather approved reference photos and dimensions.</li><li>Specify the required export format and maximum asset size for the intended viewer.</li><li>Inspect every side against the reference, including text, handles, joins, and hidden surfaces.</li><li>Ask a product owner to approve accuracy before publishing.</li><li>Test loading, rotation, and fallback imagery on a real phone.</li></ol><p>Keep the original product photo available. If a generated detail is ambiguous, use a corrected asset or the photo rather than presenting a guess as a product feature.</p><h2>Compare the complete cost</h2><p>Include setup, revisions, cleanup, export conversion, testing, and maintenance in your comparison with conventional rendering. Record the time for your own trial. An inexpensive first draft may still require skilled cleanup. If the result fails product-accuracy review, it has not replaced a production render.</p><p>This guide offers an evaluation method. It does not claim firsthand testing of Cartesian or promise the earlier article\u2019s specific cost and speed savings.</p><p>Continue with the <a href=\"/guides/ai-marketing-automation\">AI marketing automation guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Cartesian by Formas: product information and model studies",
+        "url": "https://www.formas.ai/cartesian"
+      }
+    ],
+    "key_takeaways": [
+      "Check product accuracy before using a generated asset in a listing.",
+      "Confirm access, exports, and usage terms with the vendor.",
+      "Include cleanup and testing in the total production cost."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "adef1a52-6d29-4977-a098-500564747600",
+    "slug": "build-your-next-business-tool-as-a-single-file",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Single-File Business Tools: When a Local App Makes Sense",
+    "excerpt": "A portable local app can suit a personal tracker or small offline workflow. Plan backups, sharing, and version changes before using it for business records.",
+    "tldr": "A portable local app can suit a personal tracker or small offline workflow. Plan backups, sharing, and version changes before using it for business records.",
+    "content": "<h2>Choose a single-user task first</h2><p>A local tool is a good candidate when one person owns a bounded workflow and can manage the data file. Think of a personal checklist, a demonstration calculator, or an offline reference tool. A shared customer database with simultaneous editors has different requirements. Do not choose a portable file merely because a spreadsheet currently feels inconvenient.</p><h2>Understand the file and the runtime</h2><p><a href=\"https://withcapsule.app/\">Capsule\u2019s product page</a> describes a portable container that combines an HTML interface, schema, and local SQLite data. It provides desktop players; the web version is a preview with file-access limitations, and the site describes mobile support as coming soon. A generated HTML page by itself is not automatically a complete Capsule application or a hosted multi-user service.</p><h2>Specify a small acceptance test</h2><p>Before building, write down the fields, validation rules, and one task the app must complete. Use sample data and test create, edit, delete, close, reopen, export, and restore. If you cannot reopen the file and recover the last saved record, the prototype is not ready for real work.</p><p>Example brief: \u201cCreate a local equipment-checklist prototype using the chosen runtime. Use sample records only. Explain where data is saved, how I can export it, and how I can restore a backup. Do not add external services.\u201d Have someone review the generated code and storage behavior before trusting it with business information.</p><h2>Plan the ownership and sharing rules</h2><p>Assign one owner to the working file. Keep dated backups in an approved location and test restoring one. Sending a file may send its included data; inspect the contents before sharing. Two people editing separate copies can create conflicting records. If the team needs concurrent access, permissions, reliable syncing, or an audit trail, evaluate an application designed for those requirements.</p><p>Local storage reduces some dependencies. It does not eliminate device loss, accidental deletion, malware, or the need to maintain the software.</p><p>Continue with the <a href=\"/guides/ai-for-small-business\">AI for small business guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Capsule: portable apps and platform availability",
+        "url": "https://withcapsule.app/"
+      }
+    ],
+    "key_takeaways": [
+      "Begin with a bounded single-user task.",
+      "Test saving, exporting, and restoring before using real records.",
+      "Portable files need backup and sharing rules."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "6005e283-9acd-4934-ad89-7419f56f0d2a",
+    "slug": "how-to-run-ai-in-your-customer-s-browser-to-cut-costs-and-protect-privacy",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Browser-Based AI With WebLLM: Costs, Privacy, and Device Tradeoffs",
+    "excerpt": "WebLLM runs model inference in supported browsers. Test downloads, hardware, data flows, and fallbacks before promising cheaper or private AI to customers.",
+    "tldr": "WebLLM runs model inference in supported browsers. Test downloads, hardware, data flows, and fallbacks before promising cheaper or private AI to customers.",
+    "content": "<h2>What runs in the browser?</h2><p><a href=\"https://webllm.mlc.ai/\">WebLLM</a> provides in-browser language-model inference using WebGPU. This can move inference work from your server to a visitor\u2019s device. It is an architectural option, not a guarantee that every phone will run your chosen model quickly or that an entire application is offline.</p><h2>Test the experience before comparing cost</h2><p>Build a small prototype with public sample text. Record initial model download size, time until the first usable response, memory behavior, and repeat-visit behavior. Test representative low-end devices as well as your development computer. Give people a visible loading state and a way to cancel.</p><p>Include model hosting, bandwidth, engineering, support, and any fallback service in the cost comparison. Removing a per-request inference charge does not make the application free to operate.</p><h2>Privacy depends on the complete application</h2><p>Local inference only describes where the model runs. Analytics, error reports, remote retrieval, forms, and application logging may still transmit information. Inspect network traffic with sample data and review every integration before making a privacy claim. This architecture alone does not establish healthcare, financial, or other regulatory compliance.</p><h2>Design a useful failure path</h2><p>Start with a bounded task such as summarizing public documentation. If the device cannot load the model, offer a normal search or a downloadable guide. Do not silently switch a \u201clocal-only\u201d tool to cloud processing. Explain the change and obtain the appropriate user choice before any remote fallback.</p><p>For a support prototype, keep an approved source of answers, show the source alongside the response, and offer a human contact route. Check the model\u2019s license and the current WebLLM documentation for the model and browser combination you intend to ship.</p><p>Continue with the <a href=\"/guides/ai-for-small-business\">AI for small business guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "WebLLM: official overview",
+        "url": "https://webllm.mlc.ai/"
+      },
+      {
+        "title": "WebLLM: repository and implementation documentation",
+        "url": "https://github.com/mlc-ai/web-llm"
+      }
+    ],
+    "key_takeaways": [
+      "Browser inference moves work to the visitor\u2019s device.",
+      "Test real device performance and the complete cost.",
+      "Local inference alone does not establish privacy or compliance."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "f0be9a1c-2626-4ee1-a512-1ac8389cc896",
+    "slug": "stop-guessing-what-to-write-using-salesforce-ai-data-to-build-content-that-conve",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Build an AI Content Plan From Customer Questions",
+    "excerpt": "Use real customer questions to choose content, draft with AI, and measure qualified responses. Treat vendor survey results as context, not a promised ROI.",
+    "tldr": "Use real customer questions to choose content, draft with AI, and measure qualified responses. Treat vendor survey results as context, not a promised ROI.",
+    "content": "<h2>Start with evidence from your own customers</h2><p>Collect recurring questions from approved sales notes, support conversations, and search queries. Remove identifying or sensitive details before placing them in an AI tool. Group the questions by the decision a reader needs to make, such as comparing options, estimating effort, or preparing for an appointment.</p><p><a href=\"https://www.salesforce.com/small-business/marketing/content-marketing/startups/\">Salesforce\u2019s content-marketing guide</a> recommends defining an audience, measurable goals, and an editorial calendar. Those are useful planning inputs. Its survey percentages describe reported responses; a percentage of respondents reporting ROI is not an ROI percentage for your business.</p><h2>Turn one question into a useful brief</h2><p>Give the writer the question, intended reader, relevant product facts, approved sources, and the next action. Ask for gaps before asking for prose. Example: \u201cOutline an answer to this customer question using only these supplied facts. Mark any missing evidence. Include a practical next step, and do not invent a customer story or performance result.\u201d</p><p>The output should tell a reader what to do differently. If it could appear unchanged on any competitor\u2019s site, add your real process, examples, constraints, or a useful worksheet.</p><h2>Build a manageable review process</h2><ol><li>Choose a small set of questions your business can answer credibly.</li><li>Draft one article and have the person responsible for the subject check it.</li><li>Verify named products, numbers, dates, and claims against primary sources.</li><li>Publish a clear title, readable headings, and a relevant next step.</li><li>Reuse only the approved version in email or social posts.</li></ol><h2>Measure the outcome you actually want</h2><p>Choose a business outcome before publishing: qualified inquiries, useful replies, or completed next steps. Track impressions and clicks as diagnostic signals, not revenue. Compare similar reporting periods and allow for small sample sizes. Keep a simple record of what changed and when so an increase is not automatically attributed to AI.</p><p>A sensible first review asks which questions attracted the right people and which still needed a personal explanation. Use that answer to choose the next article.</p><p>Continue with the <a href=\"/guides/ai-marketing-automation\">AI marketing automation guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Salesforce: Content marketing for startups",
+        "url": "https://www.salesforce.com/small-business/marketing/content-marketing/startups/"
+      }
+    ],
+    "key_takeaways": [
+      "Choose topics from real customer questions.",
+      "Verify the draft before reusing it across channels.",
+      "Measure qualified outcomes instead of assuming a survey predicts your ROI."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "1c51ab00-2f33-4b0d-861f-9db5bb254cdf",
+    "slug": "stop-building-from-scratch-how-to-use-anthropic-s-43-new-sales-workflows",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Claude for Small Business: Choose and Review a Sales Workflow",
+    "excerpt": "Start with a bounded sales task, connect only the required tools, and review the result before a message or account change is sent.",
+    "tldr": "Start with a bounded sales task, connect only the required tools, and review the result before a message or account change is sent.",
+    "content": "<h2>Choose the task before the workflow count</h2><p><a href=\"https://www.anthropic.com/news/claude-for-small-business\">Anthropic\u2019s introduction to Claude for Small Business</a> describes ready-to-run workflows and connectors for business tools. The launch announcement lists 15 workflows and emphasizes approval before sending, posting, or paying. Catalogs can change, so inspect the current options in your account instead of planning around an unverified headline count.</p><p>This revision removes the earlier unsupported claims about 43 new sales workflows, 27 new integrations, and installation totals.</p><h2>Start with a reviewable deliverable</h2><p>A meeting brief is a manageable starting point: approved account facts, open questions, and a proposed agenda. Define exactly which records may be used. Connect only the required tools, and confirm the account and workspace before granting access. Avoid making the first task an unattended outreach campaign.</p><p>Example: \u201cPrepare a draft meeting brief from these approved records. Cite the record behind each factual statement. Separate open questions from known facts. Do not contact anyone or update the CRM.\u201d</p><h2>Review facts and permissions separately</h2><p>Check whether each source supports the statement, whether the information is current, and whether the proposed next step is appropriate for this customer. Then review the action itself: recipient, destination record, attachments, and timing. A well-written message can still go to the wrong contact.</p><p>Keep the approved output and note any correction that would help the next run. Repeated missing information usually calls for a better source or narrower scope, not a more elaborate prompt.</p><h2>Expand only after a useful trial</h2><p>Compare preparation time and correction effort across a small number of ordinary tasks. Include the time spent connecting systems and reviewing drafts. Before adding scheduling or writes, establish who owns failures and how an incorrect change can be reversed. Check current plan availability and connector requirements in Anthropic\u2019s product documentation.</p><p>The goal is a reliable, repeatable task that your team understands. A larger catalog does not by itself mean more value for your business.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Anthropic: Introducing Claude for Small Business",
+        "url": "https://www.anthropic.com/news/claude-for-small-business"
+      }
+    ],
+    "key_takeaways": [
+      "Choose a useful task before comparing workflow counts.",
+      "Require sources and keep uncertain statements separate.",
+      "Review recipients and actions before sending or changing records."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "d3f77eae-1746-4d12-ba58-e213da1a9fdf",
+    "slug": "stop-paying-for-three-different-seo-tools-how-to-wire-up-a-unified-ai-search-mar",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "Simplify Your SEO Tools Without Chasing AI Search Scores",
+    "excerpt": "Audit overlapping subscriptions and prioritize useful content, crawlability, and reliable reporting. A tool score cannot guarantee rankings or AI citations.",
+    "tldr": "Audit overlapping subscriptions and prioritize useful content, crawlability, and reliable reporting. A tool score cannot guarantee rankings or AI citations.",
+    "content": "<h2>List the decisions each tool supports</h2><p>Before replacing three subscriptions with one, write down the decisions you make: finding an indexing problem, choosing a customer question to answer, reviewing a page, or measuring qualified inquiries. Keep the outputs you actually use. A unified dashboard is useful only if its data is accurate enough for those decisions.</p><p>Document each tool\u2019s cost, owner, renewal date, export options, and unique capability. If two tools answer the same question, compare their results on the same pages and time period before canceling either.</p><h2>Use Google\u2019s guidance as the baseline</h2><p><a href=\"https://developers.google.com/search/docs/fundamentals/ai-optimization-guide\">Google\u2019s guidance for generative AI search</a> says established SEO practices remain relevant and emphasizes helpful, original content. It does not require special AI schema or an AI text file to qualify for those experiences. Claims that a score, acronym, or subscription guarantees an AI mention deserve scrutiny.</p><h2>Build one weekly review</h2><ol><li>Check for publishing, crawl, and indexing errors that prevent access.</li><li>Review the actual Search Console period and import date.</li><li>Pick a page with a clear reader problem, not merely a low proprietary score.</li><li>Verify its claims and improve the explanation, examples, and next step.</li><li>Record the edit and compare later data with an appropriate baseline.</li></ol><p>At low traffic levels, a position change can reflect a very small number of impressions. Avoid reporting a percentage improvement without the underlying counts.</p><h2>Evaluate a replacement before migrating</h2><p>Use a small sample of known pages and verify that the proposed replacement preserves the data you need. Confirm export access and cancelation terms. Include the time required to learn the new workflow. A combined product may reduce switching between dashboards, but it can also omit a specialist function your team relies on.</p><p>This guide intentionally avoids endorsing the earlier article\u2019s unverified product claims. Choose a tool because it supports a specific decision, and judge the website by reader usefulness and measured outcomes.</p><p>Continue with the <a href=\"/guides/ai-marketing-automation\">AI marketing automation guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Google: Optimizing for generative AI features",
+        "url": "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide"
+      }
+    ],
+    "key_takeaways": [
+      "Keep tools that support decisions your team actually makes.",
+      "Google\u2019s established SEO guidance also applies to its AI search experiences.",
+      "A proprietary score cannot guarantee rankings or citations."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "f0ce734c-c322-4b6c-a1a9-6edf68546cf6",
+    "slug": "stop-wasting-time-on-sales-prep-how-to-use-ai-for-prospecting-and-research",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "AI Sales Research: Build a Brief You Can Actually Trust",
+    "excerpt": "Use AI to organize verified account facts and prepare better questions. Keep guesses about a prospect\u2019s priorities separate from evidence.",
+    "tldr": "Use AI to organize verified account facts and prepare better questions. Keep guesses about a prospect\u2019s priorities separate from evidence.",
+    "content": "<h2>Research should produce evidence, not confidence theater</h2><p>A polished pitch is not useful if its opening claim is wrong. Begin with public company information and approved internal records. Save the source URL or record reference and its date. Ask the assistant to distinguish an observed fact from an inference, and leave unknowns as questions.</p><p><a href=\"https://www.anthropic.com/webinars/how-anthropics-sales-leader-runs-his-week-with-claude\">Anthropic\u2019s sales-team workflow session</a> describes briefs and forecast preparation using connected data. That is an example of organizing sales work; it does not prove a particular time saving or close rate for a different business.</p><h2>Use a simple account-brief format</h2><p>Keep five fields: verified facts, possible relevance to your offer, open questions, current relationship history, and a proposed next step. Limit the initial brief to what the salesperson can check. If an assistant says a company is \u201cstruggling\u201d or \u201cfalling behind,\u201d require evidence or rewrite the statement as a question.</p><blockquote>Using only the supplied sources, prepare a short account brief. Cite each factual claim. Label inferences and unknowns. Suggest three discovery questions. Do not infer private personal information, invent a business problem, or send a message.</blockquote><h2>Review the opening line before outreach</h2><p>Check the company name, role, recent event, and relevance of your offer. A job listing may suggest an area of investment; it does not establish the executive\u2019s private priorities. Avoid pretending to have researched a company more deeply than you have. A concise, honest question is better than a confident assertion based on an AI guess.</p><p>For example, after verifying a public expansion announcement, ask how the team is organizing the new location\u2019s workflow. Do not state that its inventory is broken or that a competitor is performing better without evidence.</p><h2>Track correction effort as well as speed</h2><p>Compare preparation time, factual corrections, useful replies, and qualified conversations. Include manual verification in the timing. If the same error recurs, improve the source or remove that inference from the template. Keep recipient selection and final sending under the normal sales review process.</p><p>No fixed five-minute result is promised here. The useful target is a trustworthy brief that makes the next conversation more relevant.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Anthropic: Sales workflows with Cowork",
+        "url": "https://www.anthropic.com/webinars/how-anthropics-sales-leader-runs-his-week-with-claude"
+      }
+    ],
+    "key_takeaways": [
+      "Separate verified facts, inferences, and discovery questions.",
+      "Check the opening claim before contacting a prospect.",
+      "Include correction and verification time when measuring efficiency."
+    ],
+    "faq_items": []
+  },
+  {
+    "id": "d467fc80-dce9-4564-b04a-20e3b0eefc14",
+    "slug": "walmart-boosts-sales-by-40-with-ai-how-you-can-too",
+    "expected_updated_at": "2026-09-17 07:08:45.067527+00",
+    "title": "What Small Retailers Can Learn From Walmart\u2019s Sparky",
+    "excerpt": "Use AI shopping assistance to answer product questions and suggest relevant options. Test your own results instead of treating a large retailer\u2019s figures as a guarantee.",
+    "tldr": "Use AI shopping assistance to answer product questions and suggest relevant options. Test your own results instead of treating a large retailer\u2019s figures as a guarantee.",
+    "content": "<h2>Put the reported result in context</h2><p>In <a href=\"https://corporate.walmart.com/content/dam/corporate/documents/newsroom/2026/02/19/walmart-releases-q4-fy26-earnings/q4-fy26-earnings-call-transcript.pdf\">Walmart\u2019s February 2026 earnings call</a>, executives discussed 35% higher average order value associated with Sparky. This is a company-reported observation about a particular shopping experience, not proof that adding a chatbot causes the same lift in another store.</p><p>The earlier headline promised that smaller retailers could reproduce a 40% increase. That claim is removed. Different customers, product mixes, and measurement methods make such a promise unjustified.</p><h2>Start with a product question you can answer well</h2><p>Choose one product category with reliable descriptions, compatibility information, stock status, and return policies. List the questions customers ask before purchasing. An assistant should retrieve approved facts and ask a clarifying question when the answer depends on the customer\u2019s situation.</p><p>For example, a coffee retailer can ask about brewing method before suggesting an appropriate grind. The recommendation must match the available products and published specifications; a plausible-sounding answer is not enough.</p><h2>Review recommendations before automating more</h2><p>Create a test set containing normal requests, missing information, unavailable items, and incompatible combinations. Check that the assistant can decline to guess and direct the shopper to a person. Keep price, availability, and purchase confirmation connected to the store\u2019s actual systems.</p><p>Useful complementary items should solve a real need. Do not optimize the assistant only to increase cart size if that creates unsuitable recommendations or more returns.</p><h2>Measure your own business outcome</h2><p>Define success before the pilot: helpful answers, completed purchases, margin, return rate, and customer complaints. Compare similar groups or time periods and account for promotions and stock changes. A higher average order value can still be a poor outcome if fewer people purchase or more products come back.</p><p>Start with a limited, monitored rollout and maintain a straightforward human-support option. Use the retailer example to frame a testable question, not to predict your results.</p><p>Continue with the <a href=\"/guides/ai-sales-customer-service\">AI sales and customer service guide</a> for a broader implementation plan.</p>",
+    "source_citations": [
+      {
+        "title": "Walmart: Q4 FY26 earnings call transcript",
+        "url": "https://corporate.walmart.com/content/dam/corporate/documents/newsroom/2026/02/19/walmart-releases-q4-fy26-earnings/q4-fy26-earnings-call-transcript.pdf"
+      }
+    ],
+    "key_takeaways": [
+      "Treat retailer-reported results as context, not a promise.",
+      "Test recommendations against approved product facts.",
+      "Measure margin, returns, and customer outcomes as well as order value."
+    ],
+    "faq_items": []
+  }
+]

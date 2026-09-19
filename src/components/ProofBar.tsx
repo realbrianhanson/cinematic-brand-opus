@@ -1,6 +1,7 @@
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const ProofBar = () => {
+  const siteConfig = useSiteConfig();
   const items = siteConfig.proofBadges;
   if (items.length === 0) return null;
 

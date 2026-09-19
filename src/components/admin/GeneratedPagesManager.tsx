@@ -3,7 +3,7 @@ import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@/lib/router-compat";
+import { Link, useSearchParams } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +68,8 @@ function timeAgo(dateStr: string) {
 
 const GeneratedPagesManager = () => {
   const qc = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const needsRefresh = params.get("trend") === "needs_refresh";
   const { toast } = useToast();
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -139,6 +141,11 @@ const GeneratedPagesManager = () => {
   // Filter + sort
   const filtered = useMemo(() => {
     let list = pages ?? [];
+    if (needsRefresh)
+      list = list.filter(
+        (p) =>
+          p.performance_trend === "needs_refresh" && p.status === "published",
+      );
     if (statusFilter !== "all")
       list = list.filter((p) => p.status === statusFilter);
     if (nicheFilter) list = list.filter((p) => p.niche_id === nicheFilter);
@@ -168,6 +175,7 @@ const GeneratedPagesManager = () => {
     search,
     sortCol,
     sortAsc,
+    needsRefresh,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
@@ -330,6 +338,20 @@ const GeneratedPagesManager = () => {
 
   return (
     <div>
+      {needsRefresh && (
+        <div className="admin-notice">
+          Showing published resources flagged for refresh.{" "}
+          <button
+            className="admin-btn-ghost"
+            onClick={() => {
+              setParams({});
+              setPage(0);
+            }}
+          >
+            Show all resources
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div
         className="flex items-center justify-between flex-wrap gap-4"
@@ -447,6 +469,20 @@ const GeneratedPagesManager = () => {
         </div>
       </div>
 
+      {needsRefresh && (
+        <div className="admin-notice">
+          Showing published resources flagged for refresh.{" "}
+          <button
+            className="admin-btn-ghost"
+            onClick={() => {
+              setParams({});
+              setPage(0);
+            }}
+          >
+            Show all resources
+          </button>
+        </div>
+      )}
       {/* Table */}
       <div className="admin-card" style={{ overflow: "hidden" }}>
         {/* Header row */}

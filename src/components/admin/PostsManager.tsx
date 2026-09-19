@@ -1,345 +1,362 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@/lib/router-compat";
+import { Link, useSearchParams } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Pencil, Search, Send } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-
-const PostsManager = () => {
+import QueryNotice from "./QueryNotice";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
+const SIZE = 25;
+const statuses = ["all", "draft", "scheduled", "published"] as const;
+type Status = (typeof statuses)[number];
+export default function PostsManager() {
   const qc = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const status: Status = statuses.includes(params.get("status") as Status)
+    ? (params.get("status") as Status)
+    : "all";
   const [search, setSearch] = useState("");
-
-  // Realtime subscription for posts (debounced to prevent infinite refetch loops)
+  const [term, setTerm] = useState("");
+  const [category, setCategory] = useState("");
+  const [from, setFrom] = useState("");
+  const [sort, setSort] = useState("updated_at");
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmation, setConfirmation] = useState<"publish" | string | null>(
+    null,
+  );
   useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const channel = supabase
-      .channel(`admin-posts-realtime-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => {
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            qc.invalidateQueries({ queryKey: ["admin-posts"] });
-          }, 2000);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      supabase.removeChannel(channel);
-    };
-  }, [qc]);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [confirmPublishAll, setConfirmPublishAll] = useState(false);
-
-  const { data: posts, isLoading } = useQuery({
-    queryKey: ["admin-posts"],
+    const timer = setTimeout(() => {
+      setTerm(search.trim());
+      setPage(0);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useEffect(() => {
+    setPage(0);
+    setSelected(new Set());
+  }, [status, category, from, sort, term]);
+  const posts = useQuery({
+    queryKey: ["admin-posts", status, category, from, sort, term, page],
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      let query = supabase
+        .from("posts")
+        .select("id,title,slug,status,created_at,updated_at,categories(name)", {
+          count: "exact",
+        });
+      if (status !== "all") query = query.eq("status", status);
+      if (category) query = query.eq("category_id", category);
+      if (from) query = query.gte("created_at", `${from}T00:00:00Z`);
+      if (term)
+        query = query.ilike("title", `%${term.replace(/[\\%_]/g, "\\$&")}%`);
+      const { data, error, count } = await query
+        .order(sort, { ascending: sort === "title" })
+        .order("id")
+        .range(page * SIZE, (page + 1) * SIZE - 1);
+      if (error) throw error;
+      return { items: data ?? [], total: count ?? 0 };
+    },
+  });
+  const categories = useQuery({
+    queryKey: ["admin-categories-list"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("posts")
-        .select("*, categories(name)")
-        .order("created_at", { ascending: false });
+        .from("categories")
+        .select("id,name")
+        .order("name");
       if (error) throw error;
       return data ?? [];
     },
   });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await supabase.from("seo_metadata").delete().eq("post_id", id);
-      const { error } = await supabase.from("posts").delete().eq("id", id);
-      if (error) throw error;
+  const mutation = useMutation({
+    mutationFn: async (action: string) => {
+      if (action !== "publish") {
+        const { error } = await supabase
+          .from("posts")
+          .delete()
+          .eq("id", action);
+        if (error) throw error;
+        return "Post deleted.";
+      }
+      const candidates =
+        posts.data?.items.filter(
+          (p) => selected.has(p.id) && p.status === "draft",
+        ) ?? [];
+      if (!candidates.length)
+        throw new Error("Select drafts from the current page.");
+      let published = 0,
+        blocked = 0;
+      for (const post of candidates) {
+        const { data, error } = await supabase.functions.invoke(
+          "manual-publish",
+          { body: { post_id: post.id } },
+        );
+        if (error || data?.ok !== true || data?.decision === "blocked")
+          blocked++;
+        else published++;
+      }
+      return `${published} published. ${blocked} need review; open the editor for details. Publishing checks were preserved.`;
     },
-    onSuccess: () => {
+    onSuccess: (message) => {
+      toast.success(message);
+      setConfirmation(null);
+      setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
-      setDeleteId(null);
     },
+    onError: (error) => toast.error(error.message),
   });
-  const publishAllMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .update({
-          status: "published",
-          scheduled_at: null,
-          publish_override: true,
-          publish_override_reason: "Bulk publish all drafts from admin UI",
-          published_at: new Date().toISOString(),
-        } as never)
-        .eq("status", "draft")
-        .select("id");
-      if (error) throw error;
-      return data?.length ?? 0;
-    },
-    onSuccess: (count) => {
-      toast.success(`Published ${count} draft${count === 1 ? "" : "s"}`);
-      qc.invalidateQueries({ queryKey: ["admin-posts"] });
-      setConfirmPublishAll(false);
-    },
-    onError: (e) => {
-      toast.error(e?.message || "Failed to publish drafts");
-    },
-  });
-
-  const draftCount = useMemo(
-    () => posts?.filter((p) => p.status === "draft").length ?? 0,
-    [posts],
+  const items = posts.data?.items ?? [];
+  const drafts = items.filter(
+    (p) => p.status === "draft" && selected.has(p.id),
   );
-
-  const filtered = useMemo(
-    () =>
-      posts?.filter((p) =>
-        p.title.toLowerCase().includes(search.toLowerCase()),
-      ) ?? [],
-    [posts, search],
-  );
-
-  const handleDelete = useCallback((id: string) => setDeleteId(id), []);
-  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
-
+  const pages = Math.max(1, Math.ceil((posts.data?.total ?? 0) / SIZE));
+  useEffect(() => {
+    if (posts.data && page >= pages) setPage(pages - 1);
+  }, [posts.data, page, pages]);
   return (
-    <div>
-      <div
-        className="flex items-center justify-between flex-wrap gap-4"
-        style={{ marginBottom: 24 }}
-      >
-        <h1
-          className="font-heading italic"
-          style={{ fontSize: 28, fontWeight: 400 }}
-        >
-          Posts
-        </h1>
-        <div className="flex items-center gap-3">
+    <div className="admin-page-stack">
+      <header className="admin-page-header">
+        <div>
+          <p className="admin-eyebrow">Content library</p>
+          <h1>Articles</h1>
+          <p>Find, review, and publish your work.</p>
+        </div>
+        <Link className="admin-btn-primary" to="/admin/posts/new">
+          <Plus size={16} /> New Post
+        </Link>
+      </header>
+      <div className="admin-tabs" aria-label="Filter articles by status">
+        {statuses.map((s) => (
           <button
-            onClick={() => setConfirmPublishAll(true)}
-            disabled={draftCount === 0}
-            className="admin-btn-ghost"
-            style={{
-              opacity: draftCount === 0 ? 0.4 : 1,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+            key={s}
+            className="admin-btn-ghost capitalize"
+            aria-pressed={status === s}
+            onClick={() => setParams(s === "all" ? {} : { status: s })}
           >
-            <Send size={14} /> Publish all drafts{" "}
-            {draftCount > 0 && `(${draftCount})`}
+            {s}
           </button>
-          <Link to="/admin/posts/new" className="admin-btn-primary">
-            <Plus size={14} /> New Post
-          </Link>
-        </div>
+        ))}
       </div>
-
-      {/* Search */}
-      <div className="relative" style={{ marginBottom: 20 }}>
-        <Search
-          size={14}
-          style={{
-            position: "absolute",
-            left: 14,
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "hsl(var(--admin-text-ghost))",
-          }}
-        />
-        <input
-          placeholder="Search posts..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="admin-input font-body w-full"
-          style={{ paddingLeft: 36 }}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="admin-card" style={{ overflow: "hidden" }}>
-        <div
-          className="hidden md:grid"
-          style={{
-            gridTemplateColumns: "1fr 140px 100px 110px 80px",
-            padding: "12px 24px",
-            borderBottom: "1px solid hsl(var(--admin-border))",
-            backgroundColor: "hsl(var(--admin-surface-2))",
-          }}
-        >
-          {["Title", "Category", "Status", "Date", "Actions"].map((h) => (
-            <span key={h} className="admin-label" style={{ marginBottom: 0 }}>
-              {h}
-            </span>
-          ))}
-        </div>
-
-        {isLoading && (
-          <div style={{ padding: 32, textAlign: "center" }}>
-            <span
-              className="font-body"
-              style={{ color: "hsl(var(--admin-text-ghost))" }}
-            >
-              Loading...
-            </span>
+      <div className="admin-filters">
+        <label className="flex-1">
+          <span className="sr-only">Search articles</span>
+          <div className="flex items-center gap-2">
+            <Search size={16} />
+            <input
+              className="admin-input w-full"
+              placeholder="Search articles…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        )}
-
-        {filtered.map((post) => (
-          <div
-            key={post.id}
-            className="md:grid flex flex-col"
-            style={{
-              gridTemplateColumns: "1fr 140px 100px 110px 80px",
-              padding: "14px 24px",
-              borderBottom: "1px solid hsl(var(--admin-border))",
-              alignItems: "center",
-              transition: "background-color 0.15s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor =
-                "hsl(var(--admin-surface-2))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
+        </label>
+        <select
+          aria-label="Category"
+          className="admin-input"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">All categories</option>
+          {categories.data?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <label className="admin-help">
+          Created since{" "}
+          <input
+            aria-label="Created since"
+            className="admin-input"
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </label>
+        <select
+          aria-label="Sort articles"
+          className="admin-input"
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          <option value="updated_at">Recently updated</option>
+          <option value="created_at">Newest first</option>
+          <option value="title">Title A–Z</option>
+        </select>
+      </div>
+      <QueryNotice
+        error={categories.error}
+        retry={() => categories.refetch()}
+      />
+      <QueryNotice
+        loading={posts.isPending}
+        error={posts.error}
+        retry={() => posts.refetch()}
+      />
+      {drafts.length > 0 && (
+        <div className="admin-notice">
+          <span>{drafts.length} drafts selected on this page.</span>
+          <button
+            className="admin-btn-primary"
+            disabled={mutation.isPending}
+            onClick={() => setConfirmation("publish")}
           >
-            <span
-              className="font-body truncate"
-              style={{ fontSize: 14, fontWeight: 500 }}
-            >
-              {post.title}
+            Review publishing
+          </button>
+          <button
+            className="admin-btn-ghost"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+      {!posts.error && (
+        <section className="admin-card admin-section">
+          {items.map((post) => (
+            <div key={post.id} className="admin-recent-row">
+              {post.status === "draft" && (
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${post.title}`}
+                  checked={selected.has(post.id)}
+                  onChange={(e) =>
+                    setSelected((previous) => {
+                      const next = new Set(previous);
+                      if (e.target.checked) next.add(post.id);
+                      else next.delete(post.id);
+                      return next;
+                    })
+                  }
+                />
+              )}
+              <div className="flex-1">
+                <Link
+                  to={`/admin/posts/${post.id}/edit`}
+                  className="font-medium"
+                >
+                  {post.title}
+                </Link>
+                <span>
+                  {post.categories?.name ?? "Uncategorized"} · Updated{" "}
+                  {new Date(post.updated_at).toLocaleDateString()}
+                </span>
+              </div>
+              <span className="admin-badge">{post.status}</span>
+              <div className="flex gap-3">
+                <Link
+                  to={`/admin/posts/${post.id}/edit`}
+                  aria-label={`Edit ${post.title}`}
+                >
+                  Edit
+                </Link>
+                {post.status === "published" && (
+                  <a
+                    href={`/blog/${post.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`View ${post.title}`}
+                  >
+                    View
+                  </a>
+                )}
+                <button
+                  className="text-red-400"
+                  aria-label={`Delete ${post.title}`}
+                  disabled={mutation.isPending}
+                  onClick={() => setConfirmation(post.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {!posts.isPending && !items.length && (
+            <p>No articles match these filters.</p>
+          )}
+          <div className="admin-section-header">
+            <span className="admin-help">
+              {posts.data?.total ?? 0} articles · Page {page + 1} of {pages}
             </span>
-            <span
-              className="font-body"
-              style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-            >
-              {post.categories?.name || "—"}
-            </span>
-            <span
-              className={`admin-badge w-fit ${post.status === "published" ? "admin-badge-published" : "admin-badge-draft"}`}
-            >
-              {post.status}
-            </span>
-            <span
-              className="font-body"
-              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              {new Date(post.created_at).toLocaleDateString()}
-            </span>
-            <div className="flex items-center gap-3">
-              <Link
-                to={`/admin/posts/${post.id}/edit`}
-                style={{ color: "hsl(var(--admin-accent))" }}
-              >
-                <Pencil size={14} />
-              </Link>
+            <div className="flex gap-2">
               <button
-                onClick={() => setDeleteId(post.id)}
-                style={{
-                  color: "hsl(var(--admin-danger))",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
+                className="admin-btn-ghost"
+                disabled={page === 0 || posts.isFetching}
+                onClick={() => {
+                  setPage((p) => p - 1);
+                  setSelected(new Set());
                 }}
               >
-                <Trash2 size={14} />
+                Previous
               </button>
-            </div>
-          </div>
-        ))}
-
-        {filtered.length === 0 && !isLoading && (
-          <div style={{ padding: 32, textAlign: "center" }}>
-            <p
-              className="font-body"
-              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              No posts found.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Delete confirmation */}
-      {deleteId && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="admin-card"
-            style={{ padding: 32, maxWidth: 380, width: "90%" }}
-          >
-            <p className="font-body" style={{ fontSize: 15, marginBottom: 20 }}>
-              Delete this post? This cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setDeleteId(null)}
                 className="admin-btn-ghost"
+                disabled={page + 1 >= pages || posts.isFetching}
+                onClick={() => {
+                  setPage((p) => p + 1);
+                  setSelected(new Set());
+                }}
               >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteMutation.mutate(deleteId)}
-                className="admin-btn-primary"
-                style={{ background: "hsl(var(--admin-danger))" }}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                Next
               </button>
             </div>
           </div>
-        </div>
+        </section>
       )}
-
-      {/* Publish-all confirmation */}
-      {confirmPublishAll && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="admin-card"
-            style={{ padding: 32, maxWidth: 440, width: "90%" }}
-          >
-            <h2
-              className="font-heading italic"
-              style={{ fontSize: 20, marginBottom: 12 }}
-            >
-              Publish {draftCount} draft{draftCount === 1 ? "" : "s"}?
-            </h2>
-            <p
-              className="font-body"
-              style={{
-                fontSize: 14,
-                marginBottom: 20,
-                color: "hsl(var(--admin-text-soft))",
+      <AlertDialog
+        open={!!confirmation}
+        onOpenChange={(open) => {
+          if (!open && !mutation.isPending) setConfirmation(null);
+        }}
+      >
+        <AlertDialogContent className="admin-shell">
+          <AlertDialogTitle>
+            {confirmation === "publish"
+              ? `Publish ${drafts.length} selected drafts?`
+              : "Delete this article?"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmation === "publish"
+              ? "Each article will go through the normal publishing checks. Articles that fail remain unpublished."
+              : "This permanently removes the article. This action cannot be undone."}
+          </AlertDialogDescription>
+          <ul className="max-h-48 overflow-auto text-sm">
+            {(confirmation === "publish"
+              ? drafts
+              : items.filter((p) => p.id === confirmation)
+            ).map((p) => (
+              <li key={p.id}>{p.title}</li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={mutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={mutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmation) mutation.mutate(confirmation);
               }}
             >
-              This bypasses quality, lint, and fact-check gates via publish
-              override. Each post will go live immediately.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setConfirmPublishAll(false)}
-                className="admin-btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => publishAllMutation.mutate()}
-                className="admin-btn-primary"
-                disabled={publishAllMutation.isPending}
-              >
-                {publishAllMutation.isPending
-                  ? "Publishing..."
-                  : `Publish ${draftCount}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              {mutation.isPending
+                ? "Working…"
+                : confirmation === "publish"
+                  ? "Publish selected"
+                  : "Delete article"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-};
-
-export default PostsManager;
+}

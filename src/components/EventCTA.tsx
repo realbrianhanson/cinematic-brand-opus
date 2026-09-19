@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { EventDay } from "@/config/types";
 
 const DayCard = ({ card, index }: { card: EventDay; index: number }) => {
@@ -122,6 +122,7 @@ const DayCard = ({ card, index }: { card: EventDay; index: number }) => {
 };
 
 const EventCTA = () => {
+  const siteConfig = useSiteConfig();
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: ctaRef, visible: ctaVisible } = useReveal();
   const event = siteConfig.event;

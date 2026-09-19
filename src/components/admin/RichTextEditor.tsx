@@ -45,7 +45,7 @@ import {
 interface RichTextEditorProps {
   content: string;
   onChange?: (content: string) => void;
-  onEditorReady?: (editor: Editor) => void;
+  onEditorReady?: (editor: Editor | null) => void;
   placeholder?: string;
 }
 
@@ -387,6 +387,7 @@ const RichTextEditor = ({
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showVideoPicker, setShowVideoPicker] = useState(false);
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         link: false,
@@ -431,6 +432,9 @@ const RichTextEditor = ({
       }),
     ],
     content,
+    onDestroy: () => {
+      onEditorReady?.(null);
+    },
     onUpdate: ({ editor: e }) => {
       onChange?.(e.getHTML());
     },

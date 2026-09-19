@@ -27,22 +27,28 @@ export const siteConfig: SiteConfig = validateSiteConfig(
 );
 
 /** Absolute canonical URL for a site-relative path. */
-export const absoluteUrl = (path = "/"): string => {
-  const base = siteConfig.identity.siteUrl.replace(/\/+$/, "");
+export const absoluteUrl = (
+  path = "/",
+  config: SiteConfig = siteConfig,
+): string => {
+  const base = config.identity.siteUrl.replace(/\/+$/, "");
   if (!path || path === "/") return `${base}/`;
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 /** "Page title | Site Name", avoiding a duplicated suffix. */
-export const pageTitle = (title: string): string =>
-  title.endsWith(siteConfig.identity.name)
+export const pageTitle = (
+  title: string,
+  config: SiteConfig = siteConfig,
+): string =>
+  title.endsWith(config.identity.name)
     ? title
-    : `${title} | ${siteConfig.identity.name}`;
+    : `${title} | ${config.identity.name}`;
 
-export const copyrightLine = (): string => {
-  const holder = siteConfig.identity.legalName || siteConfig.identity.name;
+export const copyrightLine = (config: SiteConfig = siteConfig): string => {
+  const holder = config.identity.legalName || config.identity.name;
   const year = new Date().getFullYear();
-  const from = siteConfig.identity.foundedYear;
+  const from = config.identity.foundedYear;
   const range = from && from < year ? `${from}–${year}` : String(from ?? year);
   return `© ${range} ${holder}. All rights reserved.`;
 };

@@ -1,364 +1,200 @@
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useState } from "react";
 import { useAdminPreferences } from "@/hooks/useAdminPreferences";
-import { NavLink, Outlet, useNavigate } from "@/lib/router-compat";
+import { Link, NavLink, Outlet, useNavigate } from "@/lib/router-compat";
 import { useAuth } from "@/contexts/AuthContext";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
-  LayoutDashboard,
-  FileText,
-  FolderOpen,
-  Files,
-  Globe,
-  Tags,
-  Layers,
-  BookOpen,
-  Zap,
-  LogOut,
+  Plus,
   Menu,
-  X,
   ChevronLeft,
-  FilePlus,
-  Sun,
   Moon,
-  ImageIcon,
+  Sun,
+  LogOut,
   ExternalLink,
-  KeyRound,
-  BarChart3,
-  LayoutGrid,
-  Inbox,
 } from "lucide-react";
-
-const navItems = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/admin/queue", label: "News & Queue", icon: Inbox, end: true },
-  { to: "/admin/posts", label: "Posts", icon: FileText, end: true },
-  { to: "/admin/posts/new", label: "New Post", icon: FilePlus },
-  { to: "/admin/categories", label: "Categories", icon: FolderOpen },
-  { to: "/admin/pages", label: "pSEO Pages", icon: Files },
-  { to: "/admin/widgets", label: "Widgets", icon: LayoutGrid },
-  { to: "/admin/library", label: "Library", icon: ImageIcon },
-  { to: "/admin/settings", label: "Settings", icon: KeyRound },
-  { to: "/admin/site-settings", label: "Site Config", icon: Globe },
-  { to: "/admin/niches", label: "Niches", icon: Tags },
-  { to: "/admin/content-types", label: "Content Types", icon: Layers },
-  { to: "/admin/pillars", label: "Pillars", icon: BookOpen },
-  { to: "/admin/generate", label: "Generate", icon: Zap },
-  { to: "/admin/pseo-dashboard", label: "Performance", icon: BarChart3 },
+const groups = [
+  {
+    label: "Workspace",
+    items: [
+      { to: "/admin", label: "Overview", end: true },
+      { to: "/admin/queue", label: "Queue & automation" },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { to: "/admin/posts", label: "Articles" },
+      { to: "/admin/pages", label: "Resources" },
+      { to: "/admin/pillars", label: "Topic guides" },
+      { to: "/admin/generate", label: "Generate drafts" },
+      { to: "/admin/library", label: "Media library" },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { to: "/admin/pseo-dashboard", label: "Performance" },
+      { to: "/admin/niches", label: "Audiences & niches" },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { to: "/admin/setup", label: "Site setup" },
+      { to: "/admin/site-settings", label: "Brand & author" },
+      { to: "/admin/settings", label: "Integrations" },
+      { to: "/admin/content-types", label: "Content formats" },
+      { to: "/admin/categories", label: "Categories" },
+      { to: "/admin/widgets", label: "Widgets" },
+    ],
+  },
 ];
-
-const AdminLayout = () => {
-  const { signOut, user } = useAuth();
+export default function AdminLayout() {
+  const siteConfig = useSiteConfig();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const { prefs, updatePref } = useAdminPreferences();
-  const lightMode = prefs.theme === "light";
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/admin/login");
-  };
-
-  return (
-    <div
-      data-admin-shell
-      className={`admin-shell flex min-h-screen ${lightMode ? "admin-light" : ""}`}
-    >
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 lg:hidden"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar spacer (desktop) — reserves layout width for the fixed sidebar */}
-      <div
-        className="hidden lg:block"
-        style={{
-          width: collapsed ? 68 : 240,
-          flexShrink: 0,
-          transition: "width 0.3s",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Sidebar */}
-      <aside
-        className={`z-50 flex flex-col transition-all duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        style={{
-          position: "fixed",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          height: "100vh",
-          width: collapsed ? 68 : 240,
-          backgroundColor: "hsl(var(--admin-surface))",
-          borderRight: "1px solid hsl(var(--admin-border))",
-          flexShrink: 0,
-        }}
-      >
-        {/* Brand */}
-        <div
-          className="flex items-center justify-between"
-          style={{ padding: collapsed ? "24px 16px" : "24px 20px" }}
-        >
-          {!collapsed ? (
-            <span
-              className="font-body truncate"
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "hsl(var(--admin-text))",
-                textDecoration: "underline",
-                textUnderlineOffset: "4px",
-                textDecorationColor: "hsl(var(--admin-accent))",
-              }}
-            >
-              {siteConfig.identity.name}
-            </span>
-          ) : (
-            <span
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                color: "hsl(var(--admin-text))",
-              }}
-            >
-              CH
-            </span>
-          )}
-          <button
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            style={{
-              color: "hsl(var(--admin-text-ghost))",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <X size={18} />
-          </button>
+  const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  function navigation(compact = false) {
+    return (
+      <div className="admin-sidebar-inner">
+        <div className="admin-sidebar-brand">
+          {compact
+            ? siteConfig.identity.logoInitials
+            : siteConfig.identity.name}
         </div>
-
-        {/* Nav */}
-        <nav
-          className="flex-1 flex flex-col"
-          style={{ padding: collapsed ? "8px 8px" : "8px 12px", gap: 2 }}
+        <Link
+          className="admin-btn-primary justify-center"
+          to="/admin/posts/new"
+          aria-label="New Post"
+          title="New Post"
+          onClick={() => setOpen(false)}
         >
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={() => setSidebarOpen(false)}
-              className="font-body flex items-center rounded"
-              style={({ isActive }) => ({
-                fontSize: 13,
-                fontWeight: isActive ? 500 : 400,
-                gap: collapsed ? 0 : 12,
-                justifyContent: collapsed ? "center" : "flex-start",
-                color: isActive
-                  ? "hsl(var(--admin-accent))"
-                  : "hsl(var(--admin-text-soft))",
-                padding: collapsed ? "10px" : "10px 12px",
-                textDecoration: "none",
-                backgroundColor: "transparent",
-                transition: "all 0.2s",
-                borderRadius: 4,
-              })}
-            >
-              <item.icon size={16} strokeWidth={1.5} />
-              {!collapsed && <span className="flex-1">{item.label}</span>}
-            </NavLink>
+          <Plus size={17} />
+          {!compact && "New Post"}
+        </Link>
+        <nav aria-label="Admin navigation">
+          {groups.map((group) => (
+            <div className="admin-nav-group" key={group.label}>
+              {!compact && <p>{group.label}</p>}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/admin" || item.to === "/admin/posts"}
+                  title={item.label}
+                  aria-label={item.label}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `admin-nav-link ${isActive ? "is-active" : ""}`
+                  }
+                >
+                  {compact ? item.label.slice(0, 2) : item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
-          {/* View Site link */}
+        </nav>
+        <div className="admin-sidebar-footer">
+          {!compact && (
+            <p title={user?.email} className="truncate admin-help">
+              {user?.email}
+            </p>
+          )}
           <a
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-body flex items-center rounded"
-            style={{
-              fontSize: 13,
-              fontWeight: 400,
-              gap: collapsed ? 0 : 12,
-              justifyContent: collapsed ? "center" : "flex-start",
-              color: "hsl(var(--admin-text-soft))",
-              padding: collapsed ? "10px" : "10px 12px",
-              textDecoration: "none",
-              borderRadius: 4,
-              marginTop: 8,
-              borderTop: "1px solid hsl(var(--admin-border))",
-              paddingTop: 16,
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-accent))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-text-soft))")
-            }
+            className="admin-btn-ghost"
+            aria-label="View site"
           >
-            <ExternalLink size={16} strokeWidth={1.5} />
-            {!collapsed && <span>View Site</span>}
+            <ExternalLink size={16} />
+            {!compact && "View site"}
           </a>
-        </nav>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: collapsed ? "16px 8px" : "16px 12px",
-            borderTop: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          {!collapsed && user && (
-            <div
-              className="font-body truncate"
-              style={{
-                fontSize: 11,
-                color: "hsl(var(--admin-text-ghost))",
-                padding: "0 12px",
-                marginBottom: 12,
-              }}
-            >
-              {user.email}
-            </div>
-          )}
           <button
-            onClick={() => updatePref("theme", lightMode ? "dark" : "light")}
-            className="font-body flex items-center w-full rounded"
-            style={{
-              fontSize: 13,
-              gap: collapsed ? 0 : 12,
-              justifyContent: collapsed ? "center" : "flex-start",
-              color: "hsl(var(--admin-text-ghost))",
-              padding: collapsed ? "10px" : "10px 12px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              borderRadius: 4,
-              transition: "color 0.2s",
-              marginBottom: 4,
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-accent))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-text-ghost))")
+            className="admin-btn-ghost"
+            aria-label="Toggle color theme"
+            onClick={() =>
+              updatePref("theme", prefs.theme === "light" ? "dark" : "light")
             }
           >
-            {lightMode ? (
-              <Moon size={16} strokeWidth={1.5} />
-            ) : (
-              <Sun size={16} strokeWidth={1.5} />
-            )}
-            {!collapsed && (lightMode ? "Dark Mode" : "Light Mode")}
+            {prefs.theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+            {!compact && (prefs.theme === "light" ? "Dark mode" : "Light mode")}
           </button>
           <button
-            onClick={handleSignOut}
-            className="font-body flex items-center w-full rounded"
-            style={{
-              fontSize: 13,
-              gap: collapsed ? 0 : 12,
-              justifyContent: collapsed ? "center" : "flex-start",
-              color: "hsl(var(--admin-text-ghost))",
-              padding: collapsed ? "10px" : "10px 12px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              borderRadius: 4,
-              transition: "color 0.2s",
+            className="admin-btn-ghost"
+            aria-label="Sign out"
+            onClick={async () => {
+              await signOut();
+              navigate("/admin/login");
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-danger))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--admin-text-ghost))")
-            }
           >
-            <LogOut size={16} strokeWidth={1.5} />
-            {!collapsed && "Sign Out"}
+            <LogOut size={16} />
+            {!compact && "Sign out"}
           </button>
         </div>
-
-        {/* Collapse toggle - desktop only */}
+      </div>
+    );
+  }
+  return (
+    <div
+      data-admin-shell
+      className={`admin-shell min-h-screen ${prefs.theme === "light" ? "admin-light" : ""}`}
+    >
+      <aside
+        className="hidden lg:block admin-sidebar"
+        style={{ width: collapsed ? 88 : 244 }}
+      >
+        {navigation(collapsed)}
         <button
-          className="hidden lg:flex items-center justify-center"
+          className="admin-sidebar-collapse"
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
           onClick={() => setCollapsed(!collapsed)}
-          style={{
-            padding: "12px",
-            background: "none",
-            border: "none",
-            borderTop: "1px solid hsl(var(--admin-border))",
-            cursor: "pointer",
-            color: "hsl(var(--admin-text-ghost))",
-            transition: "color 0.2s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "hsl(var(--admin-text-soft))")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "hsl(var(--admin-text-ghost))")
-          }
         >
           <ChevronLeft
-            size={14}
-            style={{
-              transform: collapsed ? "rotate(180deg)" : "none",
-              transition: "transform 0.3s",
-            }}
+            size={16}
+            style={{ transform: collapsed ? "rotate(180deg)" : undefined }}
           />
         </button>
       </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <div
-          className="lg:hidden flex items-center gap-4"
-          style={{
-            padding: "14px 20px",
-            borderBottom: "1px solid hsl(var(--admin-border))",
-            backgroundColor: "hsl(var(--admin-surface))",
-          }}
+      <div className="lg:hidden admin-mobile-bar">
+        <button
+          className="admin-btn-ghost"
+          aria-label="Open admin navigation"
+          onClick={() => setOpen(true)}
         >
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{
-              color: "hsl(var(--admin-text))",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <Menu size={20} strokeWidth={1.5} />
-          </button>
-          <span
-            className="font-heading italic"
-            style={{ fontSize: 16, color: "hsl(var(--admin-text))" }}
-          >
-            Admin
-          </span>
-        </div>
-
-        <main
-          className="flex-1 overflow-y-auto overflow-x-hidden"
-          style={{ padding: "32px 28px" }}
+          <Menu size={20} />
+        </button>
+        <strong>{siteConfig.identity.name}</strong>
+        <Link
+          className="admin-btn-ghost"
+          to="/admin/posts/new"
+          aria-label="New Post"
         >
-          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <Outlet />
-          </div>
-        </main>
+          <Plus size={20} />
+        </Link>
       </div>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="left"
+          className={`admin-shell p-0 w-72 ${prefs.theme === "light" ? "admin-light" : ""}`}
+        >
+          <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+          {navigation()}
+        </SheetContent>
+      </Sheet>
+      <main
+        className="admin-main"
+        style={
+          {
+            "--sidebar-width": collapsed ? "88px" : "244px",
+          } as React.CSSProperties
+        }
+      >
+        <Outlet />
+      </main>
     </div>
   );
-};
-
-export default AdminLayout;
+}

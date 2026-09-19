@@ -1,3 +1,4 @@
+import { configFromMatches } from "@/config/runtime";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import GeneratedPage from "@/pages/GeneratedPage";
@@ -31,13 +32,15 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
     if (!page) throw notFound();
     return { page, settings };
   },
-  head: ({ loaderData, params }) => {
+  head: ({ loaderData, params, matches }) => {
+    const config = configFromMatches(matches);
     if (!loaderData) return {};
     const { page, settings } = loaderData;
     const seo = (page.seo_meta ?? {}) as Record<string, string | undefined>;
     const content = page.content_json as Record<string, unknown> | null;
     const url = absoluteUrl(
       `/resources/${params.contentType}/${params.pageSlug}`,
+      config,
     );
     const description =
       seo["description"] || (content?.["intro"] as string) || "";
@@ -69,11 +72,11 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
         faqJsonLd(faqs),
         itemListJsonLd(generatedItemNames(content)),
         breadcrumbJsonLd([
-          { name: "Home", url: absoluteUrl("/") },
-          { name: "Resources", url: absoluteUrl("/resources") },
+          { name: "Home", url: absoluteUrl("/", config) },
+          { name: "Resources", url: absoluteUrl("/resources", config) },
           {
             name: page.schema.name,
-            url: absoluteUrl(`/resources/${params.contentType}`),
+            url: absoluteUrl(`/resources/${params.contentType}`, config),
           },
           { name: page.title, url },
         ]),

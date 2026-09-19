@@ -37,3 +37,12 @@ begin
   insert into public.member_bootstrap_state(key) values('neutral-v1');
 end $$;
 commit;
+
+
+-- Database-backed public identity; no inherited owner homepage while setting up.
+DO $$ BEGIN
+ IF to_regclass('public.site_branding') IS NOT NULL AND EXISTS(SELECT 1 FROM public.site_settings WHERE site_url='https://example.com') THEN
+  INSERT INTO public.site_branding(id,settings) VALUES(true,'{"mode":"member","name":"Your Name","initials":"YN","role":"Your Role","siteUrl":"https://example.com","email":"","niche":"Your Topic","headline":"Your useful headline","description":"Describe who you help and how your work helps them.","accent":"#D4AF55","logo":"","favicon":"","socialImage":"","offerLabel":"","offerUrl":"","authorBio":""}'::jsonb)
+  ON CONFLICT(id) DO NOTHING;
+ END IF;
+END $$;

@@ -1,6 +1,6 @@
 import { formatPublicDate } from "@/lib/publicDate";
 import { fetchNewsPage } from "@/lib/publicLists";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
@@ -99,14 +99,6 @@ const NewsImage = ({
   );
 };
 
-const BUCKETS = [
-  { value: "all", label: "All", lanes: [] as string[] },
-  ...siteConfig.content.newsBuckets,
-];
-const laneLabel = (lane?: string | null) =>
-  siteConfig.content.newsBuckets.find((b) => b.lanes.includes(lane ?? ""))
-    ?.label ?? "News";
-
 const sourceName = (n: {
   source_name?: string | null;
   url: string;
@@ -167,6 +159,15 @@ interface NewsProps {
 }
 
 const News = ({ initialPage }: NewsProps = {}) => {
+  const siteConfig = useSiteConfig();
+  const BUCKETS = [
+    { value: "all", label: "All", lanes: [] as string[] },
+    ...siteConfig.content.newsBuckets,
+  ];
+  const laneLabel = (lane?: string | null) =>
+    siteConfig.content.newsBuckets.find((b) => b.lanes.includes(lane ?? ""))
+      ?.label ?? "News";
+
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {

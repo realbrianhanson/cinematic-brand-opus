@@ -129,3 +129,22 @@ Column grants on `niches` expose only `id`, `name`, `slug`, and `is_active` to p
 clients. Public `site_settings` reads likewise select explicit identity fields; admin
 settings are loaded through the role-checked RPC. Site setting defaults on new rows
 leave paid image generation and automatic publishing off.
+
+## September 19 editor, branding and reporting additions
+
+`post_editor_drafts` stores each administrator's working copies separately from public
+articles. RLS restricts access to the owning administrator; timestamp fencing prevents
+a stale editor from replacing another saved working copy. `post_revisions` retains
+the most recent 20 before-images per article, including SEO metadata changes. Admins
+can read revisions; triggers write them, and restoration requires an explicit save.
+
+`site_branding` contains one public identity/presentation object. The admin-only
+`save_site_branding` RPC updates it and the corresponding author/domain/offer
+settings atomically. It does not expose or replace private integration configuration.
+No branding row is required for the existing owner preset.
+
+`admin_performance_snapshot` reports the latest imported Search Console period;
+`admin_content_breakdown` aggregates actual content formats/niches. Both require an
+admin role. Public resource search and counts include published records only.
+`indexing_log.error_message` stores submission diagnostics; accepted, pending and
+failed IndexNow responses remain distinct and are not proof of search indexing.

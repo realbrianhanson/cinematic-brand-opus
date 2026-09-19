@@ -1,7 +1,7 @@
 # PushTen Setup Guide
 
 How to turn this template into your own authority site. Written for PushTen
-members. Use the guided rebrand prompt or edit the preset directly in GitHub.
+members. Use **Admin → Site setup** to rebrand without editing source code. Advanced homepage sections can still be customized directly in GitHub.
 An assistant can perform the setup steps; verify the destination is your own copy.
 
 Permission note: this template is provided for use by PushTen members on their
@@ -10,7 +10,26 @@ grant one. If you are unsure whether your use is covered, ask PushTen.
 
 ---
 
-## 1. The one-shot rebrand prompt
+## 1. Guided setup (recommended)
+
+First complete the separate-backend and administrator steps in Section 2.
+Then open **Admin → Site setup** and choose **Fresh member brand**. Enter your
+name, niche, domain, headline, bio, accent color, logo/favicon URLs, and main
+offer. Upload images through **Media library** and paste their public URLs.
+Use a new favicon filename when changing it so cached icons update.
+
+The final step previews your homepage and provides a launch checklist.
+**Apply site setup** updates public branding and author/publishing identity
+atomically. It does not change private provider credentials, create a domain,
+copy subscribers, or enable sending. The fresh member option hides the owner's
+personal photos, testimonials, claims, verification token, and external offers.
+Do not use it to convert the owner's populated site into your installation.
+
+Changes are database-backed and rendered on the server. For extra sections,
+edit a neutral member preset directly in GitHub. Keep factual proof limited to
+what you can substantiate.
+
+### Optional advanced rebrand brief
 
 Remix the project into your own workspace first (Section 2), then paste this
 into the chat and fill in the bracketed parts. Leave a line out entirely rather
@@ -94,7 +113,8 @@ first public visitor an administrator. Sign in at `/admin/login`.
 
 **C. Core settings**
 
-- [ ] Admin > Settings: site name, site URL, author name, title, bio, credentials.
+- [ ] Admin > Site setup: identity, niche, domain, colors, images, author bio, and main offer.
+- [ ] Admin > Brand & author: remaining credentials, public links, voice, and email configuration.
 - [ ] Calls to action: headline, sub-text, button text, destination URL.
 - [ ] Voice profile and banned phrases (the wording rules every draft must follow).
 - [ ] Industries (the niches your content targets) — deactivate the ones that
@@ -104,7 +124,7 @@ first public visitor an administrator. Sign in at `/admin/login`.
 
 **D. Public config**
 
-- [ ] Run the rebrand prompt in Section 1, or edit your preset file directly.
+- [ ] Complete Admin > Site setup and review its preview. Use a source preset only for advanced custom sections.
 - [ ] Check the homepage: nothing should mention anyone but you.
 
 **E. Email**
@@ -124,7 +144,7 @@ first public visitor an administrator. Sign in at `/admin/login`.
 - [ ] Replace the portrait and event photo in `src/assets/`.
 - [ ] Add your own favicon to `public/` and set `metadata.faviconHref` in your preset. Replace `public/favicon.ico` too (browser fallback). For saved home-screen shortcuts, add a 180px PNG and set `metadata.appleTouchIconHref`. Use new filenames when changing icons so browsers refresh cached branding.
 - [ ] Replace the browser icon.
-- [ ] Adjust the accent colour in your preset if you want a different palette.
+- [ ] Adjust your accent color in Site setup.
 
 **G. Turn on the content engine (only when the above is done)**
 

@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, ArrowRight, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 interface NavProps {
   loaded?: boolean;
 }
 
 const Nav = ({ loaded = true }: NavProps) => {
+  const siteConfig = useSiteConfig();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
@@ -119,7 +120,15 @@ const Nav = ({ loaded = true }: NavProps) => {
                 className="font-display italic"
                 style={{ fontSize: 16, color: brand.accent, lineHeight: 1 }}
               >
-                {identity.logoInitials}
+                {identity.logoUrl ? (
+                  <img
+                    src={identity.logoUrl}
+                    alt=""
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  identity.logoInitials
+                )}
               </span>
             </div>
             <span

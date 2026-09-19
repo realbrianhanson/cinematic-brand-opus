@@ -4,7 +4,7 @@ import { ArrowRight, Sparkles, Mic } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import SpringText from "./SpringText";
 import DrawLine from "./DrawLine";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 
 interface HeroProps {
@@ -12,6 +12,7 @@ interface HeroProps {
 }
 
 const Hero = ({ loaded = true }: HeroProps) => {
+  const siteConfig = useSiteConfig();
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);

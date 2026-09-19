@@ -52,3 +52,28 @@ A user-reported live check reproduced `/admin/posts/new` displaying the posts li
 The Generate sidebar link successfully opened `/admin/generate` during the live reproduction. Two completed-job links inside that screen still pointed to nonexistent `/admin/generated-pages`; both now target `/admin/pages`. Regression coverage uses the actual generated route tree to check all eight affected destinations, list URLs with/without trailing slashes, and every literal admin link in the admin components. No production content or generation jobs were created for this check.
 
 Released source `cc703e7089dd0ee5ed497960af270f73cb1b9f36` through Lovable deployment `2997a1c1-6940-4f5b-a302-2db3a4563c49`, confirmed by the live custom-domain response header. Authenticated live checks passed for both sidebar/dashboard New Post links, existing post Edit, new Content Type, new Pillar, generated-page Edit JSON, and the Generate screen. No new application console errors appeared (the existing browser-extension session error is unrelated). All 156 unit tests, TypeScript, production build, and full GitHub CI passed: <https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35195326855>. Lint remains at 0 errors and 283 existing warnings.
+
+## September 19 completion release
+
+- Reworked admin navigation, post search/filter/pagination, dashboard loading/error
+  states, recent-edit links, refresh outcomes and IndexNow receipts. Performance
+  reports distinguish lifetime totals, selected periods and stale Search Console data.
+- Added separate recoverable working copies, optimistic article save conflicts,
+  revision history, mobile/desktop previews and editorial review guidance. Fixed a
+  reproduced Tiptap mount/unmount crash when opening New Post; the regression test
+  mounts the actual editor under React StrictMode.
+- Added a guided Site setup wizard for member identity, niche, logo/favicon, colors,
+  author and offer. Public SSR metadata uses the same request-scoped configuration.
+  Neutral member setup removes owner-specific proof without changing private secrets.
+- Added searchable resource discovery, article contents/source/author sections and
+  three linked topic guides. Revised ten existing articles using primary sources,
+  preserving their URLs/publication dates and clearing superseded fact-check results.
+- Applied and recorded five additive migrations (20260919090000–20260919094000).
+  Read back private RPC restrictions and published-library aggregates in production.
+- Verification: 171 tests in 29 files; six isolated database suites; frontend
+  TypeScript; formatting; production build; all 34 Deno entrypoints pass. Lint has
+  zero errors and 281 existing warnings. Dependency audit reports no advisories.
+- Actual email delivery, paid AI generation and a fresh Cloud remix were not run for
+  QA. Ten articles received source review; this does not imply every historical
+  article was fact-checked. The 15 queued Lovable prompts remain paused and preserved.
+- Release publication evidence is recorded below after GitHub sync and deployment.

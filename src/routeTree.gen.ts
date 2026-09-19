@@ -27,6 +27,7 @@ import { Route as AdminNichesRouteImport } from './routes/admin.niches'
 import { Route as AdminPseoDashboardRouteImport } from './routes/admin.pseo-dashboard'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
 import { Route as AdminWidgetsRouteImport } from './routes/admin.widgets'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
@@ -144,6 +145,11 @@ const AdminQueueRoute = AdminQueueRouteImport.update({
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSetupRoute = AdminSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSiteSettingsRoute = AdminSiteSettingsRouteImport.update({
@@ -309,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin/login': typeof AdminLoginRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin/login': typeof AdminLoginRoute
@@ -401,6 +409,7 @@ export interface FileRoutesById {
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin_/login': typeof AdminLoginRoute
@@ -451,6 +460,7 @@ export interface FileRouteTypes {
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin/login'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin/login'
@@ -542,6 +553,7 @@ export interface FileRouteTypes {
     | '/admin/pseo-dashboard'
     | '/admin/queue'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin_/login'
@@ -719,6 +731,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/setup': {
+      id: '/admin/setup'
+      path: '/setup'
+      fullPath: '/admin/setup'
+      preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/site-settings': {
@@ -928,6 +947,7 @@ interface AdminRouteChildren {
   AdminPseoDashboardRoute: typeof AdminPseoDashboardRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminSetupRoute: typeof AdminSetupRoute
   AdminSiteSettingsRoute: typeof AdminSiteSettingsRoute
   AdminWidgetsRoute: typeof AdminWidgetsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -952,6 +972,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPseoDashboardRoute: AdminPseoDashboardRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminSetupRoute: AdminSetupRoute,
   AdminSiteSettingsRoute: AdminSiteSettingsRoute,
   AdminWidgetsRoute: AdminWidgetsRoute,
   AdminIndexRoute: AdminIndexRoute,

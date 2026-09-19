@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Star } from "lucide-react";
 import MagneticButton from "./MagneticButton";
 import { useReveal, revealStyle } from "@/hooks/useReveal";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const TopicCard = ({
   topic,
@@ -73,6 +73,7 @@ const TopicCard = ({
 };
 
 const Speaking = () => {
+  const siteConfig = useSiteConfig();
   const { ref: headerRef, visible: headerVisible } = useReveal();
   const { ref: rightRef, visible: rightVisible } = useReveal();
   const speaking = siteConfig.speaking;

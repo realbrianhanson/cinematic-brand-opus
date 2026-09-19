@@ -14,6 +14,44 @@ export type Database = {
   };
   public: {
     Tables: {
+      site_branding: {
+        Row: { id: boolean; settings: Json; updated_at: string };
+        Insert: { id?: boolean; settings: Json; updated_at?: string };
+        Update: { settings?: Json; updated_at?: string };
+        Relationships: [];
+      };
+      post_editor_drafts: {
+        Row: {
+          user_id: string;
+          document_key: string;
+          snapshot: Json;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          document_key: string;
+          snapshot: Json;
+          updated_at?: string;
+        };
+        Update: { snapshot?: Json; updated_at?: string };
+        Relationships: [];
+      };
+      post_revisions: {
+        Row: {
+          id: string;
+          post_id: string;
+          snapshot: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          snapshot: Json;
+          created_at?: string;
+        };
+        Update: { snapshot?: Json };
+        Relationships: [];
+      };
       admin_preferences: {
         Row: {
           created_at: string;
@@ -1436,6 +1474,20 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      public_resource_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: { content_schema_id: string | null; page_count: number }[];
+      };
+      admin_content_breakdown: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      search_public_library: {
+        Args: { term: string; page?: number };
+        Returns: Json;
+      };
+      admin_performance_snapshot: { Args: { days?: number }; Returns: Json };
+      save_site_branding: { Args: { value: Json }; Returns: undefined };
       admin_read_niches: {
         Args: never;
         Returns: {

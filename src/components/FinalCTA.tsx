@@ -6,9 +6,10 @@ import {
   interpretSubscribeResult,
   type SubscribeUiState,
 } from "@/lib/newsletterClient";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const FinalCTA = () => {
+  const siteConfig = useSiteConfig();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<SubscribeUiState>("idle");
   const [message, setMessage] = useState("");

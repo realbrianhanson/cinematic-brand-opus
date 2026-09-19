@@ -1,622 +1,298 @@
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
-import { errorMessage } from "@/lib/errorMessage";
-import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Plus,
-  FileText,
-  Eye,
-  Pencil,
-  Clock,
-  AlertTriangle,
-  RefreshCw,
-  Loader2,
-  Globe,
-  Send,
-  Mail,
-} from "lucide-react";
+import { errorMessage } from "@/lib/errorMessage";
+import { refreshOutcome, indexingOutcome } from "@/lib/adminOutcomes";
+import { Plus, RefreshCw, ArrowRight } from "lucide-react";
 import BriansNotesWidget from "./BriansNotesWidget";
 import NewsletterPreviewCard from "./NewsletterPreviewCard";
+import QueryNotice from "./QueryNotice";
 
-const Dashboard = () => {
-  const { user } = useAuth();
+export default function Dashboard() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [refreshing, setRefreshing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const { data: postStats } = useQuery({
+  const [busy, setBusy] = useState<string | null>(null);
+  const overview = useQuery({
     queryKey: ["admin-post-stats"],
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const [all, published, drafts, scheduled] = await Promise.all([
+      const results = await Promise.all([
         supabase.from("posts").select("*", { count: "exact", head: true }),
-        supabase
-          .from("posts")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "published"),
-        supabase
-          .from("posts")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "draft"),
-        supabase
-          .from("posts")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "scheduled"),
+        ...["published", "draft", "scheduled"].map((status) =>
+          supabase
+            .from("posts")
+            .select("*", { count: "exact", head: true })
+            .eq("status", status as "published" | "draft" | "scheduled"),
+        ),
+        ...["confirmed", "pending"].map((status) =>
+          supabase
+            .from("newsletter_subscribers")
+            .select("*", { count: "exact", head: true })
+            .eq("status", status),
+        ),
       ]);
-      return {
-        total: all.count ?? 0,
-        published: published.count ?? 0,
-        drafts: drafts.count ?? 0,
-        scheduled: scheduled.count ?? 0,
-      };
+      for (const result of results) if (result.error) throw result.error;
+      return results.map((result) => result.count ?? 0);
     },
   });
-
-  const { data: recentPosts } = useQuery({
+  const recent = useQuery({
     queryKey: ["admin-recent-posts"],
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("posts")
-        .select("id, title, slug, status, created_at, updated_at")
-        .order("created_at", { ascending: false })
+        .select("id,title,status,updated_at")
+        .order("updated_at", { ascending: false })
         .limit(5);
+      if (error) throw error;
       return data ?? [];
     },
   });
-
-  const { data: subscriberStats } = useQuery({
-    queryKey: ["admin-newsletter-subscriber-stats"],
-    queryFn: async () => {
-      const [confirmed, pending] = await Promise.all([
-        supabase
-          .from("newsletter_subscribers")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "confirmed"),
-        supabase
-          .from("newsletter_subscribers")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
-      ]);
-      return { confirmed: confirmed.count ?? 0, pending: pending.count ?? 0 };
-    },
-  });
-
-  const stats = useMemo(
-    () => [
-      {
-        label: "Total Posts",
-        value: postStats?.total ?? 0,
-        icon: FileText,
-        color: "#d4a843",
-      },
-      {
-        label: "Published",
-        value: postStats?.published ?? 0,
-        icon: Eye,
-        color: "#4ade80",
-      },
-      {
-        label: "Drafts",
-        value: postStats?.drafts ?? 0,
-        icon: Pencil,
-        color: "#facc15",
-      },
-      {
-        label: "Scheduled",
-        value: postStats?.scheduled ?? 0,
-        icon: Clock,
-        color: "#60a5fa",
-      },
-      {
-        label: "Newsletter subscribers",
-        value: `${subscriberStats?.confirmed ?? 0} / ${subscriberStats?.pending ?? 0}`,
-        subLabel: "confirmed / pending",
-        icon: Mail,
-        color: "#B8962E",
-      },
-    ],
-    [postStats, subscriberStats],
-  );
-
-  // Stale pages query
-  const { data: staleCount } = useQuery({
+  const attention = useQuery({
     queryKey: ["admin-stale-pages-count"],
+    refetchInterval: 60000,
     queryFn: async () => {
       const { count, error } = await supabase
         .from("generated_pages")
         .select("*", { count: "exact", head: true })
-        .eq("performance_trend", "needs_refresh");
-      if (error) return 0;
+        .eq("performance_trend", "needs_refresh")
+        .eq("status", "published");
+      if (error) throw error;
       return count ?? 0;
     },
   });
-
-  const { data: indexingStats } = useQuery({
+  const indexing = useQuery({
     queryKey: ["admin-indexing-stats"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("indexing_log")
-        .select("id, page_url, submitted_at, status")
+        .select("id,page_url,submitted_at,status")
         .order("submitted_at", { ascending: false })
         .limit(10);
-      const { count: totalSubmitted } = await supabase
-        .from("indexing_log")
-        .select("*", { count: "exact", head: true });
-      const { count: totalIndexed } = await supabase
-        .from("indexing_log")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "indexed");
-      return {
-        recent: data ?? [],
-        submitted: totalSubmitted ?? 0,
-        indexed: totalIndexed ?? 0,
-      };
+      if (error) throw error;
+      return data ?? [];
     },
   });
-
-  const handleAutoRefresh = useCallback(async () => {
-    setRefreshing(true);
+  async function run(action: "refresh" | "index") {
+    if (busy) return;
+    setBusy(action);
     try {
       const { data, error } = await supabase.functions.invoke(
-        "refresh-stale-content",
+        action === "refresh" ? "refresh-stale-content" : "submit-indexnow",
         {
-          body: { all_stale: true },
+          body:
+            action === "refresh"
+              ? { all_stale: true, max_pages: 3 }
+              : { all_unsubmitted: true },
         },
       );
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!data || data.error)
+        throw new Error(data?.error || "No result returned.");
+      const result =
+        action === "refresh" ? refreshOutcome(data) : indexingOutcome(data);
+      toast({ ...result, variant: result.failed ? "destructive" : "default" });
+    } catch (error) {
       toast({
-        title: "Refresh complete",
-        description: `${data.refreshed} pages refreshed.`,
-      });
-      qc.invalidateQueries({ queryKey: ["admin-stale-pages-count"] });
-      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-    } catch (e) {
-      toast({
-        title: "Refresh failed",
-        description: errorMessage(e),
+        title: "Action needs attention",
+        description: errorMessage(error),
         variant: "destructive",
       });
     } finally {
-      setRefreshing(false);
-    }
-  }, [toast, qc]);
-
-  const handleSubmitIndexing = useCallback(async () => {
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "submit-indexnow",
-        {
-          body: { all_unsubmitted: true },
-        },
+      setBusy(null);
+      await Promise.all(
+        [
+          "admin-stale-pages-count",
+          "admin-indexing-stats",
+          "admin-generated-pages",
+        ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
       );
-      if (error) throw error;
-      toast({
-        title: "Indexing submitted",
-        description: `${data?.submitted_count || 0} URLs submitted. IndexNow: ${data?.indexnow_status}`,
-      });
-      qc.invalidateQueries({ queryKey: ["admin-indexing-stats"] });
-    } catch (e) {
-      toast({
-        title: "Submit failed",
-        description: errorMessage(e),
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
     }
-  }, [toast, qc]);
-
+  }
   return (
-    <div>
-      {/* Stale content alert */}
-      {(staleCount ?? 0) > 0 && (
-        <div
-          className="flex items-center justify-between flex-wrap gap-3"
-          style={{
-            padding: "16px 20px",
-            marginBottom: 24,
-            borderRadius: 6,
-            backgroundColor: "hsl(var(--admin-accent) / 0.08)",
-            border: "1px solid hsl(var(--admin-accent) / 0.2)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle
-              size={18}
-              style={{ color: "hsl(var(--admin-accent))" }}
-            />
-            <span
-              className="font-body"
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: "hsl(var(--admin-text))",
-              }}
-            >
-              {staleCount} page{staleCount !== 1 ? "s" : ""} need content
-              refresh (90+ days old)
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Link
-              to="/admin/pages?trend=needs_refresh"
-              className="admin-btn-ghost"
-              style={{ fontSize: 12, padding: "6px 14px" }}
-            >
-              Review
-            </Link>
-            <button
-              onClick={handleAutoRefresh}
-              disabled={refreshing}
-              className="admin-btn-primary flex items-center gap-2"
-              style={{ fontSize: 12, padding: "6px 14px" }}
-            >
-              {refreshing ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={14} /> Auto-Refresh All
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div
-        className="flex items-center justify-between flex-wrap gap-4"
-        style={{ marginBottom: 32 }}
-      >
+    <div className="admin-page-stack">
+      <header className="admin-page-header">
         <div>
-          <h1
-            className="font-body"
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: "hsl(var(--admin-text))",
-            }}
-          >
-            Dashboard
-          </h1>
-          <p
-            className="font-body"
-            style={{
-              fontSize: 14,
-              color: "hsl(var(--admin-text-soft))",
-              marginTop: 4,
-            }}
-          >
-            Welcome to your blog admin panel
-          </p>
+          <p className="admin-eyebrow">Your publishing workspace</p>
+          <h1>Dashboard</h1>
+          <p>Review your content, audience, and next steps.</p>
         </div>
-        <Link
-          to="/admin/posts/new"
-          className="admin-btn-primary"
-          style={{
-            background: "transparent",
-            border: "1px solid hsl(var(--admin-border-hover))",
-            color: "hsl(var(--admin-text))",
-            fontWeight: 500,
-            fontSize: 13,
-            letterSpacing: "0.02em",
-            textTransform: "none",
-            padding: "10px 20px",
-            borderRadius: 6,
-          }}
-        >
-          <Plus size={16} /> New Post
-        </Link>
-      </div>
-
-      {/* Stats grid */}
-      <div
-        className="grid grid-cols-2 lg:grid-cols-4"
-        style={{ gap: 16, marginBottom: 32 }}
-      >
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="admin-card"
-            style={{ padding: "20px 20px" }}
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="admin-btn-ghost"
+            aria-label="Refresh dashboard"
+            onClick={() =>
+              qc.invalidateQueries({
+                predicate: (q) => String(q.queryKey[0]).startsWith("admin-"),
+              })
+            }
           >
-            <div
-              className="flex items-center justify-between"
-              style={{ marginBottom: 16 }}
-            >
-              <span
-                className="font-body"
-                style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-              >
-                {s.label}
-              </span>
-              <s.icon size={18} style={{ color: s.color }} strokeWidth={1.5} />
-            </div>
-            <span
-              className="font-body block"
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                color: "hsl(var(--admin-text))",
-              }}
-            >
-              {s.value}
-            </span>
-            {"subLabel" in s && s.subLabel ? (
-              <span
-                className="font-body block"
-                style={{
-                  fontSize: 11,
-                  marginTop: 4,
-                  color: "hsl(var(--admin-text-soft))",
-                }}
-              >
-                {s.subLabel}
-              </span>
-            ) : null}
-          </div>
-        ))}
-      </div>
-
-      {/* Brian's Notes inbox */}
-      <div style={{ marginBottom: 32 }}>
-        <BriansNotesWidget />
-      </div>
-
-      {/* Weekly newsletter preview (Monday compose → Tuesday send) */}
-      <NewsletterPreviewCard />
-
-      {/* Recent posts */}
-      <div className="admin-card" style={{ overflow: "hidden" }}>
-        <div
-          className="flex items-center justify-between"
-          style={{
-            padding: "18px 24px",
-            borderBottom: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          <span
-            className="font-body"
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: "hsl(var(--admin-text))",
-            }}
-          >
-            Recent Posts
-          </span>
-          <Link
-            to="/admin/posts"
-            className="font-body"
-            style={{
-              fontSize: 13,
-              color: "hsl(var(--admin-text-soft))",
-              textDecoration: "none",
-              fontWeight: 500,
-            }}
-          >
-            View All
+            <RefreshCw size={16} /> Refresh
+          </button>
+          <Link className="admin-btn-primary" to="/admin/posts/new">
+            <Plus size={16} /> New Post
           </Link>
         </div>
-
-        {recentPosts?.length === 0 && (
-          <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p
-              className="font-body"
-              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              No posts yet. Create your first one!
-            </p>
+      </header>
+      <QueryNotice
+        loading={overview.isPending}
+        error={overview.error}
+        retry={() => overview.refetch()}
+      />
+      {!overview.error && overview.data && (
+        <div className="admin-stats-grid">
+          {[
+            "All posts",
+            "Published",
+            "Drafts",
+            "Scheduled",
+            "Confirmed subscribers",
+            "Pending subscribers",
+          ].map((label, i) => (
+            <div className="admin-card admin-stat" key={label}>
+              <span>{label}</span>
+              <strong>{overview.data[i]}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+      <section className="admin-card admin-section">
+        <h2>Next steps</h2>
+        <div className="admin-action-grid">
+          <Link to="/admin/posts?status=draft" className="admin-action-card">
+            <strong>Review drafts</strong>
+            <span>Check sources and preview before publishing.</span>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/admin/pseo-dashboard" className="admin-action-card">
+            <strong>Search performance</strong>
+            <span>See queries, clicks, and articles to improve.</span>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/admin/queue" className="admin-action-card">
+            <strong>Publishing queue</strong>
+            <span>Review scheduled work and automation settings.</span>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+        <QueryNotice
+          loading={attention.isPending}
+          error={attention.error}
+          retry={() => attention.refetch()}
+        />
+        {!!attention.data && (
+          <div className="admin-notice">
+            <span>
+              {attention.data} published resources flagged for review.
+              Human-edited pages are excluded from automatic refresh.
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className="admin-btn-ghost"
+                to="/admin/pages?trend=needs_refresh"
+              >
+                Review resources
+              </Link>
+              <button
+                className="admin-btn-ghost"
+                disabled={!!busy}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Refresh up to 3 eligible resources using paid AI generation? Published content may change. Human-edited pages are preserved.",
+                    )
+                  )
+                    void run("refresh");
+                }}
+              >
+                {busy === "refresh" ? "Refreshing…" : "Refresh up to 3"}
+              </button>
+            </div>
           </div>
         )}
-
-        {recentPosts?.map((post) => (
-          <div
-            key={post.id}
-            className="flex items-center justify-between"
-            style={{
-              padding: "16px 24px",
-              borderBottom: "1px solid hsl(var(--admin-border))",
-              transition: "background-color 0.15s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor =
-                "hsl(var(--admin-surface-2))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
-          >
-            <div className="min-w-0 flex-1">
-              <span
-                className="font-body block truncate"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "hsl(var(--admin-text))",
-                }}
-              >
-                {post.title}
-              </span>
-              <span
-                className="font-body"
-                style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
-              >
-                Updated{" "}
-                {new Date(post.updated_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <span
-                className="font-body"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "4px 12px",
-                  borderRadius: 4,
-                  background:
-                    post.status === "published"
-                      ? "rgba(74, 222, 128, 0.12)"
-                      : "rgba(250, 204, 21, 0.12)",
-                  color: post.status === "published" ? "#4ade80" : "#facc15",
-                }}
-              >
-                {post.status}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Indexing Status */}
-      <div className="admin-card" style={{ overflow: "hidden", marginTop: 24 }}>
-        <div
-          className="flex items-center justify-between"
-          style={{
-            padding: "18px 24px",
-            borderBottom: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-            <span
-              className="font-body"
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "hsl(var(--admin-text))",
-              }}
-            >
-              Indexing Status
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span
-              className="font-body"
-              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              {indexingStats?.submitted ?? 0} submitted ·{" "}
-              {indexingStats?.indexed ?? 0} indexed
-            </span>
-            <button
-              onClick={handleSubmitIndexing}
-              disabled={submitting}
-              className="admin-btn-ghost flex items-center gap-2"
-              style={{ fontSize: 11, padding: "5px 12px" }}
-            >
-              {submitting ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Send size={12} />
-              )}
-              {submitting ? "Submitting..." : "Submit All Unsubmitted"}
-            </button>
-          </div>
+      </section>
+      <NewsletterPreviewCard />
+      <section className="admin-card admin-section">
+        <div className="admin-section-header">
+          <h2>Recently updated</h2>
+          <Link to="/admin/posts">View all posts →</Link>
         </div>
-        {!indexingStats?.recent || indexingStats.recent.length === 0 ? (
-          <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p
-              className="font-body"
-              style={{ fontSize: 13, color: "hsl(var(--admin-text-ghost))" }}
+        <QueryNotice
+          loading={recent.isPending}
+          error={recent.error}
+          retry={() => recent.refetch()}
+        />
+        {!recent.error && recent.data?.length === 0 && (
+          <p>No posts yet. Start with a draft.</p>
+        )}
+        {!recent.error &&
+          recent.data?.map((post) => (
+            <Link
+              key={post.id}
+              to={`/admin/posts/${post.id}/edit`}
+              className="admin-recent-row"
             >
-              No pages submitted yet. Publish pages to start indexing.
-            </p>
-          </div>
-        ) : (
-          <div>
-            {/* Header */}
-            <div
-              className="hidden lg:grid"
-              style={{
-                gridTemplateColumns: "1fr 150px 100px",
-                padding: "8px 24px",
-                backgroundColor: "hsl(var(--admin-surface-2))",
-                borderBottom: "1px solid hsl(var(--admin-border))",
-              }}
-            >
-              <span className="admin-label" style={{ marginBottom: 0 }}>
-                URL
-              </span>
-              <span className="admin-label" style={{ marginBottom: 0 }}>
-                Submitted
-              </span>
-              <span className="admin-label" style={{ marginBottom: 0 }}>
-                Status
-              </span>
-            </div>
-            {indexingStats.recent.map((log) => (
-              <div
-                key={log.id}
-                className="lg:grid flex flex-col"
-                style={{
-                  gridTemplateColumns: "1fr 150px 100px",
-                  padding: "10px 24px",
-                  borderBottom: "1px solid hsl(var(--admin-border))",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  className="font-body truncate"
-                  style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-                >
-                  {log.page_url}
-                </span>
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 11,
-                    color: "hsl(var(--admin-text-ghost))",
-                  }}
-                >
-                  {log.submitted_at
-                    ? new Date(log.submitted_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—"}
-                </span>
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    width: "fit-content",
-                    textTransform: "capitalize",
-                    background:
-                      log.status === "indexed"
-                        ? "hsl(var(--admin-sage) / 0.12)"
-                        : "hsl(var(--admin-accent) / 0.12)",
-                    color:
-                      log.status === "indexed"
-                        ? "hsl(var(--admin-sage))"
-                        : "hsl(var(--admin-accent))",
-                  }}
-                >
-                  {log.status}
+              <div>
+                <strong>{post.title}</strong>
+                <span>
+                  Updated {new Date(post.updated_at).toLocaleDateString()}
                 </span>
               </div>
-            ))}
-          </div>
+              <span className="admin-badge">{post.status}</span>
+              <ArrowRight size={16} />
+            </Link>
+          ))}
+      </section>
+      <BriansNotesWidget />
+      <section className="admin-card admin-section">
+        <div className="admin-section-header">
+          <h2>Search engine submissions</h2>
+          <button
+            className="admin-btn-ghost"
+            disabled={!!busy}
+            onClick={() => run("index")}
+          >
+            {busy === "index" ? "Submitting…" : "Submit published URLs"}
+          </button>
+        </div>
+        <p className="admin-help">
+          IndexNow receipt records for participating search engines. Submission
+          does not mean a page is indexed. Google indexing must be checked in
+          Search Console.
+        </p>
+        <QueryNotice
+          loading={indexing.isPending}
+          error={indexing.error}
+          retry={() => indexing.refetch()}
+        />
+        {!indexing.error && indexing.data?.length === 0 && (
+          <p>No submission history yet.</p>
         )}
-      </div>
+        {!indexing.error &&
+          indexing.data?.map((log) => (
+            <div className="admin-recent-row" key={log.id}>
+              <a
+                href={log.page_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 break-all"
+              >
+                {log.page_url}
+              </a>
+              <span className="admin-badge">
+                {{
+                  indexnow_submitted: "Received",
+                  indexnow_pending: "Key validation pending",
+                  error: "Failed — retry available",
+                }[log.status ?? ""] ?? "Legacy record · unverified"}
+              </span>
+            </div>
+          ))}
+      </section>
     </div>
   );
-};
-
-export default Dashboard;
+}

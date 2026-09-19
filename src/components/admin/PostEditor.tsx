@@ -1,3 +1,6 @@
+import { useEditorRecovery } from "@/hooks/useEditorRecovery";
+import EditorialChecklist from "./EditorialChecklist";
+import EditorPreview from "./EditorPreview";
 import { z } from "zod";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { TablesInsert } from "@/integrations/supabase/types";
@@ -106,7 +109,11 @@ const PostEditor = () => {
   const [aiWriting, setAiWriting] = useState(false);
 
   // Queries
-  const { data: post, isLoading: postLoading } = useQuery({
+  const {
+    data: post,
+    isLoading: postLoading,
+    error: postError,
+  } = useQuery({
     queryKey: ["admin-post", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -120,7 +127,11 @@ const PostEditor = () => {
     enabled: !!id,
   });
 
-  const { data: seo } = useQuery({
+  const {
+    data: seo,
+    isLoading: seoLoading,
+    error: seoError,
+  } = useQuery({
     queryKey: ["admin-seo", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -145,9 +156,132 @@ const PostEditor = () => {
     },
   });
 
-  // Sync post data
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (post) {
+    if ((!isNew && (postLoading || seoLoading)) || postError || seoError)
+      return;
+    const timer = setTimeout(() => setHydrated(true), 0);
+    return () => clearTimeout(timer);
+  }, [isNew, postLoading, seoLoading, postError, seoError]);
+  const snapshot = {
+    title,
+    slug,
+    excerpt,
+    categoryId,
+    status,
+    scheduledAt,
+    timezone,
+    featuredImage,
+    editorContent,
+    metaTitle,
+    metaDesc,
+    keywords,
+    ogImage,
+    tldr,
+    keyTakeaways,
+    faqItems,
+  };
+  const recovery = useEditorRecovery(id || "new", snapshot, hydrated);
+  function restoreSnapshot(value: Record<string, unknown>) {
+    const result = z
+      .object({
+        title: z.string(),
+        slug: z.string(),
+        excerpt: z.string(),
+        categoryId: z.string(),
+        status: z.enum(["draft", "published", "scheduled"]),
+        scheduledAt: z.string(),
+        timezone: z.string(),
+        featuredImage: z.string(),
+        editorContent: z.string(),
+        metaTitle: z.string(),
+        metaDesc: z.string(),
+        keywords: z.string(),
+        ogImage: z.string(),
+        tldr: z.string(),
+        keyTakeaways: z.array(z.string()),
+        faqItems: faqSchema,
+      })
+      .safeParse(value);
+    if (!result.success) {
+      toast({
+        title: "This saved copy could not be restored",
+        variant: "destructive",
+      });
+      return;
+    }
+    const d = result.data;
+    setTitle(d.title);
+    setSlug(d.slug);
+    setSlugManual(true);
+    setExcerpt(d.excerpt);
+    setCategoryId(d.categoryId);
+    setStatus(d.status);
+    setScheduledAt(d.scheduledAt);
+    scheduleTouched.current = true;
+    setTimezone(d.timezone);
+    setFeaturedImage(d.featuredImage);
+    setEditorContent(d.editorContent);
+    editorRef.current?.commands.setContent(d.editorContent);
+    setMetaTitle(d.metaTitle);
+    setMetaDesc(d.metaDesc);
+    setKeywords(d.keywords);
+    setOgImage(d.ogImage);
+    setTldr(d.tldr);
+    setKeyTakeaways(d.keyTakeaways);
+    setFaqItems(d.faqItems);
+    recovery.resolveRecovery();
+  }
+  const revisions = useQuery({
+    queryKey: ["post-revisions", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("post_revisions")
+        .select("id,created_at,snapshot")
+        .eq("post_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  function restoreRevision(value: unknown) {
+    const r = z
+      .object({
+        post: z.record(z.unknown()),
+        seo: z.record(z.unknown()).nullable(),
+      })
+      .safeParse(value);
+    if (!r.success) return;
+    const p = r.data.post,
+      meta = r.data.seo;
+    restoreSnapshot({
+      ...snapshot,
+      title: p.title,
+      slug: p.slug,
+      excerpt: p.excerpt || "",
+      categoryId: p.category_id || "",
+      featuredImage: p.featured_image || "",
+      editorContent: p.content || "",
+      tldr: p.tldr || "",
+      keyTakeaways: p.key_takeaways || [],
+      faqItems: p.faq_items || [],
+      metaTitle: meta?.meta_title || "",
+      metaDesc: meta?.meta_description || "",
+      keywords: Array.isArray(meta?.keywords) ? meta.keywords.join(", ") : "",
+      ogImage: meta?.og_image || "",
+    });
+  }
+
+  const initializedPost = useRef<string | null>(null);
+  const initializedSeo = useRef(false);
+  const persistedVersion = useRef<string | null>(null);
+  // Hydrate once. Background refreshes must not overwrite unsaved typing.
+  useEffect(() => {
+    if (post && initializedPost.current !== post.id) {
+      initializedPost.current = post.id;
+      persistedVersion.current = post.updated_at;
       setTitle(post.title);
       setSlug(post.slug);
       setExcerpt(post.excerpt ?? "");
@@ -182,7 +316,8 @@ const PostEditor = () => {
   }, [post?.scheduled_at, timezone]);
 
   useEffect(() => {
-    if (seo) {
+    if (seo && !initializedSeo.current) {
+      initializedSeo.current = true;
       setMetaTitle(seo.meta_title ?? "");
       setMetaDesc(seo.meta_description ?? "");
       setKeywords((seo.keywords ?? []).join(", "));
@@ -260,7 +395,7 @@ const PostEditor = () => {
   }, []);
 
   // Scoring
-  const currentContent = editorRef.current?.getHTML() ?? editorContent;
+  const currentContent = editorContent;
 
   const seoScore = useMemo(() => {
     let s = 0;
@@ -281,7 +416,7 @@ const PostEditor = () => {
     if (keyTakeaways.filter((t) => t.trim()).length >= 3) s++;
     if (/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent)) s++;
     if (/<(ul|ol)[^>]*>/i.test(currentContent)) s++;
-    if (wordCount(currentContent) >= 800) s++;
+    if (/href=["']https?:\/\//i.test(currentContent)) s++;
     return s;
   }, [tldr, faqItems, keyTakeaways, currentContent]);
 
@@ -322,8 +457,8 @@ const PostEditor = () => {
         category: "AEO",
       },
       {
-        label: "800+ words",
-        done: wordCount(currentContent) >= 800,
+        label: "External source links (verify manually)",
+        done: /href=["']https?:\/\//i.test(currentContent),
         points: "+8",
         category: "AEO",
       },
@@ -364,37 +499,21 @@ const PostEditor = () => {
     ogImage,
   ]);
 
-  const aeoTips = useMemo(() => {
-    const tips: string[] = [];
-    if (!tldr || tldr.length < 20)
-      tips.push(
-        "Add a TL;DR summary (20+ chars) — LLMs often pull this as the answer",
-      );
-    if (faqItems.filter((f) => f.question.trim() && f.answer.trim()).length < 2)
-      tips.push("Add 2+ FAQ items — these generate FAQ schema for AI search");
-    if (keyTakeaways.filter((t) => t.trim()).length < 3)
-      tips.push(
-        "Add 3+ key takeaways — bullet-point answers rank in AI overviews",
-      );
-    if (!/<h[23][^>]*>.*\?.*<\/h[23]>/i.test(currentContent))
-      tips.push(
-        "Use question-format headings (H2/H3 with ?) — LLMs match these to queries",
-      );
-    if (!/<(ul|ol)[^>]*>/i.test(currentContent))
-      tips.push(
-        "Add lists to your content — structured data is easier for LLMs to cite",
-      );
-    if (wordCount(currentContent) < 800)
-      tips.push("Write 800+ words — comprehensive content is cited more by AI");
-    return tips;
-  }, [tldr, faqItems, keyTakeaways, currentContent]);
+  const aeoTips = useMemo(
+    () => [
+      "Answer the reader's question fully; there is no ideal word count.",
+      "Use headings, summaries, and FAQs only where they help the reader.",
+      "Link important claims to primary sources and verify them manually.",
+    ],
+    [],
+  );
 
   const scoreColor = (score: number, max: number) =>
     score >= max * 0.66 ? "admin-sage" : "admin-accent";
 
   // AI generation
   const handleAiGenerate = useCallback(async () => {
-    const content = editorRef.current?.getHTML() ?? editorContent;
+    const content = editorContent;
     if (!title && !content) {
       toast({
         title: "Need content",
@@ -439,7 +558,7 @@ const PostEditor = () => {
   }, [title, editorContent, excerpt, toast]);
 
   const handleEnhance = useCallback(async () => {
-    const content = editorRef.current?.getHTML() ?? editorContent;
+    const content = editorContent;
     const missing = criteria.filter((c) => !c.done).map((c) => c.label);
     if (missing.length === 0) {
       toast({
@@ -598,10 +717,14 @@ const PostEditor = () => {
     [],
   );
 
+  const submittedSnapshot = useRef<string | undefined>(undefined);
   const saveMutation = useMutation({
+    onMutate: () => {
+      submittedSnapshot.current = JSON.stringify(snapshot);
+    },
     mutationFn: (opts: { overrideReason?: string } = {}) =>
       safeMutation(async () => {
-        const content = editorRef.current?.getHTML() ?? editorContent;
+        const content = editorContent;
         const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
         const cleanFaq = faqItems.filter(
           (f) => f.question.trim() && f.answer.trim(),
@@ -639,19 +762,27 @@ const PostEditor = () => {
           const { data, error } = await supabase
             .from("posts")
             .insert(postData)
-            .select("id")
+            .select("id,updated_at")
             .single();
           if (error) throw error;
+          persistedVersion.current = data.updated_at;
           postId = data.id;
           savedPostId.current = postId;
         } else {
-          const { error } = await supabase
+          let update = supabase
             .from("posts")
             .update(postData)
-            .eq("id", postId!)
-            .select("id")
+            .eq("id", postId!);
+          if (persistedVersion.current)
+            update = update.eq("updated_at", persistedVersion.current);
+          const { data: saved, error } = await update
+            .select("id,updated_at")
             .single();
-          if (error) throw error;
+          if (error)
+            throw new Error(
+              "The article could not be saved or changed in another session. Your working copy is retained; reload and review before retrying.",
+            );
+          persistedVersion.current = saved.updated_at;
         }
 
         const seoData = {
@@ -686,7 +817,7 @@ const PostEditor = () => {
         }
         return { postId };
       }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
       if (result?.publishBlocked) {
         setPublishBlock({
@@ -702,6 +833,10 @@ const PostEditor = () => {
         });
         return;
       }
+      if (!(await recovery.clear(submittedSnapshot.current))) {
+        toast({ title: "Saved. Newer edits remain in the editor." });
+        return;
+      }
       toast({ title: "Saved" });
       navigate("/admin/posts");
     },
@@ -715,14 +850,30 @@ const PostEditor = () => {
   });
 
   const handleEditorReady = useCallback(
-    (editor: Editor) => {
+    (editor: Editor | null) => {
       editorRef.current = editor;
-      if (post?.content) editor.commands.setContent(post.content);
+      if (editor && !editor.isDestroyed && post?.content)
+        editor.commands.setContent(post.content);
     },
     [post],
   );
 
-  if (!isNew && postLoading) {
+  if (postError || seoError)
+    return (
+      <p role="alert">
+        The article could not be loaded. Reload before editing.
+      </p>
+    );
+  if (!isNew && !postLoading && !post)
+    return (
+      <p role="alert">
+        This article no longer exists.{" "}
+        <button onClick={() => navigate("/admin/posts")}>
+          Back to articles
+        </button>
+      </p>
+    );
+  if (!hydrated) {
     return (
       <div className="flex items-center justify-center" style={{ padding: 64 }}>
         <Loader2
@@ -747,7 +898,12 @@ const PostEditor = () => {
         >
           {isNew ? "New Post" : "Edit Post"}
         </h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <EditorPreview
+            title={title}
+            content={editorContent}
+            excerpt={excerpt}
+          />
           {isNew && (
             <button
               onClick={() => setShowAiModal(true)}
@@ -784,10 +940,64 @@ const PostEditor = () => {
         </div>
       </div>
 
+      <div className="admin-notice mb-5" role="status">
+        {recovery.message}
+        <span className="admin-help">
+          Autosave protects your working copy. Save applies changes to the
+          article.
+        </span>
+      </div>
+      {recovery.recovery && (
+        <div className="admin-notice mb-5">
+          <span>A saved working copy is available.</span>
+          <button
+            className="admin-btn-primary"
+            onClick={() => restoreSnapshot(recovery.recovery!)}
+          >
+            Restore working copy
+          </button>
+          <button
+            className="admin-btn-ghost"
+            onClick={() => void recovery.discardRecovery()}
+          >
+            Keep current version
+          </button>
+        </div>
+      )}
+      {id && (
+        <details className="admin-card p-4 mb-5">
+          <summary>Revision history</summary>
+          <p className="admin-help">
+            Restore into the editor, review, then Save. The last 20 article
+            versions are retained.
+          </p>
+          {revisions.error && (
+            <p role="alert">Revision history could not be loaded.</p>
+          )}
+          {revisions.data?.length === 0 && <p>No saved revisions yet.</p>}
+          {revisions.data?.map((r) => (
+            <button
+              key={r.id}
+              className="admin-btn-ghost"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Replace the current editor contents with this revision? It will not publish until you save.",
+                  )
+                )
+                  restoreRevision(r.snapshot);
+              }}
+            >
+              Restore {new Date(r.created_at).toLocaleString()}
+            </button>
+          ))}
+        </details>
+      )}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main editor */}
         <div className="lg:col-span-2 flex flex-col gap-5">
           <input
+            aria-label="Post title"
             placeholder="Post title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -807,6 +1017,7 @@ const PostEditor = () => {
               /blog/
             </span>
             <input
+              aria-label="Article URL slug"
               value={slug}
               onChange={(e) => {
                 setSlug(e.target.value);
@@ -849,6 +1060,7 @@ const PostEditor = () => {
             setExcerpt={setExcerpt}
           />
 
+          <EditorialChecklist html={editorContent} />
           <PostEditorAiHelper
             aeoScore={aeoScore}
             seoScore={seoScore}

@@ -16,11 +16,11 @@ import Loader from "@/components/Loader";
 import SectionReveal from "@/components/SectionReveal";
 import AmbientOrbs from "@/components/AmbientOrbs";
 import FilmGrain from "@/components/FilmGrain";
-import { siteConfig } from "@/config/site";
-
-const { sections } = siteConfig;
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const Index = () => {
+  const siteConfig = useSiteConfig();
+  const { sections } = siteConfig;
   // The page is fully visible from the first paint. The intro is an overlay on
   // top of it, so no-JS visitors and storage failures still see the content.
   const [introDone, setIntroDone] = useState(false);

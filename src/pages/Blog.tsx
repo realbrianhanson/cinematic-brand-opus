@@ -1,4 +1,4 @@
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { fetchBlogPage } from "@/lib/publicLists";
 import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -137,6 +137,7 @@ interface BlogProps {
 }
 
 const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
+  const siteConfig = useSiteConfig();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const {

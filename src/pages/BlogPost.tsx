@@ -1,3 +1,5 @@
+import { articleReading } from "@/lib/articleReading";
+import { ArticleContents, ArticleDetails } from "@/components/ArticleDetails";
 import { formatPublicDate } from "@/lib/publicDate";
 import { z } from "zod";
 import type {
@@ -22,6 +24,12 @@ import Footer from "@/components/Footer";
 import PublicCTA from "@/components/PublicCTA";
 
 interface BlogPostProps {
+  initialSeo?: {
+    meta_title: string | null;
+    meta_description: string | null;
+    og_image: string | null;
+    keywords: string[] | null;
+  } | null;
   /** Enabled only inside an authenticated admin preview; RLS still applies. */
   preview?: boolean;
   /** Server-rendered article, so the body is in the initial HTML. */
@@ -30,6 +38,7 @@ interface BlogPostProps {
 }
 
 const BlogPost = ({
+  initialSeo,
   initialPost,
   initialSettings,
   preview = false,
@@ -75,10 +84,11 @@ const BlogPost = ({
   // Fetch SEO keywords for matching
   const { data: seoMeta } = useQuery({
     queryKey: ["post-seo-meta", post?.id],
+    ...(initialSeo ? { initialData: initialSeo } : {}),
     queryFn: async () => {
       const { data } = await supabase
         .from("seo_metadata")
-        .select("keywords")
+        .select("meta_title,meta_description,og_image,keywords")
         .eq("post_id", post!.id)
         .maybeSingle();
       return data;
@@ -137,6 +147,7 @@ const BlogPost = ({
     staleTime: 60000,
   });
 
+  const reading = articleReading(post?.content || "");
   const blogFaqs = z
     .array(z.object({ question: z.string(), answer: z.string() }))
     .catch([])
@@ -243,6 +254,16 @@ const BlogPost = ({
           </span>
         </div>
 
+        <p className="font-body text-sm text-white/70 mb-5">
+          By {siteSettings?.author_name || "the editorial team"}
+          {post.updated_at &&
+            new Date(post.updated_at).toISOString().slice(0, 10) !==
+              new Date(post.published_at || post.created_at)
+                .toISOString()
+                .slice(0, 10) && (
+              <> · Updated {formatPublicDate(post.updated_at)}</>
+            )}
+        </p>
         {/* Title */}
         <h1
           className="font-display italic mb-8"
@@ -254,6 +275,7 @@ const BlogPost = ({
           {post.title}
         </h1>
 
+        <ArticleContents headings={reading.headings} />
         {/* Reading surface wrapper */}
         <div
           style={{
@@ -313,10 +335,14 @@ const BlogPost = ({
               lineHeight: 1.85,
               color: "rgba(255,255,255,0.9)",
             }}
-            dangerouslySetInnerHTML={{ __html: safeHtml(post.content ?? "") }}
+            dangerouslySetInnerHTML={{ __html: reading.html }}
           />
         </div>
 
+        <ArticleDetails
+          settings={siteSettings}
+          sources={post.source_citations}
+        />
         {/* Key Takeaways */}
         {post.key_takeaways &&
           Array.isArray(post.key_takeaways) &&

@@ -14,7 +14,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
-import { siteConfig } from "@/config/site";
+import { siteConfig as fallbackConfig } from "@/config/site";
+import { configFromMatches } from "@/config/runtime";
+import { SiteConfigContext } from "@/config/SiteConfigContext";
+import { getSiteBranding } from "@/lib/branding.functions";
 import appCss from "../styles.css?url";
 
 // ported from main.tsx — recover from stale lazy-chunk references after a redeploy.
@@ -90,6 +93,7 @@ function NotFoundComponent() {
 }
 
 function RootComponent() {
+  const siteConfig = Route.useLoaderData()?.siteConfig ?? fallbackConfig;
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
@@ -127,21 +131,24 @@ function RootComponent() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AriaLiveAnnouncer>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <Outlet />
-          </TooltipProvider>
-        </AriaLiveAnnouncer>
-      </AuthProvider>
-    </QueryClientProvider>
+    <SiteConfigContext.Provider value={siteConfig}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AriaLiveAnnouncer>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <Outlet />
+            </TooltipProvider>
+          </AriaLiveAnnouncer>
+        </AuthProvider>
+      </QueryClientProvider>
+    </SiteConfigContext.Provider>
   );
 }
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  const siteConfig = Route.useLoaderData()?.siteConfig ?? fallbackConfig;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -157,120 +164,124 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
-    head: () => ({
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
-        ...(siteConfig.metadata.googleSiteVerification
-          ? [
-              {
-                name: "google-site-verification",
-                content: siteConfig.metadata.googleSiteVerification,
-              },
-            ]
-          : []),
-        { title: siteConfig.metadata.defaultTitle },
-        {
-          name: "description",
-          content: siteConfig.metadata.defaultDescription,
-        },
-        { property: "og:title", content: siteConfig.metadata.defaultTitle },
-        { name: "twitter:title", content: siteConfig.metadata.defaultTitle },
-        {
-          property: "og:description",
-          content: siteConfig.metadata.socialDescription,
-        },
-        {
-          name: "twitter:description",
-          content: siteConfig.metadata.socialDescription,
-        },
-        ...(siteConfig.metadata.socialImageUrl
-          ? [
-              {
-                property: "og:image",
-                content: siteConfig.metadata.socialImageUrl,
-              },
-              {
-                name: "twitter:image",
-                content: siteConfig.metadata.socialImageUrl,
-              },
-            ]
-          : []),
-        { name: "twitter:card", content: "summary_large_image" },
-        { property: "og:type", content: "website" },
-      ],
-      links: [
-        { rel: "stylesheet", href: appCss },
-        ...(siteConfig.metadata.faviconHref
-          ? [
-              {
-                rel: "icon",
-                href: siteConfig.metadata.faviconHref,
-              },
-            ]
-          : [{ rel: "icon", href: "data:," }]),
-        ...(siteConfig.metadata.appleTouchIconHref
-          ? [
-              {
-                rel: "apple-touch-icon",
-                sizes: "180x180",
-                href: siteConfig.metadata.appleTouchIconHref,
-              },
-            ]
-          : []),
-        {
-          rel: "alternate",
-          type: "application/rss+xml",
-          title: siteConfig.metadata.rssTitle,
-          href: "/rss.xml",
-        },
-        ...(siteConfig.hero.posterSrc
-          ? [
-              {
-                rel: "preload",
-                as: "image",
-                href: siteConfig.hero.posterSrc,
-                fetchPriority: "high" as const,
-              },
-            ]
-          : []),
-        ...(import.meta.env.VITE_SUPABASE_URL
-          ? [
-              {
-                rel: "preconnect",
-                href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
-                crossOrigin: "anonymous" as const,
-              },
-              {
-                rel: "dns-prefetch",
-                href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
-              },
-            ]
-          : []),
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "preload",
-          as: "style",
-          href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
-        },
-        {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
-          media: "print",
-          onload: "this.media='all'",
-        },
-      ],
-      scripts: [
-        {
-          children: `document.querySelectorAll('link[rel="stylesheet"][media="print"]').forEach(l => l.media='all');`,
-        },
-      ],
-    }),
+    loader: async () => ({ siteConfig: await getSiteBranding() }),
+    head: ({ matches }) => {
+      const siteConfig = configFromMatches(matches);
+      return {
+        meta: [
+          { charSet: "utf-8" },
+          { name: "viewport", content: "width=device-width, initial-scale=1" },
+          ...(siteConfig.metadata.googleSiteVerification
+            ? [
+                {
+                  name: "google-site-verification",
+                  content: siteConfig.metadata.googleSiteVerification,
+                },
+              ]
+            : []),
+          { title: siteConfig.metadata.defaultTitle },
+          {
+            name: "description",
+            content: siteConfig.metadata.defaultDescription,
+          },
+          { property: "og:title", content: siteConfig.metadata.defaultTitle },
+          { name: "twitter:title", content: siteConfig.metadata.defaultTitle },
+          {
+            property: "og:description",
+            content: siteConfig.metadata.socialDescription,
+          },
+          {
+            name: "twitter:description",
+            content: siteConfig.metadata.socialDescription,
+          },
+          ...(siteConfig.metadata.socialImageUrl
+            ? [
+                {
+                  property: "og:image",
+                  content: siteConfig.metadata.socialImageUrl,
+                },
+                {
+                  name: "twitter:image",
+                  content: siteConfig.metadata.socialImageUrl,
+                },
+              ]
+            : []),
+          { name: "twitter:card", content: "summary_large_image" },
+          { property: "og:type", content: "website" },
+        ],
+        links: [
+          { rel: "stylesheet", href: appCss },
+          ...(siteConfig.metadata.faviconHref
+            ? [
+                {
+                  rel: "icon",
+                  href: siteConfig.metadata.faviconHref,
+                },
+              ]
+            : [{ rel: "icon", href: "data:," }]),
+          ...(siteConfig.metadata.appleTouchIconHref
+            ? [
+                {
+                  rel: "apple-touch-icon",
+                  sizes: "180x180",
+                  href: siteConfig.metadata.appleTouchIconHref,
+                },
+              ]
+            : []),
+          {
+            rel: "alternate",
+            type: "application/rss+xml",
+            title: siteConfig.metadata.rssTitle,
+            href: "/rss.xml",
+          },
+          ...(siteConfig.hero.posterSrc
+            ? [
+                {
+                  rel: "preload",
+                  as: "image",
+                  href: siteConfig.hero.posterSrc,
+                  fetchPriority: "high" as const,
+                },
+              ]
+            : []),
+          ...(import.meta.env.VITE_SUPABASE_URL
+            ? [
+                {
+                  rel: "preconnect",
+                  href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
+                  crossOrigin: "anonymous" as const,
+                },
+                {
+                  rel: "dns-prefetch",
+                  href: new URL(import.meta.env.VITE_SUPABASE_URL).origin,
+                },
+              ]
+            : []),
+          { rel: "preconnect", href: "https://fonts.googleapis.com" },
+          {
+            rel: "preconnect",
+            href: "https://fonts.gstatic.com",
+            crossOrigin: "anonymous",
+          },
+          {
+            rel: "preload",
+            as: "style",
+            href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
+          },
+          {
+            rel: "stylesheet",
+            href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;600;700&display=swap",
+            media: "print",
+            onload: "this.media='all'",
+          },
+        ],
+        scripts: [
+          {
+            children: `document.querySelectorAll('link[rel="stylesheet"][media="print"]').forEach(l => l.media='all');`,
+          },
+        ],
+      };
+    },
     shellComponent: RootShell,
     component: RootComponent,
     notFoundComponent: NotFoundComponent,

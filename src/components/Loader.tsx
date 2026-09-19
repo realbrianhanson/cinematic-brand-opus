@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 interface LoaderProps {
   onComplete: () => void;
@@ -58,6 +58,7 @@ const prefersLessData = (): boolean => {
  * the overlay instead of leaving a blank page.
  */
 const Loader = ({ onComplete }: LoaderProps) => {
+  const siteConfig = useSiteConfig();
   const [visible, setVisible] = useState(false);
   const [wiping, setWiping] = useState(false);
   const [removed, setRemoved] = useState(true);

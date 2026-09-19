@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { siteConfig } from "@/config/site";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 import { safeHref } from "@/lib/newsMarkdown";
 import { X, ArrowRight } from "lucide-react";
 
@@ -22,6 +22,7 @@ const PublicCTA = ({
   pageId,
   pageType,
 }: PublicCTAProps) => {
+  const siteConfig = useSiteConfig();
   const { data: settings } = useQuery({
     queryKey: ["public-site-settings"],
     queryFn: async () => {

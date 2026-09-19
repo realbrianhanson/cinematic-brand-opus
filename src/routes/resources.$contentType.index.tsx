@@ -1,3 +1,4 @@
+import { configFromMatches } from "@/config/runtime";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import ContentTypeList from "@/pages/ContentTypeList";
@@ -24,13 +25,14 @@ export const Route = createFileRoute("/resources/$contentType/")({
     if (!result) throw notFound();
     return { ...result, settings };
   },
-  head: ({ loaderData, params }) => {
+  head: ({ loaderData, params, matches }) => {
+    const config = configFromMatches(matches);
     if (!loaderData) return {};
     const { schema, pages, settings } = loaderData;
-    const url = absoluteUrl(`/resources/${params.contentType}`);
+    const url = absoluteUrl(`/resources/${params.contentType}`, config);
 
     return buildPageHead({
-      title: pageTitle(schema.name),
+      title: pageTitle(schema.name, config),
       description:
         schema.description ||
         `Browse ${schema.name} resources organized by industry.`,
@@ -40,8 +42,8 @@ export const Route = createFileRoute("/resources/$contentType/")({
         websiteJsonLd(settings),
         itemListJsonLd(pages.map((p) => p.title).slice(0, 50)),
         breadcrumbJsonLd([
-          { name: "Home", url: absoluteUrl("/") },
-          { name: "Resources", url: absoluteUrl("/resources") },
+          { name: "Home", url: absoluteUrl("/", config) },
+          { name: "Resources", url: absoluteUrl("/resources", config) },
           { name: schema.name, url },
         ]),
       ]),
