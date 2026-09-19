@@ -13,6 +13,18 @@ do $$
 declare table_name text; populated boolean; active_jobs integer;
 begin
   perform pg_advisory_xact_lock(hashtext('member-empty-bootstrap'));
+  -- Commerce data can contain customer information and purchased files. Check it
+  -- even when an inherited neutral-v1 marker would otherwise make this a no-op.
+  foreach table_name in array array['offers','offer_orders','offer_stripe_events'] loop
+    if to_regclass('public.'||table_name) is not null then
+      execute format('select exists(select 1 from public.%I)',table_name) into populated;
+      if populated then raise exception 'Refusing bootstrap: % already contains records. Use an empty remix.',table_name; end if;
+    end if;
+  end loop;
+  if to_regclass('storage.objects') is not null then
+    execute 'select exists(select 1 from storage.objects where bucket_id=''offer-files'')' into populated;
+    if populated then raise exception 'Refusing bootstrap: offer-files already contains files. Use an empty remix.'; end if;
+  end if;
   if exists(select 1 from public.member_bootstrap_state where key='neutral-v1') then return; end if;
   foreach table_name in array array['site_settings','site_settings_private','posts','generated_pages','pillar_pages','newsletter_subscribers','newsletter_sends','niches','content_schemas','source_items','content_sources','expert_notes','widget_config'] loop
     if to_regclass('public.'||table_name) is not null then

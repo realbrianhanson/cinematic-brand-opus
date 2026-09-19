@@ -103,3 +103,9 @@ verify_jwt = false
 
 [functions.gsc-sync]
 verify_jwt = false
+
+[functions.offers-api]
+verify_jwt = false
+
+[functions.offer-stripe-webhook]
+verify_jwt = false

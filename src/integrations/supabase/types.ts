@@ -14,6 +14,192 @@ export type Database = {
   };
   public: {
     Tables: {
+      offers: {
+        Row: {
+          id: string;
+          slug: string;
+          title: string;
+          summary: string;
+          body: string;
+          cover_url: string | null;
+          status: string;
+          kind: string;
+          amount_minor: number;
+          currency: string;
+          asset_path: string | null;
+          asset_name: string | null;
+          thank_you_message: string;
+          next_offer_id: string | null;
+          next_offer_window_minutes: number;
+          funnel_only: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          title?: string;
+          summary?: string;
+          body?: string;
+          cover_url?: string | null;
+          status?: string;
+          kind?: string;
+          amount_minor?: number;
+          currency?: string;
+          asset_path?: string | null;
+          asset_name?: string | null;
+          thank_you_message?: string;
+          next_offer_id?: string | null;
+          next_offer_window_minutes?: number;
+          funnel_only?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          title?: string;
+          summary?: string;
+          body?: string;
+          cover_url?: string | null;
+          status?: string;
+          kind?: string;
+          amount_minor?: number;
+          currency?: string;
+          asset_path?: string | null;
+          asset_name?: string | null;
+          thank_you_message?: string;
+          next_offer_id?: string | null;
+          next_offer_window_minutes?: number;
+          funnel_only?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "offers_next_offer_id_fkey";
+            columns: ["next_offer_id"];
+            isOneToOne: false;
+            referencedRelation: "offers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      offer_orders: {
+        Row: {
+          id: string;
+          offer_id: string;
+          parent_order_id: string | null;
+          token_hash: string;
+          email: string;
+          name: string;
+          status: string;
+          title_snapshot: string;
+          asset_path_snapshot: string;
+          asset_name_snapshot: string;
+          amount_minor: number;
+          currency: string;
+          next_offer_id: string | null;
+          next_offer_window_minutes: number;
+          next_offer_deadline: string | null;
+          declined_at: string | null;
+          stripe_session_id: string | null;
+          stripe_payment_intent_id: string | null;
+          stripe_checkout_url: string | null;
+          checkout_expires_at: string;
+          created_at: string;
+          fulfilled_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          offer_id: string;
+          parent_order_id?: string | null;
+          token_hash: string;
+          email: string;
+          name?: string;
+          status: string;
+          title_snapshot: string;
+          asset_path_snapshot: string;
+          asset_name_snapshot: string;
+          amount_minor: number;
+          currency: string;
+          next_offer_id?: string | null;
+          next_offer_window_minutes?: number;
+          next_offer_deadline?: string | null;
+          declined_at?: string | null;
+          stripe_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_checkout_url?: string | null;
+          checkout_expires_at: string;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          offer_id?: string;
+          parent_order_id?: string | null;
+          token_hash?: string;
+          email?: string;
+          name?: string;
+          status?: string;
+          title_snapshot?: string;
+          asset_path_snapshot?: string;
+          asset_name_snapshot?: string;
+          amount_minor?: number;
+          currency?: string;
+          next_offer_id?: string | null;
+          next_offer_window_minutes?: number;
+          next_offer_deadline?: string | null;
+          declined_at?: string | null;
+          stripe_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_checkout_url?: string | null;
+          checkout_expires_at?: string;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "offer_orders_offer_id_fkey";
+            columns: ["offer_id"];
+            isOneToOne: false;
+            referencedRelation: "offers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "offer_orders_parent_order_id_fkey";
+            columns: ["parent_order_id"];
+            isOneToOne: true;
+            referencedRelation: "offer_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "offer_orders_next_offer_id_fkey";
+            columns: ["next_offer_id"];
+            isOneToOne: false;
+            referencedRelation: "offers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      offer_stripe_events: {
+        Row: {
+          event_id: string;
+          event_type: string;
+          created_at: string;
+        };
+        Insert: {
+          event_id: string;
+          event_type: string;
+          created_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          event_type?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       admin_preferences: {
         Row: {
           created_at: string;
@@ -1510,6 +1696,38 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      offer_reserve_order: {
+        Args: {
+          _offer_id: string;
+          _token_hash: string;
+          _email: string;
+          _name: string;
+          _parent_hash?: string | null;
+        };
+        Returns: Json;
+      };
+      offer_record_checkout: {
+        Args: {
+          _order_id: string;
+          _session_id: string;
+          _checkout_url: string;
+          _payment_intent_id?: string | null;
+        };
+        Returns: Json;
+      };
+      offer_apply_stripe_event: {
+        Args: {
+          _event_id: string;
+          _event_type: string;
+          _session_id: string | null;
+          _order_id: string | null;
+          _payment_intent_id: string | null;
+          _amount_minor: number | null;
+          _currency: string | null;
+        };
+        Returns: Json;
+      };
+      offer_decline_next: { Args: { _token_hash: string }; Returns: Json };
       admin_content_breakdown: { Args: never; Returns: Json };
       admin_performance_snapshot: { Args: { days?: number }; Returns: Json };
       admin_read_niches: {

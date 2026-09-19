@@ -15,6 +15,7 @@ import { Route as BlogRouteImport } from './routes/blog'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as OfferAccessRouteImport } from './routes/offer-access'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as SitemapRouteImport } from './routes/sitemap'
@@ -39,18 +40,23 @@ import { Route as NewsIdRouteImport } from './routes/news.$id'
 import { Route as NewsletterConfirmedRouteImport } from './routes/newsletter.confirmed'
 import { Route as NewsletterInvalidRouteImport } from './routes/newsletter.invalid'
 import { Route as NewsletterUnsubscribedRouteImport } from './routes/newsletter.unsubscribed'
+import { Route as OffersSlugRouteImport } from './routes/offers.$slug'
 import { Route as ResourcesIndexRouteImport } from './routes/resources.index'
 import { Route as ResourcesContentTypeRouteImport } from './routes/resources.$contentType'
 import { Route as AdminContentTypesIndexRouteImport } from './routes/admin.content-types.index'
 import { Route as AdminContentTypesNewRouteImport } from './routes/admin.content-types.new'
+import { Route as AdminOffersIndexRouteImport } from './routes/admin.offers.index'
+import { Route as AdminOffersNewRouteImport } from './routes/admin.offers.new'
 import { Route as AdminPagesIndexRouteImport } from './routes/admin.pages.index'
 import { Route as AdminPillarsIndexRouteImport } from './routes/admin.pillars.index'
 import { Route as AdminPillarsNewRouteImport } from './routes/admin.pillars.new'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin.posts.index'
 import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
+import { Route as OffersPreviewIdRouteImport } from './routes/offers.preview.$id'
 import { Route as ResourcesContentTypeIndexRouteImport } from './routes/resources.$contentType.index'
 import { Route as ResourcesContentTypePageSlugRouteImport } from './routes/resources.$contentType.$pageSlug'
 import { Route as AdminContentTypesIdEditRouteImport } from './routes/admin.content-types.$id.edit'
+import { Route as AdminOffersIdEditRouteImport } from './routes/admin.offers.$id.edit'
 import { Route as AdminPagesIdEditRouteImport } from './routes/admin.pages.$id.edit'
 import { Route as AdminPillarsIdEditRouteImport } from './routes/admin.pillars.$id.edit'
 import { Route as AdminPostsIdEditRouteImport } from './routes/admin.posts.$id.edit'
@@ -85,6 +91,11 @@ const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferAccessRoute = OfferAccessRouteImport.update({
+  id: '/offer-access',
+  path: '/offer-access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResourcesRoute = ResourcesRouteImport.update({
@@ -207,6 +218,11 @@ const NewsletterUnsubscribedRoute = NewsletterUnsubscribedRouteImport.update({
   path: '/newsletter/unsubscribed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OffersSlugRoute = OffersSlugRouteImport.update({
+  id: '/offers/$slug',
+  path: '/offers/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -225,6 +241,16 @@ const AdminContentTypesIndexRoute = AdminContentTypesIndexRouteImport.update({
 const AdminContentTypesNewRoute = AdminContentTypesNewRouteImport.update({
   id: '/content-types/new',
   path: '/content-types/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOffersIndexRoute = AdminOffersIndexRouteImport.update({
+  id: '/offers/',
+  path: '/offers/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOffersNewRoute = AdminOffersNewRouteImport.update({
+  id: '/offers/new',
+  path: '/offers/new',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPagesIndexRoute = AdminPagesIndexRouteImport.update({
@@ -252,6 +278,11 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
   path: '/posts/new',
   getParentRoute: () => AdminRoute,
 } as any)
+const OffersPreviewIdRoute = OffersPreviewIdRouteImport.update({
+  id: '/offers/preview/$id',
+  path: '/offers/preview/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResourcesContentTypeIndexRoute =
   ResourcesContentTypeIndexRouteImport.update({
     id: '/',
@@ -267,6 +298,11 @@ const ResourcesContentTypePageSlugRoute =
 const AdminContentTypesIdEditRoute = AdminContentTypesIdEditRouteImport.update({
   id: '/content-types/$id/edit',
   path: '/content-types/$id/edit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOffersIdEditRoute = AdminOffersIdEditRouteImport.update({
+  id: '/offers/$id/edit',
+  path: '/offers/$id/edit',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPagesIdEditRoute = AdminPagesIdEditRouteImport.update({
@@ -304,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
+  '/offer-access': typeof OfferAccessRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
@@ -325,21 +362,26 @@ export interface FileRoutesByFullPath {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
+  '/offers/$slug': typeof OffersSlugRoute
   '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/news/': typeof NewsIndexRoute
   '/resources/': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
+  '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types/': typeof AdminContentTypesIndexRoute
+  '/admin/offers/': typeof AdminOffersIndexRoute
   '/admin/pages/': typeof AdminPagesIndexRoute
   '/admin/pillars/': typeof AdminPillarsIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
+  '/admin/offers/$id/edit': typeof AdminOffersIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
@@ -350,6 +392,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/offer-access': typeof OfferAccessRoute
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -370,20 +413,25 @@ export interface FileRoutesByTo {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
+  '/offers/$slug': typeof OffersSlugRoute
   '/admin': typeof AdminIndexRoute
   '/blog': typeof BlogIndexRoute
   '/news': typeof NewsIndexRoute
   '/resources': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
+  '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types': typeof AdminContentTypesIndexRoute
+  '/admin/offers': typeof AdminOffersIndexRoute
   '/admin/pages': typeof AdminPagesIndexRoute
   '/admin/pillars': typeof AdminPillarsIndexRoute
   '/admin/posts': typeof AdminPostsIndexRoute
   '/resources/$contentType': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
+  '/admin/offers/$id/edit': typeof AdminOffersIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
@@ -398,6 +446,7 @@ export interface FileRoutesById {
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/news': typeof NewsRouteWithChildren
+  '/offer-access': typeof OfferAccessRoute
   '/resources': typeof ResourcesRouteWithChildren
   '/rss.xml': typeof RssDotxmlRoute
   '/sitemap': typeof SitemapRoute
@@ -419,21 +468,26 @@ export interface FileRoutesById {
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
   '/newsletter/invalid': typeof NewsletterInvalidRoute
   '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
+  '/offers/$slug': typeof OffersSlugRoute
   '/resources/$contentType': typeof ResourcesContentTypeRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/news/': typeof NewsIndexRoute
   '/resources/': typeof ResourcesIndexRoute
   '/admin/content-types/new': typeof AdminContentTypesNewRoute
+  '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types/': typeof AdminContentTypesIndexRoute
+  '/admin/offers/': typeof AdminOffersIndexRoute
   '/admin/pages/': typeof AdminPagesIndexRoute
   '/admin/pillars/': typeof AdminPillarsIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/resources/$contentType/': typeof ResourcesContentTypeIndexRoute
   '/admin/content-types/$id/edit': typeof AdminContentTypesIdEditRoute
+  '/admin/offers/$id/edit': typeof AdminOffersIdEditRoute
   '/admin/pages/$id/edit': typeof AdminPagesIdEditRoute
   '/admin/pillars/$id/edit': typeof AdminPillarsIdEditRoute
   '/admin/posts/$id/edit': typeof AdminPostsIdEditRoute
@@ -449,6 +503,7 @@ export interface FileRouteTypes {
     | '/llms-full.txt'
     | '/llms.txt'
     | '/news'
+    | '/offer-access'
     | '/resources'
     | '/rss.xml'
     | '/sitemap'
@@ -470,21 +525,26 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
+    | '/offers/$slug'
     | '/resources/$contentType'
     | '/admin/'
     | '/blog/'
     | '/news/'
     | '/resources/'
     | '/admin/content-types/new'
+    | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types/'
+    | '/admin/offers/'
     | '/admin/pages/'
     | '/admin/pillars/'
     | '/admin/posts/'
     | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
+    | '/admin/offers/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
@@ -495,6 +555,7 @@ export interface FileRouteTypes {
     | '/'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/offer-access'
     | '/rss.xml'
     | '/sitemap'
     | '/sitemap.xml'
@@ -515,20 +576,25 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
+    | '/offers/$slug'
     | '/admin'
     | '/blog'
     | '/news'
     | '/resources'
     | '/admin/content-types/new'
+    | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types'
+    | '/admin/offers'
     | '/admin/pages'
     | '/admin/pillars'
     | '/admin/posts'
     | '/resources/$contentType'
     | '/admin/content-types/$id/edit'
+    | '/admin/offers/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
@@ -542,6 +608,7 @@ export interface FileRouteTypes {
     | '/llms-full.txt'
     | '/llms.txt'
     | '/news'
+    | '/offer-access'
     | '/resources'
     | '/rss.xml'
     | '/sitemap'
@@ -563,21 +630,26 @@ export interface FileRouteTypes {
     | '/newsletter/confirmed'
     | '/newsletter/invalid'
     | '/newsletter/unsubscribed'
+    | '/offers/$slug'
     | '/resources/$contentType'
     | '/admin/'
     | '/blog/'
     | '/news/'
     | '/resources/'
     | '/admin/content-types/new'
+    | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types/'
+    | '/admin/offers/'
     | '/admin/pages/'
     | '/admin/pillars/'
     | '/admin/posts/'
     | '/resources/$contentType/'
     | '/admin/content-types/$id/edit'
+    | '/admin/offers/$id/edit'
     | '/admin/pages/$id/edit'
     | '/admin/pillars/$id/edit'
     | '/admin/posts/$id/edit'
@@ -592,6 +664,7 @@ export interface RootRouteChildren {
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   NewsRoute: typeof NewsRouteWithChildren
+  OfferAccessRoute: typeof OfferAccessRoute
   ResourcesRoute: typeof ResourcesRouteWithChildren
   RssDotxmlRoute: typeof RssDotxmlRoute
   SitemapRoute: typeof SitemapRoute
@@ -601,6 +674,8 @@ export interface RootRouteChildren {
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
+  OffersSlugRoute: typeof OffersSlugRoute
+  OffersPreviewIdRoute: typeof OffersPreviewIdRoute
   ApiPublicNewsletterConfirmRoute: typeof ApiPublicNewsletterConfirmRoute
   ApiPublicNewsletterUnsubscribeRoute: typeof ApiPublicNewsletterUnsubscribeRoute
 }
@@ -647,6 +722,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offer-access': {
+      id: '/offer-access'
+      path: '/offer-access'
+      fullPath: '/offer-access'
+      preLoaderRoute: typeof OfferAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resources': {
@@ -817,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsletterUnsubscribedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/offers/$slug': {
+      id: '/offers/$slug'
+      path: '/offers/$slug'
+      fullPath: '/offers/$slug'
+      preLoaderRoute: typeof OffersSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resources/': {
       id: '/resources/'
       path: '/'
@@ -843,6 +932,20 @@ declare module '@tanstack/react-router' {
       path: '/content-types/new'
       fullPath: '/admin/content-types/new'
       preLoaderRoute: typeof AdminContentTypesNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/offers/': {
+      id: '/admin/offers/'
+      path: '/offers'
+      fullPath: '/admin/offers/'
+      preLoaderRoute: typeof AdminOffersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/offers/new': {
+      id: '/admin/offers/new'
+      path: '/offers/new'
+      fullPath: '/admin/offers/new'
+      preLoaderRoute: typeof AdminOffersNewRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/pages/': {
@@ -880,6 +983,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPostsNewRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/offers/preview/$id': {
+      id: '/offers/preview/$id'
+      path: '/offers/preview/$id'
+      fullPath: '/offers/preview/$id'
+      preLoaderRoute: typeof OffersPreviewIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resources/$contentType/': {
       id: '/resources/$contentType/'
       path: '/'
@@ -899,6 +1009,13 @@ declare module '@tanstack/react-router' {
       path: '/content-types/$id/edit'
       fullPath: '/admin/content-types/$id/edit'
       preLoaderRoute: typeof AdminContentTypesIdEditRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/offers/$id/edit': {
+      id: '/admin/offers/$id/edit'
+      path: '/offers/$id/edit'
+      fullPath: '/admin/offers/$id/edit'
+      preLoaderRoute: typeof AdminOffersIdEditRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/pages/$id/edit': {
@@ -952,13 +1069,16 @@ interface AdminRouteChildren {
   AdminWidgetsRoute: typeof AdminWidgetsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminContentTypesNewRoute: typeof AdminContentTypesNewRoute
+  AdminOffersNewRoute: typeof AdminOffersNewRoute
   AdminPillarsNewRoute: typeof AdminPillarsNewRoute
   AdminPostsNewRoute: typeof AdminPostsNewRoute
   AdminContentTypesIndexRoute: typeof AdminContentTypesIndexRoute
+  AdminOffersIndexRoute: typeof AdminOffersIndexRoute
   AdminPagesIndexRoute: typeof AdminPagesIndexRoute
   AdminPillarsIndexRoute: typeof AdminPillarsIndexRoute
   AdminPostsIndexRoute: typeof AdminPostsIndexRoute
   AdminContentTypesIdEditRoute: typeof AdminContentTypesIdEditRoute
+  AdminOffersIdEditRoute: typeof AdminOffersIdEditRoute
   AdminPagesIdEditRoute: typeof AdminPagesIdEditRoute
   AdminPillarsIdEditRoute: typeof AdminPillarsIdEditRoute
   AdminPostsIdEditRoute: typeof AdminPostsIdEditRoute
@@ -977,13 +1097,16 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminWidgetsRoute: AdminWidgetsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminContentTypesNewRoute: AdminContentTypesNewRoute,
+  AdminOffersNewRoute: AdminOffersNewRoute,
   AdminPillarsNewRoute: AdminPillarsNewRoute,
   AdminPostsNewRoute: AdminPostsNewRoute,
   AdminContentTypesIndexRoute: AdminContentTypesIndexRoute,
+  AdminOffersIndexRoute: AdminOffersIndexRoute,
   AdminPagesIndexRoute: AdminPagesIndexRoute,
   AdminPillarsIndexRoute: AdminPillarsIndexRoute,
   AdminPostsIndexRoute: AdminPostsIndexRoute,
   AdminContentTypesIdEditRoute: AdminContentTypesIdEditRoute,
+  AdminOffersIdEditRoute: AdminOffersIdEditRoute,
   AdminPagesIdEditRoute: AdminPagesIdEditRoute,
   AdminPillarsIdEditRoute: AdminPillarsIdEditRoute,
   AdminPostsIdEditRoute: AdminPostsIdEditRoute,
@@ -1049,6 +1172,7 @@ const rootRouteChildren: RootRouteChildren = {
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   NewsRoute: NewsRouteWithChildren,
+  OfferAccessRoute: OfferAccessRoute,
   ResourcesRoute: ResourcesRouteWithChildren,
   RssDotxmlRoute: RssDotxmlRoute,
   SitemapRoute: SitemapRoute,
@@ -1058,6 +1182,8 @@ const rootRouteChildren: RootRouteChildren = {
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
+  OffersSlugRoute: OffersSlugRoute,
+  OffersPreviewIdRoute: OffersPreviewIdRoute,
   ApiPublicNewsletterConfirmRoute: ApiPublicNewsletterConfirmRoute,
   ApiPublicNewsletterUnsubscribeRoute: ApiPublicNewsletterUnsubscribeRoute,
 }

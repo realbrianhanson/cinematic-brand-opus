@@ -34,6 +34,7 @@ const groups = [
   {
     label: "Growth",
     items: [
+      { to: "/admin/offers", label: "Offers & funnels" },
       { to: "/admin/pseo-dashboard", label: "Performance" },
       { to: "/admin/niches", label: "Audiences & niches" },
     ],

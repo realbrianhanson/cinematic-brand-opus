@@ -48,6 +48,85 @@ assert.equal(
   "Existing Owner",
 );
 await populated.close();
+
+// Schemas without the optional commerce/storage tables are covered above. Each
+// inherited commerce surface independently refuses setup and preserves its data.
+const commerceFixture = `
+create table offers(id uuid);
+create table offer_orders(id uuid);
+create table offer_stripe_events(event_id text);
+create schema storage;
+create table storage.objects(bucket_id text,name text);`;
+for (const [label, seed, count] of [
+  [
+    "offers",
+    "insert into offers values(gen_random_uuid())",
+    "select count(*)::int n from offers",
+  ],
+  [
+    "offer_orders",
+    "insert into offer_orders values(gen_random_uuid())",
+    "select count(*)::int n from offer_orders",
+  ],
+  [
+    "offer_stripe_events",
+    "insert into offer_stripe_events values('evt_inherited')",
+    "select count(*)::int n from offer_stripe_events",
+  ],
+  [
+    "offer-files",
+    "insert into storage.objects values('offer-files','private-guide.pdf')",
+    "select count(*)::int n from storage.objects where bucket_id='offer-files'",
+  ],
+]) {
+  const inherited = new PGlite();
+  await inherited.exec(fixture + commerceFixture);
+  await inherited.exec(seed);
+  await assert.rejects(
+    inherited.exec(sql),
+    new RegExp(`Refusing bootstrap: ${label}`),
+  );
+  await inherited.exec("rollback");
+  assert.equal((await inherited.query(count)).rows[0].n, 1);
+  assert.equal(
+    (await inherited.query("select count(*)::int n from site_settings")).rows[0]
+      .n,
+    0,
+    "refusal does not initialize settings over inherited commerce data",
+  );
+  await inherited.close();
+}
+
+const cleanCommerce = new PGlite();
+await cleanCommerce.exec(fixture + commerceFixture);
+await cleanCommerce.exec(
+  "insert into storage.objects values('blog-images','public-cover.jpg')",
+);
+await cleanCommerce.exec(sql);
+assert.equal(
+  (await cleanCommerce.query("select count(*)::int n from site_settings"))
+    .rows[0].n,
+  1,
+  "empty commerce tables and unrelated public images do not block setup",
+);
+await cleanCommerce.exec(
+  "insert into storage.objects values('offer-files','inherited-guide.pdf')",
+);
+await assert.rejects(
+  cleanCommerce.exec(sql),
+  /Refusing bootstrap: offer-files/,
+  "an inherited bootstrap marker must not bypass the private-file guard",
+);
+await cleanCommerce.exec("rollback");
+assert.equal(
+  (
+    await cleanCommerce.query(
+      "select count(*)::int n from storage.objects where bucket_id='offer-files'",
+    )
+  ).rows[0].n,
+  1,
+);
+await cleanCommerce.close();
 console.log(
-  "PASS: empty member bootstrap, automation off, no subscribers, idempotent rerun, populated-owner refusal",
+  "PASS: empty member bootstrap, automation off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file refusal, preserved inherited data, and pre-commerce schema compatibility",
 );
