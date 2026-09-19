@@ -29,3 +29,16 @@ This artifact is specific to Brian's installation. Do not replay it against memb
 Regression tests cover title selection, source retrieval failure/deduplication, optional article formatting, visual rotation, and rejecting unreviewed images. Frontend and Deno type checks, all application tests, database suites, lint, and production build are run before release. The pilot uses manually authored content and diagrams; live paid generation and real email delivery are not QA steps.
 
 Use the September 14 Search Console import (August 17–September 13: 298 impressions, 2 clicks in imported rows) as a limited baseline. Track each URL's impressions, clicks, engagement, and qualified next-step actions over comparable periods; do not claim causation from this small sample. No automated monitoring was created.
+
+## Production release evidence
+
+- Implementation pushed as `897dca420943bce48c0e74a649b56cc862e92597`; GitHub CI run `35423372553` passed.
+- Migration `20260919095000_editorial_metadata` applied and recorded before publication.
+- Frontend deployment `937aa087-8320-479a-8174-ae9e351949d8` verified through the live custom domain's deployment header and image responses.
+- Deployment-only Lovable operation successfully deployed all 34 names in its actual function deployment call. Its prose incorrectly counted 35. No runtime generation or email was invoked for QA. Cost reported: 0.9 Lovable credits. All 15 pre-existing queue items remained paused.
+- The guarded ten-row pilot transaction was applied after image assets became available. Readback matched each reviewed title, body, excerpt, cover/alt, search title/description, and social image. Published states, URLs, and original publication dates were preserved.
+- All ten live article URLs returned HTTP 200 with server-rendered article content and the exact reviewed search titles. All 20 cover/social image URLs returned successful image responses.
+- Validation: 176 application tests; seven isolated database suites; frontend type checking; all 34 backend entrypoint type checks; lint (zero errors, existing warnings remain); formatting; production build.
+- The deployment platform regenerated the Supabase types despite the deployment-only request. Inspection found only formatting and property-order changes; repository formatting was restored before the final documentation commit.
+
+The new model orchestration and image review paths were regression-tested with mocks. Their deployment is confirmed, but no paid end-to-end generation was run as a release test. Ranking improvement cannot yet be measured from this release.
