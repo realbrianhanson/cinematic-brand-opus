@@ -104,6 +104,9 @@ database aligned".
 **Admin**
 
 - Article, page and media management, live pipeline queue, performance dashboard
+- Offers & funnels: free lead magnets, private downloads, one-time paid offers,
+  and explicit timed follow-ups. Build everything before connecting Stripe.
+  See [Offers setup](./docs/OFFERS_SETUP.md) for delivery and payment activation.
 
 ---
 
