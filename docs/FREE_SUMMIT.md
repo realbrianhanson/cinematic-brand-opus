@@ -38,3 +38,13 @@ the legacy event domain. They must not attach Brian's summit language to an
 unrelated member offer or a different event path. Preserve `_go=brian60` when
 adding UTM parameters. Deploy every edge function importing the shared
 `eventLink.ts` helper after changing that helper.
+
+## Existing article links
+
+The owner-only repair in `scripts/maintenance/20260919-free-summit-links.sql`
+updated 306 legacy event links across 235 posts (230 published, 5 drafts).
+No affected URL had existing query parameters. Only the link destinations
+changed; article wording, slugs, excerpts, publication dates, and statuses were
+preserved. All 235 before-images were verified in the existing revision system
+before the transaction committed. The strict guards prevent this repair from
+running on a member site or silently running again.
