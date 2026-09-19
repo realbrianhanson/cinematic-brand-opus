@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { configFromMatches } from "@/config/runtime";
 import { absoluteUrl, pageTitle } from "@/config/site";
 import { buildPageHead, breadcrumbJsonLd, compactJsonLd } from "@/lib/seoHead";
@@ -9,6 +9,11 @@ import PublicRouteError from "@/components/PublicRouteError";
 
 export const Route = createFileRoute("/shop")({
   validateSearch: shopFilters,
+  search: {
+    middlewares: [
+      stripSearchParams({ q: "", category: "all", price: "all", page: 1 }),
+    ],
+  },
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getShopCatalog({ data: { ...deps } }),
   head: ({ loaderData, matches, match }) => {
