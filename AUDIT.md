@@ -297,3 +297,13 @@ Evidence: `/tmp/conversion-admin-qa-report.json`,
 `/tmp/conversion-public-qa-report.json`, `/tmp/nextlevel-public-qa-report.json`,
 `/tmp/conversion-final-ci.log`. This documentation commit does not change the
 published runtime above.
+
+## September 20 Shop artwork release
+
+Created three original black-and-gold product illustrations for the App Building Workshop, PushTen templates, and AI Follow-Up Starter Kit. Saved editable-resolution PNG masters and optimized 1600 × 900 WebP covers (each below 90 KB). Shop/home cards preserve the complete image; landing-page artwork sits directly after the title and introduction. Member artwork and no-cover fallbacks remain configurable through the existing cover URL field.
+
+Runtime commit: `b81ada89cc125aaa4c60c304011115231d3ec6be`. [GitHub verification 35489096007](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35489096007) passed. Lovable deployment: `d91849a7-28ee-4f8a-b503-44b622c21069`, confirmed from the custom-domain deployment header. All three public WebP files returned HTTP 200 with byte-for-byte SHA-256 matches before the owner-only cover transaction was applied. All non-cover offer fields matched their baseline hashes; only the standard update timestamp also changed.
+
+Validation: 36 targeted render/journey tests, typecheck, production build, formatting, full CI, independent code/TypeScript review, guarded SQL review with isolated atomicity/idempotence cases, and independent Shop screenshot review. Live checks passed on Shop, homepage, and three offer pages at 1440/390/320 widths: images loaded, no clipping or overflow, no page errors, one hero per offer, correct social preview images, working free filter/card navigation, preserved external destinations and free form. No test customers, claims, orders, emails, or conversion events were created.
+
+Source artwork, full generation prompts, replacement instructions, and release details: [docs/SHOP_ARTWORK.md](docs/SHOP_ARTWORK.md). Original hero video and the paused Lovable prompt queue were untouched.

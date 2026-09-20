@@ -1,6 +1,6 @@
 # Shop artwork
 
-Generated September 20, 2026 using the built-in image generation tool. These are promotional illustrations, not screenshots of the products. Each offer has one coordinated 16:9 cover shared across Shop cards, homepage previews, related offers, landing pages, and social previews.
+Generated September 20, 2026 using the built-in image generation tool. These are promotional illustrations, not screenshots of the products. Each offer has one coordinated 16:9 cover shared across Shop cards, homepage previews, landing pages, and social previews.
 
 ## Files and editing
 
@@ -33,3 +33,11 @@ Create a finished premium editorial product cover for Brian Hanson's black-and-g
 ### ai-follow-up-starter-kit
 
 Create a finished premium editorial product cover for Brian Hanson's black-and-gold personal-brand website. Landscape 16:9 composition, approximately 1536x864 or larger. Art-directed, restrained and sophisticated: near-black ink background #08090e, luminous champagne/brushed-gold #d4af55, tactile charcoal materials, crisp elegant typography, studio-quality three-dimensional light and deep shadows. This is promotional illustration, not a screenshot of the actual product. No people, robots, faces, dollar signs, income charts, fake testimonials, guarantees, stock photos, watermark, badges, extra logos, or unrequested text. Keep every important element and all text comfortably inside the central 80% of the image, with ample edge breathing room. At small card size the main motif and title must still read clearly. High craftsmanship, intentional composition, no clutter, no generic AI glow. Specific cover: AI Follow-Up Starter Kit. Elegant editorial still life, distinct from a computer scene. A beautifully designed thin seven-page ivory digital-guide/worksheet mockup with charcoal cover and gold page details, a single translucent message-shaped card, and a precise gold checkmark composed on a matte near-black tabletop with a long graceful diagonal light. Show a few layered paper sheets with clean abstract ruled sections, no microtext, not a giant book or software box. Art conveys turning rough notes into a clear message and a checked next step; no envelope subscription icon clichés, no pens or extra objects. Subtle warm ivory and muted teal reflections distinguish it from other courses. On left side set large exceptionally elegant ivory serif title in three balanced lines exactly 'AI FOLLOW-UP' / 'STARTER KIT'. Small gold upper-left text exactly 'BRIAN HANSON'. Small clean lower line 'PROMPTS · WORKSHEET · CHECKLIST'. Place the thin guide illustration on right, title entirely separate from the product cover which has only a minimal gold line graphic. Accurate text, intentional whitespace, premium useful resource.
+
+## Verified release
+
+Published runtime commit `b81ada89cc125aaa4c60c304011115231d3ec6be`, deployment `d91849a7-28ee-4f8a-b503-44b622c21069`. [Full GitHub verification passed](https://github.com/realbrianhanson/cinematic-brand-opus/actions/runs/35489096007).
+
+All three live image URLs returned HTTP 200 with `image/webp` and SHA-256 hashes matching the local optimized files. Image sizes: Workshop 73,380 bytes, PushTen 89,244 bytes, Starter Kit 86,508 bytes. The guarded transaction assigned the three covers after asset publication. Before/after record hashes confirmed every other offer field was unchanged except the existing automatic update timestamp.
+
+Live browser checks passed for the Shop, homepage, and all three landing pages at 1440px, 390px, and 320px widths. Each image decoded at 1600 × 900; no horizontal overflow or page errors. Landing pages have exactly one hero cover and correct Open Graph/Twitter images. The free filter and card navigation work; external destinations and the free-download form remain present. No forms were submitted and no tracking writes were issued. The compact related-offer links retain their existing text layout.
