@@ -1,45 +1,42 @@
 # Homepage testimonials
 
-Brian supplied a folder of 23 testimonial documents on September 19, 2026.
-These documents compile comments from AI For Business summit transcripts and
-chats; they are the supplied source, not independently checked raw recordings.
-All 23 documents were reviewed for this selection.
+On September 20, 2026, all 26 documents currently in Brian's supplied testimonial folder were reviewed again against his request for the strongest, most enthusiastic Brian-focused endorsements. The original selection had reviewed 23 documents. These documents compile attendee comments from AI For Business summit transcripts and chats; they are the supplied source, not independently checked raw recordings. Lynn Hutchison's PushTen testimonial was supplied separately by Brian in this conversation.
 
-The six homepage quotes emphasize understanding the tools, Brian's teaching,
-practical demonstrations, and continued learning. None mentions Francis.
-They appear beside the training section, not as hired-client endorsements of
-keynote speaking or reviews of individual Shop products. No star ratings,
-job titles, company names, headshots, or financial results have been invented.
+## Selection standard
 
-## Selected sources
+Prioritize concrete evidence of Brian's ability, clear enthusiasm, an identifiable benefit or change in behavior, and direct Brian attribution. Preserve actual words and the context of the event or product. Short general praise is less useful than a specific statement of why the experience mattered. Joint praise must not be edited to remove another instructor.
 
-| Attribution      | Supplied document                                                  | Source context                                          | Treatment                                                                           |
-| ---------------- | ------------------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Robin Leal       | January 21, 2026 (Day 1 of Summit Event) - Testimonials for Brian  | Teaching Skills / Presentation Style; category Teaching | Complete quote, original wording                                                    |
-| James Linton     | April 17-19 Testimonials for Brian.docx                            | April 17; Teaching / Skills / Presentation Style        | Complete quote, including original ellipses                                         |
-| Steve Cunningham | January 21, 2026 (Day 1 of Summit Event) - Testimonials for Brian  | PRO Membership; category PRO/Revven                     | Complete quote; describes an app Brian built, not a promised customer result        |
-| Lynda Menge      | July 22-24, 2026                                                   | Day 2; Teaching Skills / Training Ability               | Complete quote, original wording                                                    |
-| lisa bond        | April 17-19 Testimonials for Brian.docx                            | April 19; Teaching / Skills / Presentation Style        | Last two complete sentences, verbatim; original lowercase attribution retained      |
-| Wendy Kazi       | February 19, 2026 (Day 1 of Summit Event) - Testimonials for Brian | Summit - teaching skills                                | Complete quote; attributed to an event attendee, not exclusively to Brian's session |
+The featured three are Steve Cunningham (a concrete app-building example), E B Soloway (enthusiastic praise of Brian's knowledge), and the full lisa bond quote (a Brian-attributed change in mindset and working approach). Lynn, Marla, and Patricia appear in the accessible additional-quotes section.
 
-Lisa's full supplied quote is: “I have Brian's mindset now - I use to think I
-wanted to create everything from scratch. Nah - technology is moving so fast.
-I am the queen of leverage, modify, accentuate, customized. No longer want to
-reinvent the wheel. I am able to move faster and still put my spin on things
-and it is curated.” The homepage uses its last two sentences without changing
-their meaning. No instructor's name was removed from a quoted sentence.
+No selected quote mentions Francis. No ratings, titles, companies, headshots, or financial outcomes are invented. Summit feedback remains labeled as summit feedback; only Lynn's quote specifically endorses the PushTen seminar/program.
 
-The Drive originals remain unchanged. Private source URLs and the unselected
-transcripts are not included in browser configuration or public page markup.
+## Selected sources and treatment
+
+| Attribution       | Supplied source                                                   | Context and treatment                                                                                                                                                             |
+| ----------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Steve Cunningham  | January 21, 2026 (Day 1 of Summit Event) - Testimonials for Brian | Full exact quote. Describes an app Brian built; the 30-minute comment is the attendee's specific experience, not a delivery promise. Lead position.                               |
+| E B Soloway       | May 13-15, 2026                                                   | May 15 teaching/training feedback. Full exact quote, Brian alone.                                                                                                                 |
+| lisa bond         | April 17-19 Testimonials for Brian.docx                           | April 19 teaching/mindset feedback. Restored the complete exact quote, including the Brian-focused opening. Original lowercase attribution retained.                              |
+| Lynn Hutchison    | Supplied by Brian in this conversation                            | Contiguous first three sentences, clearly labeled “PushTen seminar participant · Excerpt.” Full exact testimonial remains on the PushTen offer page and in OFFER_TESTIMONIALS.md. |
+| Marla Ray         | July 22-24, 2026                                                  | Day 1. Full exact quote. Label is summit attendee because “join” does not establish which product her invitees joined or whether they purchased.                                  |
+| Patricia Pisterzi | January 21, 2026 (Day 1 of Summit Event) - Testimonials for Brian | Full exact quote about the AI For Business Summit and her intent to join PRO. Not presented as a PushTen customer result or solely Brian's session.                               |
+
+The section introduction now covers live training, events, and PushTen, matching its actual mix of sources.
+
+## Changes from the original selection
+
+- Steve moves into the main featured position.
+- Lisa's earlier two-sentence excerpt omitted her explicit credit to Brian and the mindset change. The full source quote restores both.
+- Robin Leal, James Linton, and Lynda Menge are positive but comparatively modest: knowing where to start, becoming acquainted with tools, or learning something new. They lose prominence under the user's stronger selection standard.
+- Wendy Kazi remains a good reserve quote about the summit exceeding expectations. The current six provide more direct Brian praise, explicit PushTen feedback, referral behavior, and a skeptic-to-enthusiast story.
+- Rosalina Bird offers a useful building breakthrough, but her source wording is less clear and also references PRO. It was not silently rewritten.
+- Heshie Segal's “raving fan” statement explicitly names both Brian and Francis. It was not edited to imply Brian alone.
+- Praise made immediately after a product pitch was not treated as evidence of product use. Compiler summaries, questions, host statements, and sympathy messages were excluded.
+
+The Drive originals remain unchanged. Private source URLs and the full unselected compilations are not included in browser configuration or public page markup.
 
 ## Updating the section
 
-Edit `homepageTestimonials` in `src/config/presets/brian.ts`. Each item contains
-`quote`, `attribution`, and an optional `context` label. Preserve the speaker's
-words and meaning; add source context here when changing the selection.
+Edit `homepageTestimonials` in `src/config/presets/brian.ts`. Each item contains `quote`, `attribution`, and an optional `context` label. Preserve the speaker's words and meaning; add source context here when changing the selection.
 
-The section renders only when the active preset supplies at least one item.
-PushTen members start without these testimonials and should add their own
-accurately attributed feedback to their own preset. Omit the block or use an
-empty `items` array to hide it. This section is configured in the preset; it
-does not add a testimonial editor to the admin panel.
+The section renders only when the active preset supplies at least one item. PushTen members start without these testimonials and should add their own accurately attributed feedback. Omit the block or use an empty `items` array to hide it. Homepage testimonials remain preset-configured; the separate offer testimonial uses the existing Admin offer-description editor.

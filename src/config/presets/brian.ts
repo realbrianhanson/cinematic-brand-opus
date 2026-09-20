@@ -133,20 +133,8 @@ export const brianPreset: SiteConfig = {
     overline: "From the Community",
     heading: "Less overwhelm. More “I can do this.”",
     intro:
-      "Feedback from AI For Business training and events, in attendees' own words.",
+      "Feedback from live training, events, and PushTen, in participants' own words.",
     items: [
-      {
-        quote:
-          "This training has been awesome. I did not know much about AI and I now feel like I at least know where to start. Awesome... Brian!",
-        attribution: "Robin Leal",
-        context: "Summit attendee · January 2026",
-      },
-      {
-        quote:
-          "Your intro to the tools is great Brian… it is so helpful to have the voice over and quick suggestions and examples for possible uses makes them so much more easy to get acquainted with them…",
-        attribution: "James Linton",
-        context: "Summit attendee · April 2026",
-      },
       {
         quote:
           "@BrianHanson built me an Accountability App for Network Marketers that was Absolutely Brilliant... in about 30 mins!",
@@ -155,21 +143,33 @@ export const brianPreset: SiteConfig = {
       },
       {
         quote:
-          "I have been working with Claude over a year and I learn something new this morning. Thanks, Brian!",
-        attribution: "Lynda Menge",
-        context: "Summit attendee · July 2026",
+          "Brian is just giving out GOLD! To me, the tips he's giving has taken a long time to gather. If you are on the fence, talk to him.",
+        attribution: "E B Soloway",
+        context: "Training feedback · May 2026",
       },
       {
         quote:
-          "No longer want to reinvent the wheel. I am able to move faster and still put my spin on things and it is curated.",
+          "I have Brian's mindset now - I use to think I wanted to create everything from scratch. Nah - technology is moving so fast. I am the queen of leverage, modify, accentuate, customized. No longer want to reinvent the wheel. I am able to move faster and still put my spin on things and it is curated.",
         attribution: "lisa bond",
         context: "Summit attendee · April 2026",
       },
       {
         quote:
-          "Today's content was beyond my expectations. Fantastic details I haven't gotten in any other presentation.",
-        attribution: "Wendy Kazi",
-        context: "Summit attendee · February 2026",
+          "Brian's 2-day PushTen seminar was phenomenal. He covers from A-Z all of the steps of what to do to build your AI business using tools like Lovable, GoHighLevel, Claude, and many other AI tools and knowledge to successfully build your apps and take your ideas and businesses to market. I highly recommend it to anyone, both beginners and advanced, to the PushTen 2-day seminar program and to the PushTen program too.",
+        attribution: "Lynn Hutchison",
+        context: "PushTen seminar participant · Excerpt",
+      },
+      {
+        quote:
+          "This was amazing Brian!!! Thank you! Already invited three people to join!",
+        attribution: "Marla Ray",
+        context: "Summit attendee · July 2026",
+      },
+      {
+        quote:
+          "I almost scrolled right past this ad… I was so skeptical about the AI for Business Summit. But I signed up last minute anyway—and WOW. Mind blown. Practical, clear, and actually useful. Let's just say… I'm now signing up for Pro.",
+        attribution: "Patricia Pisterzi",
+        context: "Summit attendee · January 2026",
       },
     ],
   },
