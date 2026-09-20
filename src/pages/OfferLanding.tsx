@@ -58,6 +58,17 @@ function OfferIntro({ offer }: { offer: PublicOffer }) {
       <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
         {offer.summary}
       </p>
+      {offer.cover_url && (
+        <img
+          src={offer.cover_url}
+          alt={offer.title}
+          width={1600}
+          height={900}
+          loading="eager"
+          decoding="async"
+          className="mt-8 h-auto max-h-[480px] w-full rounded-xl border border-white/15 bg-white/[0.025] object-contain"
+        />
+      )}
     </header>
   );
 }
@@ -68,13 +79,6 @@ function OfferDetails({ offer }: { offer: PublicOffer }) {
       aria-label="Offer details"
       className="min-w-0 break-words border-t border-white/15 pt-8 lg:col-start-1 lg:row-start-2"
     >
-      {offer.cover_url && (
-        <img
-          src={offer.cover_url}
-          alt={offer.title}
-          className="mb-8 w-full max-h-[480px] object-contain rounded-lg border border-white/10"
-        />
-      )}
       <div className="space-y-5 text-base leading-relaxed text-white/75">
         {offerBodyBlocks(offer.body).map((block, i) =>
           block.type === "heading" ? (

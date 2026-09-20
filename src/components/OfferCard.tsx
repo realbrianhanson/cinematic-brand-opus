@@ -29,7 +29,7 @@ export default function OfferCard({
         className="flex h-full flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--brand-accent)]"
       >
         <div
-          className={`${offer.cover_url ? (compact ? "aspect-[16/9]" : "aspect-[16/9] sm:aspect-[16/8]") : ""} overflow-hidden border-b border-white/10`}
+          className={`${offer.cover_url ? "aspect-[16/9]" : ""} overflow-hidden border-b border-white/10`}
         >
           <OfferArtwork offer={offer} compact={compact} />
         </div>

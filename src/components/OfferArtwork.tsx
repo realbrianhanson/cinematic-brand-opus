@@ -26,9 +26,10 @@ export default function OfferArtwork({
         src={offer.cover_url}
         alt=""
         loading="lazy"
-        width={800}
-        height={500}
-        className="h-full w-full object-cover transition-transform duration-500 motion-reduce:transition-none group-hover:scale-[1.025]"
+        decoding="async"
+        width={1600}
+        height={900}
+        className="h-full w-full object-contain transition-opacity duration-300 motion-reduce:transition-none group-hover:opacity-95"
       />
     );
   return (
