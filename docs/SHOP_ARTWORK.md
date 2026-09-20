@@ -47,3 +47,5 @@ Live browser checks passed for the Shop, homepage, and all three landing pages a
 ## Supplied PushTen artwork update
 
 The guarded owner-only transaction is `scripts/maintenance/20260920-pushten-supplied-artwork.sql`. Publish and verify the new asset first. It accepts only the previous generated cover or an already assigned new cover for Brian’s exact PushTen offer; it aborts for unexpected covers, changed identity, or missing records. No frontend behavior, product copy, pricing, links, or member setup changes are needed.
+
+Published source commit `10e379d9b43605c409a60191650c2a24a7329a26`, Lovable deployment `b5b76bc5-4daa-4879-bb1d-ed5aeef7c2db`. The live asset returned HTTP 200 with a matching SHA-256 hash before the cover was assigned. Production readback confirmed only PushTen’s cover and its automatic update timestamp changed. Live Shop, homepage, and PushTen landing-page checks passed at 1440/390/320 pixels with no overflow or page errors; social images and the existing checkout destination were verified.
