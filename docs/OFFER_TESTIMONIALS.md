@@ -16,7 +16,7 @@ Prefix quote lines with `> `, use a bare `>` between quote paragraphs, and put t
 > — Participant Name
 ```
 
-The full quote is visible in the page HTML with semantic blockquote and attribution markup. HTML and Markdown links in the description remain plain text. No star rating, verification badge, portrait, or results claim is inferred from a testimonial.
+The full quote is visible in the page HTML with semantic blockquote and attribution markup. HTML and Markdown links in the description remain plain text. Standalone images outside quotes use the separate [offer image format](OFFER_IMAGES.md); image syntax inside a testimonial stays literal. No star rating, verification badge, portrait, or results claim is inferred from a testimonial.
 
 ## Lynn Hutchison’s PushTen testimonial
 

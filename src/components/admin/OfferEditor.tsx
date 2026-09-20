@@ -18,6 +18,7 @@ import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
 import QueryNotice from "./QueryNotice";
 import OfferShopSettings from "./OfferShopSettings";
 import OfferSharePanel from "./OfferSharePanel";
+import OfferImageInsert from "./OfferImageInsert";
 
 export default function OfferEditor({ id }: { id?: string }) {
   const [reset, setReset] = useState(0);
@@ -101,6 +102,7 @@ function OfferForm({
   const [notice, setNotice] = useState("");
   const [manualSlug, setManualSlug] = useState(!!initial);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const dirty = JSON.stringify(form) !== baseline.current;
   const external = form.checkoutMode === "external";
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
@@ -469,6 +471,7 @@ function OfferForm({
             <label className="block text-sm font-medium">
               Full description
               <textarea
+                ref={bodyRef}
                 rows={10}
                 maxLength={20000}
                 className="admin-input mt-2 w-full"
@@ -481,7 +484,9 @@ function OfferForm({
                 bullet. Explain who it is for, what is included, and the next
                 step. For a quote, start every line with &gt;, use a line with
                 only &gt; between paragraphs, and put the author in a final
-                paragraph as &gt; — Name. HTML is not rendered.
+                paragraph as &gt; — Name. Use Insert image to add an image at
+                your cursor, or put ![Image description](https://… "Caption") on
+                its own line. The caption is optional. HTML is not rendered.
                 <span className="mt-2 block whitespace-pre-line font-mono text-xs">
                   {
                     "> First quote paragraph.\n>\n> Second quote paragraph.\n>\n> — Name"
@@ -489,6 +494,11 @@ function OfferForm({
                 </span>
               </span>
             </label>
+            <OfferImageInsert
+              body={form.body}
+              onChange={(body) => update("body", body)}
+              textareaRef={bodyRef}
+            />
             <label className="block text-sm font-medium">
               Cover image URL <span className="admin-help">(optional)</span>
               <input

@@ -100,6 +100,8 @@ export interface StoryConfig {
   /** Optional owner portrait; member presets never inherit another person's image. */
   portraitSrc?: string | null;
   portraitAlt?: string;
+  portraitWidth?: number;
+  portraitHeight?: number;
   /** Closing pull quote, or null to hide it. */
   pullQuote: string | null;
 }

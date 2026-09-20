@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { offerBodyBlocks } from "../offerBody";
+import { offerBodyBlocks, safeOfferImageUrl } from "../offerBody";
 import { adminOfferSearch } from "../adminOfferViews";
 
 describe("offer detail formatting", () => {
@@ -24,6 +24,89 @@ describe("offer detail formatting", () => {
   });
   it("does not manufacture content from whitespace", () => {
     expect(offerBodyBlocks("\n \r\n")).toEqual([]);
+  });
+  it("keeps standalone images, captions, quotes, lists, and prose in author order", () => {
+    expect(
+      offerBodyBlocks(
+        'Before\n![Workflow overview](https://example.com/overview.webp "The complete workflow.")\n## What is included\n- One\n  ![Detail view](https://example.com/detail.png)  \n> Every step stays visible.\n>\n> — Lynn Hutchison\n![Final result](https://example.com/result.jpg)\nAfter',
+      ),
+    ).toEqual([
+      { type: "paragraph", text: "Before" },
+      {
+        type: "image",
+        src: "https://example.com/overview.webp",
+        alt: "Workflow overview",
+        caption: "The complete workflow.",
+      },
+      { type: "heading", text: "What is included" },
+      { type: "list", items: ["One"] },
+      {
+        type: "image",
+        src: "https://example.com/detail.png",
+        alt: "Detail view",
+      },
+      {
+        type: "quote",
+        paragraphs: ["Every step stays visible."],
+        attribution: "Lynn Hutchison",
+      },
+      {
+        type: "image",
+        src: "https://example.com/result.jpg",
+        alt: "Final result",
+      },
+      { type: "paragraph", text: "After" },
+    ]);
+  });
+  it("preserves image-like text inside prose, lists, headings, and quotes", () => {
+    const image = '![Workflow](https://example.com/workflow.webp "Overview")';
+    expect(
+      offerBodyBlocks(
+        `Look at ${image} for context.\n## ${image}\n- ${image}\n> ${image}\n>\n> — Lynn Hutchison`,
+      ),
+    ).toEqual([
+      { type: "paragraph", text: `Look at ${image} for context.` },
+      { type: "heading", text: image },
+      { type: "list", items: [image] },
+      {
+        type: "quote",
+        paragraphs: [image],
+        attribution: "Lynn Hutchison",
+      },
+    ]);
+  });
+  it.each([
+    "![](https://example.com/image.webp)",
+    "![   ](https://example.com/image.webp)",
+    "![Overview](http://example.com/image.webp)",
+    "![Overview](javascript:alert(1))",
+    "![Overview](data:image/png;base64,AAAA)",
+    "![Overview](//example.com/image.webp)",
+    "![Overview](/image.webp)",
+    "![Overview](https:example.com/image.webp)",
+    "![Overview](https:///example.com/image.webp)",
+    "![Overview](https://name:secret@example.com/image.webp)",
+    "![Overview](https://example.com/image name.webp)",
+    "![Overview](https://example.com/image\\name.webp)",
+    '![Overview](https://example.com/image.webp "Unclosed caption)',
+    '![Overview](https://example.com/image.webp "Caption") trailing text',
+    "![Overview](https://example.com/image.webp",
+  ])("leaves invalid image syntax as literal text: %s", (body) => {
+    expect(offerBodyBlocks(body)).toEqual([{ type: "paragraph", text: body }]);
+  });
+  it("retains markup in image alt text and captions as literal strings", () => {
+    expect(
+      offerBodyBlocks(
+        '![<img src=x onerror=alert(1)>](https://example.com/image.webp "<script>alert(1)</script> & details")',
+      ),
+    ).toEqual([
+      {
+        type: "image",
+        src: "https://example.com/image.webp",
+        alt: "<img src=x onerror=alert(1)>",
+        caption: "<script>alert(1)</script> & details",
+      },
+    ]);
   });
   it("preserves quote paragraphs, line breaks, punctuation, and a separate final attribution", () => {
     expect(
@@ -94,6 +177,40 @@ describe("offer detail formatting", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("offer body image URLs", () => {
+  it("accepts an absolute HTTPS image URL without changing its query", () => {
+    const src =
+      "https://images.example.com/workflow%20overview.webp?width=1200&v=2";
+    expect(safeOfferImageUrl(src)).toBe(src);
+  });
+  it.each([
+    "",
+    "/image.webp",
+    "//example.com/image.webp",
+    "http://example.com/image.webp",
+    "https:example.com/image.webp",
+    "https:///example.com/image.webp",
+    "javascript:alert(1)",
+    "data:image/png;base64,AAAA",
+    "https://name:secret@example.com/image.webp",
+    "https://example.com/image name.webp",
+    " https://example.com/image.webp",
+    "https://example.com/image.webp ",
+    "https://example.com/image.webp\n",
+    "https://example.com/image\t.webp",
+    "https://example.com/image\u0000.webp",
+    "https://example.com/image\\name.webp",
+  ])("rejects unsafe or ambiguous image URL %j", (src) => {
+    expect(safeOfferImageUrl(src)).toBeNull();
+  });
+  it("accepts URLs up to 2048 characters and rejects longer ones", () => {
+    const prefix = "https://example.com/";
+    const longest = prefix + "x".repeat(2048 - prefix.length);
+    expect(safeOfferImageUrl(longest)).toBe(longest);
+    expect(safeOfferImageUrl(`${longest}x`)).toBeNull();
   });
 });
 

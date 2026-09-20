@@ -141,6 +141,144 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("offer editor save and upload safety", () => {
+  it.each(["native", "external"] as const)(
+    "inserts an image at the selection and saves it only on request for %s offers",
+    async (checkoutMode) => {
+      const initial = {
+        ...row,
+        checkout_mode: checkoutMode,
+        external_url:
+          checkoutMode === "external" ? "https://example.com/offer" : null,
+        body: "BeforeREPLACEAfter",
+        cover_url: "https://images.example.com/cover.webp",
+      };
+      mock.read.mockResolvedValue({ data: initial, error: null });
+      mock.update.mockImplementation(async (values) => ({
+        data: { ...initial, ...values, updated_at: "2026-09-19T00:01:00Z" },
+        error: null,
+      }));
+      mount(row.id);
+      const body = (await screen.findByLabelText(
+        /Full description/,
+      )) as HTMLTextAreaElement;
+      body.focus();
+      body.setSelectionRange(6, 13);
+      fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
+      fireEvent.change(screen.getByLabelText("Image URL"), {
+        target: { value: "https://images.example.com/detail.webp" },
+      });
+      fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
+        target: { value: "A clear process diagram" },
+      });
+      fireEvent.change(screen.getByLabelText("Image caption (optional)"), {
+        target: { value: "The process in three steps." },
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: "Add to description" }),
+      );
+      const expected =
+        'Before\n\n![A clear process diagram](https://images.example.com/detail.webp "The process in three steps.")\n\nAfter';
+      expect(body.value).toBe(expected);
+      expect(screen.queryByLabelText("Image URL")).toBeNull();
+      await waitFor(() => {
+        expect(document.activeElement).toBe(body);
+        expect(body.selectionStart).toBe(expected.indexOf("After"));
+        expect(body.selectionEnd).toBe(body.selectionStart);
+      });
+      expect(mock.update).not.toHaveBeenCalled();
+      expect(mock.insert).not.toHaveBeenCalled();
+      expect(mock.upload).not.toHaveBeenCalled();
+      expect(
+        (screen.getByLabelText(/Cover image URL/) as HTMLInputElement).value,
+      ).toBe(initial.cover_url);
+
+      fireEvent.submit(
+        screen.getByRole("button", { name: "Save offer" }).closest("form")!,
+      );
+      await screen.findByText("Offer saved.");
+      expect(mock.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expected,
+          cover_url: initial.cover_url,
+          checkout_mode: checkoutMode,
+        }),
+      );
+    },
+  );
+  it("rejects unsafe image fields and cancels without altering the description or saving", async () => {
+    mount();
+    const body = screen.getByLabelText(
+      /Full description/,
+    ) as HTMLTextAreaElement;
+    fireEvent.change(body, { target: { value: "Keep this text." } });
+    fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
+    fireEvent.change(screen.getByLabelText("Image URL"), {
+      target: { value: "https://user:secret@example.com/image.webp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "full HTTPS image URL",
+    );
+    fireEvent.change(screen.getByLabelText("Image URL"), {
+      target: { value: "https://images.example.com/detail.webp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Describe the image",
+    );
+    fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
+      target: { value: "A process diagram" },
+    });
+    fireEvent.change(screen.getByLabelText("Image caption (optional)"), {
+      target: { value: 'A "quoted" caption' },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "without double quotes",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel image" }));
+    expect(body.value).toBe("Keep this text.");
+    expect(screen.queryByLabelText("Image URL")).toBeNull();
+    expect(mock.insert).not.toHaveBeenCalled();
+    expect(mock.update).not.toHaveBeenCalled();
+  });
+  it("handles Enter in image fields without submitting the offer", async () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
+    fireEvent.change(screen.getByLabelText("Image URL"), {
+      target: { value: "https://images.example.com/detail.webp" },
+    });
+    const alt = screen.getByLabelText("Image description (alt text)");
+    fireEvent.change(alt, { target: { value: "A process diagram" } });
+    expect(fireEvent.keyDown(alt, { key: "Enter", code: "Enter" })).toBe(false);
+    expect(
+      (screen.getByLabelText(/Full description/) as HTMLTextAreaElement).value,
+    ).toBe("![A process diagram](https://images.example.com/detail.webp)\n\n");
+    expect(mock.insert).not.toHaveBeenCalled();
+    expect(mock.update).not.toHaveBeenCalled();
+  });
+  it("refuses image insertion beyond the description limit and keeps all existing text", () => {
+    mount();
+    const body = screen.getByLabelText(
+      /Full description/,
+    ) as HTMLTextAreaElement;
+    fireEvent.change(body, { target: { value: "a".repeat(20000) } });
+    body.setSelectionRange(20000, 20000);
+    fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
+    fireEvent.change(screen.getByLabelText("Image URL"), {
+      target: { value: "https://images.example.com/detail.webp" },
+    });
+    fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
+      target: { value: "A process diagram" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "exceed 20,000 characters",
+    );
+    expect(body.value).toBe("a".repeat(20000));
+    expect(mock.insert).not.toHaveBeenCalled();
+    expect(mock.update).not.toHaveBeenCalled();
+  });
   it("publishes an external affiliate listing with provider pricing and no native checkout requirements", async () => {
     mock.read.mockResolvedValue({ data: row, error: null });
     mock.update.mockImplementation(async (values) => ({

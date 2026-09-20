@@ -2,6 +2,7 @@ import { measurementForClaim } from "@/lib/measurement";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
+import OfferBodyImage from "@/components/OfferBodyImage";
 import { offerBodyBlocks } from "@/lib/offerBody";
 import type { ShopOffer } from "@/lib/shop";
 import RelatedOffers from "@/components/RelatedOffers";
@@ -99,6 +100,8 @@ function OfferDetails({ offer }: { offer: PublicOffer }) {
                 </li>
               ))}
             </ul>
+          ) : block.type === "image" ? (
+            <OfferBodyImage key={i} {...block} />
           ) : block.type === "quote" ? (
             <figure
               key={i}
@@ -134,6 +137,62 @@ function OfferDetails({ offer }: { offer: PublicOffer }) {
   );
 }
 
+function ExternalOfferAction({
+  offer,
+  destination,
+  preview,
+}: {
+  offer: PublicOffer;
+  destination: string | null;
+  preview: boolean;
+}) {
+  const buttonText = offer.external_button_text.trim() || "Visit website";
+  return (
+    <>
+      {preview ? (
+        <button
+          type="button"
+          disabled
+          className="mt-6 w-full rounded border border-white/25 px-4 py-4 font-bold text-sm opacity-50"
+        >
+          Preview only
+        </button>
+      ) : destination ? (
+        <a
+          href={destination}
+          data-conversion-destination="external_offer"
+          data-conversion-placement="offer"
+          data-conversion-offer-id={offer.id}
+          target="_blank"
+          rel={
+            offer.is_affiliate
+              ? "sponsored noopener noreferrer"
+              : "noopener noreferrer"
+          }
+          className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 text-center font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+          style={{
+            background: "var(--brand-accent)",
+            color: "var(--brand-backdrop)",
+          }}
+        >
+          <span className="min-w-0">{buttonText}</span>
+          <ArrowUpRight size={18} className="shrink-0" aria-hidden="true" />
+        </a>
+      ) : (
+        <p role="status" className="mt-6 text-sm leading-relaxed text-white/80">
+          This offer’s destination is not available right now. Please check back
+          soon.
+        </p>
+      )}
+      {destination && (
+        <p className="mt-3 text-xs leading-relaxed text-white/65">
+          Opens {new URL(destination).hostname} in a new tab.
+        </p>
+      )}
+    </>
+  );
+}
+
 function ExternalOfferLanding({
   offer,
   preview = false,
@@ -143,7 +202,6 @@ function ExternalOfferLanding({
     ? null
     : safeExternalOfferUrl(offer.external_url);
   const disclosure = affiliateDisclosure(offer);
-  const buttonText = offer.external_button_text.trim() || "Visit website";
   return (
     <OfferShell>
       {preview && (
@@ -174,51 +232,25 @@ function ExternalOfferLanding({
               {disclosure}
             </p>
           )}
-          {preview ? (
-            <button
-              type="button"
-              disabled
-              className="mt-6 w-full rounded border border-white/25 px-4 py-4 font-bold text-sm opacity-50"
-            >
-              Preview only
-            </button>
-          ) : destination ? (
-            <a
-              href={destination}
-              data-conversion-destination="external_offer"
-              data-conversion-placement="offer"
-              data-conversion-offer-id={offer.id}
-              target="_blank"
-              rel={
-                offer.is_affiliate
-                  ? "sponsored noopener noreferrer"
-                  : "noopener noreferrer"
-              }
-              className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 text-center font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-              style={{
-                background: "var(--brand-accent)",
-                color: "var(--brand-backdrop)",
-              }}
-            >
-              <span className="min-w-0">{buttonText}</span>
-              <ArrowUpRight size={18} className="shrink-0" aria-hidden="true" />
-            </a>
-          ) : (
-            <p
-              role="status"
-              className="mt-6 text-sm leading-relaxed text-white/80"
-            >
-              This offer’s destination is not available right now. Please check
-              back soon.
-            </p>
-          )}
-          {destination && (
-            <p className="mt-3 text-xs leading-relaxed text-white/65">
-              Opens {new URL(destination).hostname} in a new tab.
-            </p>
-          )}
+          <ExternalOfferAction
+            offer={offer}
+            destination={destination}
+            preview={preview}
+          />
         </aside>
         <OfferDetails offer={offer} />
+        <div className="min-w-0 break-words border-t border-white/15 pt-2 lg:col-start-1 lg:row-start-3">
+          {disclosure && (
+            <p className="text-sm leading-relaxed text-white/80 whitespace-pre-line">
+              {disclosure}
+            </p>
+          )}
+          <ExternalOfferAction
+            offer={offer}
+            destination={destination}
+            preview={preview}
+          />
+        </div>
       </div>
       {!preview && !offer.funnel_only && (
         <RelatedOffers offers={relatedOffers} />

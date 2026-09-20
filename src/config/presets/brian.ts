@@ -175,8 +175,10 @@ export const brianPreset: SiteConfig = {
   },
 
   story: {
-    portraitSrc: brianHeadshot,
-    portraitAlt: "Brian Hanson",
+    portraitSrc: "/portraits/brian-trail-clean-v1.webp",
+    portraitAlt: "Brian Hanson standing on a sunlit wooded trail",
+    portraitWidth: 960,
+    portraitHeight: 1280,
     overline: "The operator behind the advice",
     headingLead: "I build what",
     headingAccent: "I teach.",

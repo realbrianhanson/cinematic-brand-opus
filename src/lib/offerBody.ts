@@ -2,9 +2,34 @@ export type OfferBodyBlock =
   | { type: "heading"; text: string }
   | { type: "paragraph"; text: string }
   | { type: "list"; items: string[] }
+  | { type: "image"; src: string; alt: string; caption?: string }
   | { type: "quote"; paragraphs: string[]; attribution?: string };
 
-/** A small plain-text format: no HTML or arbitrary Markdown links are interpreted. */
+/** Pure validation shared by the narrow body format and the admin insert helper. */
+export function safeOfferImageUrl(raw: string): string | null {
+  if (
+    !raw ||
+    raw.length > 2048 ||
+    !/^https:\/\/[^/?#]+/i.test(raw) ||
+    /[\s\p{Cc}\\]/u.test(raw)
+  )
+    return null;
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      !url.hostname ||
+      url.username ||
+      url.password
+    )
+      return null;
+    return url.href.length <= 2048 ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A small text format: no HTML or arbitrary Markdown links are interpreted. */
 export function offerBodyBlocks(body: string): OfferBodyBlock[] {
   const blocks: OfferBodyBlock[] = [];
   let paragraph: string[] = [];
@@ -56,6 +81,22 @@ export function offerBodyBlocks(body: string): OfferBodyBlock[] {
     if (!line.trim()) {
       flushParagraph();
       flushList();
+      continue;
+    }
+    const image =
+      /^!\[([^\u005b\u005d\p{Cc}]+)\]\(([^()\s"\\]+)(?:[ \t]+"([^"\p{Cc}]*)")?\)$/u.exec(
+        line.trim(),
+      );
+    const src = image ? safeOfferImageUrl(image[2]) : null;
+    if (image && image[1].trim() && src) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        type: "image",
+        src,
+        alt: image[1].trim(),
+        ...(image[3]?.trim() ? { caption: image[3].trim() } : {}),
+      });
       continue;
     }
     const heading = /^##\s+(.+)$/.exec(line.trim());

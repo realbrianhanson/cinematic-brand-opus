@@ -10,23 +10,20 @@ export default function Story() {
       <div className="mx-auto grid max-w-[1440px] gap-12 px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:px-14">
         <div>
           {story.portraitSrc && (
-            <div className="relative overflow-hidden">
+            <figure className="mx-auto w-fit max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/10">
               <img
                 src={story.portraitSrc}
                 alt={story.portraitAlt || identity.name}
                 loading="lazy"
-                width={730}
-                height={998}
-                className="max-h-[630px] w-full object-cover object-top"
+                decoding="async"
+                width={story.portraitWidth ?? 730}
+                height={story.portraitHeight ?? 998}
+                className="mx-auto block h-auto max-h-[630px] w-auto max-w-full object-contain"
               />
-              <div
-                className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101015] to-transparent"
-                aria-hidden="true"
-              />
-              <p className="absolute bottom-6 left-6 font-body text-xs uppercase tracking-[.2em] text-white/75">
+              <figcaption className="px-5 py-4 font-body text-xs uppercase tracking-[.2em] text-white/75">
                 {identity.name}
-              </p>
-            </div>
+              </figcaption>
+            </figure>
           )}
           {story.pullQuote && (
             <blockquote className="mt-7 border-l border-[var(--brand-accent)] pl-6 font-display text-2xl italic leading-relaxed text-white/85">

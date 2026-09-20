@@ -9,6 +9,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OfferLanding from "@/pages/OfferLanding";
@@ -116,6 +117,145 @@ describe("offer visitor journey", () => {
     { checkoutMode: "native" as const, preview: true },
     { checkoutMode: "external" as const, preview: true },
   ])(
+    "renders and enlarges body images for $checkoutMode offers with preview=$preview",
+    async ({ checkoutMode, preview }) => {
+      const alt = "A workflow from first task to finished guide";
+      const caption = "Each step is visible, including the final review.";
+      const src = "https://example.com/workflow-overview.webp";
+      const imageOffer = {
+        ...offer,
+        checkout_mode: checkoutMode,
+        external_url: "https://example.com/offer",
+        body: `Before the image.\n![${alt}](${src} "${caption}")\nAfter the image.`,
+      };
+      const html = renderToStaticMarkup(
+        <OfferLanding preview={preview} offer={imageOffer} />,
+      );
+      const initialDocument = new DOMParser().parseFromString(
+        html,
+        "text/html",
+      );
+      const initialImage = initialDocument.querySelector(
+        'article[aria-label="Offer details"] img',
+      );
+      expect(initialImage?.getAttribute("src")).toBe(src);
+      expect(initialImage?.getAttribute("alt")).toBe(alt);
+      expect(initialImage?.getAttribute("loading")).toBe("lazy");
+      expect(initialImage?.getAttribute("decoding")).toBe("async");
+
+      render(<OfferLanding preview={preview} offer={imageOffer} />);
+      const details = screen.getByRole("article", { name: "Offer details" });
+      const image = within(details).getByRole("img", { name: alt });
+      const figure = image.closest("figure")!;
+      expect(figure.querySelector("figcaption")?.textContent).toBe(caption);
+      expect(
+        within(details)
+          .getByText("Before the image.")
+          .compareDocumentPosition(figure) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        figure.compareDocumentPosition(
+          within(details).getByText("After the image."),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      const trigger = within(details).getByRole("button", {
+        name: `Enlarge image: ${alt}`,
+      });
+      expect(trigger.getAttribute("type")).toBe("button");
+      trigger.focus();
+      fireEvent.click(trigger);
+
+      const dialog = await screen.findByRole("dialog", { name: alt });
+      expect(
+        within(dialog).getByRole("img", { name: alt }).getAttribute("src"),
+      ).toBe(src);
+      const descriptionIds =
+        dialog.getAttribute("aria-describedby")?.split(/\s+/) ?? [];
+      expect(
+        descriptionIds
+          .map((id) => document.getElementById(id)?.textContent)
+          .join(" "),
+      ).toContain(caption);
+      expect(
+        within(dialog).getByRole("button", { name: "Close" }),
+      ).toBeTruthy();
+      fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(trigger));
+      expect(invoke).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+    },
+  );
+  it("opens an uncaptioned body image and closes it with the visible Close control", async () => {
+    render(
+      <OfferLanding
+        preview
+        offer={{
+          ...offer,
+          body: "![Guide preview](https://example.com/guide.webp)",
+        }}
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: "Enlarge image: Guide preview",
+    });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog", { name: "Guide preview" });
+    expect(
+      within(dialog).getByRole("img", { name: "Guide preview" }),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+  it("escapes image alt text and captions in the body and enlarged view", async () => {
+    const alt = "<img src=x onerror=alert(1)>";
+    const caption = "<script>alert(1)</script> & details";
+    render(
+      <OfferLanding
+        preview
+        offer={{
+          ...offer,
+          body: `![${alt}](https://example.com/image.webp "${caption}")`,
+        }}
+      />,
+    );
+    const details = screen.getByRole("article", { name: "Offer details" });
+    expect(details.querySelectorAll("img")).toHaveLength(1);
+    expect(details.querySelector("script, [onerror]")).toBeNull();
+    expect(details.querySelector("figcaption")?.textContent).toBe(caption);
+    fireEvent.click(
+      screen.getByRole("button", { name: `Enlarge image: ${alt}` }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: alt });
+    expect(within(dialog).getByRole("img", { name: alt })).toBeTruthy();
+    expect(within(dialog).getByText(caption)).toBeTruthy();
+    expect(dialog.querySelector("script, [onerror]")).toBeNull();
+  });
+  it("keeps unsafe, inline, and quoted image syntax visible as text", () => {
+    const unsafe = "![Unsafe](javascript:alert(1))";
+    const inline =
+      "Look at ![Guide](https://example.com/guide.webp) for context.";
+    const quoted = "![Quoted guide](https://example.com/guide.webp)";
+    render(
+      <OfferLanding
+        preview
+        offer={{ ...offer, body: `${unsafe}\n\n${inline}\n\n> ${quoted}` }}
+      />,
+    );
+    const details = screen.getByRole("article", { name: "Offer details" });
+    expect(within(details).getByText(unsafe)).toBeTruthy();
+    expect(within(details).getByText(inline)).toBeTruthy();
+    expect(details.querySelector("blockquote p")?.textContent).toBe(quoted);
+    expect(details.querySelector("img, a, button")).toBeNull();
+  });
+  it.each([
+    { checkoutMode: "native" as const, preview: false },
+    { checkoutMode: "external" as const, preview: false },
+    { checkoutMode: "native" as const, preview: true },
+    { checkoutMode: "external" as const, preview: true },
+  ])(
     "renders complete semantic quotes for $checkoutMode offers with preview=$preview",
     ({ checkoutMode, preview }) => {
       const first = "It’s useful — and practical.\nEvery word stays here!";
@@ -178,7 +318,7 @@ describe("offer visitor journey", () => {
     expect(html).toContain("Enable JavaScript to securely request");
     expect(invoke).not.toHaveBeenCalled();
   });
-  it("opens external paid offers without checkout readiness, details, or access tokens", () => {
+  it("repeats the external paid offer link after the details without starting checkout", () => {
     render(
       <OfferLanding
         offer={{
@@ -191,12 +331,28 @@ describe("offer visitor journey", () => {
         }}
       />,
     );
-    const link = screen.getByRole("link", { name: "Explore the program" });
-    expect(link.getAttribute("href")).toBe(
-      "https://go.example.com/offer?_go=member60&source=shop",
-    );
-    expect(link.getAttribute("target")).toBe("_blank");
-    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    const links = screen.getAllByRole("link", { name: "Explore the program" });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link.getAttribute("href")).toBe(
+        "https://go.example.com/offer?_go=member60&source=shop",
+      );
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(link.getAttribute("data-conversion-destination")).toBe(
+        "external_offer",
+      );
+      expect(link.getAttribute("data-conversion-offer-id")).toBe(offer.id);
+    }
+    const details = screen.getByRole("article", { name: "Offer details" });
+    expect(
+      links[0].compareDocumentPosition(details) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      details.compareDocumentPosition(links[1]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       screen.getByRole("heading", { name: "View current pricing" }),
     ).toBeTruthy();
@@ -208,7 +364,7 @@ describe("offer visitor journey", () => {
     expect(screen.queryByText(/Payment is handled by Stripe/)).toBeNull();
     expect(screen.queryByText(/download on the next page/)).toBeNull();
   });
-  it("shows an explicit affiliate disclosure before the outbound link", () => {
+  it("shows an explicit affiliate disclosure before each outbound link", () => {
     render(
       <OfferLanding
         offer={{
@@ -222,15 +378,23 @@ describe("offer visitor journey", () => {
         }}
       />,
     );
-    const disclosure = screen.getByText(
+    const disclosures = screen.getAllByText(
       /Affiliate link: I may earn a commission/,
     );
-    const link = screen.getByRole("link", { name: "View workshop" });
-    expect(link.getAttribute("rel")).toBe("sponsored noopener noreferrer");
-    expect(
-      disclosure.compareDocumentPosition(link) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    const links = screen.getAllByRole("link", { name: "View workshop" });
+    expect(disclosures).toHaveLength(2);
+    expect(links).toHaveLength(2);
+    links.forEach((link, index) => {
+      expect(link.getAttribute("href")).toBe(
+        "https://example.com/workshop?_go=member60",
+      );
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("sponsored noopener noreferrer");
+      expect(
+        disclosures[index].compareDocumentPosition(link) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
     expect(screen.getByRole("heading", { name: /USD.*7\.00/ })).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
   });
@@ -248,18 +412,15 @@ describe("offer visitor journey", () => {
         }}
       />,
     );
-    expect(screen.getByText(custom)).toBeTruthy();
+    expect(screen.getAllByText(custom)).toHaveLength(2);
     expect(document.querySelector("img")).toBeNull();
     expect(
       document.querySelector('a[href="https://example.com/offer"]'),
     ).toBeNull();
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Preview only",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+    const buttons = screen.getAllByRole("button", { name: "Preview only" });
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons)
+      expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(invoke).not.toHaveBeenCalled();
   });
   it("keeps malformed external destinations unavailable instead of starting native checkout", () => {
@@ -272,7 +433,8 @@ describe("offer visitor journey", () => {
         }}
       />,
     );
-    expect(screen.getByText(/destination is not available/)).toBeTruthy();
+    expect(screen.getAllByText(/destination is not available/)).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: "Visit website" })).toBeNull();
     expect(document.querySelector("form")).toBeNull();
     expect(invoke).not.toHaveBeenCalled();
   });
