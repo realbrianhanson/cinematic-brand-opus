@@ -110,6 +110,64 @@ afterEach(() => {
 });
 
 describe("offer visitor journey", () => {
+  it.each([
+    { checkoutMode: "native" as const, preview: false },
+    { checkoutMode: "external" as const, preview: false },
+    { checkoutMode: "native" as const, preview: true },
+    { checkoutMode: "external" as const, preview: true },
+  ])(
+    "renders complete semantic quotes for $checkoutMode offers with preview=$preview",
+    ({ checkoutMode, preview }) => {
+      const first = "It’s useful — and practical.\nEvery word stays here!";
+      const second = "“Keep going,” she said.";
+      render(
+        <OfferLanding
+          preview={preview}
+          offer={{
+            ...offer,
+            checkout_mode: checkoutMode,
+            external_url: "https://example.com/offer",
+            body: `## What clients say\n\n> ${first.replaceAll("\n", "\n> ")}\n>\n> ${second}\n>\n> — Lynn Hutchison\n\nContinue here.`,
+          }}
+        />,
+      );
+      const details = screen.getByRole("article", { name: "Offer details" });
+      const figure = details.querySelector("figure")!;
+      const quote = figure.querySelector("blockquote")!;
+      expect(
+        Array.from(quote.querySelectorAll("p"), (p) => p.textContent),
+      ).toEqual([first, second]);
+      expect(figure.querySelector("figcaption")?.textContent).toBe(
+        "Lynn Hutchison",
+      );
+      expect(quote.querySelector("figcaption")).toBeNull();
+      expect(figure.querySelector('[aria-hidden="true"]')?.textContent).toBe(
+        "“",
+      );
+      expect(details.querySelector("details")).toBeNull();
+      expect(details.textContent).toContain("Continue here.");
+    },
+  );
+  it("escapes quote prose and attribution without creating HTML or Markdown links", () => {
+    const unsafeQuote =
+      '<img src=x onerror="alert(1)"> [Open](javascript:alert(1))';
+    const unsafeAuthor = '<script>alert("author")</script>';
+    render(
+      <OfferLanding
+        preview
+        offer={{
+          ...offer,
+          body: `> ${unsafeQuote}\n>\n> — ${unsafeAuthor}`,
+        }}
+      />,
+    );
+    const details = screen.getByRole("article", { name: "Offer details" });
+    expect(details.querySelector("blockquote p")?.textContent).toBe(
+      unsafeQuote,
+    );
+    expect(details.querySelector("figcaption")?.textContent).toBe(unsafeAuthor);
+    expect(details.querySelector("img, script, a")).toBeNull();
+  });
   it("keeps personal details out of URLs before checkout hydration", () => {
     const html = renderToStaticMarkup(<OfferLanding offer={offer} />);
     expect(html).toContain('method="post"');

@@ -479,7 +479,14 @@ function OfferForm({
               <span className="admin-help block mt-2">
                 Plain text. Use ## before a section heading and - before each
                 bullet. Explain who it is for, what is included, and the next
-                step. HTML is not rendered.
+                step. For a quote, start every line with &gt;, use a line with
+                only &gt; between paragraphs, and put the author in a final
+                paragraph as &gt; — Name. HTML is not rendered.
+                <span className="mt-2 block whitespace-pre-line font-mono text-xs">
+                  {
+                    "> First quote paragraph.\n>\n> Second quote paragraph.\n>\n> — Name"
+                  }
+                </span>
               </span>
             </label>
             <label className="block text-sm font-medium">

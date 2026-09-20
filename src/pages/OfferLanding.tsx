@@ -99,6 +99,30 @@ function OfferDetails({ offer }: { offer: PublicOffer }) {
                 </li>
               ))}
             </ul>
+          ) : block.type === "quote" ? (
+            <figure
+              key={i}
+              className="m-0 border-l-2 border-[var(--brand-accent)] bg-[linear-gradient(135deg,rgba(var(--brand-accent-rgb),.08),transparent)] p-6 md:p-8"
+            >
+              <span
+                aria-hidden="true"
+                className="font-display text-5xl leading-none text-[var(--brand-accent)]"
+              >
+                “
+              </span>
+              <blockquote className="space-y-5 font-body text-lg leading-relaxed text-white/90">
+                {block.paragraphs.map((text, index) => (
+                  <p key={index} className="whitespace-pre-line">
+                    {text}
+                  </p>
+                ))}
+              </blockquote>
+              {block.attribution && (
+                <figcaption className="mt-6 font-body text-sm font-semibold text-[var(--brand-accent)]">
+                  {block.attribution}
+                </figcaption>
+              )}
+            </figure>
           ) : (
             <p key={i} className="whitespace-pre-line">
               {block.text}
