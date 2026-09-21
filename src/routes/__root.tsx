@@ -141,6 +141,7 @@ function RootComponent() {
               <Sonner />
               <Outlet />
               <PublicMeasurement />
+              <PublicSiteChat />
             </TooltipProvider>
           </AriaLiveAnnouncer>
         </AuthProvider>
