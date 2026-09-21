@@ -18,6 +18,8 @@
     "test:database": "node scripts/tests/newsletter-database.mjs && node scripts/tests/pipeline-database.mjs && node scripts/tests/member-bootstrap.mjs && node scripts/tests/admin-configuration.mjs && node scripts/tests/operational-migrations.mjs && node scripts/tests/editor-branding-database.mjs && node scripts/tests/editorial-pilot.mjs && node scripts/tests/offers-database.mjs && node scripts/tests/speaking-inquiries-database.mjs && node scripts/tests/offer-access-delivery-database.mjs && node scripts/tests/conversion-database.mjs"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.71",
+    "@ai-sdk/react": "^4.0.110",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -60,6 +62,7 @@
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
+    "ai": "^7.0.107",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
