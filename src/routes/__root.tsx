@@ -1,4 +1,5 @@
 import PublicMeasurement from "@/components/PublicMeasurement";
+import SiteChat from "@/components/SiteChat";
 import { brandStyles } from "@/config/brandStyles";
 import {
   createRootRouteWithContext,
