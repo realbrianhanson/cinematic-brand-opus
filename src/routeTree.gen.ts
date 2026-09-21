@@ -40,6 +40,7 @@ import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
 import { Route as AdminWidgetsRouteImport } from './routes/admin.widgets'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
@@ -224,6 +225,11 @@ const AdminWidgetsRoute = AdminWidgetsRouteImport.update({
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin_/login',
   path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
@@ -412,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -471,6 +478,7 @@ export interface FileRoutesByTo {
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -534,6 +542,7 @@ export interface FileRoutesById {
   '/admin/site-settings': typeof AdminSiteSettingsRoute
   '/admin/widgets': typeof AdminWidgetsRoute
   '/admin_/login': typeof AdminLoginRoute
+  '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -599,6 +608,7 @@ export interface FileRouteTypes {
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin/login'
+    | '/api/chat'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -658,6 +668,7 @@ export interface FileRouteTypes {
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin/login'
+    | '/api/chat'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -720,6 +731,7 @@ export interface FileRouteTypes {
     | '/admin/site-settings'
     | '/admin/widgets'
     | '/admin_/login'
+    | '/api/chat'
     | '/blog/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -772,6 +784,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  ApiChatRoute: typeof ApiChatRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
@@ -999,6 +1012,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blog/': {
@@ -1346,6 +1366,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  ApiChatRoute: ApiChatRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,

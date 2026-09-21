@@ -1,4 +1,5 @@
 import PublicMeasurement from "@/components/PublicMeasurement";
+import SiteChat from "@/components/SiteChat";
 import { brandStyles } from "@/config/brandStyles";
 import {
   createRootRouteWithContext,
@@ -35,6 +36,14 @@ const maybeReload = (msg: string) => {
   sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
   window.location.reload();
 };
+
+// Visitor assistant: public pages only, never over the admin workspace.
+function PublicSiteChat() {
+  const router = useRouter();
+  const pathname = router.state.location.pathname;
+  if (pathname.startsWith("/admin")) return null;
+  return <SiteChat />;
+}
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
@@ -141,6 +150,7 @@ function RootComponent() {
               <Sonner />
               <Outlet />
               <PublicMeasurement />
+              <PublicSiteChat />
             </TooltipProvider>
           </AriaLiveAnnouncer>
         </AuthProvider>
