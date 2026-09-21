@@ -37,6 +37,14 @@ const maybeReload = (msg: string) => {
   window.location.reload();
 };
 
+// Visitor assistant: public pages only, never over the admin workspace.
+function PublicSiteChat() {
+  const router = useRouter();
+  const pathname = router.state.location.pathname;
+  if (pathname.startsWith("/admin")) return null;
+  return <SiteChat />;
+}
+
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
