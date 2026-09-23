@@ -323,3 +323,117 @@ describe("nonblocking server-only native order facts", () => {
     }
   });
 });
+
+const jwt = (payload: Record<string, unknown>) =>
+  `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify(payload))
+    .replace(/=+$/, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")}.signature`;
+// What supabase.functions.invoke sends for an anonymous visitor: the bundled
+// publishable key as both the apikey and the bearer.
+const bundledKey = jwt({ iss: "supabase", ref: "project", role: "anon" });
+const invokeHeaders = (key = bundledKey) => ({
+  Authorization: `Bearer ${key}`,
+  apikey: key,
+});
+describe("public key recognition", () => {
+  it("measures anonymous visitors whose bundled key differs from the function's anon key", async () => {
+    const response = await handler(request(body(), invokeHeaders()));
+    expect(await response.json()).toEqual({ accepted: true });
+    expect(deps.record).toHaveBeenCalledOnce();
+  });
+  it("accepts new-style publishable keys sent as both apikey and bearer", async () => {
+    const response = await handler(
+      request(body(), invokeHeaders("sb_publishable_abc123")),
+    );
+    expect(await response.json()).toEqual({ accepted: true });
+  });
+  it("still excludes signed-in sessions, even when the apikey is forged to match", async () => {
+    const user = jwt({ role: "authenticated", sub: sessionId });
+    for (const headers of [
+      { Authorization: `Bearer ${user}`, apikey: bundledKey },
+      invokeHeaders(user),
+      { Authorization: "Bearer unrelated", apikey: bundledKey },
+      invokeHeaders("not-a-public-key"),
+    ]) {
+      const response = await handler(request(body(), headers));
+      expect(await response.json()).toEqual({ accepted: false });
+    }
+    expect(deps.record).not.toHaveBeenCalled();
+  });
+});
+describe("order measurement binding with real client headers", () => {
+  it("links a claim sent through supabase.functions.invoke", async () => {
+    const rpc = vi.fn(async () => ({ data: true, error: null }));
+    await bindOrderMeasurement(
+      { rpc },
+      {
+        request: request(body(), invokeHeaders()),
+        measurement: { session_id: sessionId, session_token: sessionToken },
+        origin: "https://example.com",
+        anonKey: "a-different-configured-anon-key",
+        orderId: "order-id",
+        paymentMode: "unconfigured",
+      },
+    );
+    expect(rpc).toHaveBeenCalledWith("conversion_bind_order", {
+      _order_id: "order-id",
+      _payment_mode: "unknown",
+      _session_id: sessionId,
+      _token_hash: await conversionHash(sessionToken),
+    });
+  });
+  it("logs why a measured claim was not linked, without identifiers", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const rpc = vi.fn(async () => ({ data: false, error: null }));
+      await bindOrderMeasurement(
+        { rpc },
+        {
+          request: request(),
+          measurement: { session_id: sessionId, session_token: sessionToken },
+          origin: "https://example.com",
+          orderId: "order-id",
+          paymentMode: "live",
+        },
+      );
+      expect(warning).toHaveBeenLastCalledWith("Order measurement not linked", {
+        reason: "session_not_eligible",
+      });
+      await bindOrderMeasurement(
+        { rpc },
+        {
+          request: request(body(), {
+            Authorization: "Bearer unrelated",
+            apikey: bundledKey,
+          }),
+          measurement: { session_id: sessionId, session_token: sessionToken },
+          origin: "https://example.com",
+          orderId: "order-id",
+          paymentMode: "live",
+        },
+      );
+      expect(warning).toHaveBeenLastCalledWith("Order measurement not linked", {
+        reason: "request_excluded",
+      });
+      const logged = JSON.stringify(warning.mock.calls);
+      expect(logged).not.toContain(sessionId);
+      expect(logged).not.toContain(sessionToken);
+      warning.mockClear();
+      // A visitor who declined measurement is expected, not a failure.
+      await bindOrderMeasurement(
+        { rpc },
+        {
+          request: request(),
+          measurement: undefined,
+          origin: "https://example.com",
+          orderId: "order-id",
+          paymentMode: "live",
+        },
+      );
+      expect(warning).not.toHaveBeenCalled();
+    } finally {
+      warning.mockRestore();
+    }
+  });
+});

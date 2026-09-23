@@ -3,7 +3,7 @@ import {
   conversionIdentity,
   conversionRequestAllowed,
 } from "./conversion.ts";
-type ConversionRpcResult = { error: unknown };
+type ConversionRpcResult = { data?: unknown; error: unknown };
 type ConversionRpcRequest = PromiseLike<ConversionRpcResult> & {
   abortSignal?: (signal: AbortSignal) => PromiseLike<ConversionRpcResult>;
 };
@@ -50,14 +50,13 @@ export async function bindOrderMeasurement(
   },
 ): Promise<void> {
   try {
-    const identity = conversionRequestAllowed(
+    const allowed = conversionRequestAllowed(
       input.request,
       input.origin,
       input.anonKey,
-    )
-      ? conversionIdentity(input.measurement)
-      : null;
-    const { error } = await boundedMeasurementRpc(
+    );
+    const identity = allowed ? conversionIdentity(input.measurement) : null;
+    const { data, error } = await boundedMeasurementRpc(
       admin,
       "conversion_bind_order",
       {
@@ -70,7 +69,16 @@ export async function bindOrderMeasurement(
           : null,
       },
     );
-    if (error) console.warn("Optional order measurement unavailable");
+    if (error) {
+      console.warn("Optional order measurement unavailable");
+      return;
+    }
+    // Say why a measured visitor got no credit. Never log tokens or IDs.
+    // No measurement at all means the visitor declined, which is expected.
+    if (data === false && conversionIdentity(input.measurement))
+      console.warn("Order measurement not linked", {
+        reason: identity ? "session_not_eligible" : "request_excluded",
+      });
   } catch {
     console.warn("Optional order measurement unavailable");
   }

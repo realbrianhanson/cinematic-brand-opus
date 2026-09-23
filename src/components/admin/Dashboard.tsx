@@ -19,21 +19,210 @@ import {
   Sparkles,
   Mic,
 } from "lucide-react";
-import { loadDashboardOverview } from "./dashboardData";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  loadDashboardOverview,
+  type AttentionItem,
+  type DashboardOverview,
+} from "./dashboardData";
 import { invokeOfferApi, type OfferHealth } from "@/lib/offers";
 import BriansNotesWidget from "./BriansNotesWidget";
 import NewsletterPreviewCard from "./NewsletterPreviewCard";
 import QueryNotice from "./QueryNotice";
 import { ConversionOverview } from "./ConversionDashboard";
 
+type Overview = DashboardOverview;
+
+function plural(count: number, one: string, many: string) {
+  return `${count.toLocaleString()} ${count === 1 ? one : many}`;
+}
+
+function paidOrdersDetail(data: Overview) {
+  const parts = ["All-time · Live payments only"];
+  if (data.testPaidOrders > 0)
+    parts.push(
+      `${plural(data.testPaidOrders, "test purchase", "test purchases")} not counted`,
+    );
+  if (data.unknownPaidOrders > 0)
+    parts.push(`${data.unknownPaidOrders.toLocaleString()} unverified`);
+  return parts.join(" · ");
+}
+
+function metricCards(data: Overview) {
+  return [
+    {
+      label: "Confirmed subscribers",
+      value: data.subscribers,
+      detail:
+        data.pendingSubscribers > 0
+          ? `${data.pendingSubscribers.toLocaleString()} awaiting confirmation`
+          : "Your opted-in audience",
+      icon: Users,
+      to: "/admin/audience",
+    },
+    {
+      label: "Live shop offers",
+      value: data.shop,
+      detail: "Published and listed in the shop",
+      icon: ShoppingBag,
+      to: "/admin/offers",
+    },
+    {
+      label: "Paid orders",
+      value: data.paidOrders,
+      detail: paidOrdersDetail(data),
+      icon: PackageCheck,
+      to: "/admin/offers?tab=orders",
+    },
+    {
+      label: "Free resource claims",
+      value: data.freeClaims,
+      detail: "All-time fulfilled · native downloads",
+      icon: Gift,
+      to: "/admin/offers?tab=orders",
+    },
+  ];
+}
+
+function MetricSkeletons() {
+  return (
+    <>
+      {[0, 1, 2, 3].map((key) => (
+        <div
+          className="admin-card admin-overview-metric"
+          aria-hidden="true"
+          key={key}
+        >
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-4 h-8 w-16" />
+          <Skeleton className="mt-3 h-3 w-40" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+const severityLabel: Record<AttentionItem["severity"], string> = {
+  high: "Urgent",
+  medium: "Needs a look",
+  low: "When you can",
+};
+const attentionIcons: Partial<Record<string, typeof AlertTriangle>> = {
+  speaking_inquiries: Mic,
+  drafts: FileText,
+  pending_subscribers: Users,
+  access_email_failed: Gift,
+  access_email_waiting: Gift,
+};
+
+function AttentionRow({
+  to,
+  icon: Icon,
+  title,
+  detail,
+  severity,
+}: {
+  to: string;
+  icon: typeof AlertTriangle;
+  title: string;
+  detail: string | null;
+  severity: AttentionItem["severity"];
+}) {
+  return (
+    <li>
+      <Link to={to} className="admin-attention-row" data-severity={severity}>
+        <span className="admin-overview-icon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <div>
+          <strong>{title}</strong>
+          {detail && <p>{detail}</p>}
+        </div>
+        {severity !== "low" && (
+          <span className="admin-badge">{severityLabel[severity]}</span>
+        )}
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>
+    </li>
+  );
+}
+
+function AttentionList({
+  data,
+  paymentsBlocked,
+}: {
+  data: Overview;
+  paymentsBlocked: boolean;
+}) {
+  if (!data.attention.length && !paymentsBlocked)
+    return (
+      <div className="admin-attention-row">
+        <span className="admin-overview-icon">
+          <CheckCircle2 size={18} aria-hidden="true" />
+        </span>
+        <div>
+          <strong>Nothing needs your attention right now</strong>
+          <p>Create a new article or offer when you’re ready.</p>
+        </div>
+      </div>
+    );
+  const urgent = data.attention.filter((item) => item.severity === "high");
+  const rest = data.attention.filter((item) => item.severity !== "high");
+  const row = (item: AttentionItem) => (
+    <AttentionRow
+      key={item.key}
+      to={item.link}
+      icon={attentionIcons[item.key] ?? AlertTriangle}
+      title={item.message}
+      detail={item.detail}
+      severity={item.severity}
+    />
+  );
+  return (
+    <ul
+      className="admin-attention-list [&>li+li]:border-t [&>li+li]:border-[hsl(var(--admin-border))]"
+      aria-label="Needs your attention"
+    >
+      {urgent.map(row)}
+      {paymentsBlocked && (
+        <AttentionRow
+          to="/admin/offers?tab=setup"
+          icon={ShoppingBag}
+          title="Finish setup for your paid offers"
+          detail={`${plural(data.nativePaidOffers, "published native offer needs", "published native offers need")} Stripe or download-email setup.`}
+          severity="high"
+        />
+      )}
+      {rest.map(row)}
+    </ul>
+  );
+}
+
+function AttentionSkeleton() {
+  return (
+    <div aria-hidden="true">
+      {[0, 1, 2].map((key) => (
+        <div className="admin-attention-row" key={key}>
+          <Skeleton className="h-10 w-10" />
+          <div>
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="mt-2 h-3 w-72 max-w-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
+  const [indexingOpen, setIndexingOpen] = useState(false);
+  // One admin RPC for every card, the attention list and recent posts.
   const overview = useQuery({
     queryKey: ["admin-post-stats"],
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
     queryFn: loadDashboardOverview,
   });
   const paymentHealth = useQuery({
@@ -42,35 +231,9 @@ export default function Dashboard() {
     queryFn: () => invokeOfferApi<OfferHealth>({ action: "health" }),
     staleTime: 60000,
   });
-  const recent = useQuery({
-    queryKey: ["admin-recent-posts"],
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .select("id,title,status,updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  const attention = useQuery({
-    queryKey: ["admin-stale-pages-count"],
-    refetchInterval: 60000,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("generated_pages")
-        .select("*", { count: "exact", head: true })
-        .eq("performance_trend", "needs_refresh")
-        .eq("status", "published");
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
   const indexing = useQuery({
     queryKey: ["admin-indexing-stats"],
+    enabled: indexingOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("indexing_log")
@@ -110,13 +273,18 @@ export default function Dashboard() {
       setBusy(null);
       await Promise.all(
         [
-          "admin-stale-pages-count",
+          "admin-post-stats",
           "admin-indexing-stats",
           "admin-generated-pages",
         ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
       );
     }
   }
+  const data = overview.data;
+  const paymentsBlocked =
+    !!data &&
+    data.nativePaidOffers > 0 &&
+    paymentHealth.data?.payments_ready === false;
   return (
     <div className="admin-page-stack">
       <header className="admin-page-header">
@@ -131,6 +299,7 @@ export default function Dashboard() {
           <button
             className="admin-btn-ghost"
             aria-label="Refresh dashboard"
+            disabled={overview.isFetching}
             onClick={() =>
               qc.invalidateQueries({
                 predicate: (q) => String(q.queryKey[0]).startsWith("admin-"),
@@ -145,66 +314,50 @@ export default function Dashboard() {
         </div>
       </header>
       <QueryNotice
-        loading={overview.isPending}
-        error={overview.error}
+        error={data ? null : overview.error}
         retry={() => overview.refetch()}
       />
-      {overview.error && overview.data && (
-        <p className="admin-help">
+      {overview.error && data && (
+        <p role="status" className="admin-help">
           Showing the last successful counts. Refresh to confirm the latest
           activity.
         </p>
       )}
-      {overview.data && (
+      {(data || overview.isPending) && (
         <>
-          <div className="admin-overview-metrics">
-            {[
-              {
-                label: "Confirmed subscribers",
-                value: overview.data.subscribers,
-                detail: "Your opted-in audience",
-                icon: Users,
-                to: "/admin/site-settings",
-              },
-              {
-                label: "Live shop offers",
-                value: overview.data.shop,
-                detail: "Published and listed in the shop",
-                icon: ShoppingBag,
-                to: "/admin/offers",
-              },
-              {
-                label: "Fulfilled paid orders",
-                value: overview.data.paidOrders,
-                detail: "All-time native · all payment modes",
-                icon: PackageCheck,
-                to: "/admin/offers?tab=orders",
-              },
-              {
-                label: "Free resource claims",
-                value: overview.data.freeClaims,
-                detail: "All-time fulfilled · native downloads",
-                icon: Gift,
-                to: "/admin/offers?tab=orders",
-              },
-            ].map((metric) => (
-              <Link
-                to={metric.to}
-                className="admin-card admin-overview-metric"
-                key={metric.label}
-              >
-                <div>
-                  <span>{metric.label}</span>
-                  <metric.icon size={18} />
-                </div>
-                <strong>{metric.value.toLocaleString()}</strong>
-                <p>{metric.detail}</p>
-              </Link>
-            ))}
+          <div
+            className="admin-overview-metrics"
+            data-testid="overview-metrics"
+            aria-busy={overview.isPending}
+          >
+            {overview.isPending && (
+              <span role="status" className="sr-only">
+                Loading your numbers…
+              </span>
+            )}
+            {data ? (
+              metricCards(data).map((metric) => (
+                <Link
+                  to={metric.to}
+                  className="admin-card admin-overview-metric"
+                  key={metric.label}
+                >
+                  <div>
+                    <span>{metric.label}</span>
+                    <metric.icon size={18} />
+                  </div>
+                  <strong>{metric.value.toLocaleString()}</strong>
+                  <p>{metric.detail}</p>
+                </Link>
+              ))
+            ) : (
+              <MetricSkeletons />
+            )}
           </div>
           <p className="admin-help admin-overview-footnote">
             External and affiliate purchases happen on the provider’s site and
-            are not included in orders or claims.
+            are not included in orders or claims. Stripe test purchases are
+            never counted as paid orders.
           </p>
         </>
       )}
@@ -215,113 +368,9 @@ export default function Dashboard() {
             <h2>Needs your attention</h2>
             <span className="admin-badge">Next actions</span>
           </div>
-          {overview.data && (
-            <div className="admin-attention-list">
-              {overview.data.inquiries > 0 && (
-                <Link to="/admin/inquiries" className="admin-attention-row">
-                  <span className="admin-overview-icon">
-                    <Mic size={18} />
-                  </span>
-                  <div>
-                    <strong>
-                      {overview.data.inquiries} new speaking{" "}
-                      {overview.data.inquiries === 1 ? "inquiry" : "inquiries"}
-                    </strong>
-                    <p>
-                      Review the event details and follow up with the organizer.
-                    </p>
-                  </div>
-                  <ArrowRight size={16} />
-                </Link>
-              )}
-              {overview.data.overdue > 0 && (
-                <Link
-                  to="/admin/posts?status=scheduled"
-                  className="admin-attention-row"
-                >
-                  <span className="admin-overview-icon">
-                    <AlertTriangle size={18} />
-                  </span>
-                  <div>
-                    <strong>
-                      {overview.data.overdue} overdue scheduled{" "}
-                      {overview.data.overdue === 1 ? "article" : "articles"}
-                    </strong>
-                    <p>Check the schedule before publishing again.</p>
-                  </div>
-                  <ArrowRight size={16} />
-                </Link>
-              )}
-              {overview.data.queueErrors > 0 && (
-                <Link to="/admin/queue" className="admin-attention-row">
-                  <span className="admin-overview-icon">
-                    <AlertTriangle size={18} />
-                  </span>
-                  <div>
-                    <strong>
-                      {overview.data.queueErrors} active pipeline{" "}
-                      {overview.data.queueErrors === 1 ? "issue" : "issues"}
-                    </strong>
-                    <p>Review failed attempts and source errors.</p>
-                  </div>
-                  <ArrowRight size={16} />
-                </Link>
-              )}
-              {overview.data.nativePaidOffers > 0 &&
-                paymentHealth.data?.payments_ready === false && (
-                  <Link
-                    to="/admin/offers?tab=setup"
-                    className="admin-attention-row"
-                  >
-                    <span className="admin-overview-icon">
-                      <ShoppingBag size={18} />
-                    </span>
-                    <div>
-                      <strong>Finish setup for your paid offers</strong>
-                      <p>
-                        {overview.data.nativePaidOffers} published native{" "}
-                        {overview.data.nativePaidOffers === 1
-                          ? "offer needs"
-                          : "offers need"}{" "}
-                        Stripe or download-email setup.
-                      </p>
-                    </div>
-                    <ArrowRight size={16} />
-                  </Link>
-                )}
-              {overview.data.drafts > 0 && (
-                <Link
-                  to="/admin/posts?status=draft"
-                  className="admin-attention-row"
-                >
-                  <span className="admin-overview-icon">
-                    <FileText size={18} />
-                  </span>
-                  <div>
-                    <strong>
-                      {overview.data.drafts}{" "}
-                      {overview.data.drafts === 1 ? "draft" : "drafts"} to
-                      review
-                    </strong>
-                    <p>Check the hook, sources, and next step for readers.</p>
-                  </div>
-                  <ArrowRight size={16} />
-                </Link>
-              )}
-              {overview.data.drafts === 0 &&
-                overview.data.overdue === 0 &&
-                overview.data.queueErrors === 0 && (
-                  <div className="admin-attention-row">
-                    <span className="admin-overview-icon">
-                      <CheckCircle2 size={18} />
-                    </span>
-                    <div>
-                      <strong>Your content queue is clear</strong>
-                      <p>Create a new article or offer when you’re ready.</p>
-                    </div>
-                  </div>
-                )}
-            </div>
+          {overview.isPending && <AttentionSkeleton />}
+          {data && (
+            <AttentionList data={data} paymentsBlocked={paymentsBlocked} />
           )}
           {paymentHealth.error && (
             <div className="admin-notice admin-notice-error" role="alert">
@@ -329,15 +378,10 @@ export default function Dashboard() {
               <Link to="/admin/offers?tab=setup">Review payment setup</Link>
             </div>
           )}
-          <QueryNotice
-            loading={attention.isPending}
-            error={attention.error}
-            retry={() => attention.refetch()}
-          />
-          {!!attention.data && (
+          {!!data?.stalePages && (
             <div className="admin-notice">
               <span>
-                {attention.data} published resources are flagged for review.
+                {data.stalePages} published resources are flagged for review.
                 Human-edited pages are protected from automatic refresh.
               </span>
               <div className="flex flex-wrap gap-2">
@@ -398,8 +442,8 @@ export default function Dashboard() {
         <div>
           <h2 className="text-xl font-semibold">Your publishing desk</h2>
           <p className="admin-help">
-            {overview.data
-              ? `${overview.data.published} published · ${overview.data.drafts} drafts · ${overview.data.scheduled} scheduled`
+            {data
+              ? `${data.published} published · ${data.drafts} drafts · ${data.scheduled} scheduled`
               : "Articles, editorial notes, and your next newsletter."}
           </p>
         </div>
@@ -408,7 +452,9 @@ export default function Dashboard() {
         </Link>
       </div>
       <div className="admin-editorial-columns">
-        <NewsletterPreviewCard />
+        <div id="newsletter" className="scroll-mt-24">
+          <NewsletterPreviewCard />
+        </div>
         <BriansNotesWidget />
       </div>
 
@@ -417,33 +463,31 @@ export default function Dashboard() {
           <h2>Recently updated</h2>
           <Link to="/admin/posts">View all posts →</Link>
         </div>
-        <QueryNotice
-          loading={recent.isPending}
-          error={recent.error}
-          retry={() => recent.refetch()}
-        />
-        {!recent.error && recent.data?.length === 0 && (
+        {overview.isPending && <AttentionSkeleton />}
+        {data?.recentPosts.length === 0 && (
           <p>No posts yet. Start with a draft.</p>
         )}
-        {!recent.error &&
-          recent.data?.map((post) => (
-            <Link
-              key={post.id}
-              to={`/admin/posts/${post.id}/edit`}
-              className="admin-recent-row"
-            >
-              <div>
-                <strong>{post.title}</strong>
-                <span>
-                  Updated {new Date(post.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-              <span className="admin-badge">{post.status}</span>
-              <ArrowRight size={16} />
-            </Link>
-          ))}
+        {data?.recentPosts.map((post) => (
+          <Link
+            key={post.id}
+            to={`/admin/posts/${post.id}/edit`}
+            className="admin-recent-row"
+          >
+            <div>
+              <strong>{post.title}</strong>
+              <span>
+                Updated {new Date(post.updated_at).toLocaleDateString()}
+              </span>
+            </div>
+            <span className="admin-badge">{post.status}</span>
+            <ArrowRight size={16} />
+          </Link>
+        ))}
       </section>
-      <details className="admin-card admin-section admin-indexing-details">
+      <details
+        className="admin-card admin-section admin-indexing-details"
+        onToggle={(event) => setIndexingOpen(event.currentTarget.open)}
+      >
         <summary className="cursor-pointer font-semibold">
           Search engine submissions
         </summary>
@@ -462,11 +506,13 @@ export default function Dashboard() {
           does not mean a page is indexed. Google indexing must be checked in
           Search Console.
         </p>
-        <QueryNotice
-          loading={indexing.isPending}
-          error={indexing.error}
-          retry={() => indexing.refetch()}
-        />
+        {indexingOpen && (
+          <QueryNotice
+            loading={indexing.isPending}
+            error={indexing.error}
+            retry={() => indexing.refetch()}
+          />
+        )}
         {!indexing.error && indexing.data?.length === 0 && (
           <p>No submission history yet.</p>
         )}

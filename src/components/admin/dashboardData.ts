@@ -1,67 +1,96 @@
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-export async function loadDashboardOverview() {
-  const requests = {
-    inquiries: supabase
-      .from("speaking_inquiries")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new"),
-    published: supabase
-      .from("posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published"),
-    drafts: supabase
-      .from("posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "draft"),
-    scheduled: supabase
-      .from("posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "scheduled"),
-    overdue: supabase
-      .from("posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "scheduled")
-      .lt("scheduled_at", new Date().toISOString()),
-    subscribers: supabase
-      .from("newsletter_subscribers")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "confirmed"),
-    shop: supabase
-      .from("offers")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published")
-      .eq("show_in_shop", true)
-      .eq("funnel_only", false),
-    paidOrders: supabase
-      .from("offer_orders")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "fulfilled")
-      .gt("amount_minor", 0),
-    freeClaims: supabase
-      .from("offer_orders")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "fulfilled")
-      .eq("amount_minor", 0),
-    nativePaidOffers: supabase
-      .from("offers")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published")
-      .eq("kind", "paid")
-      .eq("checkout_mode", "native"),
-    queueErrors: supabase
-      .from("content_opportunities")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["proposed", "drafting"])
-      .not("last_error", "is", null),
-  };
-  const entries = await Promise.all(
-    Object.entries(requests).map(async ([key, request]) => {
-      const { count, error } = await request;
-      if (error) throw error;
-      if (count === null)
-        throw new Error("A dashboard count could not be verified.");
-      return [key, count] as const;
+
+// Not yet in the generated types; regenerate types.ts after the migration.
+const untyped = supabase as unknown as {
+  rpc: (
+    fn: "admin_overview_snapshot",
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+};
+const count = z.number().int().nonnegative();
+const attentionItem = z.object({
+  key: z.string().min(1),
+  severity: z.enum(["high", "medium", "low"]),
+  count,
+  message: z.string().min(1),
+  detail: z.string().nullable(),
+  // Internal admin routes only; never an arbitrary URL from the database.
+  link: z.string().regex(/^\/admin(?:[/?#]|$)/),
+});
+const snapshotSchema = z.object({
+  generated_at: z.string(),
+  counts: z.object({
+    inquiries: count,
+    published: count,
+    drafts: count,
+    scheduled: count,
+    overdue: count,
+    subscribers: count,
+    pending_subscribers: count,
+    shop: count,
+    paid_orders: count,
+    test_paid_orders: count,
+    unknown_paid_orders: count,
+    free_claims: count,
+    native_paid_offers: count,
+    queue_errors: count,
+    stale_pages: count,
+    // null until migration 20260923130000 adds the hold columns.
+    held_posts: count.nullable(),
+    contradicted_live_posts: count.nullable(),
+  }),
+  recent_posts: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      status: z.string(),
+      updated_at: z.string(),
     }),
-  );
-  return Object.fromEntries(entries) as Record<keyof typeof requests, number>;
+  ),
+  attention: z.array(attentionItem),
+});
+
+export type AttentionItem = z.infer<typeof attentionItem>;
+export type DashboardOverview = ReturnType<typeof toOverview>;
+
+function toOverview(snapshot: z.infer<typeof snapshotSchema>) {
+  const c = snapshot.counts;
+  return {
+    generatedAt: snapshot.generated_at,
+    inquiries: c.inquiries,
+    published: c.published,
+    drafts: c.drafts,
+    scheduled: c.scheduled,
+    overdue: c.overdue,
+    subscribers: c.subscribers,
+    pendingSubscribers: c.pending_subscribers,
+    shop: c.shop,
+    /** Fulfilled live-mode payments only. */
+    paidOrders: c.paid_orders,
+    testPaidOrders: c.test_paid_orders,
+    unknownPaidOrders: c.unknown_paid_orders,
+    freeClaims: c.free_claims,
+    nativePaidOffers: c.native_paid_offers,
+    queueErrors: c.queue_errors,
+    stalePages: c.stale_pages,
+    heldPosts: c.held_posts,
+    contradictedLivePosts: c.contradicted_live_posts,
+    recentPosts: snapshot.recent_posts,
+    attention: snapshot.attention,
+  };
+}
+
+/**
+ * One admin-only round trip (admin_overview_snapshot, migration
+ * 20260923150000) replaces the 11 count requests, the stale-pages count and
+ * the recent-posts request the Overview used to fire on every load.
+ */
+export async function loadDashboardOverview() {
+  const { data, error } = await untyped.rpc("admin_overview_snapshot");
+  if (error) throw new Error(error.message);
+  const parsed = snapshotSchema.safeParse(data);
+  // Never manufacture zeroes from a partial or unexpected response.
+  if (!parsed.success)
+    throw new Error("A dashboard count could not be verified.");
+  return toOverview(parsed.data);
 }

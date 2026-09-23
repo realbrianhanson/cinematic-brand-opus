@@ -157,6 +157,42 @@ export async function conversionHash(value: string): Promise<string> {
     (byte) => byte.toString(16).padStart(2, "0"),
   ).join("");
 }
+/** Role claim of a JWT, read only to tell public keys from session tokens. */
+function jwtRole(token: string): string | null {
+  const payload = token.split(".")[1];
+  if (!payload || token.split(".").length !== 3) return null;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(
+      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")),
+    );
+    return typeof claims?.role === "string" ? claims.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True for requests that carry no user session. supabase.functions.invoke
+ * sends the bundled publishable key as both `apikey` and the bearer, and that
+ * key does not always equal this function's SUPABASE_ANON_KEY (legacy JWT vs
+ * publishable key, or a rotated key). Requiring an exact match silently
+ * dropped every anonymous claim's measurement. A signed-in user's bearer is
+ * their session JWT (role "authenticated"), which never qualifies, even when
+ * a caller copies it into `apikey`. This only decides whether an optional
+ * measurement is linked; a request with no Authorization header at all is
+ * already treated as public.
+ */
+function publicBearer(req: Request, anonKey: string | undefined): boolean {
+  const header = req.headers.get("authorization");
+  if (header === null) return true;
+  const token = /^Bearer\s+(\S+)$/i.exec(header.trim())?.[1];
+  if (!token) return false;
+  if (anonKey && token === anonKey.trim()) return true;
+  if (token !== req.headers.get("apikey")?.trim()) return false;
+  return token.startsWith("sb_publishable_") || jwtRole(token) === "anon";
+}
+
 export function conversionRequestAllowed(
   req: Request,
   origin: string,
@@ -167,9 +203,8 @@ export function conversionRequestAllowed(
     return false;
   // Revocation must still work after a visitor enables GPC/DNT or signs in.
   if (forget) return true;
-  // Authenticated or unrecognised bearer traffic is excluded, never decoded and trusted.
-  const bearer = req.headers.get("authorization");
-  if (bearer && (!anonKey || bearer !== `Bearer ${anonKey}`)) return false;
+  // Signed-in or unrecognised bearer traffic is excluded; see publicBearer.
+  if (!publicBearer(req, anonKey)) return false;
   if (req.headers.get("dnt") === "1" || req.headers.get("sec-gpc") === "1")
     return false;
   if (req.headers.has("x-qa") || req.headers.has("x-codex-qa")) return false;

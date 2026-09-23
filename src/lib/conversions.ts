@@ -150,3 +150,7 @@ export function conversionLabel(value: string): string {
     .replace(/[_-]/g, " ")
     .replace(/^./, (letter) => letter.toUpperCase());
 }
+/** conversion_record_events stores "none" when a visit carried no utm_campaign. */
+export function campaignLabel(value: string | null): string {
+  return !value || value === "none" ? "(no campaign)" : value;
+}

@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ChartNoAxesCombined, RefreshCw } from "lucide-react";
+import { Link as RouterLink } from "@tanstack/react-router";
 import { Link } from "@/lib/router-compat";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { isBrianOwner } from "@/lib/informationPages";
 import {
+  campaignLabel,
   conversionDate,
   conversionLabel,
   conversionMoney,
@@ -140,10 +143,26 @@ export function ConversionOverview() {
         <ChartNoAxesCombined size={22} aria-hidden="true" />
       </div>
       <QueryNotice
-        loading={report.isPending}
-        error={report.error}
+        error={report.data ? null : report.error}
         retry={() => report.refetch()}
       />
+      {report.isPending && (
+        <div
+          className="admin-conversion-overview-counts"
+          data-testid="conversion-overview-counts"
+          aria-busy="true"
+        >
+          <span role="status" className="sr-only">
+            Loading conversion numbers…
+          </span>
+          {[0, 1, 2].map((key) => (
+            <div key={key} aria-hidden="true">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="mt-2 h-3 w-36" />
+            </div>
+          ))}
+        </div>
+      )}
       {report.data && (
         <>
           {report.error && (
@@ -152,7 +171,11 @@ export function ConversionOverview() {
               activity.
             </p>
           )}
-          <div className="admin-conversion-overview-counts">
+          <div
+            className="admin-conversion-overview-counts"
+            data-testid="conversion-overview-counts"
+            aria-busy="false"
+          >
             <p>
               <strong>{number(report.data.summary.measured_sessions)}</strong>
               <span>Measured sessions</span>
@@ -220,14 +243,18 @@ export default function ConversionDashboard({
           className="admin-conversion-ranges"
         >
           {([7, 30, 90] as const).map((value) => (
-            <Link
+            // Numeric search values keep URLs canonical (?days=7, and no
+            // parameter for the 30-day default). A "?days=7" string would be
+            // JSON-quoted by TanStack's serializer.
+            <RouterLink
               key={value}
-              to={`/admin/conversions?days=${value}`}
+              to="/admin/conversions"
+              search={{ days: value }}
               aria-current={days === value ? "page" : undefined}
               className={days === value ? "is-active" : ""}
             >
               Last {value} days
-            </Link>
+            </RouterLink>
           ))}
         </nav>
         <p className="admin-help">UTC calendar days, including today</p>
@@ -395,10 +422,8 @@ export default function ConversionDashboard({
                       <th scope="row">
                         {conversionLabel(row.source)}
                         <small>
-                          {conversionLabel(row.medium)}
-                          {row.campaign
-                            ? ` · ${row.campaign}`
-                            : " · No campaign"}
+                          {conversionLabel(row.medium)} ·{" "}
+                          {campaignLabel(row.campaign)}
                         </small>
                       </th>
                       <td>{number(row.sessions)}</td>
@@ -607,7 +632,8 @@ export default function ConversionDashboard({
             <p className="admin-help">
               {number(data.coverage.unattributed_free_claims)} free claims and{" "}
               {number(data.coverage.unattributed_paid_orders)} live paid orders
-              in this period have no qualifying measured offer visit.{" "}
+              in this period could not be linked to a measured visit (the
+              visitor declined measurement, or the link failed).{" "}
               {number(data.native_totals.test_paid_orders)} test paid orders and{" "}
               {number(data.native_totals.unknown_mode_paid_orders)} paid orders
               of unknown mode are excluded from live sales.
