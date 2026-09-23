@@ -10,6 +10,32 @@ import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
+import {
+  checkGuidePublishReadiness,
+  isPublishTransition,
+  MIN_GUIDE_OVERRIDE_REASON,
+} from "@/lib/guidePublishGate";
+
+// publish_pillar_page_with_override is newer than the generated client types.
+const publishGuideWithOverride = async (
+  pillarId: string,
+  reason: string,
+  issues: string[],
+) => {
+  const { error } = await (
+    supabase as unknown as {
+      rpc: (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ error: unknown }>;
+    }
+  ).rpc("publish_pillar_page_with_override", {
+    p_pillar_id: pillarId,
+    p_reason: reason,
+    p_issues: issues,
+  });
+  if (error) throw error;
+};
 
 const slugify = (s: string) =>
   s
@@ -71,6 +97,12 @@ const PillarPageEditor = () => {
   const [keywords, setKeywords] = useState("");
   const [ogImage, setOgImage] = useState("");
   const [uploading, setUploading] = useState(false);
+  // Publish gate: a guide that is too thin needs an override reason.
+  const [gateBlock, setGateBlock] = useState<{
+    issues: string[];
+    content: string;
+  } | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
 
   const {
     data: pillar,
@@ -160,12 +192,21 @@ const PillarPageEditor = () => {
     mutationFn: ({
       publishNow,
       content,
+      override,
+      keepStatus,
     }: {
       publishNow: boolean;
       content: string;
+      override?: { reason: string; issues: string[] };
+      /** Save edits without changing the stored status. */
+      keepStatus?: boolean;
     }) =>
       safeMutation(async () => {
-        const finalStatus = publishNow ? "published" : status;
+        const requested = publishNow ? "published" : status;
+        // With an override the edits are saved unpublished first; the audited
+        // RPC then publishes past the gate.
+        const finalStatus =
+          override || keepStatus ? (pillar?.status ?? "draft") : requested;
         const seoTitle = metaTitle || title;
         // Merge so keys this form does not edit (faqs, sources, ...) survive,
         // and write both key shapes the site and generator read.
@@ -190,8 +231,10 @@ const PillarPageEditor = () => {
           seo_meta: seoMeta,
           updated_at: new Date().toISOString(),
         };
-        if (publishNow) payload.published_at = new Date().toISOString();
+        if (isPublishTransition(pillar?.status, finalStatus))
+          payload.published_at = new Date().toISOString();
 
+        let savedId = id ?? null;
         if (id) {
           const { data, error } = await supabase
             .from("pillar_pages")
@@ -203,10 +246,24 @@ const PillarPageEditor = () => {
             throw new Error(
               "This topic guide no longer exists. Your changes were not saved.",
             );
+        } else if (override) {
+          const { data, error } = await supabase
+            .from("pillar_pages")
+            .insert(payload)
+            .select("id")
+            .single();
+          if (error) throw error;
+          savedId = data.id;
         } else {
           const { error } = await supabase.from("pillar_pages").insert(payload);
           if (error) throw error;
         }
+        if (override && savedId)
+          await publishGuideWithOverride(
+            savedId,
+            override.reason,
+            override.issues,
+          );
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
@@ -234,6 +291,15 @@ const PillarPageEditor = () => {
     const content = editor.getHTML();
     const warning = id ? bodyLossWarning(pillar?.content, content) : null;
     if (warning && !window.confirm(warning)) return;
+    const finalStatus = publishNow ? "published" : status;
+    if (isPublishTransition(pillar?.status, finalStatus)) {
+      const readiness = checkGuidePublishReadiness(content);
+      if (!readiness.ok) {
+        setOverrideReason("");
+        setGateBlock({ issues: readiness.issues, content });
+        return;
+      }
+    }
     saveMutation.mutate({ publishNow, content });
   };
 
@@ -300,12 +366,109 @@ const PillarPageEditor = () => {
   }
 
   const saveDisabled = saveMutation.isPending || !title.trim() || !editorReady;
+  const overrideReady =
+    overrideReason.trim().length >= MIN_GUIDE_OVERRIDE_REASON;
 
   const publishedCount =
     connectedPages?.filter((p) => p.status === "published").length ?? 0;
 
   return (
     <div>
+      {gateBlock && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guide-gate-title"
+            className="admin-card font-body"
+            style={{ padding: 28, maxWidth: 480, width: "90%" }}
+          >
+            <h2
+              id="guide-gate-title"
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
+                marginBottom: 10,
+              }}
+            >
+              This guide is not ready to publish
+            </h2>
+            <ul style={{ paddingLeft: 16, marginBottom: 14 }}>
+              {gateBlock.issues.map((issue) => (
+                <li
+                  key={issue}
+                  style={{
+                    listStyle: "disc",
+                    fontSize: 13,
+                    color: "hsl(var(--admin-text-soft))",
+                  }}
+                >
+                  {issue}
+                </li>
+              ))}
+            </ul>
+            <label
+              htmlFor="guide-override-reason"
+              className="admin-label"
+              style={{ fontSize: 11 }}
+            >
+              Reason to publish anyway (logged, at least{" "}
+              {MIN_GUIDE_OVERRIDE_REASON} characters)
+            </label>
+            <textarea
+              id="guide-override-reason"
+              className="admin-input font-body w-full"
+              rows={3}
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              style={{ marginBottom: 16, resize: "vertical" }}
+            />
+            <div className="flex gap-2 justify-end flex-wrap">
+              <button
+                className="admin-btn-ghost"
+                onClick={() => setGateBlock(null)}
+              >
+                Keep editing
+              </button>
+              <button
+                className="admin-btn-ghost"
+                disabled={saveMutation.isPending}
+                onClick={() => {
+                  const { content } = gateBlock;
+                  setGateBlock(null);
+                  setStatus(pillar?.status ?? "draft");
+                  saveMutation.mutate({
+                    publishNow: false,
+                    content,
+                    keepStatus: true,
+                  });
+                }}
+              >
+                Save without publishing
+              </button>
+              <button
+                className="admin-btn-primary"
+                disabled={!overrideReady || saveMutation.isPending}
+                onClick={() => {
+                  const { content, issues } = gateBlock;
+                  setGateBlock(null);
+                  saveMutation.mutate({
+                    publishNow: true,
+                    content,
+                    override: { reason: overrideReason.trim(), issues },
+                  });
+                }}
+              >
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div
         className="flex items-center justify-between flex-wrap gap-3"

@@ -8,8 +8,22 @@ import {
   composePageTitle,
   countContentItems,
   writeMetaDescription,
+  shortAudienceLabel,
+  slugifyTitle,
+  applyTitleLint,
+  lintPageTitle,
   type VoiceConfig,
 } from "../_shared/voice.ts";
+import {
+  addUsage,
+  canResumeJob,
+  EMPTY_USAGE,
+  isJobStalled,
+  roundUsd,
+  STALL_AFTER_MINUTES,
+  validateJobSize,
+  type UsageTotals,
+} from "../_shared/generationLimits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,13 +40,27 @@ import {
 const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions";
 const FIRECRAWL_API = "https://api.firecrawl.dev/v1";
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/['']/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
+// Slugs are cut on a word boundary (80 chars) by the shared helper.
+const slugify = (text: string) => slugifyTitle(text);
+
+/** Abort a hung AI or research call so one item fails, not the whole run. */
+const REQUEST_TIMEOUT_MS = 90_000;
+
+// Keep outbound self-invocations alive after the response is sent.
+function runInBackground(promise: Promise<unknown>) {
+  const runtime = (
+    globalThis as {
+      EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+    }
+  ).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(promise);
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 function extractJson(raw: string): string {
@@ -132,7 +160,14 @@ async function generateUniqueAngles(
   audience: string,
   apiKey: string,
   serp: SerpSnapshot | null = null,
-): Promise<{ angle: string; keyword: string }[]> {
+): Promise<{
+  angles: { angle: string; keyword: string }[];
+  usage: UsageTotals;
+}> {
+  const fallback = () => ({
+    angles: generateFallbackAngles(nicheName, schemaName, count),
+    usage: EMPTY_USAGE,
+  });
   const existingList =
     existingTitles.length > 0
       ? `\n\nEXISTING CONTENT ON THIS SITE (DO NOT REPEAT ANY OF THESE TOPICS):\n${existingTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
@@ -176,6 +211,7 @@ Return ONLY the JSON array. No other text.`;
   try {
     const resp = await fetch(AI_GATEWAY, {
       method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
@@ -196,23 +232,28 @@ Return ONLY the JSON array. No other text.`;
 
     if (!resp.ok) {
       console.error("Angle generation failed:", resp.status);
-      return generateFallbackAngles(nicheName, schemaName, count);
+      return fallback();
     }
 
     const data = await resp.json();
+    const usage = addUsage(EMPTY_USAGE, ANGLE_MODEL, data.usage);
     const raw = data.choices?.[0]?.message?.content || "";
     const parsed = JSON.parse(extractJson(raw));
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.slice(0, count).map((a: any) => ({
-        angle: a.angle || a.title || `${schemaName} for ${nicheName}`,
-        keyword: (a.keyword || `${a.angle} ${nicheName}`).toLowerCase(),
-      }));
+      return {
+        angles: parsed.slice(0, count).map((a: any) => ({
+          angle: a.angle || a.title || `${schemaName} for ${nicheName}`,
+          keyword: (a.keyword || `${a.angle} ${nicheName}`).toLowerCase(),
+        })),
+        usage,
+      };
     }
+    return { ...fallback(), usage };
   } catch (e: any) {
     console.error("Angle generation error:", e.message);
   }
 
-  return generateFallbackAngles(nicheName, schemaName, count);
+  return fallback();
 }
 
 function generateFallbackAngles(
@@ -252,17 +293,20 @@ async function researchTopic(
   context: string;
   hasResearch: boolean;
   sources: { url: string; title?: string }[];
+  usage: UsageTotals;
 }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
   const sources: { url: string; title?: string }[] = [];
+  let usage: UsageTotals = EMPTY_USAGE;
 
   if (PERPLEXITY_API_KEY) {
     try {
       const query = `What are the most actively used and well-reviewed ${angle.toLowerCase()} in ${currentYear}? List ONLY tools and platforms that are currently popular, actively maintained, and have recent user reviews or updates. Include specific names, pricing, and what makes each one stand out. Exclude any tools that have shut down, pivoted away from this space, or lost significant market share. Focus on what ${audience} are actually adopting right now in ${currentYear}.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
           "Content-Type": "application/json",
@@ -281,6 +325,7 @@ async function researchTopic(
       });
       if (resp.ok) {
         const data = await resp.json();
+        usage = addUsage(usage, "sonar-pro", data.usage);
         const content = data.choices?.[0]?.message?.content || "";
         const citations = data.citations || [];
         if (content) {
@@ -308,6 +353,7 @@ async function researchTopic(
     try {
       const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
@@ -358,9 +404,10 @@ async function researchTopic(
     console.warn(
       `⚠️ No research data available for "${angle}" in "${nicheName}" — content will be conservative`,
     );
-    return { context: "", hasResearch: false, sources: dedupedSources };
+    return { context: "", hasResearch: false, sources: dedupedSources, usage };
   }
   return {
+    usage,
     context: `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\nThe following is CURRENT, VERIFIED information from live web sources. This is your ONLY source of truth for tool/platform/company names.\nYou MUST ONLY reference tools, platforms, and companies that appear in this research data.\nDo NOT add any tools from your own training data. If a tool is not listed below, do NOT include it.\n\n${researchParts.join("\n\n")}\n\n═══ END OF RESEARCH DATA ═══`,
     hasResearch: true,
     sources: dedupedSources,
@@ -411,6 +458,10 @@ Deno.serve(async (req) => {
 
   // ─── STEP PROCESSOR: handles ONE page then self-invokes for next ───
   if (isStepProcess) {
+    const stepBody = await req
+      .clone()
+      .json()
+      .catch(() => ({}));
     try {
       await handleStepProcessing(
         req,
@@ -419,15 +470,18 @@ Deno.serve(async (req) => {
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
       );
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: true });
     } catch (err: any) {
       console.error("Step processing error:", err);
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // One bad item must not end the run: count it as failed and move on.
+      await recoverFromStepError(
+        supabase,
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        stepBody,
+        err,
+      );
+      return jsonResponse({ error: err.message }, 500);
     }
   }
 
@@ -441,9 +495,7 @@ Deno.serve(async (req) => {
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
       );
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: true });
     } catch (err: any) {
       console.error("Setup processing error:", err);
       try {
@@ -463,10 +515,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.warn("Optional job metadata update failed", error);
       }
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: err.message }, 500);
     }
   }
 
@@ -482,35 +531,37 @@ Deno.serve(async (req) => {
     data: { user },
     error: userErr,
   } = await anonClient.auth.getUser();
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (userErr || !user) return jsonResponse({ error: "Unauthorized" }, 401);
   const { data: roleRow } = await anonClient
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id)
     .eq("role", "admin")
     .maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (!roleRow) return jsonResponse({ error: "Forbidden" }, 403);
 
   try {
     const body = await req.json();
+    if (typeof body?.resume_job_id === "string") {
+      return await handleResume(
+        supabase,
+        body.resume_job_id,
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+      );
+    }
     const {
       niche_slugs = ["all_active"],
       content_type_slugs,
       content_type_slug,
       count_per_combination = 1,
       dry_run = false,
-      batch_id = crypto.randomUUID(),
+      confirmed_total,
     } = body;
+    const batch_id =
+      typeof body.batch_id === "string" && body.batch_id
+        ? body.batch_id
+        : crypto.randomUUID();
 
     const resolvedSlugs: string[] = content_type_slugs
       ? Array.isArray(content_type_slugs)
@@ -533,12 +584,7 @@ Deno.serve(async (req) => {
     }
     const { data: niches, error: nErr } = await nichesQuery;
     if (nErr) throw new Error(`Failed to fetch niches: ${nErr.message}`);
-    if (!niches?.length) {
-      return new Response(JSON.stringify({ error: "No niches found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!niches?.length) return jsonResponse({ error: "No niches found" }, 400);
 
     // Resolve content schemas
     let schemasQuery = supabase.from("content_schemas").select("*");
@@ -550,15 +596,8 @@ Deno.serve(async (req) => {
     const { data: contentSchemas, error: csErr } = await schemasQuery;
     if (csErr)
       throw new Error(`Failed to fetch content_schemas: ${csErr.message}`);
-    if (!contentSchemas?.length) {
-      return new Response(
-        JSON.stringify({ error: "No content schemas found" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
+    if (!contentSchemas?.length)
+      return jsonResponse({ error: "No content schemas found" }, 400);
 
     if (dry_run) {
       return await handleDryRun(
@@ -570,8 +609,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    const totalCombinations =
-      niches.length * contentSchemas.length * count_per_combination;
+    // Server-side bounds: integer count, at most MAX_PAGES_PER_JOB pages, and
+    // the admin must have confirmed this exact page count.
+    const size = validateJobSize({
+      countPerCombination: count_per_combination,
+      nicheCount: niches.length,
+      schemaCount: contentSchemas.length,
+      confirmedTotal: confirmed_total,
+    });
+    if (!size.ok) {
+      return jsonResponse(
+        {
+          error: size.message,
+          code: size.code,
+          total_combinations: size.total ?? null,
+          estimate: size.estimate ?? null,
+        },
+        size.code === "confirm_required" ? 409 : 400,
+      );
+    }
+    const totalCombinations = size.total;
+
+    // Single running-job lock. Stalled jobs are released first so one dropped
+    // chain can never block generation for good.
+    await supabase.rpc("mark_stalled_generation_jobs", {
+      p_stall_minutes: STALL_AFTER_MINUTES,
+    });
+    const { data: activeJob } = await supabase
+      .from("generation_jobs")
+      .select("id")
+      .in("status", ["pending", "running"])
+      .limit(1)
+      .maybeSingle();
+    if (activeJob)
+      return jsonResponse(
+        {
+          error:
+            "A generation job is already running. Wait for it to finish, or cancel it first.",
+          code: "job_running",
+          job_id: activeJob.id,
+        },
+        409,
+      );
 
     const { data: job, error: jobErr } = await supabase
       .from("generation_jobs")
@@ -583,50 +662,205 @@ Deno.serve(async (req) => {
           niche_slugs,
           content_type_slugs: resolvedSlugs,
           count_per_combination,
+          requested_by: user.id,
         },
       })
       .select("id")
       .single();
 
+    if (jobErr?.code === "23505")
+      return jsonResponse(
+        {
+          error:
+            "A generation job is already running. Wait for it to finish, or cancel it first.",
+          code: "job_running",
+        },
+        409,
+      );
     if (jobErr) throw new Error(`Failed to create job: ${jobErr.message}`);
 
-    // Fire-and-forget: kick off setup phase (generates angles, then starts step-by-step)
+    // Kick off setup (angles, then step-by-step) without holding this request.
     const processUrl = `${SUPABASE_URL}/functions/v1/generate-content`;
-    fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "x-job-setup": "true",
-      },
-      body: JSON.stringify({
-        job_id: job.id,
-        batch_id,
-        niche_ids: niches.map((n: any) => n.id),
-        schema_ids: contentSchemas.map((s: any) => s.id),
-        count_per_combination,
-      }),
-    }).catch((e) => console.error("Failed to self-invoke setup:", e));
-
-    return new Response(
-      JSON.stringify({
-        job_id: job.id,
-        batch_id,
-        total_combinations: totalCombinations,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    runInBackground(
+      fetch(processUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-job-setup": "true",
+        },
+        body: JSON.stringify({
+          job_id: job.id,
+          batch_id,
+          niche_ids: niches.map((n: any) => n.id),
+          schema_ids: contentSchemas.map((s: any) => s.id),
+          count_per_combination,
+        }),
+      }).catch((e) =>
+        markJobStalled(supabase, job.id, `Could not start setup: ${e.message}`),
+      ),
     );
+
+    return jsonResponse({
+      job_id: job.id,
+      batch_id,
+      total_combinations: totalCombinations,
+    });
   } catch (err: any) {
     console.error("generate-content error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return jsonResponse({ error: err.message || "Unknown error" }, 500);
   }
 });
+
+// ─── RESUME: continue a stalled/cancelled job from its saved queue ───
+
+async function handleResume(
+  supabase: any,
+  jobId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+) {
+  const { data: job, error } = await supabase
+    .from("generation_jobs")
+    .select(
+      "id, batch_id, status, work_queue, completed_count, success_count, failed_count, skipped_count, total_combinations, updated_at",
+    )
+    .eq("id", jobId)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load job: ${error.message}`);
+  if (!job) return jsonResponse({ error: "Job not found" }, 404);
+
+  const queue = Array.isArray(job.work_queue) ? job.work_queue : [];
+  const stalled = isJobStalled(job, Date.now());
+  const resumable = canResumeJob({
+    ...job,
+    status: stalled ? "stalled" : job.status,
+    total_combinations: queue.length,
+    has_work_queue: queue.length > 0,
+  });
+  if (!resumable)
+    return jsonResponse(
+      {
+        error:
+          queue.length === 0
+            ? "This job has no saved queue to resume. Start a new job instead."
+            : "Only a stalled or cancelled job with pages left can be resumed.",
+        code: "not_resumable",
+      },
+      400,
+    );
+
+  const { data: claimed, error: claimErr } = await supabase
+    .from("generation_jobs")
+    .update({ status: "running", error_message: null })
+    .eq("id", jobId)
+    .eq("status", job.status)
+    .select("id");
+  if (claimErr?.code === "23505")
+    return jsonResponse(
+      {
+        error:
+          "Another generation job is running. Wait for it to finish, or cancel it first.",
+        code: "job_running",
+      },
+      409,
+    );
+  if (claimErr) throw new Error(`Failed to resume job: ${claimErr.message}`);
+  if (!claimed?.length)
+    return jsonResponse(
+      { error: "The job changed while resuming. Reload and try again." },
+      409,
+    );
+
+  triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
+    job_id: job.id,
+    batch_id: job.batch_id,
+    work_queue: queue,
+    current_index: job.completed_count ?? 0,
+    success_count: job.success_count ?? 0,
+    failed_count: job.failed_count ?? 0,
+    skipped_count: job.skipped_count ?? 0,
+    pages: [],
+  });
+  return jsonResponse({
+    job_id: job.id,
+    resumed_from: job.completed_count ?? 0,
+    total_combinations: queue.length,
+  });
+}
+
+async function markJobStalled(supabase: any, jobId: string, message: string) {
+  try {
+    await supabase
+      .from("generation_jobs")
+      .update({ status: "stalled", error_message: message })
+      .eq("id", jobId)
+      .in("status", ["pending", "running"]);
+  } catch (e: any) {
+    console.error("Could not mark job stalled:", e.message);
+  }
+}
+
+/** After a step throws: record the item as failed and continue the chain. */
+async function recoverFromStepError(
+  supabase: any,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  stepBody: any,
+  err: Error,
+) {
+  const jobId = stepBody?.job_id;
+  const queue = Array.isArray(stepBody?.work_queue) ? stepBody.work_queue : [];
+  const index = Number(stepBody?.current_index);
+  if (!jobId || !Number.isInteger(index)) return;
+  try {
+    const failed = (stepBody.failed_count ?? 0) + 1;
+    const success = stepBody.success_count ?? 0;
+    const skipped = stepBody.skipped_count ?? 0;
+    const pages = Array.isArray(stepBody.pages) ? stepBody.pages : [];
+    await logGeneration(supabase, {
+      batch_id: stepBody.batch_id,
+      generated_page_id: null,
+      status: "failed",
+      error_message: `Item ${index + 1}/${queue.length}: ${err.message}`,
+      tokens_used: 0,
+      cost: 0,
+      duration_ms: 0,
+    });
+    await updateJobProgress(
+      supabase,
+      jobId,
+      index + 1,
+      success,
+      failed,
+      skipped,
+    );
+    if (index + 1 >= queue.length) {
+      await finalizeJob(
+        supabase,
+        jobId,
+        pages,
+        queue.length,
+        success,
+        failed,
+        skipped,
+      );
+    } else {
+      triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
+        ...stepBody,
+        current_index: index + 1,
+        failed_count: failed,
+      });
+    }
+  } catch (e: any) {
+    await markJobStalled(
+      supabase,
+      jobId,
+      `Stopped at item ${index + 1}/${queue.length}: ${err.message}`,
+    );
+    console.error("Step recovery failed:", e.message);
+  }
+}
 
 // ─── SETUP: generate all angles, build work queue, kick off first step ───
 
@@ -639,11 +873,19 @@ async function handleSetupProcessing(
 ) {
   const { job_id, batch_id, niche_ids, schema_ids, count_per_combination } =
     await req.json();
+  const setupStart = Date.now();
+  let setupUsage: UsageTotals = EMPTY_USAGE;
 
-  await supabase
+  const { data: started } = await supabase
     .from("generation_jobs")
     .update({ status: "running" })
-    .eq("id", job_id);
+    .eq("id", job_id)
+    .eq("status", "pending")
+    .select("id");
+  if (!started?.length) {
+    console.log(`Job ${job_id} is no longer pending; setup skipped`);
+    return;
+  }
 
   const { data: niches } = await supabase
     .from("niches")
@@ -682,15 +924,19 @@ async function handleSetupProcessing(
         await appendSerpToJob(supabase, job_id, serp);
       }
 
-      const angles = await generateUniqueAngles(
+      const { angles, usage: angleUsage } = await generateUniqueAngles(
         niche.name,
         schema.name,
         count_per_combination,
         existingTitles,
-        ctx.audience || "general",
+        shortAudienceLabel(ctx, niche.name),
         apiKey,
         serp,
       );
+      setupUsage = {
+        tokens: setupUsage.tokens + angleUsage.tokens,
+        costUsd: setupUsage.costUsd + angleUsage.costUsd,
+      };
 
       const paa = serp?.paa_questions || [];
       for (const { angle, keyword } of angles) {
@@ -708,6 +954,32 @@ async function handleSetupProcessing(
   console.log(
     `Setup complete: ${workQueue.length} pages queued for job ${job_id}`,
   );
+
+  await logGeneration(supabase, {
+    batch_id,
+    generated_page_id: null,
+    status: "setup",
+    error_message: null,
+    tokens_used: setupUsage.tokens,
+    cost: roundUsd(setupUsage.costUsd),
+    duration_ms: Date.now() - setupStart,
+  });
+
+  // Save the queue so a stalled or cancelled job can resume, and stop here if
+  // the job was cancelled while angles were being generated.
+  const { data: saved, error: saveQueueErr } = await supabase
+    .from("generation_jobs")
+    .update({ work_queue: workQueue, total_combinations: workQueue.length })
+    .eq("id", job_id)
+    .eq("status", "running")
+    .select("id");
+  if (saveQueueErr) {
+    // Without the saved queue the job still runs; it just cannot resume.
+    console.warn("Could not save the work queue:", saveQueueErr.message);
+  } else if (!saved?.length) {
+    console.log(`Job ${job_id} was stopped during setup`);
+    return;
+  }
 
   if (workQueue.length === 0) {
     await supabase
@@ -731,7 +1003,7 @@ async function handleSetupProcessing(
   }
 
   // Kick off first step
-  triggerNextStep(supabaseUrl, serviceRoleKey, {
+  triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
     job_id,
     batch_id,
     work_queue: workQueue,
@@ -762,6 +1034,19 @@ async function handleStepProcessing(
     skipped_count: prevSkipped,
     pages: prevPages,
   } = await req.json();
+
+  // Cancel / stall / resume: only a job that is still running does work.
+  const { data: jobRow } = await supabase
+    .from("generation_jobs")
+    .select("status")
+    .eq("id", job_id)
+    .maybeSingle();
+  if (jobRow?.status !== "running") {
+    console.log(
+      `Job ${job_id} is ${jobRow?.status ?? "missing"}; stopping at item ${current_index + 1}`,
+    );
+    return;
+  }
 
   let successCount = prevSuccess;
   let failedCount = prevFailed;
@@ -822,7 +1107,7 @@ async function handleStepProcessing(
       cost: 0,
       duration_ms: Date.now() - startTime,
     });
-    triggerNextStep(supabaseUrl, serviceRoleKey, {
+    triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
       job_id,
       batch_id,
       work_queue,
@@ -846,16 +1131,14 @@ async function handleStepProcessing(
   );
 
   // Research phase
+  const audienceLabel = shortAudienceLabel(ctx, niche.name);
   const {
     context: researchContext,
     hasResearch,
     sources,
-  } = await researchTopic(
-    item.angle,
-    niche.name,
-    ctx.audience || "general",
-    currentYear,
-  );
+    usage: researchUsage,
+  } = await researchTopic(item.angle, niche.name, audienceLabel, currentYear);
+  let usage: UsageTotals = researchUsage;
 
   // Load voice config (per-site, from site_settings)
   const voice = await loadVoiceConfig(supabase);
@@ -928,13 +1211,13 @@ ${voiceBlock}`;
   );
 
   let contentJson: any = null;
-  let tokensUsed = 0;
   let aiError: string | null = null;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const aiResp = await fetch(AI_GATEWAY, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
@@ -964,7 +1247,7 @@ ${voiceBlock}`;
       }
 
       const aiData = await aiResp.json();
-      tokensUsed = aiData.usage?.total_tokens || 0;
+      usage = addUsage(usage, AI_MODEL, aiData.usage);
       const raw = aiData.choices?.[0]?.message?.content || "";
       contentJson = JSON.parse(extractJson(raw));
       aiError = null;
@@ -989,11 +1272,11 @@ ${voiceBlock}`;
       generated_page_id: null,
       status: "failed",
       error_message: aiError || "Unknown error",
-      tokens_used: tokensUsed,
-      cost: 0,
+      tokens_used: usage.tokens,
+      cost: roundUsd(usage.costUsd),
       duration_ms: Date.now() - startTime,
     });
-    triggerNextStep(supabaseUrl, serviceRoleKey, {
+    triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
       job_id,
       batch_id,
       work_queue,
@@ -1018,7 +1301,7 @@ ${voiceBlock}`;
       draftJson: contentJson,
       schemaHint: `listicle content_json for ${schema.name}`,
     });
-    tokensUsed += refined.tokensUsed;
+    usage = addUsage(usage, AI_MODEL, { total_tokens: refined.tokensUsed });
     contentJson = refined.refined;
     lintFlags = refined.remainingViolations;
     if (refined.errors.length) {
@@ -1049,11 +1332,19 @@ ${voiceBlock}`;
     schemaSlug: schema.slug,
     angle: item.angle,
     niche: niche.name,
-    audience: ctx.audience || "creators",
+    audience: audienceLabel,
     year: currentYear,
     actualCount,
     overridePatterns,
   });
+  lintFlags = [
+    ...lintFlags,
+    ...lintPageTitle(title).map(({ field, type, phrase }) => ({
+      field,
+      type,
+      phrase,
+    })),
+  ];
 
   // Make slug unique by suffixing if needed.
   let pageSlug = slugify(title);
@@ -1107,8 +1398,8 @@ ${voiceBlock}`;
   }
 
   // Auto-score the final content
-  const { score: qualityScore, issues: qualityIssues } = scoreContent(
-    contentJson,
+  const { score: qualityScore, issues: qualityIssues } = applyTitleLint(
+    scoreContent(contentJson, title),
     title,
   );
   if (qualityIssues.length) {
@@ -1127,6 +1418,7 @@ ${voiceBlock}`;
       const heroPrompt = `Create a professional, 16:9 editorial photograph or illustration for a resource page titled "${title}". Theme: ${item.angle} for ${niche.name}. Style: cinematic lighting, rich colors, modern editorial photography, no text overlays, no watermarks, no logos. High quality.`;
       const imgRes = await fetch(AI_GATEWAY, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
@@ -1139,6 +1431,7 @@ ${voiceBlock}`;
       });
       if (imgRes.ok) {
         const imgData = await imgRes.json();
+        usage = addUsage(usage, IMAGE_MODEL, imgData.usage);
         const imageUrl =
           imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
         const m =
@@ -1209,7 +1502,7 @@ ${voiceBlock}`;
       quality_score: qualityScore,
       lint_flags: lintFlags,
       generation_model: AI_MODEL,
-      generation_cost: 0,
+      generation_cost: roundUsd(usage.costUsd),
     })
     .select("id, title, slug, status")
     .single();
@@ -1229,8 +1522,8 @@ ${voiceBlock}`;
       generated_page_id: null,
       status: "failed",
       error_message: `DB save: ${saveErr.message}`,
-      tokens_used: tokensUsed,
-      cost: 0,
+      tokens_used: usage.tokens,
+      cost: roundUsd(usage.costUsd),
       duration_ms: Date.now() - startTime,
     });
   } else {
@@ -1244,8 +1537,8 @@ ${voiceBlock}`;
       generated_page_id: savedPage.id,
       status: "success",
       error_message: null,
-      tokens_used: tokensUsed,
-      cost: 0,
+      tokens_used: usage.tokens,
+      cost: roundUsd(usage.costUsd),
       duration_ms: Date.now() - startTime,
     });
     successCount++;
@@ -1284,7 +1577,7 @@ ${voiceBlock}`;
       skippedCount,
     );
   } else {
-    triggerNextStep(supabaseUrl, serviceRoleKey, {
+    triggerNextStep(supabase, supabaseUrl, serviceRoleKey, {
       job_id,
       batch_id,
       work_queue,
@@ -1300,20 +1593,30 @@ ${voiceBlock}`;
 // ─── Helpers ───
 
 function triggerNextStep(
+  supabase: any,
   supabaseUrl: string,
   serviceRoleKey: string,
   payload: any,
 ) {
   const processUrl = `${supabaseUrl}/functions/v1/generate-content`;
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "x-job-step": "true",
-    },
-    body: JSON.stringify(payload),
-  }).catch((e) => console.error("Failed to trigger next step:", e));
+  runInBackground(
+    fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "x-job-step": "true",
+      },
+      body: JSON.stringify(payload),
+    }).catch(async (e) => {
+      console.error("Failed to trigger next step:", e);
+      await markJobStalled(
+        supabase,
+        payload.job_id,
+        `Stopped before item ${payload.current_index + 1}: ${e.message}. Resume to continue.`,
+      );
+    }),
+  );
 }
 
 async function finalizeJob(
@@ -1341,7 +1644,9 @@ async function finalizeJob(
         skipped_duplicates: skipped,
       },
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    // A job cancelled or marked stalled meanwhile keeps that status.
+    .eq("status", "running");
   console.log(
     `Job ${jobId} finalized: ${success} success, ${failed} failed, ${skipped} skipped`,
   );
@@ -1487,23 +1792,39 @@ async function handleDryRun(
     .eq("content_schema_id", schema.id);
   const existingTitles = (existingPages || []).map((p: any) => p.title);
 
-  const angles = await generateUniqueAngles(
+  const startTime = Date.now();
+  const audienceLabel = shortAudienceLabel(ctx, niche.name);
+  const { angles, usage: angleUsage } = await generateUniqueAngles(
     niche.name,
     schema.name,
     1,
     existingTitles,
-    ctx.audience || "general",
+    audienceLabel,
     apiKey,
   );
-  const { angle, keyword } = angles[0];
+  const { angle } = angles[0];
   const workingTitle = `${angle} for ${niche.name} (${currentYear})`;
 
-  const { context: researchContext, hasResearch } = await researchTopic(
-    angle,
-    niche.name,
-    ctx.audience || "general",
-    currentYear,
-  );
+  const {
+    context: researchContext,
+    hasResearch,
+    usage: researchUsage,
+  } = await researchTopic(angle, niche.name, audienceLabel, currentYear);
+  let usage: UsageTotals = {
+    tokens: angleUsage.tokens + researchUsage.tokens,
+    costUsd: angleUsage.costUsd + researchUsage.costUsd,
+  };
+  // Dry runs spend credits too; record them so the spend is visible.
+  const logDryRun = (error: string | null) =>
+    logGeneration(supabase, {
+      batch_id: `dry-run-${crypto.randomUUID()}`,
+      generated_page_id: null,
+      status: "dry_run",
+      error_message: error,
+      tokens_used: usage.tokens,
+      cost: roundUsd(usage.costUsd),
+      duration_ms: Date.now() - startTime,
+    });
 
   const systemMessage =
     "You are a structured content engine. Return ONLY valid JSON matching the exact schema provided. No markdown fences, no explanations, no preamble. Every field is required. Follow all constraints exactly.";
@@ -1519,12 +1840,12 @@ async function handleDryRun(
   );
 
   let contentJson: any = null;
-  let tokensUsed = 0;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const aiResp = await fetch(AI_GATEWAY, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
@@ -1550,12 +1871,13 @@ async function handleDryRun(
         throw new Error(`AI gateway ${aiResp.status}: ${await aiResp.text()}`);
 
       const aiData = await aiResp.json();
-      tokensUsed = aiData.usage?.total_tokens || 0;
+      usage = addUsage(usage, AI_MODEL, aiData.usage);
       const raw = aiData.choices?.[0]?.message?.content || "";
       contentJson = JSON.parse(extractJson(raw));
       break;
     } catch (e: any) {
       if (attempt === 1) {
+        await logDryRun(`Dry run failed: ${e.message}`);
         return new Response(
           JSON.stringify({ error: `Dry run failed: ${e.message}` }),
           {
@@ -1572,10 +1894,11 @@ async function handleDryRun(
     schemaSlug: schema.slug,
     angle,
     niche: niche.name,
-    audience: ctx.audience || "creators",
+    audience: audienceLabel,
     year: currentYear,
     actualCount,
   });
+  await logDryRun(null);
   return new Response(
     JSON.stringify({
       dry_run: true,
@@ -1587,7 +1910,8 @@ async function handleDryRun(
           content_type: schema.name,
           angle,
           content_json: contentJson,
-          tokens_used: tokensUsed,
+          tokens_used: usage.tokens,
+          cost_usd: roundUsd(usage.costUsd),
         },
       ],
     }),

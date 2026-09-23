@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +26,11 @@ const PillarPagesManager = () => {
     title: string;
   } | null>(null);
   const [confirmAllMissing, setConfirmAllMissing] = useState(false);
+  // A chip click only opens this confirm; generation spends AI credits.
+  const [confirmNiche, setConfirmNiche] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [generatingNicheId, setGeneratingNicheId] = useState<string | null>(
     null,
   );
@@ -85,8 +89,8 @@ const PillarPagesManager = () => {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       toast({
-        title: "Pillar generated",
-        description: `${nicheName}: score ${data?.score ?? "?"}/100 — ${data?.score >= 75 ? "published" : "saved as draft"}.`,
+        title: "Topic guide drafted",
+        description: `${nicheName}: score ${data?.score ?? "?"}/100. Saved as a draft; open it to review and publish.`,
       });
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
     } catch (e) {
@@ -118,7 +122,7 @@ const PillarPagesManager = () => {
       const ok = results.filter((r) => r.success).length;
       toast({
         title: "Batch complete",
-        description: `${ok}/${results.length} pillars generated.`,
+        description: `${ok}/${results.length} topic guides drafted. Review and publish each one.`,
       });
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
     } catch (e) {
@@ -237,7 +241,7 @@ const PillarPagesManager = () => {
               return (
                 <button
                   key={n.id}
-                  onClick={() => generatePillar(n.id, n.name)}
+                  onClick={() => setConfirmNiche({ id: n.id, name: n.name })}
                   disabled={!!generatingNicheId}
                   title={
                     targetKw
@@ -399,6 +403,7 @@ const PillarPagesManager = () => {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => navigate(`/admin/pillars/${p.id}/edit`)}
+                        aria-label={`Edit ${p.title}`}
                         style={iconBtnStyle}
                       >
                         <Pencil size={13} />
@@ -407,6 +412,7 @@ const PillarPagesManager = () => {
                         onClick={() =>
                           setDeleteTarget({ id: p.id, title: p.title })
                         }
+                        aria-label={`Delete ${p.title}`}
                         style={iconBtnStyle}
                         onMouseEnter={(e) =>
                           (e.currentTarget.style.color =
@@ -478,6 +484,60 @@ const PillarPagesManager = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={!!confirmNiche}
+        onOpenChange={(o) => !o && setConfirmNiche(null)}
+      >
+        <AlertDialogContent
+          style={{
+            backgroundColor: "hsl(var(--admin-surface))",
+            border: "1px solid hsl(var(--admin-border))",
+            color: "hsl(var(--admin-text))",
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-body">
+              Generate a topic guide for {confirmNiche?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription
+              className="font-body"
+              style={{ color: "hsl(var(--admin-text-soft))" }}
+            >
+              Runs research and AI writing for one guide (about 1–2 minutes,
+              uses AI credits). It is saved as a draft for you to review before
+              publishing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="font-body"
+              style={{
+                border: "1px solid hsl(var(--admin-border))",
+                background: "none",
+                color: "hsl(var(--admin-text-soft))",
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="font-body"
+              onClick={() => {
+                const target = confirmNiche;
+                setConfirmNiche(null);
+                if (target) void generatePillar(target.id, target.name);
+              }}
+              style={{
+                backgroundColor: "hsl(var(--admin-accent))",
+                color: "#fff",
+                border: "none",
+              }}
+            >
+              Generate draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmAllMissing} onOpenChange={setConfirmAllMissing}>
         <AlertDialogContent
           style={{
@@ -496,6 +556,7 @@ const PillarPagesManager = () => {
             >
               Runs the full research + voice pipeline for every active niche
               without a pillar. This uses AI credits and takes several minutes.
+              Every guide is saved as a draft for you to review.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

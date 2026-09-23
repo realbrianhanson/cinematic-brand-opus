@@ -608,36 +608,63 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+/** Resource page titles longer than this are rejected by the composer and lint. */
+export const PAGE_TITLE_MAX_LENGTH = 70;
+/** Resource slugs are cut on a word boundary at this length. */
+export const PAGE_SLUG_MAX_LENGTH = 80;
+/** An {audience} label longer than this is a description, not a label. */
+const AUDIENCE_LABEL_MAX_LENGTH = 40;
+/** Quality points removed when a resource title fails the title lint. */
+export const TITLE_LINT_PENALTY = 30;
+
+// Keys are the real content_schemas slugs.
 const TITLE_PATTERNS: Record<string, string[]> = {
   "tool-roundups": [
     "{n} Best {angle} in {year}",
     "{angle}: {n} Tools Worth Paying For in {year}",
     "The {n} Top {angle} for {audience} ({year})",
+    "Best {angle} for {audience} in {year}",
   ],
-  checklists: [
+  "implementation-checklists": [
     "The {angle} Checklist: {n} Steps",
     "{angle}: A {n}-Point Checklist for {audience}",
     "{angle} Checklist for {year}",
+    "{angle}: A Step-by-Step Checklist",
   ],
   "strategy-guides": [
     "How to {angle}: A Practical Guide",
     "{angle} Strategy Guide for {audience}",
     "The {audience} Guide to {angle} in {year}",
+    "{angle}: A Practical Guide for {year}",
   ],
   "ideas-use-cases": [
     "{n} {angle} Ideas That Actually Work",
     "{n} Ways to Use {angle}",
     "{angle}: {n} Real Use Cases for {audience}",
+    "{angle}: Ideas and Use Cases for {year}",
   ],
   guides: [
     "How to {angle}: A Practical Guide",
     "{angle}: The {audience} Guide",
+    "{angle}: A Practical Guide for {year}",
   ],
-  templates: [
+  "templates-frameworks": [
     "{n} {angle} Templates for {audience}",
     "{angle}: {n} Ready-to-Use Templates",
+    "{angle}: Ready-to-Use Templates for {year}",
   ],
-  faqs: ["{angle}: FAQ for {audience}", "Common Questions About {angle}"],
+  "faq-collections": [
+    "{angle}: FAQ for {audience}",
+    "Common Questions About {angle}",
+    "{angle}: Your Questions Answered ({year})",
+  ],
+};
+
+// Older callers used short keys; keep them working.
+const TITLE_PATTERN_ALIASES: Record<string, string> = {
+  checklists: "implementation-checklists",
+  templates: "templates-frameworks",
+  faqs: "faq-collections",
 };
 
 const FALLBACK_PATTERNS_WITH_N = [
@@ -646,12 +673,262 @@ const FALLBACK_PATTERNS_WITH_N = [
 ];
 const FALLBACK_PATTERNS_NO_N = [
   "{angle}: A Practical Guide for {audience}",
-  "How to {angle} in {year}",
+  "{angle}: A Practical Guide for {year}",
 ];
+// Tried last, in order, when no pattern produces a clean title.
+const SAFE_PATTERNS = ["{angle} in {year}", "{angle}"];
+
+// A pattern and an angle may not both carry a word from the same family
+// ("Checklist Checklist", "FAQ Collection: FAQ for ...").
+const FORMAT_FAMILIES: RegExp[] = [
+  /\bchecklists?\b/i,
+  /\b(templates?|frameworks?|scripts?)\b/i,
+  /\b(faqs?|questions?)\b/i,
+  /\b(guides?|playbooks?)\b/i,
+  /\b(tools?|software|apps?|roundups?)\b/i,
+  /\b(ideas?|use cases?|ways)\b/i,
+  /\bstrateg(y|ies)\b/i,
+];
+
+// "How to {angle}" reads correctly only when the angle opens with a plain verb.
+const HOW_TO_VERBS = new Set(
+  "attract automate avoid book boost build choose close convert create cut find fix generate get grow handle hire implement improve increase integrate launch leverage manage market master measure optimize organize plan prepare price reduce retain run save scale sell set start streamline track train turn use win write".split(
+    " ",
+  ),
+);
+
+const YEAR_RE = /\b20\d{2}\b/;
+
+function cleanAngle(angle: string): string {
+  const trimmed = String(angle || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[\s:;,.–—-]+$/, "");
+  return trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : "";
+}
+
+function firstWord(text: string): string {
+  return (text.split(/\s+/)[0] || "").toLowerCase().replace(/[^a-z-]/g, "");
+}
+
+function startsWithVerb(angle: string): boolean {
+  return HOW_TO_VERBS.has(firstWord(angle));
+}
+
+function startsWithGerund(angle: string): boolean {
+  const w = firstWord(angle);
+  return w.length > 4 && w.endsWith("ing");
+}
+
+/** Pick a short {audience} label; long descriptive text falls back to the niche. */
+function audienceLabel(audience: string, niche: string): string {
+  const a = String(audience || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (a && a.length <= AUDIENCE_LABEL_MAX_LENGTH && !/[.;!?()]/.test(a))
+    return a;
+  return String(niche || "").trim() || "Creators";
+}
+
+/**
+ * Short audience label for title slots. Uses niches.context.audience_short
+ * (or a short audience) and otherwise the niche name — never the long
+ * descriptive audience paragraph.
+ */
+export function shortAudienceLabel(
+  context: Record<string, unknown> | null | undefined,
+  nicheName: string,
+): string {
+  const ctx = context && typeof context === "object" ? context : {};
+  const short =
+    typeof ctx.audience_short === "string" ? ctx.audience_short : "";
+  if (short.trim()) return audienceLabel(short, nicheName);
+  const audience = typeof ctx.audience === "string" ? ctx.audience : "";
+  return audienceLabel(audience, nicheName);
+}
+
+function patternLiteral(tpl: string): string {
+  return tpl.replace(/\{[a-z]+\}/g, " ");
+}
+
+function patternFitsAngle(
+  tpl: string,
+  angle: string,
+  audience: string,
+): boolean {
+  const literal = patternLiteral(tpl);
+  if (FORMAT_FAMILIES.some((re) => re.test(literal) && re.test(angle)))
+    return false;
+  if (/how to \{angle\}/i.test(tpl) && !startsWithVerb(angle)) return false;
+  if (
+    /\b(use|to) \{angle\}/i.test(tpl) &&
+    !/how to \{angle\}/i.test(tpl) &&
+    (startsWithGerund(angle) || startsWithVerb(angle))
+  )
+    return false;
+  // A gerund angle ("Leveraging ...") only reads well at the start of a title
+  // or after "Guide to" / "About".
+  if (
+    startsWithGerund(angle) &&
+    !tpl.startsWith("{angle}") &&
+    !/\b(guide to|about) \{angle\}/i.test(tpl)
+  )
+    return false;
+  if (tpl.includes("{year}") && YEAR_RE.test(angle)) return false;
+  if (tpl.includes("{audience}")) {
+    if (/\bfor\b/i.test(angle)) return false;
+    if (angle.toLowerCase().includes(audience.toLowerCase())) return false;
+  }
+  return true;
+}
+
+/** Drop the first of two adjacent words that only differ by a plural "s". */
+function collapseRepeatedWords(text: string): string {
+  const words = text.split(" ");
+  const norm = (w: string) =>
+    w
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .replace(/s$/, "");
+  const out = words.filter(
+    (w, i) =>
+      !(i + 1 < words.length && norm(w) && norm(w) === norm(words[i + 1])),
+  );
+  return out.join(" ");
+}
+
+function fillPattern(
+  tpl: string,
+  slots: {
+    n: number;
+    angle: string;
+    niche: string;
+    audience: string;
+    year: number;
+  },
+): string {
+  const filled = tpl
+    .replace(/\{n\}/g, String(slots.n))
+    .replace(/\{angle\}/g, slots.angle)
+    .replace(/\{niche\}/g, slots.niche)
+    .replace(/\{audience\}/g, slots.audience)
+    .replace(/\{year\}/g, String(slots.year))
+    .replace(/\s+/g, " ")
+    .trim();
+  return collapseRepeatedWords(filled);
+}
+
+/** Cut text to maxLen on a word boundary, without trailing punctuation. */
+function truncateAtWord(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const cut = text.slice(0, maxLen + 1);
+  const atSpace = cut.lastIndexOf(" ");
+  const base = atSpace > 0 ? cut.slice(0, atSpace) : text.slice(0, maxLen);
+  return base
+    .replace(/[\s:;,.&–—-]+$/, "")
+    .replace(/\s+(and|or|for|with|of|to|in|the|a|an)$/i, "")
+    .trim();
+}
+
+export interface TitleLintFlag {
+  field: "title";
+  type:
+    | "title_too_long"
+    | "title_repeated_word"
+    | "title_how_to_gerund"
+    | "title_how_to_noun"
+    | "title_multiple_sentences";
+  phrase: string;
+  message: string;
+}
+
+/**
+ * Title checks for generated resources. A flagged title costs
+ * TITLE_LINT_PENALTY quality points, which keeps it below the publish gate.
+ */
+export function lintPageTitle(title: string): TitleLintFlag[] {
+  const t = String(title || "").trim();
+  const flags: TitleLintFlag[] = [];
+  if (t.length > PAGE_TITLE_MAX_LENGTH)
+    flags.push({
+      field: "title",
+      type: "title_too_long",
+      phrase: `${t.length} characters`,
+      message: `Title is ${t.length} characters; keep it to ${PAGE_TITLE_MAX_LENGTH} or fewer`,
+    });
+  const repeated = t.match(/\b([A-Za-z]{3,}?)s?\s+\1s?\b/i);
+  if (repeated)
+    flags.push({
+      field: "title",
+      type: "title_repeated_word",
+      phrase: repeated[0],
+      message: `Title repeats a word: "${repeated[0]}"`,
+    });
+  const gerund = t.match(/^How to (\S+ing)\b/i);
+  if (gerund)
+    flags.push({
+      field: "title",
+      type: "title_how_to_gerund",
+      phrase: gerund[0],
+      message: `Title reads "${gerund[0]}"; How to needs a plain verb`,
+    });
+  const noun = t.match(/^How to [A-Z]{2}\S*/);
+  if (noun)
+    flags.push({
+      field: "title",
+      type: "title_how_to_noun",
+      phrase: noun[0],
+      message: `Title reads "${noun[0]}"; How to needs a verb`,
+    });
+  if (/[.!?]\s+[A-Z]/.test(t))
+    flags.push({
+      field: "title",
+      type: "title_multiple_sentences",
+      phrase: t.slice(0, 40),
+      message: "Title contains more than one sentence",
+    });
+  return flags;
+}
+
+/** Add title-lint issues (and the penalty) to a scoreContent() result. */
+export function applyTitleLint(
+  result: ScoreResult,
+  title: string,
+): ScoreResult {
+  const flags = lintPageTitle(title);
+  if (!flags.length) return result;
+  return {
+    score: Math.max(0, result.score - TITLE_LINT_PENALTY),
+    issues: [...result.issues, ...flags.map((f) => f.message)],
+  };
+}
+
+/**
+ * URL slug for a resource title: lowercase words joined by "-", cut on a word
+ * boundary at PAGE_SLUG_MAX_LENGTH.
+ */
+export function slugifyTitle(
+  text: string,
+  maxLen: number = PAGE_SLUG_MAX_LENGTH,
+): string {
+  const base = String(text || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['’‘]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (base.length <= maxLen) return base;
+  const cut = base.slice(0, maxLen);
+  const whole = base[maxLen] === "-" ? cut : cut.replace(/-[^-]*$/, "");
+  return whole.replace(/-+$/, "") || cut.replace(/-+$/, "");
+}
 
 /**
  * Deterministically pick a title pattern (same inputs → same output on regen)
- * and fill in slots. If actualCount < 10, avoids "{n}" patterns entirely.
+ * and fill in slots. Patterns that would repeat a format word, put a gerund or
+ * noun after "How to", repeat the year, or exceed PAGE_TITLE_MAX_LENGTH are
+ * skipped. If actualCount < 10, "{n}" patterns are never used.
  */
 export function composePageTitle(params: {
   schemaSlug: string;
@@ -662,35 +939,34 @@ export function composePageTitle(params: {
   actualCount: number;
   overridePatterns?: string[];
 }): string {
-  const {
-    schemaSlug,
-    angle,
-    niche,
-    audience,
-    year,
-    actualCount,
-    overridePatterns,
-  } = params;
+  const { schemaSlug, niche, year, actualCount, overridePatterns } = params;
+  const angle = cleanAngle(params.angle);
+  const audience = audienceLabel(params.audience, niche);
   const hasCount = actualCount >= 10;
+  const key = TITLE_PATTERN_ALIASES[schemaSlug] || schemaSlug;
   const rawPatterns =
     overridePatterns && overridePatterns.length
       ? overridePatterns
-      : TITLE_PATTERNS[schemaSlug] ||
+      : TITLE_PATTERNS[key] ||
         (hasCount ? FALLBACK_PATTERNS_WITH_N : FALLBACK_PATTERNS_NO_N);
   const pool = hasCount
     ? rawPatterns
     : rawPatterns.filter((p) => !p.includes("{n}"));
-  const patterns = pool.length ? pool : FALLBACK_PATTERNS_NO_N;
-  const idx = hash(`${niche}|${schemaSlug}|${angle}`) % patterns.length;
-  const tpl = patterns[idx];
-  return tpl
-    .replace(/\{n\}/g, String(actualCount))
-    .replace(/\{angle\}/g, angle)
-    .replace(/\{niche\}/g, niche)
-    .replace(/\{audience\}/g, audience || "creators")
-    .replace(/\{year\}/g, String(year))
-    .replace(/\s+/g, " ")
-    .trim();
+  const start = pool.length
+    ? hash(`${niche}|${key}|${params.angle}`) % pool.length
+    : 0;
+  const ordered = [
+    ...pool.slice(start),
+    ...pool.slice(0, start),
+    ...SAFE_PATTERNS,
+  ];
+  const slots = { n: actualCount, angle, niche, audience, year };
+  for (const tpl of ordered) {
+    if (!patternFitsAngle(tpl, angle, audience)) continue;
+    const title = fillPattern(tpl, slots);
+    if (lintPageTitle(title).length === 0) return title;
+  }
+  return truncateAtWord(collapseRepeatedWords(angle), PAGE_TITLE_MAX_LENGTH);
 }
 
 // ─────────────────────────── META DESCRIPTION ───────────────────────────
