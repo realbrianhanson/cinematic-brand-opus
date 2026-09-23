@@ -163,6 +163,10 @@ function OfferForm({
   const [step, setStep] = useState<WorkflowStep>(
     initial ? "pages" : "strategy",
   );
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    headerRef.current?.scrollIntoView?.({ block: "start" });
+  }, [step]);
   const [stage, setStage] = useState<PageStage>("landing");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [history, setHistory] = useState(savedBuilder.history);
@@ -551,7 +555,7 @@ function OfferForm({
       noValidate
       className="admin-page-stack"
     >
-      <header className="admin-page-header">
+      <header ref={headerRef} className="admin-page-header">
         <div>
           <Link className="admin-btn-ghost -ml-3 mb-2" to="/admin/offers">
             <ArrowLeft size={15} /> All offers
@@ -662,10 +666,10 @@ function OfferForm({
       )}
       <fieldset
         disabled={saving || uploading}
-        className="grid min-w-0 gap-6 xl:grid-cols-[160px_minmax(0,1fr)]"
+        className="grid min-w-0 gap-6 2xl:grid-cols-[160px_minmax(0,1fr)]"
       >
         <nav aria-label="Offer builder steps" className="min-w-0">
-          <div className="flex gap-2 overflow-x-auto pb-2 xl:sticky xl:top-5 xl:flex-col xl:overflow-visible">
+          <div className="flex gap-2 overflow-x-auto pb-2 2xl:sticky 2xl:top-5 2xl:flex-col 2xl:overflow-visible">
             {workflow.map((item, index) => (
               <button
                 key={item.id}
@@ -680,7 +684,7 @@ function OfferForm({
                   </span>
                   {item.title}
                 </span>
-                <span className="admin-help mt-1 hidden xl:block">
+                <span className="admin-help mt-1 hidden 2xl:block">
                   {item.detail}
                 </span>
               </button>
@@ -696,10 +700,10 @@ function OfferForm({
             </p>
           </div>
         </nav>
-        <div className="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
           <section
             aria-label="Live offer preview"
-            className="admin-card order-2 min-w-0 overflow-hidden 2xl:order-1 2xl:sticky 2xl:top-5"
+            className="admin-card order-2 min-w-0 overflow-hidden xl:order-1 xl:sticky xl:top-5"
           >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 p-4">
               <div>
@@ -743,7 +747,7 @@ function OfferForm({
               />
             </div>
           </section>
-          <div className="order-1 min-w-0 space-y-6 2xl:order-2">
+          <div className="order-1 min-w-0 space-y-6 xl:order-2">
             <div hidden={step !== "strategy"} className="space-y-6">
               <OfferStrategyFields
                 value={builder.strategy}

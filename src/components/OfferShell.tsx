@@ -44,7 +44,10 @@ export default function OfferShell({
           </a>
         )}
       </header>
-      <main id="main-content" className="mx-auto max-w-6xl px-6 py-10 lg:py-16">
+      <main
+        id="main-content"
+        className="@container mx-auto max-w-6xl px-6 py-10 lg:py-16"
+      >
         {children}
       </main>
       <footer className="mx-auto max-w-6xl px-6 py-8 border-t border-white/10 text-sm text-white/70 flex flex-wrap justify-between gap-4">

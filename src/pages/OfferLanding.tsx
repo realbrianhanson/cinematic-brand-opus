@@ -55,7 +55,7 @@ function OfferIntro({
     <header
       data-conversion-offer-id={offer.id}
       data-conversion-offer-slug={offer.slug}
-      className="min-w-0 break-words lg:col-start-1"
+      className="min-w-0 break-words @3xl:col-start-1"
     >
       <p
         className="text-sm uppercase tracking-widest font-bold mb-4"
@@ -69,7 +69,7 @@ function OfferIntro({
               : "Digital download")}
       </p>
       <h1
-        className={`font-display text-4xl ${compact ? "" : "md:text-6xl"} leading-[1.04]`}
+        className={`font-display text-4xl ${compact ? "" : "@3xl:text-6xl"} leading-[1.04]`}
       >
         {page?.headline || offer.title}
       </h1>
@@ -102,7 +102,7 @@ function OfferDetails({
   return (
     <article
       aria-label="Offer details"
-      className="min-w-0 break-words border-t border-white/15 pt-8 lg:col-start-1 lg:row-start-2"
+      className="min-w-0 break-words border-t border-white/15 pt-8 @3xl:col-start-1 @3xl:row-start-2"
     >
       <OfferSections
         sections={page?.sections || []}
@@ -238,14 +238,14 @@ function ExternalOfferLanding({
         className={
           compact
             ? "flex flex-col gap-8 [&>aside]:w-full"
-            : "grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start"
+            : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
         }
       >
         <OfferIntro offer={offer} compact={compact} />
         <aside
           id="offer-action"
           tabIndex={-1}
-          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2"}`}
+          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "@3xl:p-8 @3xl:sticky @3xl:top-8 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-2"}`}
         >
           <ArrowUpRight
             size={25}
@@ -270,7 +270,7 @@ function ExternalOfferLanding({
           />
         </aside>
         <OfferDetails offer={offer} preview={preview} />
-        <div className="min-w-0 break-words border-t border-white/15 pt-2 lg:col-start-1 lg:row-start-3">
+        <div className="min-w-0 break-words border-t border-white/15 pt-2 @3xl:col-start-1 @3xl:row-start-3">
           {disclosure && (
             <p className="text-sm leading-relaxed text-white/80 whitespace-pre-line">
               {disclosure}
@@ -387,14 +387,14 @@ function NativeOfferLanding({
         className={
           compact
             ? "flex flex-col gap-8 [&>aside]:w-full"
-            : "grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start"
+            : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
         }
       >
         <OfferIntro offer={offer} compact={compact} />
         <aside
           id="offer-action"
           tabIndex={-1}
-          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2"}`}
+          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "@3xl:p-8 @3xl:sticky @3xl:top-8 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-2"}`}
         >
           <Download
             size={25}
