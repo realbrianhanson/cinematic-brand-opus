@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type React from "react";
+import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -9,6 +10,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 const mock = vi.hoisted(() => ({
   load: vi.fn(),
   invoke: vi.fn(),
@@ -205,5 +207,109 @@ describe("queue controls and truthful state", () => {
         }),
       ),
     );
+  });
+});
+
+const blockedResponse = (extra: Record<string, unknown> = {}) => ({
+  data: null,
+  error: new FunctionsHttpError(
+    new Response(
+      JSON.stringify({
+        ok: false,
+        decision: "blocked",
+        failures: ["Not fact-checked yet"],
+        reasons: [
+          { code: "fact_check_missing", message: "Not fact-checked yet" },
+        ],
+        ...extra,
+      }),
+      { status: 422 },
+    ),
+  ),
+});
+
+describe("holds, credit stops and one-article overrides", () => {
+  it("shows why a held draft isn't live", async () => {
+    mock.load.mockResolvedValue({
+      ...snapshot,
+      posts: [
+        {
+          ...snapshot.posts[0],
+          held_reason: "Quality score 62, needs 85; Not fact-checked yet",
+          held_at: "2026-09-20T10:00:00Z",
+        },
+      ],
+    });
+    mount();
+    expect(await screen.findByText(/^Held on /)).toBeTruthy();
+    expect(screen.getByText("Quality score 62, needs 85")).toBeTruthy();
+    expect(screen.getByText("Not fact-checked yet")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/held_reason/);
+  });
+
+  it("says clearly when the run stopped because AI credits ran out", async () => {
+    mock.invoke.mockResolvedValue({
+      data: {
+        ok: false,
+        stopped_reason: "ai_credits_exhausted",
+        stopped_stage: "fact-check",
+        message: "AI credits ran out. Add credits in Lovable, then run again",
+        drafted: 1,
+      },
+      error: null,
+    });
+    mount();
+    await screen.findByText("Automation enabled");
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+    const alert = await screen.findByText(
+      "AI credits ran out — top up in Lovable; nothing was lost",
+    );
+    expect(alert.closest("[role='alert']")).toBeTruthy();
+    expect(screen.getByText(/stopped at the fact-check step/i)).toBeTruthy();
+  });
+
+  it("overrides one article at a time with a typed reason", async () => {
+    mock.invoke
+      .mockResolvedValueOnce(blockedResponse())
+      .mockResolvedValueOnce(
+        blockedResponse({
+          reason_error: "Override reason must be at least 10 characters",
+        }),
+      )
+      .mockResolvedValueOnce({
+        data: { ok: true, decision: "published_with_override" },
+        error: null,
+      });
+    mount();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Check & publish" }),
+    );
+    const reason = await screen.findByLabelText("Reason for overriding");
+    expect(
+      screen.getByRole("button", { name: "Publish anyway" }),
+    ).toBeDisabled();
+    fireEvent.change(reason, {
+      target: { value: "Verified the two claims myself" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Publish anyway" }));
+    expect(
+      await screen.findByText("Override reason must be at least 10 characters"),
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Reason for overriding"), {
+      target: { value: "Verified the two claims myself" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Publish anyway" }));
+    await waitFor(() =>
+      expect(mock.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Published with override" }),
+      ),
+    );
+    expect(mock.invoke).toHaveBeenLastCalledWith("manual-publish", {
+      body: {
+        post_id: "post",
+        mode: "publish",
+        override_reason: "Verified the two claims myself",
+      },
+    });
   });
 });

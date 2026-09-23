@@ -29,8 +29,9 @@ export default function EditorialChecklist({ html }: { html: string }) {
         </label>
       ))}
       <p className="admin-help">
-        This checklist is a review aid for the current session. Normal server
-        publishing checks still apply.
+        This checklist is a review aid for the current session. The Publish
+        readiness card shows the checks the server runs before anything goes
+        live.
       </p>
     </section>
   );

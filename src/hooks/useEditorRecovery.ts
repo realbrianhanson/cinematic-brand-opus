@@ -4,14 +4,46 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
-/** Saves a working copy only. A published article changes only on explicit Save. */
+/**
+ * JSON with object keys sorted at every level. A jsonb round-trip reorders
+ * keys, so comparing raw JSON.stringify output made every stored copy look
+ * different and showed a false "restore?" banner.
+ */
+export function stableSnapshot(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0,
+          ),
+        )
+      : v,
+  );
+}
+
+function restable(encoded: string): string {
+  try {
+    return stableSnapshot(JSON.parse(encoded));
+  } catch {
+    return encoded;
+  }
+}
+
+const READY = "Draft protection ready";
+
+/**
+ * Saves a working copy only. A published article changes only on explicit Save.
+ * `serverUpdatedAt` is the loaded article's updated_at: a stored copy older
+ * than the last save is stale, so it is removed instead of offered.
+ */
 export function useEditorRecovery(
   key: string,
   snapshot: Record<string, unknown>,
   ready: boolean,
+  serverUpdatedAt?: string | null,
 ) {
   const { user } = useAuth();
-  const encoded = JSON.stringify(snapshot);
+  const encoded = stableSnapshot(snapshot);
   const current = useRef(encoded);
   current.current = encoded;
   const baseline = useRef<string | null>(null);
@@ -27,6 +59,8 @@ export function useEditorRecovery(
   const [message, setMessage] = useState("Loading draft protection…");
   const dirty = loaded && baseline.current !== encoded && !finished.current;
   const storageKey = `editor-working-copy:${user?.id}:${key}`;
+  const serverVersion = useRef(serverUpdatedAt);
+  serverVersion.current = serverUpdatedAt;
   useEffect(() => {
     if (!ready || !user) return;
     let active = true;
@@ -35,6 +69,10 @@ export function useEditorRecovery(
     latestSaved.current = null;
     finished.current = false;
     setLoaded(false);
+    const serverMs = serverVersion.current
+      ? Date.parse(serverVersion.current)
+      : NaN;
+    const stale = (ms: number) => Number.isFinite(serverMs) && ms <= serverMs;
     (async () => {
       const { data, error } = await supabase
         .from("post_editor_drafts")
@@ -49,21 +87,37 @@ export function useEditorRecovery(
           "Account recovery unavailable. Changes will be backed up on this device.",
         );
       }
-      version.current = data?.updated_at ?? null;
-      let candidate = data?.snapshot as Record<string, unknown> | undefined;
+      let candidate: Record<string, unknown> | undefined;
+      let remoteMs = -Infinity;
+      if (data && stale(Date.parse(data.updated_at))) {
+        // The article was saved after this copy was taken: nothing to recover.
+        void supabase
+          .from("post_editor_drafts")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("document_key", key)
+          .eq("updated_at", data.updated_at)
+          .then(() => undefined);
+      } else if (data) {
+        version.current = data.updated_at;
+        candidate = data.snapshot as Record<string, unknown>;
+        remoteMs = Date.parse(data.updated_at);
+      }
       try {
         const local = JSON.parse(localStorage.getItem(storageKey) || "null");
-        if (
-          local?.snapshot &&
-          (!data || local.savedAt > Date.parse(data.updated_at))
-        )
+        if (local?.snapshot && stale(Number(local.savedAt)))
+          localStorage.removeItem(storageKey);
+        else if (local?.snapshot && Number(local.savedAt) > remoteMs)
           candidate = local.snapshot;
       } catch {
         /* Browser storage is optional. */
       }
-      if (candidate && JSON.stringify(candidate) !== baseline.current)
+      if (candidate && stableSnapshot(candidate) !== baseline.current) {
         setRecovery(candidate);
-      else if (!error) setMessage("Draft protection ready");
+        setMessage(
+          "Working copy found · choose Restore or Keep. This device keeps a backup meanwhile",
+        );
+      } else if (!error) setMessage(READY);
       setLoaded(true);
     })();
     return () => {
@@ -137,9 +191,10 @@ export function useEditorRecovery(
     }, 1200);
     return () => clearTimeout(timer);
   }, [encoded, loaded, dirty, recovery, user?.id, key, storageKey, saveTick]);
-  // Keep the latest keystrokes locally even if a remote request is still in flight.
+  // Keep the latest keystrokes on this device even while the restore banner
+  // is open or a remote request is still in flight.
   useEffect(() => {
-    if (!dirty || recovery) return;
+    if (!dirty) return;
     try {
       localStorage.setItem(
         storageKey,
@@ -148,7 +203,7 @@ export function useEditorRecovery(
     } catch {
       /* remote backup still runs */
     }
-  }, [encoded, dirty, recovery, storageKey]);
+  }, [encoded, dirty, storageKey]);
   useBlocker({
     shouldBlockFn: () =>
       dirty &&
@@ -157,15 +212,7 @@ export function useEditorRecovery(
       ),
     enableBeforeUnload: dirty,
   });
-  async function clear(savedSnapshot?: string) {
-    if (savedSnapshot && savedSnapshot !== current.current) {
-      baseline.current = savedSnapshot;
-      setMessage("Article saved. Newer edits remain in your working copy.");
-      return false;
-    }
-    finished.current = true;
-    baseline.current = current.current;
-    setMessage("Article saved");
+  async function removeStoredCopy() {
     while (writing.current)
       await new Promise((resolve) => setTimeout(resolve, 50));
     try {
@@ -180,6 +227,38 @@ export function useEditorRecovery(
         .eq("user_id", user.id)
         .eq("document_key", key)
         .eq("updated_at", version.current);
+  }
+  /**
+   * The article was saved and the editor is closing. Returns false (and keeps
+   * the working copy) when newer edits were typed after `savedSnapshot`.
+   */
+  async function clear(savedSnapshot?: string) {
+    if (savedSnapshot && restable(savedSnapshot) !== current.current) {
+      baseline.current = restable(savedSnapshot);
+      setMessage("Article saved. Newer edits remain in your working copy.");
+      return false;
+    }
+    finished.current = true;
+    baseline.current = current.current;
+    setMessage("Article saved");
+    await removeStoredCopy();
+    return true;
+  }
+  /**
+   * The article was saved and editing continues (for example a publish the
+   * gate held). Autosave stays on for the next edit.
+   */
+  async function markSaved(savedSnapshot?: string) {
+    const saved = savedSnapshot ? restable(savedSnapshot) : current.current;
+    baseline.current = saved;
+    if (saved !== current.current) {
+      setMessage("Article saved. Newer edits remain in your working copy.");
+      return false;
+    }
+    setMessage("Article saved · autosave stays on");
+    await removeStoredCopy();
+    version.current = null;
+    latestSaved.current = null;
     return true;
   }
   return {
@@ -188,6 +267,7 @@ export function useEditorRecovery(
     recovery,
     resolveRecovery: () => {
       setRecovery(null);
+      setMessage("Working copy restored · review it, then Save");
     },
     discardRecovery: async () => {
       await clear();
@@ -198,5 +278,6 @@ export function useEditorRecovery(
       setMessage("Current article kept · recovery copy dismissed");
     },
     clear,
+    markSaved,
   };
 }

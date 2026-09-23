@@ -9,7 +9,7 @@ export async function loadContentQueue() {
     supabase
       .from("posts")
       .select(
-        "id,title,quality_score,originality_score,source_citations,opportunity_id,created_at,fact_check",
+        "id,title,quality_score,originality_score,source_citations,opportunity_id,created_at,fact_check,held_reason,held_at",
       )
       .eq("status", "draft")
       .not("opportunity_id", "is", null)

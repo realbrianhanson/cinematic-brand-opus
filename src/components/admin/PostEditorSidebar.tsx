@@ -19,6 +19,8 @@ interface PostEditorSidebarProps {
   onFeaturedUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   excerpt: string;
   setExcerpt: (v: string) => void;
+  /** Publish readiness card, shown right under Status. */
+  readiness?: React.ReactNode;
 }
 
 const PostEditorSidebar = ({
@@ -39,12 +41,16 @@ const PostEditorSidebar = ({
   onFeaturedUpload,
   excerpt,
   setExcerpt,
+  readiness,
 }: PostEditorSidebarProps) => (
   <>
     {/* Status */}
     <div className="admin-card" style={{ padding: 20 }}>
-      <label className="admin-label">Status</label>
+      <label className="admin-label" htmlFor="post-status">
+        Status
+      </label>
       <select
+        id="post-status"
         value={status}
         onChange={(e) => setStatus(e.target.value)}
         className="admin-input font-body w-full"
@@ -53,13 +59,28 @@ const PostEditorSidebar = ({
         <option value="published">Published</option>
         <option value="scheduled">Scheduled</option>
       </select>
+      <p
+        className="font-body"
+        style={{
+          fontSize: 11,
+          color: "hsl(var(--admin-text-ghost))",
+          marginTop: 6,
+        }}
+      >
+        Publishing and scheduling run the publishing checks first
+      </p>
 
       {status === "scheduled" && (
         <div style={{ marginTop: 12 }}>
-          <label className="admin-label" style={{ fontSize: 10 }}>
+          <label
+            className="admin-label"
+            style={{ fontSize: 10 }}
+            htmlFor="post-timezone"
+          >
             Timezone
           </label>
           <select
+            id="post-timezone"
             value={timezone}
             onChange={(e) => {
               setTimezone(e.target.value);
@@ -95,10 +116,15 @@ const PostEditorSidebar = ({
             </optgroup>
           </select>
 
-          <label className="admin-label" style={{ fontSize: 10 }}>
-            Publish Date & Time
+          <label
+            className="admin-label"
+            style={{ fontSize: 10 }}
+            htmlFor="post-scheduled-at"
+          >
+            Publish date and time
           </label>
           <input
+            id="post-scheduled-at"
             type="datetime-local"
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
@@ -122,10 +148,15 @@ const PostEditorSidebar = ({
       )}
     </div>
 
+    {readiness}
+
     {/* Category */}
     <div className="admin-card" style={{ padding: 20 }}>
-      <label className="admin-label">Category</label>
+      <label className="admin-label" htmlFor="post-category">
+        Category
+      </label>
       <select
+        id="post-category"
         value={categoryId}
         onChange={(e) => setCategoryId(e.target.value)}
         className="admin-input font-body w-full"
@@ -155,6 +186,8 @@ const PostEditorSidebar = ({
             }}
           />
           <button
+            type="button"
+            aria-label="Remove featured image"
             onClick={() => {
               setFeaturedImage("");
               setFeaturedImageAlt("");
@@ -214,8 +247,11 @@ const PostEditorSidebar = ({
     </div>
     {/* Excerpt */}
     <div className="admin-card" style={{ padding: 20 }}>
-      <label className="admin-label">Excerpt</label>
+      <label className="admin-label" htmlFor="post-excerpt">
+        Excerpt
+      </label>
       <textarea
+        id="post-excerpt"
         value={excerpt}
         onChange={(e) => setExcerpt(e.target.value)}
         rows={3}
