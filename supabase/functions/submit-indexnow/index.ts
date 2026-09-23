@@ -1,4 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import {
   checkIndexNowKeyFile,
@@ -22,7 +25,7 @@ const reply = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-type Db = ReturnType<typeof createClient>;
+type Db = SupabaseClient;
 type Settings = { site_url?: string | null; indexnow_key?: string | null };
 
 // Reads the stored key; tolerates a database that has not applied the
