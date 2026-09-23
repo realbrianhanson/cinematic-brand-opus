@@ -1,6 +1,6 @@
 /** Shared offer contracts without runtime/provider dependencies. */
 export const OFFER_PUBLIC_COLUMNS =
-  "id,slug,title,summary,body,cover_url,status,kind,amount_minor,currency,thank_you_message,funnel_only,created_at,updated_at,checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure";
+  "id,slug,title,summary,body,cover_url,status,kind,amount_minor,currency,thank_you_message,funnel_only,created_at,updated_at,checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure,presentation";
 export const OFFER_TOKEN = /^[0-9a-f]{64}$/;
 export const OFFER_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

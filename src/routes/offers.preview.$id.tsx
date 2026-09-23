@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import OfferShell from "@/components/OfferShell";
 import OfferLanding from "@/pages/OfferLanding";
-import { invokeOfferApi, type PublicOffer } from "@/lib/offers";
+import { type PublicOffer } from "@/lib/offers";
+import { supabase } from "@/integrations/supabase/client";
+import { loadOfferBuilder } from "@/lib/offerBuilderClient";
+import { readPresentation } from "@/lib/offerBuilder";
 
 export const Route = createFileRoute("/offers/preview/$id")({
   head: () => ({
@@ -26,15 +29,30 @@ function Preview() {
     let active = true;
     setOffer(null);
     setError("");
-    invokeOfferApi<{ offer: PublicOffer | null }>({
-      action: "preview",
-      offer_id: id,
-    })
-      .then((result) => {
-        if (active) {
-          setOffer(result.offer);
-          if (!result.offer) setError("Offer not found.");
+    Promise.all([
+      supabase
+        .from("offers")
+        .select("*")
+        .eq("id", id)
+        .abortSignal(AbortSignal.timeout(20000))
+        .maybeSingle(),
+      loadOfferBuilder(id),
+    ])
+      .then(([result, workspace]) => {
+        if (!active) return;
+        if (result.error) throw result.error;
+        if (!result.data) {
+          setError("Offer not found.");
+          return;
         }
+        const draft = workspace.draft?.document;
+        setOffer({
+          ...result.data,
+          ...draft?.offer,
+          presentation: readPresentation(
+            draft?.builder.presentation || result.data.presentation,
+          ),
+        } as PublicOffer);
       })
       .catch((err) => {
         if (active)

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { OfferPresentation } from "./offerBuilder";
 
 export type OfferKind = "free" | "paid";
 export type OfferCheckoutMode = "native" | "external";
@@ -11,6 +12,7 @@ export interface PublicOffer {
   summary: string;
   body: string;
   cover_url: string | null;
+  presentation?: OfferPresentation | null;
   status: "draft" | "published" | "archived";
   kind: OfferKind;
   checkout_mode: OfferCheckoutMode;
@@ -54,6 +56,7 @@ export interface OfferAccess {
   access_url: string;
   payments_ready: boolean;
   thank_you_message?: string;
+  presentation?: OfferPresentation | null;
   delivery_state?: "sent" | "processing" | "not_sent" | "needs_review";
   delivery_ready?: boolean;
 }

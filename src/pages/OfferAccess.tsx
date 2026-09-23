@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Copy, Download, RefreshCw } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
 import OfferRecovery from "@/components/OfferRecovery";
+import OfferSections from "@/components/offers/OfferSections";
+import { readPresentation } from "@/lib/offerBuilder";
 import {
   invokeOfferApi,
   isOfferToken,
@@ -164,8 +166,10 @@ export default function OfferAccess() {
     !!data?.next_offer_deadline &&
     new Date(data.next_offer_deadline).getTime() <= now;
   const next = expiredNext ? null : data?.next_offer;
+  const upsell = readPresentation(next?.presentation)?.upsell;
+  const thanks = readPresentation(data?.presentation)?.thankYou;
   return (
-    <OfferShell>
+    <OfferShell focused={upsell?.focusMode}>
       <div className="max-w-3xl mx-auto">
         <p
           className="text-sm font-bold tracking-widest uppercase mb-4"
@@ -197,13 +201,21 @@ export default function OfferAccess() {
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="text-green-300" aria-hidden="true" />
                   <h2 className="font-display text-2xl">
-                    Your download is ready
+                    {thanks?.headline || "Your download is ready"}
                   </h2>
                 </div>
-                {data.thank_you_message && (
+                {(thanks?.body || data.thank_you_message) && (
                   <p className="mt-4 text-white/80 whitespace-pre-line">
-                    {data.thank_you_message}
+                    {thanks?.body || data.thank_you_message}
                   </p>
+                )}
+                {thanks?.firstStep && (
+                  <div className="mt-5 rounded border border-white/15 p-4">
+                    <h3 className="font-semibold">Your first step</h3>
+                    <p className="mt-2 whitespace-pre-line text-white/80">
+                      {thanks.firstStep}
+                    </p>
+                  </div>
                 )}
                 <p className="mt-4 text-sm text-white/70 break-words">
                   {data.order.asset_name}
@@ -396,10 +408,14 @@ export default function OfferAccess() {
             aria-label="Optional follow-up offer"
           >
             <p className="text-xs uppercase tracking-widest text-white/70">
-              An optional next step
+              {upsell?.eyebrow || "An optional next step"}
             </p>
-            <h2 className="font-display text-3xl mt-3">{next.title}</h2>
-            <p className="mt-4 leading-relaxed text-white/85">{next.summary}</p>
+            <h2 className="font-display text-3xl mt-3">
+              {upsell?.headline || next.title}
+            </h2>
+            <p className="mt-4 leading-relaxed text-white/85">
+              {upsell?.subheadline || next.summary}
+            </p>
             {next.cover_url && (
               <img
                 src={next.cover_url}
@@ -410,14 +426,14 @@ export default function OfferAccess() {
               />
             )}
             <div className="mt-5 space-y-3 text-white/80 leading-relaxed">
-              {next.body
-                .split(/\n\s*\n/)
-                .filter(Boolean)
-                .map((part, i) => (
-                  <p className="whitespace-pre-line" key={i}>
-                    {part}
-                  </p>
-                ))}
+              <OfferSections
+                sections={upsell?.sections || []}
+                fallback={next.body}
+                actionLabel={upsell?.ctaText || "See this offer"}
+                onAction={() =>
+                  document.getElementById("accept-follow-up")?.focus()
+                }
+              />
             </div>
             <p className="font-bold text-xl mt-5">
               {offerPrice(next)}
@@ -437,6 +453,7 @@ export default function OfferAccess() {
             )}
             <div className="flex flex-wrap gap-3 mt-6">
               <button
+                id="accept-follow-up"
                 className={buttonClass}
                 style={{
                   background: "var(--brand-accent)",
@@ -450,8 +467,8 @@ export default function OfferAccess() {
                 {busy === "accept"
                   ? "Opening…"
                   : next.kind === "free"
-                    ? "Get this free resource"
-                    : `Continue to checkout · ${offerPrice(next)}`}
+                    ? upsell?.ctaText || "Get this free resource"
+                    : `${upsell?.ctaText || "Continue to checkout"} · ${offerPrice(next)}`}
               </button>
               <button
                 className={buttonClass}
@@ -470,6 +487,16 @@ export default function OfferAccess() {
                 No thanks
               </button>
             </div>
+            {upsell?.ctaMicrocopy && (
+              <p className="mt-3 text-sm text-white/75">
+                {upsell.ctaMicrocopy}
+              </p>
+            )}
+            {next.kind === "paid" && (
+              <p className="mt-3 text-sm text-white/75">
+                You will review and confirm this separate payment at checkout.
+              </p>
+            )}
             {next.kind === "paid" && !data?.payments_ready && (
               <p className="mt-3 text-sm text-white/75">
                 This purchase is not available yet.

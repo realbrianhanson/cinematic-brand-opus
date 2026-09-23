@@ -1,9 +1,15 @@
 import { measurementForClaim } from "@/lib/measurement";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
-import OfferBodyImage from "@/components/OfferBodyImage";
-import { offerBodyBlocks } from "@/lib/offerBody";
+import OfferSections from "@/components/offers/OfferSections";
+import { readPresentation } from "@/lib/offerBuilder";
 import type { ShopOffer } from "@/lib/shop";
 import RelatedOffers from "@/components/RelatedOffers";
 import { useSiteConfig } from "@/config/SiteConfigContext";
@@ -25,6 +31,7 @@ const fieldClass =
 type OfferLandingProps = {
   offer: PublicOffer;
   preview?: boolean;
+  compact?: boolean;
   relatedOffers?: ShopOffer[];
 };
 
@@ -36,28 +43,38 @@ export default function OfferLanding(props: OfferLandingProps) {
   );
 }
 
-function OfferIntro({ offer }: { offer: PublicOffer }) {
+function OfferIntro({
+  offer,
+  compact = false,
+}: {
+  offer: PublicOffer;
+  compact?: boolean;
+}) {
+  const page = readPresentation(offer.presentation)?.landing;
   return (
     <header
       data-conversion-offer-id={offer.id}
       data-conversion-offer-slug={offer.slug}
-      className="min-w-0 break-words lg:col-start-1"
+      className="min-w-0 break-words @3xl:col-start-1"
     >
       <p
         className="text-sm uppercase tracking-widest font-bold mb-4"
         style={{ color: "var(--brand-accent)" }}
       >
-        {offer.checkout_mode === "external"
-          ? "Explore the offer"
-          : offer.kind === "free"
-            ? "Free download"
-            : "Digital download"}
+        {page?.eyebrow ||
+          (offer.checkout_mode === "external"
+            ? "Explore the offer"
+            : offer.kind === "free"
+              ? "Free download"
+              : "Digital download")}
       </p>
-      <h1 className="font-display text-4xl md:text-6xl leading-[1.04]">
-        {offer.title}
+      <h1
+        className={`font-display text-4xl ${compact ? "" : "@3xl:text-6xl"} leading-[1.04]`}
+      >
+        {page?.headline || offer.title}
       </h1>
       <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
-        {offer.summary}
+        {page?.subheadline || offer.summary}
       </p>
       {offer.cover_url && (
         <img
@@ -74,66 +91,57 @@ function OfferIntro({ offer }: { offer: PublicOffer }) {
   );
 }
 
-function OfferDetails({ offer }: { offer: PublicOffer }) {
+function OfferDetails({
+  offer,
+  preview = false,
+}: {
+  offer: PublicOffer;
+  preview?: boolean;
+}) {
+  const page = readPresentation(offer.presentation)?.landing;
   return (
     <article
       aria-label="Offer details"
-      className="min-w-0 break-words border-t border-white/15 pt-8 lg:col-start-1 lg:row-start-2"
+      className="min-w-0 break-words border-t border-white/15 pt-8 @3xl:col-start-1 @3xl:row-start-2"
     >
-      <div className="space-y-5 text-base leading-relaxed text-white/75">
-        {offerBodyBlocks(offer.body).map((block, i) =>
-          block.type === "heading" ? (
-            <h2
-              key={i}
-              className="pt-4 font-display text-3xl leading-tight text-white"
-            >
-              {block.text}
-            </h2>
-          ) : block.type === "list" ? (
-            <ul
-              key={i}
-              className="space-y-3 pl-5 list-disc marker:text-[var(--brand-accent)]"
-            >
-              {block.items.map((item, index) => (
-                <li key={index} className="pl-1">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          ) : block.type === "image" ? (
-            <OfferBodyImage key={i} {...block} />
-          ) : block.type === "quote" ? (
-            <figure
-              key={i}
-              className="m-0 border-l-2 border-[var(--brand-accent)] bg-[linear-gradient(135deg,rgba(var(--brand-accent-rgb),.08),transparent)] p-6 md:p-8"
-            >
-              <span
-                aria-hidden="true"
-                className="font-display text-5xl leading-none text-[var(--brand-accent)]"
-              >
-                “
-              </span>
-              <blockquote className="space-y-5 font-body text-lg leading-relaxed text-white/90">
-                {block.paragraphs.map((text, index) => (
-                  <p key={index} className="whitespace-pre-line">
-                    {text}
-                  </p>
-                ))}
-              </blockquote>
-              {block.attribution && (
-                <figcaption className="mt-6 font-body text-sm font-semibold text-[var(--brand-accent)]">
-                  {block.attribution}
-                </figcaption>
-              )}
-            </figure>
-          ) : (
-            <p key={i} className="whitespace-pre-line">
-              {block.text}
-            </p>
-          ),
-        )}
-      </div>
+      <OfferSections
+        sections={page?.sections || []}
+        fallback={offer.body}
+        preview={preview}
+        actionLabel={
+          page?.ctaText ||
+          (offer.kind === "free"
+            ? "Get my free download"
+            : "See purchase options")
+        }
+        onAction={() => {
+          document
+            .getElementById("offer-action")
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+          document
+            .getElementById("offer-action")
+            ?.focus({ preventScroll: true });
+        }}
+      />
     </article>
+  );
+}
+
+function CheckoutForm({
+  preview,
+  submit,
+  children,
+}: {
+  preview: boolean;
+  submit: (event: FormEvent<HTMLFormElement>) => void;
+  children: ReactNode;
+}) {
+  return preview ? (
+    <div className="mt-6 space-y-4">{children}</div>
+  ) : (
+    <form method="post" onSubmit={submit} className="mt-6 space-y-4">
+      {children}
+    </form>
   );
 }
 
@@ -146,16 +154,20 @@ function ExternalOfferAction({
   destination: string | null;
   preview: boolean;
 }) {
-  const buttonText = offer.external_button_text.trim() || "Visit website";
+  const buttonText =
+    readPresentation(offer.presentation)?.landing.ctaText ||
+    offer.external_button_text.trim() ||
+    "Visit website";
   return (
     <>
       {preview ? (
         <button
           type="button"
+          aria-label="Preview only"
           disabled
           className="mt-6 w-full rounded border border-white/25 px-4 py-4 font-bold text-sm opacity-50"
         >
-          Preview only
+          {buttonText}
         </button>
       ) : destination ? (
         <a
@@ -184,6 +196,11 @@ function ExternalOfferAction({
           soon.
         </p>
       )}
+      {readPresentation(offer.presentation)?.landing.ctaMicrocopy && (
+        <p className="mt-3 text-sm text-white/75">
+          {readPresentation(offer.presentation)!.landing.ctaMicrocopy}
+        </p>
+      )}
       {destination && (
         <p className="mt-3 text-xs leading-relaxed text-white/65">
           Opens {new URL(destination).hostname} in a new tab.
@@ -196,6 +213,7 @@ function ExternalOfferAction({
 function ExternalOfferLanding({
   offer,
   preview = false,
+  compact = false,
   relatedOffers = [],
 }: OfferLandingProps) {
   const destination = offer.funnel_only
@@ -203,7 +221,10 @@ function ExternalOfferLanding({
     : safeExternalOfferUrl(offer.external_url);
   const disclosure = affiliateDisclosure(offer);
   return (
-    <OfferShell>
+    <OfferShell
+      focused={readPresentation(offer.presentation)?.landing.focusMode}
+      preview={preview}
+    >
       {preview && (
         <div
           className="mb-8 border border-amber-300/40 bg-amber-300/10 p-4 text-amber-100"
@@ -213,9 +234,19 @@ function ExternalOfferLanding({
           the page.
         </div>
       )}
-      <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start">
-        <OfferIntro offer={offer} />
-        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-8 [&>aside]:w-full"
+            : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
+        }
+      >
+        <OfferIntro offer={offer} compact={compact} />
+        <aside
+          id="offer-action"
+          tabIndex={-1}
+          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "@3xl:p-8 @3xl:sticky @3xl:top-8 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-2"}`}
+        >
           <ArrowUpRight
             size={25}
             aria-hidden="true"
@@ -238,8 +269,8 @@ function ExternalOfferLanding({
             preview={preview}
           />
         </aside>
-        <OfferDetails offer={offer} />
-        <div className="min-w-0 break-words border-t border-white/15 pt-2 lg:col-start-1 lg:row-start-3">
+        <OfferDetails offer={offer} preview={preview} />
+        <div className="min-w-0 break-words border-t border-white/15 pt-2 @3xl:col-start-1 @3xl:row-start-3">
           {disclosure && (
             <p className="text-sm leading-relaxed text-white/80 whitespace-pre-line">
               {disclosure}
@@ -252,9 +283,11 @@ function ExternalOfferLanding({
           />
         </div>
       </div>
-      {!preview && !offer.funnel_only && (
-        <RelatedOffers offers={relatedOffers} />
-      )}
+      {!preview &&
+        !offer.funnel_only &&
+        !readPresentation(offer.presentation)?.landing.focusMode && (
+          <RelatedOffers offers={relatedOffers} />
+        )}
     </OfferShell>
   );
 }
@@ -262,6 +295,7 @@ function ExternalOfferLanding({
 function NativeOfferLanding({
   offer,
   preview = false,
+  compact = false,
   relatedOffers = [],
 }: OfferLandingProps) {
   const { footer } = useSiteConfig();
@@ -336,7 +370,10 @@ function NativeOfferLanding({
     }
   }
   return (
-    <OfferShell>
+    <OfferShell
+      focused={readPresentation(offer.presentation)?.landing.focusMode}
+      preview={preview}
+    >
       {preview && (
         <div
           className="mb-8 border border-amber-300/40 bg-amber-300/10 p-4 text-amber-100"
@@ -346,9 +383,19 @@ function NativeOfferLanding({
           create an order.
         </div>
       )}
-      <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 lg:gap-x-16 items-start">
-        <OfferIntro offer={offer} />
-        <aside className="min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 md:p-8 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-8 [&>aside]:w-full"
+            : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
+        }
+      >
+        <OfferIntro offer={offer} compact={compact} />
+        <aside
+          id="offer-action"
+          tabIndex={-1}
+          className={`min-w-0 break-words border border-white/20 bg-white/[0.035] rounded-xl p-6 ${compact ? "" : "@3xl:p-8 @3xl:sticky @3xl:top-8 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-2"}`}
+        >
           <Download
             size={25}
             aria-hidden="true"
@@ -366,7 +413,7 @@ function NativeOfferLanding({
               the link on your download page to continue.
             </p>
           ) : (
-            <form method="post" onSubmit={submit} className="mt-6 space-y-4">
+            <CheckoutForm preview={preview} submit={submit}>
               <label className="block text-sm">
                 Your name <span className="text-white/60">(optional)</span>
                 <input
@@ -390,6 +437,8 @@ function NativeOfferLanding({
                 />
               </label>
               <button
+                type="submit"
+                aria-label={preview ? "Preview only" : undefined}
                 disabled={!hydrated || busy || preview || ready !== true}
                 className="w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 font-bold text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                 style={{
@@ -399,13 +448,17 @@ function NativeOfferLanding({
               >
                 {busy
                   ? "Opening…"
-                  : preview
-                    ? "Preview only"
-                    : offer.kind === "free"
-                      ? "Get my free download"
-                      : `Continue to checkout · ${offerPrice(offer)}`}
+                  : offer.kind === "free"
+                    ? readPresentation(offer.presentation)?.landing.ctaText ||
+                      "Get my free download"
+                    : `${readPresentation(offer.presentation)?.landing.ctaText || "Continue to checkout"} · ${offerPrice(offer)}`}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
+              {readPresentation(offer.presentation)?.landing.ctaMicrocopy && (
+                <p className="text-sm text-white/75">
+                  {readPresentation(offer.presentation)!.landing.ctaMicrocopy}
+                </p>
+              )}
               <noscript>
                 <p className="text-sm text-white/75">
                   Enable JavaScript to securely request this resource or start
@@ -442,7 +495,7 @@ function NativeOfferLanding({
                   <>
                     {" "}
                     <a
-                      href={footer.privacyUrl}
+                      href={preview ? undefined : footer.privacyUrl}
                       className="underline underline-offset-4"
                     >
                       Privacy policy
@@ -457,14 +510,16 @@ function NativeOfferLanding({
                   Payment is handled by Stripe.
                 </p>
               )}
-            </form>
+            </CheckoutForm>
           )}
         </aside>
-        <OfferDetails offer={offer} />
+        <OfferDetails offer={offer} preview={preview} />
       </div>
-      {!preview && !offer.funnel_only && (
-        <RelatedOffers offers={relatedOffers} />
-      )}
+      {!preview &&
+        !offer.funnel_only &&
+        !readPresentation(offer.presentation)?.landing.focusMode && (
+          <RelatedOffers offers={relatedOffers} />
+        )}
     </OfferShell>
   );
 }

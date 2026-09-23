@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
     }
     const { data: offerCopy, error: copyError } = await admin
       .from("offers")
-      .select("thank_you_message")
+      .select("thank_you_message,presentation")
       .eq("id", order.offer_id)
       .maybeSingle();
     if (copyError) throw copyError;
@@ -444,6 +444,7 @@ Deno.serve(async (req) => {
     return offerJson(200, {
       order: publicOrder(order),
       thank_you_message: offerCopy?.thank_you_message ?? "",
+      presentation: offerCopy?.presentation ?? null,
       next_offer: nextOffer,
       next_offer_deadline: nextOffer ? order.next_offer_deadline : null,
       checkout_url:

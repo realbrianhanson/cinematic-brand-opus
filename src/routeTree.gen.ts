@@ -61,6 +61,7 @@ import { Route as AdminPillarsIndexRouteImport } from './routes/admin.pillars.in
 import { Route as AdminPillarsNewRouteImport } from './routes/admin.pillars.new'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin.posts.index'
 import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
+import { Route as ApiAdminOfferCopyRouteImport } from './routes/api/admin/offer-copy'
 import { Route as OffersPreviewIdRouteImport } from './routes/offers.preview.$id'
 import { Route as ResourcesContentTypeIndexRouteImport } from './routes/resources.$contentType.index'
 import { Route as ResourcesContentTypePageSlugRouteImport } from './routes/resources.$contentType.$pageSlug'
@@ -332,6 +333,11 @@ const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
   path: '/posts/new',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiAdminOfferCopyRoute = ApiAdminOfferCopyRouteImport.update({
+  id: '/api/admin/offer-copy',
+  path: '/api/admin/offer-copy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OffersPreviewIdRoute = OffersPreviewIdRouteImport.update({
   id: '/offers/preview/$id',
   path: '/offers/preview/$id',
@@ -435,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/api/admin/offer-copy': typeof ApiAdminOfferCopyRoute
   '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types/': typeof AdminContentTypesIndexRoute
@@ -494,6 +501,7 @@ export interface FileRoutesByTo {
   '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/api/admin/offer-copy': typeof ApiAdminOfferCopyRoute
   '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types': typeof AdminContentTypesIndexRoute
@@ -559,6 +567,7 @@ export interface FileRoutesById {
   '/admin/offers/new': typeof AdminOffersNewRoute
   '/admin/pillars/new': typeof AdminPillarsNewRoute
   '/admin/posts/new': typeof AdminPostsNewRoute
+  '/api/admin/offer-copy': typeof ApiAdminOfferCopyRoute
   '/offers/preview/$id': typeof OffersPreviewIdRoute
   '/resources/$contentType/$pageSlug': typeof ResourcesContentTypePageSlugRoute
   '/admin/content-types/': typeof AdminContentTypesIndexRoute
@@ -625,6 +634,7 @@ export interface FileRouteTypes {
     | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/api/admin/offer-copy'
     | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types/'
@@ -684,6 +694,7 @@ export interface FileRouteTypes {
     | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/api/admin/offer-copy'
     | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/admin/offers/new'
     | '/admin/pillars/new'
     | '/admin/posts/new'
+    | '/api/admin/offer-copy'
     | '/offers/preview/$id'
     | '/resources/$contentType/$pageSlug'
     | '/admin/content-types/'
@@ -790,6 +802,7 @@ export interface RootRouteChildren {
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
   NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
   OffersSlugRoute: typeof OffersSlugRoute
+  ApiAdminOfferCopyRoute: typeof ApiAdminOfferCopyRoute
   OffersPreviewIdRoute: typeof OffersPreviewIdRoute
   ApiPublicNewsletterConfirmRoute: typeof ApiPublicNewsletterConfirmRoute
   ApiPublicNewsletterUnsubscribeRoute: typeof ApiPublicNewsletterUnsubscribeRoute
@@ -1161,6 +1174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPostsNewRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/admin/offer-copy': {
+      id: '/api/admin/offer-copy'
+      path: '/api/admin/offer-copy'
+      fullPath: '/api/admin/offer-copy'
+      preLoaderRoute: typeof ApiAdminOfferCopyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/offers/preview/$id': {
       id: '/offers/preview/$id'
       path: '/offers/preview/$id'
@@ -1372,6 +1392,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsletterInvalidRoute: NewsletterInvalidRoute,
   NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
   OffersSlugRoute: OffersSlugRoute,
+  ApiAdminOfferCopyRoute: ApiAdminOfferCopyRoute,
   OffersPreviewIdRoute: OffersPreviewIdRoute,
   ApiPublicNewsletterConfirmRoute: ApiPublicNewsletterConfirmRoute,
   ApiPublicNewsletterUnsubscribeRoute: ApiPublicNewsletterUnsubscribeRoute,

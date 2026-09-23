@@ -551,7 +551,9 @@ describe("offer visitor journey", () => {
   it("never creates orders from preview or a funnel-only landing page", () => {
     const { rerender } = render(<OfferLanding offer={offer} preview />);
     const button = screen.getByRole("button", { name: "Preview only" });
-    fireEvent.submit(button.closest("form")!);
+    expect(button.closest("form")).toBeNull();
+    expect(button.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(button);
     expect(invoke).not.toHaveBeenCalled();
     rerender(<OfferLanding offer={{ ...offer, funnel_only: true }} />);
     expect(
