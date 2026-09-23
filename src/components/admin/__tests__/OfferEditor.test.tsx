@@ -22,6 +22,7 @@ const mock = vi.hoisted(() => ({
   upload: vi.fn(),
   navigate: vi.fn(),
   read: vi.fn(),
+  write: vi.fn(),
   blocker: vi.fn(),
 }));
 vi.mock("@tanstack/react-router", () => ({
@@ -50,7 +51,16 @@ vi.mock("@/lib/offerBuilderClient", () => ({
   saveOfferBuilder: (...args: unknown[]) => mock.save(...args),
 }));
 vi.mock("../offers/OfferCopyAssistant", () => ({ default: () => null }));
-vi.mock("../offers/OfferProofLibrary", () => ({ default: () => null }));
+vi.mock("../offers/OfferProofLibrary", () => ({
+  default: () => (
+    <div>
+      <label>
+        Evidence title
+        <input />
+      </label>
+    </div>
+  ),
+}));
 vi.mock("@/components/offers/OfferBuilderPreview", () => ({
   default: ({
     builder,
@@ -78,13 +88,23 @@ vi.mock("@/lib/offers", async (importOriginal) => ({
 }));
 vi.mock("@/integrations/supabase/client", () => {
   const readQuery = () => {
+    let update: unknown = null;
+    const filters: unknown[][] = [];
     const query = {
       select: () => query,
-      eq: () => query,
+      update: (values: unknown) => {
+        update = values;
+        return query;
+      },
+      eq: (...args: unknown[]) => {
+        filters.push(args);
+        return query;
+      },
       order: () => query,
       limit: () => query,
       abortSignal: () => query,
-      maybeSingle: () => mock.read(),
+      maybeSingle: () =>
+        update ? mock.write(update, filters) : mock.read(filters),
       then: (resolve: (value: unknown) => unknown) =>
         Promise.resolve({ data: [], error: null }).then(resolve),
     };
@@ -158,6 +178,10 @@ function draft() {
 function publish() {
   navigateStep("Review");
   fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+  const confirm = screen.queryByRole("button", {
+    name: /^Publish (now|archived offer)$/,
+  });
+  if (confirm) fireEvent.click(confirm);
 }
 function saveUsing(initial: Record<string, unknown> = row) {
   mock.save.mockImplementation(async (input: OfferBuilderSaveInput) => {
@@ -602,6 +626,9 @@ describe("private drafts, revisions and page building", () => {
     await loaded();
     navigateStep("Review");
     fireEvent.click(screen.getByRole("button", { name: "Restore revision 2" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore this revision" }),
+    );
     expect(mock.save).not.toHaveBeenCalled();
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
       "Earlier offer",
@@ -731,5 +758,398 @@ describe("private drafts, revisions and page building", () => {
     await screen.findByText(/This information could not be loaded/);
     expect(screen.queryByLabelText("Title")).toBeNull();
     expect(mock.save).not.toHaveBeenCalled();
+  });
+});
+
+const publishedRow = {
+  ...row,
+  status: "published",
+  kind: "paid",
+  amount_minor: 1900,
+  asset_path: `${row.id}/v1.pdf`,
+  asset_name: "Guide.pdf",
+};
+function alertText() {
+  return screen.getByRole("alert").textContent || "";
+}
+
+describe("offer builder defect regressions", () => {
+  it("never submits or saves the offer when Enter is pressed in a single-line field", async () => {
+    existing();
+    await loaded();
+    expect(document.querySelector("form")).toBeNull();
+    for (const label of ["Title", /Page URL slug/, /Cover image URL/]) {
+      const input = screen.getByLabelText(label);
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    }
+    navigateStep("Strategy");
+    const evidence = screen.getByLabelText("Evidence title");
+    expect(evidence.closest("form")).toBeNull();
+    fireEvent.keyDown(evidence, { key: "Enter", code: "Enter" });
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("saves an unfinished draft leniently but lists every publish problem with a link to its step", async () => {
+    existing();
+    await loaded();
+    edit(/Page URL slug/, "Not Final Yet");
+    edit(/Cover image URL/, "http://images.example.com/cover.png");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0].document.offer).toEqual(
+      expect.objectContaining({
+        slug: "Not Final Yet",
+        cover_url: "http://images.example.com/cover.png",
+        status: "draft",
+      }),
+    );
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain("Page URL slug:");
+    expect(alert.textContent).toContain("Cover image URL:");
+    expect(alert.textContent).toContain("Download file:");
+    expect(mock.save).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      within(alert).getAllByRole("button", { name: /Go to Delivery/ })[0],
+    );
+    expect(
+      screen
+        .getByRole("button", { name: /Delivery/, current: "step" })
+        .getAttribute("aria-current"),
+    ).toBe("step");
+  });
+  it("blocks a draft only for values that cannot be stored, and names the field", async () => {
+    existing();
+    await loaded();
+    navigateStep("Delivery");
+    edit("Offer type", "paid");
+    edit("Price", "nineteen");
+    draft();
+    expect(alertText()).toContain("Price:");
+    expect(
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: /Go to Delivery/,
+      }),
+    ).toBeTruthy();
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("confirms publishing with the price, URL and file changes compared with the live offer", async () => {
+    existing(publishedRow);
+    await loaded();
+    edit(/Page URL slug/, "better-guide");
+    navigateStep("Delivery");
+    edit("Price", "29");
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("/offers/useful-guide");
+    expect(dialog.textContent).toContain("/offers/better-guide");
+    expect(dialog.textContent).toContain("USD 19.00");
+    expect(dialog.textContent).toContain("USD 29.00");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(mock.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publish now" }));
+    await screen.findByText(/Offer published/);
+    expect(mock.save.mock.calls[0][0].publish).toBe(true);
+  });
+  it("warns before publishing an archived offer back to visitors", async () => {
+    existing({ ...publishedRow, status: "archived" });
+    await loaded();
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("This offer is archived");
+    expect(dialog.textContent).toMatch(/Archived\s*→\s*Published/);
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Publish archived offer" }),
+    );
+    await screen.findByText(/Offer published/);
+  });
+  it("shows the old price, URL, file and follow-up before restoring a revision", async () => {
+    const document: OfferBuilderDocument = {
+      offer: {
+        slug: "old-guide",
+        kind: "paid",
+        amount_minor: 900,
+        asset_path: `${row.id}/v0.pdf`,
+        asset_name: "Old guide.pdf",
+      },
+      builder: emptyBuilder(),
+    };
+    mock.load.mockResolvedValue({
+      draft: null,
+      history: [
+        {
+          id: "old",
+          document,
+          version: 1,
+          published: true,
+          created_at: row.created_at,
+        },
+      ],
+    });
+    existing(publishedRow);
+    await loaded();
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Restore revision 1" }));
+    const dialog = screen.getByRole("alertdialog");
+    for (const text of [
+      "/offers/old-guide",
+      "USD 9.00",
+      "Old guide.pdf",
+      "Page URL",
+      "Price",
+      "Download file",
+    ])
+      expect(dialog.textContent).toContain(text);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(
+      (screen.getByLabelText(/Page URL slug/) as HTMLInputElement).value,
+    ).toBe("useful-guide");
+    fireEvent.click(screen.getByRole("button", { name: "Restore revision 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore this revision" }),
+    );
+    expect(
+      (screen.getByLabelText(/Page URL slug/) as HTMLInputElement).value,
+    ).toBe("old-guide");
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("opens the created offer with the local copy when a lost first save returns 40001", async () => {
+    mount();
+    navigateStep("Pages");
+    edit("Title", "First try");
+    draft();
+    await screen.findByText("Network unavailable");
+    edit("Title", "Edited after the lost response");
+    mock.save.mockRejectedValue({
+      code: "40001",
+      message: "Offer changed elsewhere. Reload before saving.",
+    });
+    mock.read.mockResolvedValue({ data: { id: row.id }, error: null });
+    draft();
+    await waitFor(() =>
+      expect(mock.navigate).toHaveBeenCalledWith(
+        `/admin/offers/${row.id}/edit`,
+        { replace: true },
+      ),
+    );
+    expect(mock.read.mock.calls.at(-1)?.[0]).toContainEqual(["id", row.id]);
+    cleanup();
+    existing();
+    await loaded();
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Edited after the lost response",
+    );
+    expect(screen.getByText(/confirmation was lost/)).toBeTruthy();
+    expect(screen.getByText("You have unsaved changes.")).toBeTruthy();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({
+        offerId: row.id,
+        expectedOfferUpdatedAt: row.updated_at,
+      }),
+    );
+  });
+  it("explains a 40001 for a new offer when no row was created", async () => {
+    mount();
+    mock.save.mockRejectedValue({
+      code: "40001",
+      message: "Offer changed elsewhere. Reload before saving.",
+    });
+    draft();
+    await waitFor(() => expect(alertText()).toMatch(/changed in another tab/));
+    expect(mock.navigate).not.toHaveBeenCalled();
+  });
+  it("keeps the notice and step after the first save of a new offer", async () => {
+    saveUsing();
+    mount();
+    navigateStep("Delivery");
+    draft();
+    await waitFor(() => expect(mock.navigate).toHaveBeenCalled());
+    cleanup();
+    existing();
+    await loaded();
+    expect(screen.getByText(/Draft saved privately/)).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: /Delivery/, current: "step" })
+        .getAttribute("aria-current"),
+    ).toBe("step");
+  });
+  it("names a duplicate URL and links to the page step", async () => {
+    existing(publishedRow);
+    await loaded();
+    mock.save.mockRejectedValue({
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "offers_slug_key"',
+    });
+    publish();
+    await waitFor(() =>
+      expect(alertText()).toContain(
+        "That URL is already used by another offer",
+      ),
+    );
+    expect(alertText()).not.toContain("duplicate key");
+    expect(
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: /Go to Pages/,
+      }),
+    ).toBeTruthy();
+  });
+  it("marks unpublished draft changes in the header until they are published", async () => {
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: {}, builder: emptyBuilder() },
+        version: 3,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      history: [
+        {
+          id: "r3",
+          document: { offer: {}, builder: emptyBuilder() },
+          version: 3,
+          published: false,
+          created_at: row.created_at,
+        },
+      ],
+    });
+    existing(publishedRow);
+    await loaded();
+    expect(screen.getByText("Draft changes not published")).toBeTruthy();
+    publish();
+    await screen.findByText(/Offer published/);
+    expect(screen.queryByText("Draft changes not published")).toBeNull();
+  });
+  it("unpublishes from the Review step through a confirmed, version-checked status update", async () => {
+    existing(publishedRow);
+    await loaded();
+    mock.write.mockResolvedValue({
+      data: { id: row.id, status: "draft", updated_at: "2026-09-20T00:00:00Z" },
+      error: null,
+    });
+    navigateStep("Review");
+    expect(
+      screen.queryByText(/Archiving is available from All offers/),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Unpublish: Useful guide" }),
+    );
+    expect(screen.getByRole("alertdialog").textContent).toContain(
+      "Unpublish this offer?",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Unpublish offer" }));
+    await screen.findByText(/Offer unpublished/);
+    expect(mock.write).toHaveBeenCalledWith({ status: "draft" }, [
+      ["id", row.id],
+      ["updated_at", row.updated_at],
+    ]);
+    expect(screen.getByText(/Draft · private/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Archive: Useful guide" }),
+    ).toBeTruthy();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0].expectedOfferUpdatedAt).toBe(
+      "2026-09-20T00:00:00Z",
+    );
+  });
+  it("does not flag a draft as stale when only the status changed since it was saved", async () => {
+    const liveNow = {
+      ...publishedRow,
+      status: "archived",
+      updated_at: "2026-09-21T00:00:00Z",
+    };
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: { title: "Draft title" }, builder: emptyBuilder() },
+        version: 2,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+        base_offer: { ...publishedRow },
+      },
+      history: [],
+    });
+    existing(liveNow);
+    await loaded();
+    expect(screen.queryByText(/This draft was started before/)).toBeNull();
+    cleanup();
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: { title: "Draft title" }, builder: emptyBuilder() },
+        version: 2,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+        base_offer: { ...publishedRow, amount_minor: 900 },
+      },
+      history: [],
+    });
+    existing(liveNow);
+    await loaded();
+    expect(screen.getByText(/This draft was started before/)).toBeTruthy();
+  });
+  it("says free downloads also send an access email", async () => {
+    existing();
+    await loaded();
+    navigateStep("Delivery");
+    expect(screen.getByText(/including free downloads/).textContent).toMatch(
+      /email with a private access link/,
+    );
+  });
+  it("opens and focuses a newly added section", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.sections = [
+      { ...newSection("benefits"), id: "first", heading: "First" },
+    ];
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: {}, builder },
+        version: 1,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      history: [],
+    });
+    existing();
+    await loaded();
+    edit("New section type", "faq");
+    fireEvent.click(screen.getByRole("button", { name: /Add section/ }));
+    const added = screen
+      .getByText("2. Questions & objections")
+      .closest("details")!;
+    expect(added.open).toBe(true);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(added).getByLabelText("Section heading"),
+      ),
+    );
+  });
+});
+
+describe("lost first-save recovery failures", () => {
+  it("keeps the edits and says so when the created offer cannot be checked", async () => {
+    mount();
+    mock.save.mockRejectedValue({
+      code: "40001",
+      message: "Offer changed elsewhere. Reload before saving.",
+    });
+    mock.read.mockResolvedValue({
+      data: null,
+      error: { message: "Network unavailable" },
+    });
+    navigateStep("Pages");
+    edit("Title", "Keep me");
+    draft();
+    await waitFor(() =>
+      expect(alertText()).toMatch(/couldn't check whether your first save/),
+    );
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Keep me",
+    );
+    expect(mock.navigate).not.toHaveBeenCalled();
   });
 });

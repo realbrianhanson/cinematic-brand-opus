@@ -466,7 +466,7 @@ export default function SiteSetup() {
                       .
                     </li>
                     <li>
-                      <Link className="underline" to="/admin/settings">
+                      <Link className="underline" to="/admin/site-settings">
                         Configure your integrations
                       </Link>{" "}
                       before enabling automated publishing or sending.

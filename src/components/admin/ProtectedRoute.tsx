@@ -1,8 +1,9 @@
 import { Navigate } from "@/lib/router-compat";
 import { useAuth } from "@/contexts/AuthContext";
+import AccessCheckFailed from "./AccessCheckFailed";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, roleError } = useAuth();
 
   if (loading) {
     return (
@@ -29,6 +30,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     );
   }
+
+  // A failed lookup is not a "no": keep access closed but offer a retry
+  // instead of bouncing to the login page with a misleading message.
+  if (user && roleError) return <AccessCheckFailed />;
 
   if (!user || !isAdmin) {
     return <Navigate to="/admin/login" replace />;

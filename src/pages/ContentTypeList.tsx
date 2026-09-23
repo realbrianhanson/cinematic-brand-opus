@@ -10,6 +10,7 @@ import { useState, useMemo } from "react";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PUBLIC_GENERATED_PAGE_LIST_SELECT } from "@/lib/publicColumns";
 import { ArrowRight } from "lucide-react";
 import Footer from "@/components/Footer";
 import PageHead from "@/components/PageHead";
@@ -51,7 +52,7 @@ const ContentTypeList = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(name, slug)")
+        .select(PUBLIC_GENERATED_PAGE_LIST_SELECT)
         .eq("content_schema_id", schema!.id)
         .eq("status", "published")
         .order("title");

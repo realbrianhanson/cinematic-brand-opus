@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearOfferHandoff,
+  draftPayload,
   empty,
+  formIssues,
   payload,
+  readOfferHandoff,
+  saveOfferHandoff,
   slugify,
   toForm,
   type Form,
@@ -284,5 +289,89 @@ describe("offer editing validation", () => {
         window: "1440",
       }),
     );
+  });
+});
+
+describe("draft and publish validation", () => {
+  it("saves an in-progress draft with publish-only problems but keeps them for publishing", () => {
+    const form: Form = {
+      ...empty,
+      title: "",
+      slug: "Not A Slug",
+      kind: "paid",
+      price: "",
+      cover: "http://not-yet-https.example/cover.png",
+      checkoutMode: "external",
+      externalUrl: "https://user:pw@example.com",
+      showInShop: true,
+      shopCategory: "resource",
+    };
+    const { values, issues } = draftPayload(form);
+    expect(issues).toEqual([]);
+    expect(values).toMatchObject({
+      status: "draft",
+      title: "",
+      slug: "Not A Slug",
+      amount_minor: 0,
+      cover_url: "http://not-yet-https.example/cover.png",
+      external_url: "https://user:pw@example.com",
+    });
+    const publishing = formIssues({ ...form, status: "published" });
+    expect(publishing.map((issue) => issue.step)).toEqual([
+      "delivery",
+      "pages",
+      "pages",
+      "pages",
+      "delivery",
+      "pages",
+    ]);
+    expect(publishing[0].field).toBe("Destination URL");
+    expect(() => payload({ ...form, status: "published" })).toThrow(
+      publishing[0].message,
+    );
+  });
+  it("blocks a draft only for values the database cannot store", () => {
+    const { issues } = draftPayload({
+      ...empty,
+      kind: "paid",
+      price: "nineteen",
+      nextOffer: "next-id",
+      window: "soon",
+      title: "a".repeat(201),
+      body: "b".repeat(40001),
+    });
+    expect(issues.map((issue) => [issue.step, issue.field])).toEqual([
+      ["pages", "Title"],
+      ["pages", "Full description"],
+      ["delivery", "Price"],
+      ["next", "Follow-up window"],
+    ]);
+  });
+  it("stores a parsed draft price and window without range checks", () => {
+    const { values, issues } = draftPayload({
+      ...empty,
+      kind: "paid",
+      price: "0.10",
+      nextOffer: "next-id",
+      window: "5",
+    });
+    expect(issues).toEqual([]);
+    expect(values).toMatchObject({
+      amount_minor: 10,
+      next_offer_window_minutes: 5,
+    });
+  });
+});
+
+describe("editor hand-off between routes", () => {
+  it("returns a hand-off once per offer and ignores others", () => {
+    saveOfferHandoff("a", { notice: "Saved", step: "delivery" });
+    expect(readOfferHandoff("b")).toBeNull();
+    expect(readOfferHandoff("a")).toEqual({
+      notice: "Saved",
+      step: "delivery",
+    });
+    clearOfferHandoff("a");
+    expect(readOfferHandoff("a")).toBeNull();
   });
 });

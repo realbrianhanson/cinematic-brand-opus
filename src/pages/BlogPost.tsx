@@ -14,6 +14,10 @@ import { useParams, Link } from "@/lib/router-compat";
 import { safeHtml } from "@/lib/safeHtml";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  PUBLIC_POST_SELECT,
+  PUBLIC_POST_SEO_SELECT,
+} from "@/lib/publicColumns";
 import { ArrowLeft, ArrowRight, Clock, Calendar, BookOpen } from "lucide-react";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
@@ -50,7 +54,7 @@ const BlogPost = ({
     queryFn: async () => {
       let query = supabase
         .from("posts")
-        .select("*, categories(name, slug)")
+        .select(PUBLIC_POST_SELECT)
         .eq("slug", slug!);
       if (!preview) query = query.eq("status", "published");
       const { data, error } = await query.maybeSingle();
@@ -88,7 +92,7 @@ const BlogPost = ({
     queryFn: async () => {
       const { data } = await supabase
         .from("seo_metadata")
-        .select("meta_title,meta_description,og_image,keywords")
+        .select(PUBLIC_POST_SEO_SELECT)
         .eq("post_id", post!.id)
         .maybeSingle();
       return data;
@@ -136,7 +140,7 @@ const BlogPost = ({
       const { data: pages } = await supabase
         .from("generated_pages")
         .select(
-          "id, title, slug, niche_id, content_schema_id, content_schemas(slug), niches(slug)",
+          "id, title, slug, niche_id, content_schema_id, content_schemas(slug), niches!generated_pages_niche_id_fkey(slug)",
         )
         .in("niche_id", matchedNicheIds)
         .eq("status", "published")

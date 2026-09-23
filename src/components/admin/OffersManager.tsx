@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -11,7 +11,10 @@ import { Link, useNavigate } from "@/lib/router-compat";
 import type { AdminOfferView } from "@/lib/adminOfferViews";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeOfferApi, offerPrice, type OfferHealth } from "@/lib/offers";
+import { listUnpublishedDraftIds } from "@/lib/offerBuilderClient";
+import { statusChangeCopy } from "@/lib/offersStatus";
 import QueryNotice from "./QueryNotice";
+import OfferStatusActions from "./OfferStatusActions";
 import { shopCategories } from "./offerEditorState";
 
 const PAGE_SIZE = 25;
@@ -196,6 +199,9 @@ export default function OffersManager({
   tab?: AdminOfferView;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [actionNotice, setActionNotice] = useState("");
+  const [actionError, setActionError] = useState("");
   const setTab = (next: AdminOfferView) =>
     navigate(next === "offers" ? "/admin/offers" : `/admin/offers?tab=${next}`);
   const [status, setStatus] = useState("all");
@@ -241,6 +247,12 @@ export default function OffersManager({
       if (error) throw error;
       return { items: data ?? [], total: count ?? 0 };
     },
+  });
+  const offerIds = offers.data?.items.map((offer) => offer.id) ?? [];
+  const pendingDrafts = useQuery({
+    queryKey: ["admin-offer-drafts", offerIds],
+    enabled: tab === "offers" && offerIds.length > 0,
+    queryFn: () => listUnpublishedDraftIds(offerIds),
   });
   const orders = useQuery({
     queryKey: ["admin-offer-orders", orderStatus, orderKind, orderPage],
@@ -389,6 +401,28 @@ export default function OffersManager({
             error={offers.error}
             retry={() => offers.refetch()}
           />
+          {actionError && (
+            <p role="alert" className="admin-notice admin-notice-error">
+              {actionError}
+            </p>
+          )}
+          {actionNotice && (
+            <p role="status" className="admin-notice">
+              {actionNotice}
+            </p>
+          )}
+          {pendingDrafts.isError && (
+            <p className="admin-help">
+              Unpublished draft changes could not be checked.{" "}
+              <button
+                type="button"
+                className="admin-btn-ghost"
+                onClick={() => void pendingDrafts.refetch()}
+              >
+                Check again
+              </button>
+            </p>
+          )}
           {offers.data && (
             <p className="admin-help">
               {offers.data.total} matching{" "}
@@ -450,6 +484,12 @@ export default function OffersManager({
                       ? "External link"
                       : "Website checkout / download"}
                   </span>
+                  {offer.status === "published" &&
+                    pendingDrafts.data?.has(offer.id) && (
+                      <span className="admin-badge">
+                        Draft changes not published
+                      </span>
+                    )}
                   {offer.is_affiliate && (
                     <span className="admin-badge">Affiliate</span>
                   )}
@@ -504,6 +544,26 @@ export default function OffersManager({
                     {offer.status === "published" ? "View page" : "Preview"}{" "}
                     <ArrowUpRight size={14} />
                   </a>
+                  <OfferStatusActions
+                    offer={offer}
+                    onChanged={(row, change) => {
+                      setActionError("");
+                      setActionNotice(
+                        `${offer.title || "Untitled offer"}: ${statusChangeCopy[change].done}`,
+                      );
+                      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+                      void qc.invalidateQueries({
+                        queryKey: ["admin-offer-choices"],
+                      });
+                      void qc.invalidateQueries({
+                        queryKey: ["admin-offer", row.id],
+                      });
+                    }}
+                    onError={(message) => {
+                      setActionNotice("");
+                      setActionError(message);
+                    }}
+                  />
                 </div>
               </article>
             ))}

@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run test",
-    "test:database": "node scripts/tests/newsletter-database.mjs && node scripts/tests/pipeline-database.mjs && node scripts/tests/member-bootstrap.mjs && node scripts/tests/admin-configuration.mjs && node scripts/tests/operational-migrations.mjs && node scripts/tests/editor-branding-database.mjs && node scripts/tests/editorial-pilot.mjs && node scripts/tests/offers-database.mjs && node scripts/tests/speaking-inquiries-database.mjs && node scripts/tests/offer-access-delivery-database.mjs && node scripts/tests/conversion-database.mjs && node scripts/tests/offer-builder-database.mjs && node scripts/tests/pillar-body-guard-database.mjs && node scripts/tests/site-setup-database.mjs"
+    "test:database": "node scripts/tests/newsletter-database.mjs && node scripts/tests/pipeline-database.mjs && node scripts/tests/member-bootstrap.mjs && node scripts/tests/admin-configuration.mjs && node scripts/tests/operational-migrations.mjs && node scripts/tests/editor-branding-database.mjs && node scripts/tests/editorial-pilot.mjs && node scripts/tests/offers-database.mjs && node scripts/tests/speaking-inquiries-database.mjs && node scripts/tests/offer-access-delivery-database.mjs && node scripts/tests/conversion-database.mjs && node scripts/tests/offer-builder-database.mjs && node scripts/tests/pillar-body-guard-database.mjs && node scripts/tests/site-setup-database.mjs && node scripts/tests/legacy-analytics-database.mjs && node scripts/tests/public-column-grants-database.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.71",

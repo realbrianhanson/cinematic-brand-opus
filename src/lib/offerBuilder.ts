@@ -2,23 +2,63 @@ import { z } from "zod";
 
 const short = z.string().max(300);
 const copy = z.string().max(6000);
+const HOST_LABEL = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+const isIpv4 = (host: string) => {
+  const octets = host.split(".");
+  return (
+    octets.length === 4 &&
+    octets.every((octet) => /^\d+$/.test(octet) && Number(octet) <= 255)
+  );
+};
+const isIpv6 = (host: string) => {
+  try {
+    new URL(`https://[${host}]/`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Mirrors public.offer_valid_external_url (migration
+ * 20260919150000_offer_external_listings.sql) so the editor rejects exactly
+ * the media, proof and destination URLs the database would reject.
+ */
+export function validOfferUrl(value: string): boolean {
+  if (
+    typeof value !== "string" ||
+    Array.from(value).length > 2048 ||
+    /[\s\p{Cc}\\]/u.test(value)
+  )
+    return false;
+  const parts = /^https:\/\/([^/?#]+)([/?#].*)?$/is.exec(value);
+  if (!parts) return false;
+  const authority = parts[1];
+  if (authority.includes("@")) return false;
+  let port: string | undefined;
+  if (authority.startsWith("[")) {
+    const bracketed = /^\[([0-9a-fA-F:.]+)\](:([0-9]{1,5}))?$/.exec(authority);
+    if (!bracketed || !isIpv6(bracketed[1])) return false;
+    port = bracketed[3];
+  } else {
+    const named = /^([a-zA-Z0-9.-]+)(:([0-9]{1,5}))?$/.exec(authority);
+    if (!named) return false;
+    const host = named[1].replace(/\.+$/, "");
+    port = named[3];
+    if (!host.length || host.length > 253) return false;
+    if (!host.split(".").every((label) => HOST_LABEL.test(label))) return false;
+    if (/^[0-9.]+$/.test(host) && !isIpv4(host)) return false;
+  }
+  return port === undefined || Number(port) <= 65535;
+}
+
 const httpsUrl = z
   .string()
   .max(2048)
-  .refine((value) => {
-    if (!value) return true;
-    try {
-      const url = new URL(value);
-      return (
-        url.protocol === "https:" &&
-        !url.username &&
-        !url.password &&
-        !/[\s\\]/.test(value)
-      );
-    } catch {
-      return false;
-    }
-  }, "Use a complete HTTPS URL without credentials or spaces.");
+  .refine(
+    (value) => !value || validOfferUrl(value),
+    "Use a complete HTTPS address with a valid domain and no spaces, backslashes, username or password.",
+  );
 
 export const sectionTypes = [
   "text",

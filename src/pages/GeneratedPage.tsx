@@ -22,6 +22,7 @@ import Footer from "@/components/Footer";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PUBLIC_GENERATED_PAGE_SELECT } from "@/lib/publicColumns";
 import {
   Linkedin,
   Twitter,
@@ -106,7 +107,7 @@ const GeneratedPage = ({
       if (!schema) return null;
       const { data: pg } = await supabase
         .from("generated_pages")
-        .select("*, niches!generated_pages_niche_id_fkey(id, name, slug)")
+        .select(PUBLIC_GENERATED_PAGE_SELECT)
         .eq("content_schema_id", schema.id)
         .eq("slug", pageSlug!)
         .eq("status", "published")

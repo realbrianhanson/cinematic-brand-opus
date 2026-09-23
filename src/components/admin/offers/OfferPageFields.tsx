@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import {
   newSection,
@@ -23,6 +23,14 @@ export default function OfferPageFields({
   const [recipe, setRecipe] = useState<"lead-magnet" | "sales" | "upsell">(
     stage === "upsell" ? "upsell" : "sales",
   );
+  // A newly added section opens and takes focus so it can be filled in.
+  const [addedId, setAddedId] = useState("");
+  useEffect(() => {
+    if (!addedId) return;
+    const heading = document.getElementById(`${addedId}-heading`);
+    heading?.scrollIntoView?.({ block: "center" });
+    heading?.focus();
+  }, [addedId]);
   const updateSection = (index: number, updates: Partial<OfferSection>) =>
     onChange({
       ...value,
@@ -145,7 +153,9 @@ export default function OfferPageFields({
           <details
             key={section.id}
             className="rounded-xl border border-current/15 p-3"
-            open={value.sections.length === 1 || undefined}
+            open={
+              section.id === addedId || value.sections.length === 1 || undefined
+            }
           >
             <summary className="cursor-pointer text-sm font-semibold">
               {index + 1}. {section.heading || sectionLabels[section.type]}
@@ -189,6 +199,7 @@ export default function OfferPageFields({
               <label className="block text-sm">
                 Section heading
                 <input
+                  id={`${section.id}-heading`}
                   className="admin-input mt-2 w-full"
                   maxLength={300}
                   value={section.heading}
@@ -276,12 +287,11 @@ export default function OfferPageFields({
           type="button"
           className="admin-btn-secondary w-full"
           disabled={value.sections.length >= 30}
-          onClick={() =>
-            onChange({
-              ...value,
-              sections: [...value.sections, newSection(addingType)],
-            })
-          }
+          onClick={() => {
+            const section = newSection(addingType);
+            onChange({ ...value, sections: [...value.sections, section] });
+            setAddedId(section.id);
+          }}
         >
           <Plus size={16} /> Add section
         </button>

@@ -20,6 +20,8 @@ export type OfferBuilderDraft = {
   version: number;
   updated_at: string;
   base_offer_updated_at: string;
+  /** The live offer this draft was saved against, when it is known. */
+  base_offer?: Partial<OfferRow> | null;
 };
 export type OfferBuilderRevision = {
   id: string;
@@ -98,6 +100,7 @@ export async function loadOfferBuilder(
       ? {
           ...draftResult.data,
           document: readDocument(draftResult.data.document),
+          base_offer: await loadDraftBase(offerId, draftResult.data.version),
         }
       : null,
     history: (historyResult.data ?? []).map((revision) => ({
@@ -105,6 +108,67 @@ export async function loadOfferBuilder(
       document: readDocument(revision.document),
     })),
   };
+}
+
+/**
+ * The saved revision that produced the current draft records the live offer
+ * at that moment. Comparing it with today's offer tells a status-only change
+ * (unpublish, archive) apart from a real content change made elsewhere.
+ */
+async function loadDraftBase(
+  offerId: string,
+  version: number,
+): Promise<Partial<OfferRow> | null> {
+  const { data, error } = await supabase
+    .from("offer_builder_revisions")
+    .select("offer:result->offer")
+    .eq("offer_id", offerId)
+    .eq("version", version)
+    .abortSignal(AbortSignal.timeout(15000))
+    .maybeSingle();
+  if (error) throw error;
+  const offer: unknown = data?.offer;
+  return offer && typeof offer === "object" && !Array.isArray(offer)
+    ? (offer as Partial<OfferRow>)
+    : null;
+}
+
+/**
+ * IDs of offers whose latest saved draft was not published. Reads the admin
+ * draft and revision tables, which administrators can already select.
+ */
+export async function listUnpublishedDraftIds(
+  offerIds: string[],
+): Promise<Set<string>> {
+  if (!offerIds.length) return new Set();
+  const drafts = await supabase
+    .from("offer_builder_drafts")
+    .select("offer_id,version")
+    .in("offer_id", offerIds)
+    .abortSignal(AbortSignal.timeout(15000));
+  if (drafts.error) throw drafts.error;
+  const rows = drafts.data ?? [];
+  if (!rows.length) return new Set();
+  const revisions = await supabase
+    .from("offer_builder_revisions")
+    .select("offer_id,version,published")
+    .in(
+      "offer_id",
+      rows.map((row) => row.offer_id),
+    )
+    .in("version", [...new Set(rows.map((row) => row.version))])
+    .abortSignal(AbortSignal.timeout(15000));
+  if (revisions.error) throw revisions.error;
+  const published = new Set(
+    (revisions.data ?? [])
+      .filter((revision) => revision.published)
+      .map((revision) => `${revision.offer_id}:${revision.version}`),
+  );
+  return new Set(
+    rows
+      .filter((row) => !published.has(`${row.offer_id}:${row.version}`))
+      .map((row) => row.offer_id),
+  );
 }
 
 /** Reuse requestId with the identical input after an uncertain network failure. */
