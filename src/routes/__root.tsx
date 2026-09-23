@@ -1,5 +1,6 @@
 import PublicMeasurement from "@/components/PublicMeasurement";
 import SiteChat from "@/components/SiteChat";
+import { readPresentation } from "@/lib/offerBuilder";
 import { brandStyles } from "@/config/brandStyles";
 import {
   createRootRouteWithContext,
@@ -41,7 +42,15 @@ const maybeReload = (msg: string) => {
 function PublicSiteChat() {
   const router = useRouter();
   const pathname = router.state.location.pathname;
-  if (pathname.startsWith("/admin")) return null;
+  if (pathname.startsWith("/admin") || pathname.startsWith("/offers/preview/"))
+    return null;
+  const offerMatch = router.state.matches.find(
+    (match) => match.routeId === "/offers/$slug",
+  );
+  const offerData = offerMatch?.loaderData as
+    { offer?: { presentation?: unknown } } | undefined;
+  if (readPresentation(offerData?.offer?.presentation)?.landing.focusMode)
+    return null;
   return <SiteChat />;
 }
 

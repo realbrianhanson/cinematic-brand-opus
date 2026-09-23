@@ -6,13 +6,19 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { emptyBuilder, newSection } from "@/lib/offerBuilder";
+import type {
+  OfferBuilderDocument,
+  OfferBuilderSaveInput,
+} from "@/lib/offerBuilderClient";
 
 const mock = vi.hoisted(() => ({
-  insert: vi.fn(),
-  update: vi.fn(),
+  save: vi.fn(),
+  load: vi.fn(),
   upload: vi.fn(),
   navigate: vi.fn(),
   read: vi.fn(),
@@ -39,6 +45,27 @@ vi.mock("@/lib/router-compat", () => ({
 vi.mock("@/config/SiteConfigContext", () => ({
   useSiteConfig: () => ({ identity: { siteUrl: "https://example.com" } }),
 }));
+vi.mock("@/lib/offerBuilderClient", () => ({
+  loadOfferBuilder: (...args: unknown[]) => mock.load(...args),
+  saveOfferBuilder: (...args: unknown[]) => mock.save(...args),
+}));
+vi.mock("../offers/OfferCopyAssistant", () => ({ default: () => null }));
+vi.mock("../offers/OfferProofLibrary", () => ({ default: () => null }));
+vi.mock("@/components/offers/OfferBuilderPreview", () => ({
+  default: ({
+    builder,
+    stage,
+  }: {
+    builder: ReturnType<typeof emptyBuilder>;
+    stage: string;
+  }) => (
+    <div data-testid="preview">
+      {stage === "thank-you"
+        ? builder.presentation.thankYou.headline
+        : builder.presentation[stage as "landing" | "upsell"].headline}
+    </div>
+  ),
+}));
 vi.mock("@/lib/offers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/offers")>()),
   invokeOfferApi: async () => ({
@@ -63,38 +90,15 @@ vi.mock("@/integrations/supabase/client", () => {
     };
     return query;
   };
-  const mutation = (result: Promise<unknown>) => {
-    const query = {
-      select: () => query,
-      eq: () => query,
-      abortSignal: () => query,
-      maybeSingle: () => result,
-    };
-    return query;
-  };
   return {
     supabase: {
-      from: () => ({
-        ...readQuery(),
-        insert: (value: unknown) => mutation(mock.insert(value)),
-        update: (value: unknown) => mutation(mock.update(value)),
-      }),
+      from: readQuery,
       storage: { from: () => ({ upload: mock.upload }) },
     },
   };
 });
 import OfferEditor from "../OfferEditor";
 
-function mount(id?: string) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <OfferEditor id={id} />
-    </QueryClientProvider>,
-  );
-}
 const row = {
   id: "00000000-0000-4000-a000-000000000001",
   title: "Useful guide",
@@ -123,7 +127,67 @@ const row = {
   shop_featured: false,
   created_at: "2026-09-19T00:00:00Z",
   updated_at: "2026-09-19T00:00:00Z",
+  presentation: null,
 };
+function mount(id?: string) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <OfferEditor id={id} />
+    </QueryClientProvider>,
+  );
+}
+function navigateStep(name: string) {
+  fireEvent.click(
+    within(
+      screen.getByRole("navigation", { name: "Offer builder steps" }),
+    ).getByRole("button", { name: new RegExp(name) }),
+  );
+}
+async function loaded() {
+  await screen.findByLabelText("Title");
+}
+function edit(label: string | RegExp, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+}
+function draft() {
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+}
+function publish() {
+  navigateStep("Review");
+  fireEvent.click(screen.getByRole("button", { name: "Publish changes" }));
+}
+function saveUsing(initial: Record<string, unknown> = row) {
+  mock.save.mockImplementation(async (input: OfferBuilderSaveInput) => {
+    const live = input.publish
+      ? {
+          ...initial,
+          ...input.document.offer,
+          status: "published",
+          updated_at: "2026-09-19T00:01:00Z",
+        }
+      : initial;
+    return {
+      offer: live,
+      draft: {
+        offer_id: row.id,
+        document: input.document,
+        version: (input.expectedDraftVersion ?? 0) + 1,
+        updated_at: "2026-09-19T00:01:00Z",
+        base_offer_updated_at: live.updated_at,
+      },
+      revision_id: `revision-${(input.expectedDraftVersion ?? 0) + 1}`,
+      published: input.publish,
+    };
+  });
+}
+function existing(initial: Record<string, unknown> = row) {
+  mock.read.mockResolvedValue({ data: initial, error: null });
+  saveUsing(initial);
+  mount(row.id);
+}
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(globalThis.crypto, "randomUUID", {
@@ -131,18 +195,15 @@ beforeEach(() => {
     value: vi.fn(() => row.id),
   });
   mock.read.mockResolvedValue({ data: null, error: null });
-  mock.insert.mockResolvedValue({
-    data: null,
-    error: { message: "Network unavailable" },
-  });
-  mock.update.mockResolvedValue({ data: null, error: null });
+  mock.load.mockResolvedValue({ draft: null, history: [] });
+  mock.save.mockRejectedValue(new Error("Network unavailable"));
   mock.upload.mockResolvedValue({ error: null });
 });
 afterEach(cleanup);
 
-describe("offer editor save and upload safety", () => {
+describe("offer builder save and upload safety", () => {
   it.each(["native", "external"] as const)(
-    "inserts an image at the selection and saves it only on request for %s offers",
+    "inserts an image at the selection and saves only on request for %s offers",
     async (checkoutMode) => {
       const initial = {
         ...row,
@@ -152,27 +213,16 @@ describe("offer editor save and upload safety", () => {
         body: "BeforeREPLACEAfter",
         cover_url: "https://images.example.com/cover.webp",
       };
-      mock.read.mockResolvedValue({ data: initial, error: null });
-      mock.update.mockImplementation(async (values) => ({
-        data: { ...initial, ...values, updated_at: "2026-09-19T00:01:00Z" },
-        error: null,
-      }));
-      mount(row.id);
+      existing(initial);
       const body = (await screen.findByLabelText(
         /Full description/,
       )) as HTMLTextAreaElement;
       body.focus();
       body.setSelectionRange(6, 13);
       fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
-      fireEvent.change(screen.getByLabelText("Image URL"), {
-        target: { value: "https://images.example.com/detail.webp" },
-      });
-      fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
-        target: { value: "A clear process diagram" },
-      });
-      fireEvent.change(screen.getByLabelText("Image caption (optional)"), {
-        target: { value: "The process in three steps." },
-      });
+      edit("Image URL", "https://images.example.com/detail.webp");
+      edit("Image description (alt text)", "A clear process diagram");
+      edit("Image caption (optional)", "The process in three steps.");
       fireEvent.click(
         screen.getByRole("button", { name: "Add to description" }),
       );
@@ -185,236 +235,194 @@ describe("offer editor save and upload safety", () => {
         expect(body.selectionStart).toBe(expected.indexOf("After"));
         expect(body.selectionEnd).toBe(body.selectionStart);
       });
-      expect(mock.update).not.toHaveBeenCalled();
-      expect(mock.insert).not.toHaveBeenCalled();
+      expect(mock.save).not.toHaveBeenCalled();
       expect(mock.upload).not.toHaveBeenCalled();
       expect(
         (screen.getByLabelText(/Cover image URL/) as HTMLInputElement).value,
       ).toBe(initial.cover_url);
-
-      fireEvent.submit(
-        screen.getByRole("button", { name: "Save offer" }).closest("form")!,
-      );
-      await screen.findByText("Offer saved.");
-      expect(mock.update).toHaveBeenCalledWith(
+      draft();
+      await screen.findByText(/Draft saved privately/);
+      expect(mock.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          body: expected,
-          cover_url: initial.cover_url,
-          checkout_mode: checkoutMode,
+          publish: false,
+          document: expect.objectContaining({
+            offer: expect.objectContaining({
+              body: expected,
+              cover_url: initial.cover_url,
+              checkout_mode: checkoutMode,
+            }),
+          }),
         }),
       );
     },
   );
-  it("rejects unsafe image fields and cancels without altering the description or saving", async () => {
+  it("rejects unsafe image fields and cancels without changing or saving the description", () => {
     mount();
-    const body = screen.getByLabelText(
-      /Full description/,
-    ) as HTMLTextAreaElement;
-    fireEvent.change(body, { target: { value: "Keep this text." } });
+    navigateStep("Pages");
+    edit(/Full description/, "Keep this text.");
     fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
-    fireEvent.change(screen.getByLabelText("Image URL"), {
-      target: { value: "https://user:secret@example.com/image.webp" },
-    });
+    edit("Image URL", "https://user:secret@example.com/image.webp");
     fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "full HTTPS image URL",
     );
-    fireEvent.change(screen.getByLabelText("Image URL"), {
-      target: { value: "https://images.example.com/detail.webp" },
-    });
+    edit("Image URL", "https://images.example.com/detail.webp");
     fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "Describe the image",
     );
-    fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
-      target: { value: "A process diagram" },
-    });
-    fireEvent.change(screen.getByLabelText("Image caption (optional)"), {
-      target: { value: 'A "quoted" caption' },
-    });
+    edit("Image description (alt text)", "A process diagram");
+    edit("Image caption (optional)", 'A "quoted" caption');
     fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "without double quotes",
     );
     fireEvent.click(screen.getByRole("button", { name: "Cancel image" }));
-    expect(body.value).toBe("Keep this text.");
+    expect(
+      (screen.getByLabelText(/Full description/) as HTMLTextAreaElement).value,
+    ).toBe("Keep this text.");
     expect(screen.queryByLabelText("Image URL")).toBeNull();
-    expect(mock.insert).not.toHaveBeenCalled();
-    expect(mock.update).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
   });
-  it("handles Enter in image fields without submitting the offer", async () => {
+  it("handles Enter in image fields without submitting the offer", () => {
     mount();
+    navigateStep("Pages");
     fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
-    fireEvent.change(screen.getByLabelText("Image URL"), {
-      target: { value: "https://images.example.com/detail.webp" },
-    });
-    const alt = screen.getByLabelText("Image description (alt text)");
-    fireEvent.change(alt, { target: { value: "A process diagram" } });
-    expect(fireEvent.keyDown(alt, { key: "Enter", code: "Enter" })).toBe(false);
+    edit("Image URL", "https://images.example.com/detail.webp");
+    edit("Image description (alt text)", "A process diagram");
+    expect(
+      fireEvent.keyDown(screen.getByLabelText("Image description (alt text)"), {
+        key: "Enter",
+        code: "Enter",
+      }),
+    ).toBe(false);
     expect(
       (screen.getByLabelText(/Full description/) as HTMLTextAreaElement).value,
     ).toBe("![A process diagram](https://images.example.com/detail.webp)\n\n");
-    expect(mock.insert).not.toHaveBeenCalled();
-    expect(mock.update).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
   });
-  it("refuses image insertion beyond the description limit and keeps all existing text", () => {
+  it("refuses image insertion beyond the description limit without losing text", () => {
     mount();
+    navigateStep("Pages");
+    edit(/Full description/, "a".repeat(20000));
     const body = screen.getByLabelText(
       /Full description/,
     ) as HTMLTextAreaElement;
-    fireEvent.change(body, { target: { value: "a".repeat(20000) } });
     body.setSelectionRange(20000, 20000);
     fireEvent.click(screen.getByRole("button", { name: "Insert image" }));
-    fireEvent.change(screen.getByLabelText("Image URL"), {
-      target: { value: "https://images.example.com/detail.webp" },
-    });
-    fireEvent.change(screen.getByLabelText("Image description (alt text)"), {
-      target: { value: "A process diagram" },
-    });
+    edit("Image URL", "https://images.example.com/detail.webp");
+    edit("Image description (alt text)", "A process diagram");
     fireEvent.click(screen.getByRole("button", { name: "Add to description" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "exceed 20,000 characters",
     );
     expect(body.value).toBe("a".repeat(20000));
-    expect(mock.insert).not.toHaveBeenCalled();
-    expect(mock.update).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
   });
-  it("publishes an external affiliate listing with provider pricing and no native checkout requirements", async () => {
-    mock.read.mockResolvedValue({ data: row, error: null });
-    mock.update.mockImplementation(async (values) => ({
-      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
-      error: null,
-    }));
-    mount(row.id);
-    fireEvent.change(
-      await screen.findByLabelText("Checkout or delivery method"),
-      { target: { value: "external" } },
-    );
-    fireEvent.change(screen.getByLabelText(/Destination URL/), {
-      target: { value: "https://example.com/product?affiliate=brian" },
-    });
-    fireEvent.change(screen.getByLabelText("Offer type"), {
-      target: { value: "paid" },
-    });
-    fireEvent.change(screen.getByLabelText(/Price shown in Shop/), {
-      target: { value: "provider" },
-    });
+  it("publishes an external affiliate offer with provider pricing and no native requirements", async () => {
+    existing();
+    await loaded();
+    navigateStep("Delivery");
+    edit("Checkout or delivery method", "external");
+    edit(/Destination URL/, "https://example.com/product?affiliate=brian");
+    edit("Offer type", "paid");
+    edit(/Price shown in Shop/, "provider");
     fireEvent.click(
       screen.getByRole("checkbox", { name: /This is an affiliate link/ }),
     );
-    fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "published" },
-    });
     expect(screen.queryByText("Private download")).toBeNull();
     expect(screen.queryByLabelText("Follow-up offer")).toBeNull();
     expect(screen.queryByLabelText("Price")).toBeNull();
-    expect(screen.queryByText(/Checkout stays unavailable/)).toBeNull();
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
-    );
-    await screen.findByText(/Offer published. Visitors can open/);
-    expect(mock.update).toHaveBeenCalledWith(
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
+    publish();
+    await screen.findByText(/Offer published. Your new copy/);
+    expect(mock.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        checkout_mode: "external",
-        price_display_mode: "provider",
-        amount_minor: 0,
-        external_url: "https://example.com/product?affiliate=brian",
-        is_affiliate: true,
-        affiliate_disclosure: null,
-        asset_path: null,
-        asset_name: null,
-        show_in_shop: true,
-        next_offer_id: null,
-        next_offer_window_minutes: 0,
-        funnel_only: false,
+        publish: true,
+        expectedOfferUpdatedAt: row.updated_at,
+        expectedDraftVersion: null,
+        document: expect.objectContaining({
+          offer: expect.objectContaining({
+            checkout_mode: "external",
+            price_display_mode: "provider",
+            amount_minor: 0,
+            external_url: "https://example.com/product?affiliate=brian",
+            is_affiliate: true,
+            affiliate_disclosure: null,
+            asset_path: null,
+            asset_name: null,
+            show_in_shop: true,
+            next_offer_id: null,
+            next_offer_window_minutes: 0,
+            funnel_only: false,
+          }),
+        }),
       }),
     );
     expect(mock.upload).not.toHaveBeenCalled();
   });
-  it("restores native price and file requirements when changing an external offer to website checkout", async () => {
-    mock.read.mockResolvedValue({
-      data: {
-        ...row,
-        checkout_mode: "external",
-        kind: "paid",
-        price_display_mode: "provider",
-        external_url: "https://example.com/product",
-      },
-      error: null,
+  it("restores native price and file requirements after switching away from external checkout", async () => {
+    existing({
+      ...row,
+      checkout_mode: "external",
+      kind: "paid",
+      price_display_mode: "provider",
+      external_url: "https://example.com/product",
     });
-    mount(row.id);
-    fireEvent.change(
-      await screen.findByLabelText("Checkout or delivery method"),
-      { target: { value: "native" } },
-    );
+    await loaded();
+    navigateStep("Delivery");
+    edit("Checkout or delivery method", "native");
     expect(screen.getByText("Private download")).toBeTruthy();
     expect(screen.getByLabelText("Price")).toBeTruthy();
     expect(screen.queryByLabelText(/Destination URL/)).toBeNull();
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "published" },
-    });
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    publish();
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Enter a price"),
     );
-    await screen.findByText(/Enter a price/);
-    fireEvent.change(screen.getByLabelText("Price"), {
-      target: { value: "7" },
-    });
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
+    navigateStep("Delivery");
+    edit("Price", "7");
+    publish();
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "uploaded download file",
+      ),
     );
-    await screen.findByText(/uploaded download file/);
-    expect(mock.update).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
   });
-  it("shows the canonical Shop link only for the saved published listing", async () => {
-    const published = {
+  it("keeps the public Shop link after a draft change and removes it only when published", async () => {
+    existing({
       ...row,
       status: "published",
       show_in_shop: true,
       asset_path: "offer/version.pdf",
       asset_name: "Guide.pdf",
-    };
-    mock.read.mockResolvedValue({ data: published, error: null });
-    mock.update.mockImplementation(async (values) => ({
-      data: { ...published, ...values, updated_at: "2026-09-19T00:01:00Z" },
-      error: null,
-    }));
-    mount(row.id);
+    });
+    await loaded();
+    navigateStep("Review");
     expect(
-      (await screen.findByRole("link", { name: "View Shop" })).getAttribute(
-        "href",
-      ),
+      screen.getByRole("link", { name: "View Shop" }).getAttribute("href"),
     ).toBe("https://example.com/shop");
     fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
+    draft();
+    await screen.findByText(/Draft saved privately/);
     expect(screen.getByRole("link", { name: "View Shop" })).toBeTruthy();
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save & publish" }).closest("form")!,
-    );
+    expect(mock.save.mock.calls[0][0].publish).toBe(false);
+    publish();
     await screen.findByText(/Offer published/);
     expect(screen.queryByRole("link", { name: "View Shop" })).toBeNull();
+    expect(mock.save.mock.calls[1][0].expectedDraftVersion).toBe(1);
   });
-  it("persists Shop category and feature settings while keeping an offer in draft", async () => {
-    mock.read.mockResolvedValue({ data: row, error: null });
-    mock.update.mockImplementation(async (values) => ({
-      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
-      error: null,
-    }));
-    mount(row.id);
-    const listed = await screen.findByRole("checkbox", {
-      name: "Show in Shop",
-    });
-    expect((listed as HTMLInputElement).checked).toBe(false);
-    fireEvent.click(listed);
-    fireEvent.change(screen.getByLabelText("Shop category"), {
-      target: { value: "training" },
-    });
+  it("keeps Shop category and featured settings in a private draft", async () => {
+    existing();
+    await loaded();
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show in Shop" }));
+    edit("Shop category", "training");
     fireEvent.click(screen.getByRole("checkbox", { name: "Feature in Shop" }));
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
-    );
-    await screen.findByText("Offer saved.");
-    expect(mock.update).toHaveBeenCalledWith(
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0].document.offer).toEqual(
       expect.objectContaining({
         show_in_shop: true,
         shop_category: "training",
@@ -428,41 +436,28 @@ describe("offer editor save and upload safety", () => {
     expect(screen.queryByRole("link", { name: "View Shop" })).toBeNull();
   });
   it("clears and disables Shop placement when an offer becomes follow-up only", async () => {
-    mock.read.mockResolvedValue({
-      data: {
-        ...row,
-        show_in_shop: true,
-        shop_category: "course",
-        shop_featured: true,
-      },
-      error: null,
+    existing({
+      ...row,
+      show_in_shop: true,
+      shop_category: "course",
+      shop_featured: true,
     });
-    mock.update.mockImplementation(async (values) => ({
-      data: { ...row, ...values, updated_at: "2026-09-19T00:01:00Z" },
-      error: null,
-    }));
-    mount(row.id);
-    await screen.findByLabelText("Shop category");
+    await loaded();
+    navigateStep("Next step");
     fireEvent.click(
       screen.getByRole("checkbox", {
         name: /Make this offer available only as a follow-up/,
       }),
     );
-    const listed = screen.getByRole("checkbox", {
-      name: "Show in Shop",
-    }) as HTMLInputElement;
-    const featured = screen.getByRole("checkbox", {
-      name: "Feature in Shop",
-    }) as HTMLInputElement;
-    expect(listed.checked).toBe(false);
-    expect(listed.disabled).toBe(true);
-    expect(featured.checked).toBe(false);
-    expect(featured.disabled).toBe(true);
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
-    );
-    await screen.findByText("Offer saved.");
-    expect(mock.update).toHaveBeenCalledWith(
+    navigateStep("Review");
+    for (const name of ["Show in Shop", "Feature in Shop"]) {
+      const input = screen.getByRole("checkbox", { name }) as HTMLInputElement;
+      expect(input.checked).toBe(false);
+      expect(input.disabled).toBe(true);
+    }
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0].document.offer).toEqual(
       expect.objectContaining({
         funnel_only: true,
         show_in_shop: false,
@@ -472,46 +467,48 @@ describe("offer editor save and upload safety", () => {
       }),
     );
   });
-  it("reuses its creation id after an uncertain save and recovers an earlier successful insert", async () => {
+  it("reuses the complete request after an uncertain save so retry cannot create a duplicate", async () => {
     mount();
-    fireEvent.change(screen.getByLabelText("Title"), {
-      target: { value: row.title },
-    });
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
-    );
+    navigateStep("Pages");
+    edit("Title", row.title);
+    draft();
     await screen.findByText("Network unavailable");
-    mock.read.mockResolvedValue({ data: row, error: null });
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
-    );
-    await screen.findByText(/Your earlier save was received/);
-    expect(mock.insert).toHaveBeenCalledTimes(1);
-    expect(mock.insert.mock.calls[0][0].id).toBe(row.id);
-    expect(
-      screen
-        .getByRole("link", { name: /Preview saved version/ })
-        .getAttribute("href"),
-    ).toBe(`/offers/preview/${row.id}`);
-    expect(mock.navigate).not.toHaveBeenCalled();
-  });
-  it("reports a timestamp conflict without treating the offer as saved", async () => {
-    mock.read.mockResolvedValue({ data: row, error: null });
-    mount(row.id);
-    fireEvent.change(await screen.findByLabelText("Title"), {
-      target: { value: "Changed title" },
+    const first = mock.save.mock.calls[0][0];
+    saveUsing();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save).toHaveBeenCalledTimes(2);
+    expect(mock.save.mock.calls[1][0]).toEqual(first);
+    expect(first.offerId).toBe(row.id);
+    expect(first.requestId).toBe(row.id);
+    expect(mock.navigate).toHaveBeenCalledWith(`/admin/offers/${row.id}/edit`, {
+      replace: true,
     });
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save offer" }).closest("form")!,
+  });
+  it("reports a concurrency conflict while preserving unsaved copy and product edits", async () => {
+    existing();
+    await loaded();
+    mock.save.mockRejectedValue(
+      new Error("This offer changed in another tab. Reload before saving."),
     );
+    edit("Title", "Changed title");
+    edit("Page headline", "A stronger promise");
+    draft();
     await screen.findByText(/This offer changed in another tab/);
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
       "Changed title",
     );
+    expect(
+      (screen.getByLabelText("Page headline") as HTMLTextAreaElement).value,
+    ).toBe("A stronger promise");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "A stronger promise",
+    );
     expect(mock.navigate).not.toHaveBeenCalled();
   });
-  it("rejects unsupported and oversized files before storage calls", async () => {
+  it("rejects unsupported and oversized files before private storage calls", async () => {
     mount();
+    navigateStep("Delivery");
     const input = screen.getByLabelText(/Upload the resource/);
     fireEvent.change(input, {
       target: {
@@ -536,5 +533,203 @@ describe("offer editor save and upload safety", () => {
       upsert: false,
     });
     await screen.findByText(/File uploaded privately/);
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+});
+
+describe("private drafts, revisions and page building", () => {
+  it("loads the private draft over the published offer and sends both current versions on save", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.headline = "Private headline";
+    mock.load.mockResolvedValue({
+      draft: {
+        document: {
+          offer: { title: "Private title", amount_minor: 1200, kind: "paid" },
+          builder,
+        },
+        version: 7,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      history: [],
+    });
+    existing({ ...row, title: "Live title", status: "published" });
+    await loaded();
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Private title",
+    );
+    expect(screen.getByTestId("preview").textContent).toBe("Private headline");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        expectedOfferUpdatedAt: row.updated_at,
+        expectedDraftVersion: 7,
+        publish: false,
+      }),
+    );
+    expect(mock.save.mock.calls[0][0].document.offer.amount_minor).toBe(1200);
+  });
+  it("restores a revision into the working copy without writing and uses current CAS when saved", async () => {
+    const old = emptyBuilder();
+    old.presentation.landing.headline = "Earlier headline";
+    const document: OfferBuilderDocument = {
+      offer: {
+        title: "Earlier offer",
+        slug: "earlier-offer",
+        body: "Earlier copy",
+      },
+      builder: old,
+    };
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: {}, builder: emptyBuilder() },
+        version: 9,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      history: [
+        {
+          id: "older",
+          document,
+          version: 2,
+          published: true,
+          created_at: row.created_at,
+        },
+      ],
+    });
+    existing();
+    await loaded();
+    navigateStep("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Restore revision 2" }));
+    expect(mock.save).not.toHaveBeenCalled();
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Earlier offer",
+    );
+    expect(screen.getByTestId("preview").textContent).toBe("Earlier headline");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        expectedDraftVersion: 9,
+        expectedOfferUpdatedAt: row.updated_at,
+        publish: false,
+      }),
+    );
+  });
+  it("requires a choice for a draft based on an older public offer", async () => {
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: { title: "Older draft" }, builder: emptyBuilder() },
+        version: 4,
+        updated_at: row.updated_at,
+        base_offer_updated_at: "2026-09-18T00:00:00Z",
+      },
+      history: [],
+    });
+    existing({ ...row, status: "published" });
+    await loaded();
+    draft();
+    expect(mock.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep this draft" }));
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        expectedOfferUpdatedAt: row.updated_at,
+        expectedDraftVersion: 4,
+      }),
+    );
+    expect(mock.save.mock.calls[0][0].document.offer.title).toBe("Older draft");
+  });
+  it("can start with only a strategy brief and save an incomplete paid offer privately", async () => {
+    saveUsing();
+    mount();
+    edit(/Who is this for/, "New consultants finding their first client");
+    navigateStep("Delivery");
+    edit("Offer type", "paid");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const input = mock.save.mock.calls[0][0];
+    expect(input.publish).toBe(false);
+    expect(input.document.offer).toEqual(
+      expect.objectContaining({
+        title: "",
+        slug: "",
+        amount_minor: 0,
+        kind: "paid",
+      }),
+    );
+    expect(input.document.builder.strategy.audience).toContain(
+      "New consultants",
+    );
+  });
+  it("keeps landing, upsell and thank-you copy distinct in the draft and live preview", async () => {
+    existing();
+    await loaded();
+    edit("Page headline", "Get your first result");
+    edit("Presentation", "upsell");
+    edit("Page headline", "Implement it faster");
+    edit("Presentation", "thank-you");
+    edit("Thank-you headline", "Your next action is ready");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "Your next action is ready",
+    );
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const { presentation } = mock.save.mock.calls[0][0].document.builder;
+    expect(presentation.landing.headline).toBe("Get your first result");
+    expect(presentation.upsell.headline).toBe("Implement it faster");
+    expect(presentation.thankYou.headline).toBe("Your next action is ready");
+  });
+  it("reorders structured sections without changing their copy", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.sections = [
+      {
+        ...newSection("benefits"),
+        id: "first",
+        heading: "First",
+        body: "First content",
+      },
+      {
+        ...newSection("proof"),
+        id: "second",
+        heading: "Second",
+        body: "Actual proof",
+      },
+    ];
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: {}, builder },
+        version: 3,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      history: [],
+    });
+    existing();
+    await loaded();
+    fireEvent.click(screen.getByText("2. Second"));
+    // Details are opened explicitly so the move control is available to keyboard and pointer users.
+    const details = screen.getByText("2. Second").closest("details")!;
+    details.open = true;
+    fireEvent.click(screen.getByRole("button", { name: "Move section 2 up" }));
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const sections =
+      mock.save.mock.calls[0][0].document.builder.presentation.landing.sections;
+    expect(sections.map((section: { id: string }) => section.id)).toEqual([
+      "second",
+      "first",
+    ]);
+    expect(sections[0].body).toBe("Actual proof");
+  });
+  it("does not open a partial editor when the saved draft fails to load", async () => {
+    mock.read.mockResolvedValue({ data: row, error: null });
+    mock.load.mockRejectedValue(new Error("Draft access unavailable"));
+    mount(row.id);
+    await screen.findByText(/This information could not be loaded/);
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(mock.save).not.toHaveBeenCalled();
   });
 });

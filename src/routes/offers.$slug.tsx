@@ -5,6 +5,7 @@ import { getPublishedOffer } from "@/lib/offers.functions";
 import { getRelatedShopOffers } from "@/lib/shop.functions";
 import { buildPageHead } from "@/lib/seoHead";
 import OfferLanding from "@/pages/OfferLanding";
+import { readPresentation } from "@/lib/offerBuilder";
 import OfferShell from "@/components/OfferShell";
 import PublicRouteError from "@/components/PublicRouteError";
 
@@ -12,9 +13,11 @@ export const Route = createFileRoute("/offers/$slug")({
   loader: async ({ params }) => {
     const offer = await getPublishedOffer({ data: { slug: params.slug } });
     if (!offer) throw notFound();
-    const relatedOffers = offer.funnel_only
-      ? []
-      : await getRelatedShopOffers({ data: { excludeId: offer.id } });
+    const relatedOffers =
+      offer.funnel_only ||
+      readPresentation(offer.presentation)?.landing.focusMode
+        ? []
+        : await getRelatedShopOffers({ data: { excludeId: offer.id } });
     return { offer, relatedOffers };
   },
   head: ({ loaderData, matches }) => {
@@ -27,8 +30,11 @@ export const Route = createFileRoute("/offers/$slug")({
       };
     const { offer } = loaderData;
     return buildPageHead({
-      title: offer.title,
-      description: offer.summary,
+      title:
+        readPresentation(offer.presentation)?.landing.headline || offer.title,
+      description:
+        readPresentation(offer.presentation)?.landing.subheadline ||
+        offer.summary,
       url: absoluteUrl(`/offers/${offer.slug}`, configFromMatches(matches)),
       image: offer.cover_url,
       type: "website",

@@ -2,7 +2,15 @@ import { MeasurementPreferencesButton } from "@/components/PublicMeasurement";
 import type { ReactNode } from "react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
-export default function OfferShell({ children }: { children: ReactNode }) {
+export default function OfferShell({
+  children,
+  focused = false,
+  preview = false,
+}: {
+  children: ReactNode;
+  focused?: boolean;
+  preview?: boolean;
+}) {
   const config = useSiteConfig();
   return (
     <div
@@ -11,7 +19,7 @@ export default function OfferShell({ children }: { children: ReactNode }) {
     >
       <header className="mx-auto max-w-6xl px-6 py-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-4">
         <a
-          href="/"
+          href={preview ? undefined : "/"}
           className="inline-flex items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
         >
           <span
@@ -27,27 +35,37 @@ export default function OfferShell({ children }: { children: ReactNode }) {
             {config.identity.name}
           </span>
         </a>
-        <a
-          href="/shop"
-          className="text-sm text-white/70 hover:text-white underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-        >
-          Browse the Shop
-        </a>
+        {!focused && (
+          <a
+            href={preview ? undefined : "/shop"}
+            className="text-sm text-white/70 hover:text-white underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+          >
+            Browse the Shop
+          </a>
+        )}
       </header>
       <main id="main-content" className="mx-auto max-w-6xl px-6 py-10 lg:py-16">
         {children}
       </main>
       <footer className="mx-auto max-w-6xl px-6 py-8 border-t border-white/10 text-sm text-white/70 flex flex-wrap justify-between gap-4">
-        <a href="/">{config.identity.name}</a>
-        <a href="/shop" className="underline underline-offset-4">
-          Browse the Shop
-        </a>
-        <a href="/support" className="underline underline-offset-4">
+        <a href={preview ? undefined : "/"}>{config.identity.name}</a>
+        {!focused && (
+          <a
+            href={preview ? undefined : "/shop"}
+            className="underline underline-offset-4"
+          >
+            Browse the Shop
+          </a>
+        )}
+        <a
+          href={preview ? undefined : "/support"}
+          className="underline underline-offset-4"
+        >
           Help with access
         </a>
         {config.footer.privacyUrl && (
           <a
-            href={config.footer.privacyUrl}
+            href={preview ? undefined : config.footer.privacyUrl}
             className="underline underline-offset-4"
           >
             Privacy
@@ -55,13 +73,13 @@ export default function OfferShell({ children }: { children: ReactNode }) {
         )}
         {config.footer.termsUrl && (
           <a
-            href={config.footer.termsUrl}
+            href={preview ? undefined : config.footer.termsUrl}
             className="underline underline-offset-4"
           >
             Terms
           </a>
         )}
-        <MeasurementPreferencesButton />
+        {!preview && <MeasurementPreferencesButton />}
       </footer>
     </div>
   );
