@@ -1,5 +1,9 @@
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
+import {
+  deleteErrorMessage,
+  describeContentTypeDelete,
+} from "@/lib/adminDependents";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@/lib/router-compat";
@@ -9,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Copy, Trash2, Loader2, Zap } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -32,9 +35,14 @@ const ContentTypesManager = () => {
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
+    isActive: boolean;
   } | null>(null);
 
-  const { data: schemas, isLoading } = useQuery({
+  const {
+    data: schemas,
+    isLoading,
+    error: schemasError,
+  } = useQuery({
     queryKey: ["admin-content-schemas"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -62,22 +70,81 @@ const ContentTypesManager = () => {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("content_schemas")
-        .delete()
-        .eq("id", id);
+  // Fresh count of pages using the format being deleted. generated_pages has
+  // a NO ACTION foreign key to content_schemas, so any page blocks the delete.
+  const {
+    data: deletePageCount,
+    isLoading: deleteCountLoading,
+    error: deleteCountError,
+  } = useQuery({
+    queryKey: ["admin-schema-dependents", deleteTarget?.id],
+    enabled: !!deleteTarget,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("generated_pages")
+        .select("id", { count: "exact", head: true })
+        .eq("content_schema_id", deleteTarget!.id);
       if (error) throw error;
+      return count ?? 0;
     },
+  });
+  const deleteVerdict =
+    deleteTarget && deletePageCount !== undefined
+      ? describeContentTypeDelete(deletePageCount)
+      : null;
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      safeMutation(async () => {
+        const { data, error } = await supabase
+          .from("content_schemas")
+          .delete()
+          .eq("id", id)
+          .select("id");
+        if (error) throw error;
+        if (!data?.length)
+          throw new Error(
+            "Nothing was deleted. The content format may already be gone, or you may not have permission.",
+          );
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
+      qc.invalidateQueries({ queryKey: ["admin-schema-page-counts"] });
       toast({ title: "Content type deleted" });
       setDeleteTarget(null);
     },
     onError: (err: Error) =>
       toast({
-        title: "Error",
+        title: "Couldn't delete content format",
+        description: deleteErrorMessage(err, "content format"),
+        variant: "destructive",
+      }),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) =>
+      safeMutation(async () => {
+        const { data, error } = await supabase
+          .from("content_schemas")
+          .update({ is_active: false })
+          .eq("id", id)
+          .select("id");
+        if (error) throw error;
+        if (!data?.length)
+          throw new Error(
+            "Nothing was updated. The content format may have been deleted, or you may not have permission.",
+          );
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
+      toast({ title: "Content type deactivated" });
+      setDeleteTarget(null);
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Couldn't deactivate content format",
         description: errorMessage(err),
         variant: "destructive",
       }),
@@ -198,6 +265,20 @@ const ContentTypesManager = () => {
             className="animate-spin"
             style={{ color: "hsl(var(--admin-text-ghost))" }}
           />
+        </div>
+      ) : schemasError ? (
+        <div
+          role="alert"
+          className="admin-card font-body"
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "hsl(var(--admin-danger))",
+            fontSize: 13,
+          }}
+        >
+          Couldn't load content types: {errorMessage(schemasError)}. Refresh the
+          page to try again.
         </div>
       ) : !schemas?.length ? (
         <div
@@ -336,11 +417,14 @@ const ContentTypesManager = () => {
                       textAlign: "center",
                     }}
                   >
-                    {pageCounts?.[s.id] ?? 0}
+                    {pageCounts ? (pageCounts[s.id] ?? 0) : "—"}
                   </td>
                   <td style={{ padding: "12px 14px" }}>
                     <div className="flex items-center gap-1">
                       <button
+                        type="button"
+                        aria-label={`Edit ${s.name}`}
+                        title="Edit"
                         onClick={() =>
                           navigate(`/admin/content-types/${s.id}/edit`)
                         }
@@ -349,14 +433,24 @@ const ContentTypesManager = () => {
                         <Pencil size={13} />
                       </button>
                       <button
+                        type="button"
+                        aria-label={`Duplicate ${s.name}`}
+                        title="Duplicate"
                         onClick={() => duplicateMutation.mutate(s)}
                         style={iconBtnStyle}
                       >
                         <Copy size={13} />
                       </button>
                       <button
+                        type="button"
+                        aria-label={`Delete ${s.name}`}
+                        title="Delete"
                         onClick={() =>
-                          setDeleteTarget({ id: s.id, name: s.name })
+                          setDeleteTarget({
+                            id: s.id,
+                            name: s.name,
+                            isActive: s.is_active ?? true,
+                          })
                         }
                         style={iconBtnStyle}
                         onMouseEnter={(e) =>
@@ -392,14 +486,21 @@ const ContentTypesManager = () => {
         >
           <AlertDialogHeader>
             <AlertDialogTitle className="font-body">
-              Delete "{deleteTarget?.name}"?
+              {deleteVerdict?.blocked
+                ? `Can't delete "${deleteTarget?.name}"`
+                : `Delete "${deleteTarget?.name}"?`}
             </AlertDialogTitle>
             <AlertDialogDescription
               className="font-body"
               style={{ color: "hsl(var(--admin-text-soft))" }}
             >
-              This will remove the content type definition. Existing generated
-              pages will not be deleted.
+              {deleteCountLoading
+                ? "Checking which pages use this format…"
+                : deleteCountError
+                  ? `Couldn't check which pages use this format (${errorMessage(deleteCountError)}). Close this and try again.`
+                  : deleteVerdict?.blocked && !deleteTarget?.isActive
+                    ? `${deleteVerdict.message} It's already inactive.`
+                    : deleteVerdict?.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -411,21 +512,55 @@ const ContentTypesManager = () => {
                 color: "hsl(var(--admin-text-soft))",
               }}
             >
-              Cancel
+              {deleteVerdict?.blocked ? "Close" : "Cancel"}
             </AlertDialogCancel>
-            <AlertDialogAction
-              className="font-body"
-              onClick={() =>
-                deleteTarget && deleteMutation.mutate(deleteTarget.id)
-              }
-              style={{
-                backgroundColor: "hsl(var(--admin-danger))",
-                color: "#fff",
-                border: "none",
-              }}
-            >
-              Delete
-            </AlertDialogAction>
+            {deleteVerdict?.blocked && deleteTarget?.isActive && (
+              <button
+                type="button"
+                className="admin-btn-primary font-body"
+                disabled={deactivateMutation.isPending}
+                onClick={() => deactivateMutation.mutate(deleteTarget.id)}
+              >
+                {deactivateMutation.isPending && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                    style={{ marginRight: 6 }}
+                  />
+                )}
+                Deactivate instead
+              </button>
+            )}
+            {deleteVerdict && !deleteVerdict.blocked && (
+              <button
+                type="button"
+                className="font-body"
+                disabled={deleteMutation.isPending}
+                onClick={() =>
+                  deleteTarget && deleteMutation.mutate(deleteTarget.id)
+                }
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  borderRadius: 6,
+                  backgroundColor: "hsl(var(--admin-danger))",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {deleteMutation.isPending && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                    style={{ marginRight: 6 }}
+                  />
+                )}
+                Delete
+              </button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

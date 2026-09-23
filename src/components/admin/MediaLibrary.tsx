@@ -12,7 +12,11 @@ import {
   Copy,
   Play,
   X,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
+import MediaDeleteDialog from "./MediaDeleteDialog";
+import type { DeleteMediaResult } from "@/lib/mediaDelete";
 
 interface MediaItem {
   id: string;
@@ -27,20 +31,37 @@ interface MediaItem {
 
 type FolderTab = "photo" | "video";
 
+/** Abort a library load that hangs longer than this. */
+const LOAD_TIMEOUT_MS = 12000;
+
+/** Buttons hidden until the tile is hovered or focused; always shown on touch screens. */
+const TILE_ACTION_REVEAL =
+  "pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto [@media(hover:none)]:pointer-events-auto";
+
 const MediaLibrary = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [folder, setFolder] = useState<FolderTab>("photo");
-  const [files, setFiles] = useState<MediaItem[]>([]);
+  // Holds photos and videos together; the folder tab filters on render, so a
+  // failed refresh keeps the last good list for both tabs.
+  const [allFiles, setAllFiles] = useState<MediaItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
   const [previewVideo, setPreviewVideo] = useState<MediaItem | null>(null);
+  const requestRef = useRef(0);
 
   const fetchFiles = useCallback(async () => {
+    const requestId = ++requestRef.current;
     setLoading(true);
+    setLoadError(null);
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      LOAD_TIMEOUT_MS,
+    );
 
     try {
       const { data, error } = await supabase
@@ -51,23 +72,33 @@ const MediaLibrary = () => {
         .abortSignal(controller.signal);
 
       if (error) throw error;
-
-      const safeItems = ((data as MediaItem[] | null) ?? []).filter(
-        (item) => item.type === folder,
-      );
-      setFiles(safeItems);
+      if (requestId !== requestRef.current) return;
+      setAllFiles((data as MediaItem[] | null) ?? []);
+      setLoaded(true);
     } catch (err) {
-      console.error("Failed to load files:", errorMessage(err) ?? err);
-      setFiles([]);
+      if (requestId !== requestRef.current) return;
+      console.error("Failed to load files:", err);
+      setLoadError(
+        controller.signal.aborted
+          ? "Loading media timed out"
+          : errorMessage(err),
+      );
     } finally {
       window.clearTimeout(timeoutId);
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
-  }, [folder]);
+  }, []);
 
   useEffect(() => {
     fetchFiles();
+    return () => {
+      // Ignore responses that land after unmount.
+      requestRef.current += 1;
+    };
   }, [fetchFiles]);
+
+  const files = allFiles.filter((item) => item.type === folder);
+  const folderLabel = folder === "photo" ? "photos" : "videos";
 
   const acceptTypes = folder === "photo" ? "image/*" : "video/*";
   const maxSize = folder === "photo" ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
@@ -143,36 +174,41 @@ const MediaLibrary = () => {
     }
   };
 
-  const handleDelete = async (item: MediaItem) => {
-    setDeleting(item.id);
+  const handleDeleted = (
+    item: { id: string },
+    { storageError }: DeleteMediaResult,
+  ) => {
+    setAllFiles((prev) => prev.filter((f) => f.id !== item.id));
+    setPendingDelete(null);
+    toast(
+      storageError
+        ? {
+            title: "Removed from library",
+            description: `The stored file couldn't be removed: ${storageError}`,
+          }
+        : { title: "File deleted" },
+    );
+  };
+
+  const handleDeleteFailed = (message: string) => {
+    toast({
+      title: "Delete failed",
+      description: message,
+      variant: "destructive",
+    });
+  };
+
+  const copyUrl = async (url: string) => {
     try {
-      const { error: storageErr } = await supabase.storage
-        .from("blog-images")
-        .remove([item.file_path]);
-      if (storageErr) throw storageErr;
-
-      const { error: dbErr } = await supabase
-        .from("media")
-        .delete()
-        .eq("id", item.id);
-      if (dbErr) throw dbErr;
-
-      setFiles((prev) => prev.filter((f) => f.id !== item.id));
-      toast({ title: "File deleted" });
+      await navigator.clipboard.writeText(url);
+      toast({ title: "URL copied to clipboard" });
     } catch (err) {
       toast({
-        title: "Delete failed",
+        title: "Couldn't copy URL",
         description: errorMessage(err),
         variant: "destructive",
       });
-    } finally {
-      setDeleting(null);
     }
-  };
-
-  const copyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
-    toast({ title: "URL copied to clipboard" });
   };
 
   return (
@@ -253,8 +289,71 @@ const MediaLibrary = () => {
         ))}
       </div>
 
+      {loadError && files.length > 0 && (
+        <div
+          role="alert"
+          className="font-body flex items-center justify-between gap-3"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            borderRadius: 6,
+            border: "1px solid hsl(var(--admin-border))",
+            color: "hsl(var(--admin-text))",
+            fontSize: 13,
+          }}
+        >
+          <span className="flex items-center gap-2">
+            <AlertTriangle size={14} aria-hidden />
+            Couldn't refresh media. Showing the last loaded list. {loadError}
+          </span>
+          <button
+            type="button"
+            className="admin-btn-ghost flex items-center gap-1"
+            onClick={fetchFiles}
+            disabled={loading}
+          >
+            <RefreshCw size={13} aria-hidden /> Retry
+          </button>
+        </div>
+      )}
+
       {/* Grid */}
-      {loading ? (
+      {loadError && files.length === 0 ? (
+        <div
+          role="alert"
+          className="flex flex-col items-center justify-center gap-3 font-body"
+          style={{ padding: 64, textAlign: "center" }}
+        >
+          <AlertTriangle
+            size={32}
+            style={{ color: "hsl(var(--admin-text-soft))" }}
+            aria-hidden
+          />
+          <p
+            style={{
+              color: "hsl(var(--admin-text))",
+              fontSize: 14,
+              margin: 0,
+            }}
+          >
+            Couldn't load your {folderLabel}. {loadError}
+          </p>
+          <button
+            type="button"
+            className="admin-btn-primary flex items-center gap-2"
+            onClick={fetchFiles}
+            disabled={loading}
+            style={{ fontSize: 13 }}
+          >
+            {loading ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw size={14} aria-hidden />
+            )}
+            Retry
+          </button>
+        </div>
+      ) : (loading || !loaded) && files.length === 0 ? (
         <div
           className="flex items-center justify-center"
           style={{ padding: 64 }}
@@ -282,8 +381,7 @@ const MediaLibrary = () => {
               margin: 0,
             }}
           >
-            No {folder === "photo" ? "photos" : "videos"} yet. Upload one to get
-            started.
+            No {folderLabel} yet. Upload one to get started.
           </p>
         </div>
       ) : (
@@ -364,7 +462,7 @@ const MediaLibrary = () => {
                 )}
 
                 <div
-                  className="absolute inset-x-0 bottom-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between"
+                  className="absolute inset-x-0 bottom-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity flex items-end justify-between"
                   style={{
                     background:
                       "linear-gradient(transparent 0%, rgba(0,0,0,0.75))",
@@ -374,9 +472,11 @@ const MediaLibrary = () => {
                   }}
                 >
                   <button
+                    type="button"
+                    className={TILE_ACTION_REVEAL}
                     onClick={(e) => {
                       e.stopPropagation();
-                      copyUrl(file.url);
+                      void copyUrl(file.url);
                     }}
                     style={{
                       background: "rgba(255,255,255,0.15)",
@@ -385,18 +485,19 @@ const MediaLibrary = () => {
                       padding: 5,
                       cursor: "pointer",
                       color: "#fff",
-                      pointerEvents: "auto",
                     }}
                     title="Copy URL"
+                    aria-label={`Copy URL for ${file.name}`}
                   >
-                    <Copy size={13} />
+                    <Copy size={13} aria-hidden />
                   </button>
                   <button
+                    type="button"
+                    className={TILE_ACTION_REVEAL}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(file);
+                      setPendingDelete(file);
                     }}
-                    disabled={deleting === file.id}
                     style={{
                       background: "rgba(220,38,38,0.8)",
                       border: "none",
@@ -404,15 +505,11 @@ const MediaLibrary = () => {
                       padding: 5,
                       cursor: "pointer",
                       color: "#fff",
-                      pointerEvents: "auto",
                     }}
                     title="Delete"
+                    aria-label={`Delete ${file.name}`}
                   >
-                    {deleting === file.id ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={13} />
-                    )}
+                    <Trash2 size={13} aria-hidden />
                   </button>
                 </div>
               </div>
@@ -434,6 +531,13 @@ const MediaLibrary = () => {
           ))}
         </div>
       )}
+
+      <MediaDeleteDialog
+        item={pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onDeleted={handleDeleted}
+        onFailed={handleDeleteFailed}
+      />
 
       {/* Video preview modal */}
       {previewVideo && (

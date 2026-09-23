@@ -1,7 +1,7 @@
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "@/lib/router-compat";
+import { useParams, useNavigate, Link } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CheckCircle2,
   AlertCircle,
+  Lock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -67,6 +68,8 @@ const renderTemplate = (tpl: string) =>
     .replace(/\{\{niche_slug\}\}/g, sampleVars.niche_slug)
     .replace(/\{\{year\}\}/g, sampleVars.year);
 
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const VARIABLE_HINT =
   "Available variables: {{niche_name}}, {{year}}, {{count}}, {{content_type}}";
 
@@ -101,7 +104,12 @@ const ContentTypeEditor = () => {
     }
   }, [schemaJson]);
 
-  const { data: existing, isLoading } = useQuery({
+  const {
+    data: existing,
+    isLoading,
+    error: loadError,
+    refetch,
+  } = useQuery({
     queryKey: ["admin-content-schema", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -114,6 +122,33 @@ const ContentTypeEditor = () => {
     },
     enabled: !!id,
   });
+
+  // Public URLs are /resources/{content_schemas.slug}/{page}. There is no
+  // redirect table, so renaming the slug of a format with published pages
+  // breaks every one of those URLs.
+  const {
+    data: publishedCount,
+    isLoading: publishedCountLoading,
+    error: publishedCountError,
+  } = useQuery({
+    queryKey: ["admin-content-schema-published-count", id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("generated_pages")
+        .select("id", { count: "exact", head: true })
+        .eq("content_schema_id", id!)
+        .eq("status", "published");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!id,
+  });
+  // Fail safe: while the count is loading or unknown, keep the slug locked.
+  const slugLocked =
+    !isNew &&
+    (publishedCountLoading ||
+      !!publishedCountError ||
+      (publishedCount ?? 0) > 0);
 
   useEffect(() => {
     if (existing) {
@@ -154,9 +189,15 @@ const ContentTypeEditor = () => {
           );
         }
 
+        const finalSlug = slugLocked && existing ? existing.slug : slug.trim();
+        if (finalSlug !== existing?.slug && !SLUG_PATTERN.test(finalSlug))
+          throw new Error(
+            "Use only lowercase letters, numbers and single hyphens in the slug (for example: tool-roundups).",
+          );
+
         const payload = {
           name,
-          slug,
+          slug: finalSlug,
           description: description || null,
           title_template: titleTemplate,
           description_template: descriptionTemplate || null,
@@ -167,11 +208,16 @@ const ContentTypeEditor = () => {
         };
 
         if (id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from("content_schemas")
             .update(payload)
-            .eq("id", id);
+            .eq("id", id)
+            .select("id");
           if (error) throw error;
+          if (!data?.length)
+            throw new Error(
+              "This content format was deleted, so your changes were not saved.",
+            );
         } else {
           const { error } = await supabase
             .from("content_schemas")
@@ -181,12 +227,13 @@ const ContentTypeEditor = () => {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
+      qc.invalidateQueries({ queryKey: ["admin-content-schema", id] });
       toast({ title: isNew ? "Content type created" : "Content type updated" });
       navigate("/admin/content-types");
     },
     onError: (err: Error) =>
       toast({
-        title: "Error",
+        title: "Couldn't save content format",
         description: errorMessage(err),
         variant: "destructive",
       }),
@@ -213,6 +260,33 @@ const ContentTypeEditor = () => {
           style={{ color: "hsl(var(--admin-text-ghost))" }}
         />
       </div>
+    );
+  }
+
+  if (!isNew && loadError) {
+    return (
+      <EditorNotice
+        title="Couldn't load this content format"
+        message={`${errorMessage(loadError)}. Nothing has been changed.`}
+        action={
+          <button
+            type="button"
+            className="admin-btn-primary font-body"
+            onClick={() => refetch()}
+          >
+            Try again
+          </button>
+        }
+      />
+    );
+  }
+
+  if (!isNew && !existing) {
+    return (
+      <EditorNotice
+        title="Content format not found"
+        message="This content format no longer exists. It may have been deleted."
+      />
     );
   }
 
@@ -324,8 +398,9 @@ const ContentTypeEditor = () => {
             Basic Info
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Field label="Name">
+            <Field label="Name" htmlFor="content-type-name">
               <input
+                id="content-type-name"
                 className="admin-input font-body"
                 value={name}
                 onChange={(e) => {
@@ -334,15 +409,47 @@ const ContentTypeEditor = () => {
                 }}
               />
             </Field>
-            <Field label="Slug">
+            <Field label="Slug" htmlFor="content-type-slug">
               <input
+                id="content-type-slug"
                 className="admin-input font-body"
                 value={slug}
+                readOnly={slugLocked}
+                aria-readonly={slugLocked}
+                aria-describedby={
+                  slugLocked ? "content-type-slug-lock" : undefined
+                }
                 onChange={(e) => {
+                  if (slugLocked) return;
                   setSlugManual(true);
                   setSlug(e.target.value);
                 }}
+                style={
+                  slugLocked
+                    ? { opacity: 0.7, cursor: "not-allowed" }
+                    : undefined
+                }
               />
+              {slugLocked && (
+                <p
+                  id="content-type-slug-lock"
+                  className="font-body flex items-start gap-1"
+                  style={{
+                    fontSize: 11,
+                    color: "hsl(var(--admin-text-ghost))",
+                    marginTop: 4,
+                  }}
+                >
+                  <Lock size={11} style={{ marginTop: 2, flexShrink: 0 }} />
+                  <span>
+                    {publishedCountLoading
+                      ? "Checking for published pages…"
+                      : publishedCountError
+                        ? "Locked: couldn't check for published pages. Changing the slug changes every resource URL in this format."
+                        : `Locked: ${publishedCount} published page${publishedCount === 1 ? " lives" : "s live"} at /resources/${existing?.slug ?? slug}/…. Changing the slug would break every one of those URLs, and old URLs don't redirect.`}
+                  </span>
+                </p>
+              )}
             </Field>
             <Field label="Description">
               <textarea
@@ -575,14 +682,70 @@ const ContentTypeEditor = () => {
 
 const Field = ({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) => (
   <div>
-    <span className="admin-label">{label}</span>
+    {htmlFor ? (
+      <label htmlFor={htmlFor} className="admin-label">
+        {label}
+      </label>
+    ) : (
+      <span className="admin-label">{label}</span>
+    )}
     <div style={{ marginTop: 6 }}>{children}</div>
+  </div>
+);
+
+const EditorNotice = ({
+  title,
+  message,
+  action,
+}: {
+  title: string;
+  message: string;
+  action?: React.ReactNode;
+}) => (
+  <div style={{ maxWidth: 800, margin: "0 auto" }}>
+    <div
+      role="alert"
+      className="admin-card font-body"
+      style={{ padding: 40, textAlign: "center" }}
+    >
+      <h1
+        style={{
+          fontSize: 18,
+          fontWeight: 600,
+          color: "hsl(var(--admin-text))",
+          marginBottom: 8,
+        }}
+      >
+        {title}
+      </h1>
+      <p
+        style={{
+          fontSize: 13,
+          color: "hsl(var(--admin-text-soft))",
+          marginBottom: 20,
+        }}
+      >
+        {message}
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        {action}
+        <Link
+          to="/admin/content-types"
+          className="font-body"
+          style={{ fontSize: 13, color: "hsl(var(--admin-accent))" }}
+        >
+          Back to content types
+        </Link>
+      </div>
+    </div>
   </div>
 );
 

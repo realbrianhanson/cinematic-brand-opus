@@ -117,16 +117,22 @@ export const getPublicResourceIndex = createServerFn({ method: "GET" }).handler(
     return {
       schemas: schemasRes.data ?? [],
       counts,
-      guides: (guidesRes.data ?? []).map((g) => ({
-        id: g.id,
-        title: g.title,
-        slug: g.slug,
-        meta_description:
-          typeof (g.seo_meta as { meta_description?: unknown })
-            ?.meta_description === "string"
-            ? (g.seo_meta as { meta_description: string }).meta_description
-            : null,
-      })),
+      guides: (guidesRes.data ?? []).map((g) => {
+        // Guides store either meta_description (generator) or description (editor).
+        const seo = (g.seo_meta ?? {}) as {
+          meta_description?: unknown;
+          description?: unknown;
+        };
+        const text = [seo.meta_description, seo.description].find(
+          (v): v is string => typeof v === "string" && v.trim() !== "",
+        );
+        return {
+          id: g.id,
+          title: g.title,
+          slug: g.slug,
+          meta_description: text ?? null,
+        };
+      }),
     };
   },
 );

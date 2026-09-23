@@ -16,6 +16,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import RichTextEditor from "./RichTextEditor";
+import {
+  describeDroppedElements,
+  findDroppedElements,
+  serializeEditorHtml,
+  type DroppedElement,
+} from "./extensions/contentFidelity";
 import PostEditorSidebar from "./PostEditorSidebar";
 import PostEditorAiHelper from "./PostEditorAiHelper";
 import PostEditorAeoPanel from "./PostEditorAeoPanel";
@@ -34,6 +40,10 @@ const wordCount = (html: string) => {
     .trim();
   return text ? text.split(" ").length : 0;
 };
+const bodyFields = (content: string) => ({
+  content,
+  reading_time: Math.max(1, Math.round(wordCount(content) / 200)),
+});
 
 const faqSchema = z
   .array(z.object({ question: z.string(), answer: z.string() }))
@@ -88,6 +98,20 @@ const PostEditor = () => {
   const [uploading, setUploading] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
   const [editorContent, setEditorContent] = useState("");
+  // Set when loading HTML into the editor would drop markup. The body is then
+  // read-only and Save never writes the editor's stripped re-serialization.
+  const [bodyLock, setBodyLock] = useState<{
+    source: string;
+    dropped: DroppedElement[];
+  } | null>(null);
+  const loadBody = useCallback((editor: Editor, html: string) => {
+    // Loading is not an edit: emitUpdate:false keeps the raw HTML in state.
+    editor.commands.setContent(html, { emitUpdate: false });
+    const dropped = findDroppedElements(html, serializeEditorHtml(editor));
+    const locked = dropped.length > 0;
+    editor.setEditable(!locked, false);
+    setBodyLock(locked ? { source: html, dropped } : null);
+  }, []);
 
   // SEO state
   const [seoOpen, setSeoOpen] = useState(false);
@@ -239,7 +263,7 @@ const PostEditor = () => {
     setSourceCitations(d.sourceCitations as Json);
     setGenerationFlags(d.generationFlags as Json);
     setEditorContent(d.editorContent);
-    editorRef.current?.commands.setContent(d.editorContent);
+    if (editorRef.current) loadBody(editorRef.current, d.editorContent);
     setMetaTitle(d.metaTitle);
     setMetaDesc(d.metaDesc);
     setKeywords(d.keywords);
@@ -327,11 +351,11 @@ const PostEditor = () => {
         parsedFaq.length ? parsedFaq : [{ question: "", answer: "" }],
       );
       if (editorRef.current && post.content) {
-        editorRef.current.commands.setContent(post.content);
+        loadBody(editorRef.current, post.content);
       }
       setEditorContent(post.content ?? "");
     }
-  }, [post]);
+  }, [post, loadBody]);
 
   useEffect(() => {
     if (!scheduleTouched.current)
@@ -544,7 +568,7 @@ const PostEditor = () => {
       if (data.meta_description) setMetaDesc(data.meta_description);
       if (data.keywords) setKeywords(data.keywords);
       if (data.enhanced_content && editorRef.current) {
-        editorRef.current.commands.setContent(data.enhanced_content);
+        loadBody(editorRef.current, data.enhanced_content);
         setEditorContent(data.enhanced_content);
       }
       setAeoOpen(true);
@@ -563,7 +587,7 @@ const PostEditor = () => {
     } finally {
       setEnhancing(false);
     }
-  }, [title, editorContent, excerpt, criteria, toast]);
+  }, [title, editorContent, excerpt, criteria, toast, loadBody]);
 
   // AI Blog Post Generation
   const handleAiWritePost = useCallback(async () => {
@@ -597,7 +621,7 @@ const PostEditor = () => {
         setSlugManual(false);
       }
       if (data.content && editorRef.current) {
-        editorRef.current.commands.setContent(data.content);
+        loadBody(editorRef.current, data.content);
         setEditorContent(data.content);
       }
       if (data.excerpt) setExcerpt(data.excerpt);
@@ -634,7 +658,7 @@ const PostEditor = () => {
     } finally {
       setAiWriting(false);
     }
-  }, [aiTopic, aiContext, toast]);
+  }, [aiTopic, aiContext, toast, loadBody]);
 
   const runManualPublish = useCallback(
     async (postId: string, overrideReason?: string) => {
@@ -683,8 +707,13 @@ const PostEditor = () => {
     },
     mutationFn: (opts: { overrideReason?: string } = {}) =>
       safeMutation(async () => {
-        const content = editorContent;
-        const reading_time = Math.max(1, Math.round(wordCount(content) / 200));
+        // A locked body is only ever saved verbatim, and not at all when it is
+        // still the stored body.
+        const body = bodyLock
+          ? bodyLock.source === post?.content
+            ? {}
+            : bodyFields(bodyLock.source)
+          : bodyFields(editorContent);
         const cleanFaq = faqItems.filter(
           (f) => f.question.trim() && f.answer.trim(),
         );
@@ -704,7 +733,7 @@ const PostEditor = () => {
         const postData: TablesInsert<"posts"> = {
           title,
           slug,
-          content,
+          ...body,
           excerpt: excerpt || null,
           category_id: categoryId || null,
           status: persistStatus,
@@ -714,7 +743,6 @@ const PostEditor = () => {
           editorial_metadata: editorialMetadata,
           source_citations: sourceCitations,
           lint_flags: generationFlags,
-          reading_time,
           faq_items: cleanFaq.length ? cleanFaq : [],
           key_takeaways: cleanTakeaways.length ? cleanTakeaways : [],
           tldr: tldr || null,
@@ -816,9 +844,9 @@ const PostEditor = () => {
     (editor: Editor | null) => {
       editorRef.current = editor;
       if (editor && !editor.isDestroyed && post?.content)
-        editor.commands.setContent(post.content);
+        loadBody(editor, post.content);
     },
-    [post],
+    [post, loadBody],
   );
 
   if (postError || seoError)
@@ -989,6 +1017,11 @@ const PostEditor = () => {
               className="admin-input font-body flex-1"
             />
           </div>
+          {bodyLock && (
+            <div className="admin-notice" role="alert">
+              {`This article uses formatting the editor can't keep: ${describeDroppedElements(bodyLock.dropped)}. Body editing is off so nothing is stripped. Save keeps the body exactly as loaded; title, SEO and other fields still save normally.`}
+            </div>
+          )}
           <RichTextEditor
             content={editorContent}
             onChange={(html) => setEditorContent(html)}

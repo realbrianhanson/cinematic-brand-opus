@@ -13,9 +13,15 @@ import ImageExtension from "@tiptap/extension-image";
 import ImageNodeView from "./ImageNodeView";
 import UnderlineExtension from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { TableKit } from "@tiptap/extension-table";
+import Superscript from "@tiptap/extension-superscript";
+import Subscript from "@tiptap/extension-subscript";
 import { Extension } from "@tiptap/core";
 import Iframe from "./extensions/IframeExtension";
 import VideoNode from "./extensions/VideoExtension";
+import { Figure, Figcaption } from "./extensions/FigureExtension";
+import DivBlock from "./extensions/DivBlockExtension";
+import { serializeEditorHtml } from "./extensions/contentFidelity";
 import { useToast } from "@/hooks/use-toast";
 import ImagePickerModal from "./ImagePickerModal";
 import VideoPickerModal from "./VideoPickerModal";
@@ -28,6 +34,8 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Table as TableIcon,
   List,
   ListOrdered,
   Quote,
@@ -160,7 +168,7 @@ const MenuBar = ({
       .run();
   };
 
-  const handleHeadingClick = (level: 1 | 2 | 3) => {
+  const handleHeadingClick = (level: 1 | 2 | 3 | 4) => {
     if (editor.isActive("heading", { level })) {
       exitHeadingToNewParagraph();
     } else {
@@ -241,6 +249,12 @@ const MenuBar = ({
         icon={<Heading3 size={14} />}
         title="Heading 3"
       />
+      <ToolbarBtn
+        active={editor.isActive("heading", { level: 4 })}
+        onClick={() => handleHeadingClick(4)}
+        icon={<Heading4 size={14} />}
+        title="Heading 4"
+      />
       <Divider />
       <ToolbarBtn
         active={editor.isActive("bulletList")}
@@ -265,6 +279,19 @@ const MenuBar = ({
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         icon={<Code size={14} />}
         title="Code block"
+      />
+      <ToolbarBtn
+        active={editor.isActive("table")}
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+            .run()
+        }
+        icon={<TableIcon size={14} />}
+        disabled={editor.isActive("table")}
+        title="Insert table"
       />
       <Divider />
       <ToolbarBtn
@@ -392,15 +419,30 @@ const RichTextEditor = ({
       StarterKit.configure({
         link: false,
         underline: false,
-        heading: { levels: [1, 2, 3] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
       }),
       LinkExtension.configure({ openOnClick: false }),
       ImageExtension.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            loading: {
+              default: null,
+              parseHTML: (el: HTMLElement) => el.getAttribute("loading"),
+            },
+          };
+        },
         addNodeView() {
           return ReactNodeViewRenderer(ImageNodeView);
         },
       }),
       UnderlineExtension,
+      Superscript,
+      Subscript,
+      TableKit.configure({ table: { resizable: false } }),
+      Figure,
+      Figcaption,
+      DivBlock,
       Iframe,
       VideoNode,
       Placeholder.configure({ placeholder }),
@@ -436,7 +478,7 @@ const RichTextEditor = ({
       onEditorReady?.(null);
     },
     onUpdate: ({ editor: e }) => {
-      onChange?.(e.getHTML());
+      onChange?.(serializeEditorHtml(e));
     },
     onCreate: ({ editor: e }) => {
       onEditorReady?.(e);
@@ -496,7 +538,8 @@ const RichTextEditor = ({
 
   return (
     <div className="admin-card" style={{ overflow: "hidden" }}>
-      {editor && (
+      {/* A read-only (content-locked) editor gets no formatting toolbar. */}
+      {editor && editor.isEditable && (
         <MenuBar
           editor={editor}
           onImageUpload={() => setShowImagePicker(true)}
