@@ -1,9 +1,22 @@
 // Reads 'new' source_items, clusters near-duplicates via embedding cosine,
 // asks Gemini to propose 1-2 Brian-aligned angles, saves as content_opportunities.
+//
+// Cost controls:
+// - The LLM is called only when a source item arrived since the newest item an
+//   earlier run already showed it ({ force: true } overrides for manual runs).
+// - Items shown but not picked are marked 'considered' and never re-sent.
+// - A gateway 402 returns HTTP 402 with stopped_reason 'ai_credits_exhausted'
+//   so daily-content-run stops the whole run.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { cosineSim } from "../_shared/embeddings.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
+import { creditsExhaustedBody } from "../draft-from-opportunity/preflight.ts";
+import {
+  CONSIDERED_STATUS,
+  hasItemsFetchedSince,
+  unpickedItemIds,
+} from "./selection.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +28,7 @@ const CLUSTER_THRESHOLD = 0.82;
 
 interface SourceItem {
   id: string;
+  fetched_at: string | null;
   url: string;
   title: string | null;
   raw_excerpt: string | null;
@@ -47,13 +61,15 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
   const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+  const body = await req.json().catch(() => ({}));
+  const force = body?.force === true;
 
   // Pull unused items from last 72h
   const cutoff = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
   const { data: itemsRaw, error } = await supabase
     .from("source_items")
     .select(
-      "id, url, title, raw_excerpt, topic_lane, published_at, embedding, engagement_score",
+      "id, url, title, raw_excerpt, topic_lane, published_at, fetched_at, embedding, engagement_score",
     )
     .eq("pipeline_status", "new")
     .gte("published_at", cutoff)
@@ -77,6 +93,39 @@ Deno.serve(async (req) => {
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
+    );
+  }
+
+  // Skip the LLM when nothing arrived since an earlier run last showed it
+  // candidates: it would only re-rank the same leftovers.
+  const { data: lastSeenRows, error: lastSeenError } = await supabase
+    .from("source_items")
+    .select("fetched_at")
+    .in("pipeline_status", ["used", CONSIDERED_STATUS])
+    .order("fetched_at", { ascending: false })
+    .limit(1);
+  if (lastSeenError) {
+    return new Response(
+      JSON.stringify({
+        error: `clustering history unavailable: ${lastSeenError.message}`,
+      }),
+      {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+  const lastSeenAt = lastSeenRows?.[0]?.fetched_at ?? null;
+  if (!force && !hasItemsFetchedSince(items, lastSeenAt)) {
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        clusters: 0,
+        created: 0,
+        skipped: "no new source items since the last clustering run",
+        pending_items: items.length,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
@@ -224,6 +273,13 @@ If none qualify, return { "picks": [] }.`;
   if (!aiRes.ok) {
     const t = await aiRes.text();
     console.error("cluster picks LLM failed", aiRes.status, t);
+    if (aiRes.status === 402) {
+      // Stop signal: candidates stay 'new' for the run after credits return.
+      return new Response(JSON.stringify(creditsExhaustedBody(t)), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "LLM failed", details: t }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -240,16 +296,20 @@ If none qualify, return { "picks": [] }.`;
     e = raw.lastIndexOf("}");
   if (s !== -1 && e > s) raw = raw.slice(s, e + 1);
   let picks: any = { picks: [] };
+  let picksParsed = false;
   try {
     picks = JSON.parse(raw);
+    picksParsed = Array.isArray(picks?.picks);
   } catch {
     console.warn("bad pick JSON", raw.slice(0, 300));
   }
 
   const created: any[] = [];
-  for (const pick of picks.picks || []) {
+  const pickedIdx = new Set<number>();
+  for (const pick of picksParsed ? picks.picks : []) {
     const cluster = top[pick.idx]?.cluster;
     if (!cluster) continue;
+    pickedIdx.add(pick.idx);
     const ids = cluster.map((i) => i.id);
     const { data: oppRow, error: oppErr } = await supabase
       .from("content_opportunities")
@@ -283,11 +343,33 @@ If none qualify, return { "picks": [] }.`;
       .in("id", ids);
   }
 
+  // Retire what the LLM saw but did not choose, so the next run does not pay
+  // to show it the same candidates again. Only after a readable answer: a
+  // garbled response leaves them 'new' for another look.
+  let retired = 0;
+  if (picksParsed) {
+    const unpicked = unpickedItemIds(
+      top.map((t) => t.cluster),
+      pickedIdx,
+    );
+    if (unpicked.length) {
+      const { error: retireError } = await supabase
+        .from("source_items")
+        .update({ pipeline_status: CONSIDERED_STATUS })
+        .in("id", unpicked)
+        .eq("pipeline_status", "new");
+      if (retireError)
+        console.error("marking unpicked items failed", retireError.message);
+      else retired = unpicked.length;
+    }
+  }
+
   return new Response(
     JSON.stringify({
       ok: true,
       clusters: clusters.length,
       considered: top.length,
+      retired,
       created: created.length,
       opportunities: created,
     }),

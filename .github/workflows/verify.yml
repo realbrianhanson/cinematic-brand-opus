@@ -28,9 +28,6 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Formatting (Prettier only)
-        run: bun run format:check
-
       - name: Correctness lint (no formatting rules)
         run: bun run lint
 
@@ -55,3 +52,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+
+      - name: Formatting (Prettier only)
+        # Last, after the build, so formatting drift (often in files the
+        # Lovable agent writes) still turns the run red without skipping the
+        # lint, tests, database, edge-function and build checks above. It runs
+        # even when an earlier step failed, so every run reports formatting.
+        if: ${{ !cancelled() }}
+        run: bun run format:check

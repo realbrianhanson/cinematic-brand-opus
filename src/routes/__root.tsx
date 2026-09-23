@@ -17,11 +17,25 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
-import { siteConfig as fallbackConfig } from "@/config/site";
+import { siteConfig as fallbackConfig, type SiteConfig } from "@/config/site";
 import { configFromMatches } from "@/config/runtime";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { getSiteBranding } from "@/lib/branding.functions";
 import appCss from "../styles.css?url";
+
+// getSiteBranding never throws on the server, but the server-function call
+// itself can fail (network blip during client navigation, worker restart).
+// Keep the last branding this runtime saw so one failure never takes the
+// whole site down or flips the brand mid-session.
+let lastSiteConfig: SiteConfig = fallbackConfig;
+async function loadSiteConfig(): Promise<SiteConfig> {
+  try {
+    lastSiteConfig = await getSiteBranding();
+  } catch (error) {
+    console.error("[branding] root loader fell back to cached config", error);
+  }
+  return lastSiteConfig;
+}
 
 // ported from main.tsx — recover from stale lazy-chunk references after a redeploy.
 const RELOAD_KEY = "__chunk_reload_at";
@@ -185,7 +199,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
-    loader: async () => ({ siteConfig: await getSiteBranding() }),
+    loader: async () => ({ siteConfig: await loadSiteConfig() }),
     head: ({ matches }) => {
       const siteConfig = configFromMatches(matches);
       return {

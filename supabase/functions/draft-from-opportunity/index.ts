@@ -1,6 +1,11 @@
 // Drafts a full blog post from a content_opportunity, reusing the voice/lint/scoring
 // pipeline. Injects the freshest matching expert_note. Runs originality + freshness gates.
 // Result is saved as a DRAFT post linked to the opportunity (opportunity.status='queued').
+//
+// Cost controls: freshness and a title/keyword originality check run on DB
+// data only, before any AI call. A gateway 402 returns the claim to the queue
+// (attempt refunded) and responds HTTP 402 with stopped_reason
+// 'ai_credits_exhausted'; 408/429/5xx leave the opportunity retryable.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { embedText, cosineSim, toPgVector } from "../_shared/embeddings.ts";
@@ -23,6 +28,13 @@ import {
 } from "../_shared/editorial.ts";
 import { collectEvidence } from "../_shared/editorialEvidence.ts";
 import { generateFeaturedImage } from "../_shared/featuredImage.ts";
+import {
+  classifyAiFailure,
+  coveredByExistingTitle,
+  creditsExhaustedBody,
+  freshnessHours,
+  staleSourcesReason,
+} from "./preflight.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +44,8 @@ const corsHeaders = {
 
 const ORIGINALITY_MAX_SIM = 0.82;
 const PRE_DRAFT_ORIGINALITY_MAX_SIM = 0.8;
-const FRESHNESS_MAX_HOURS = 96;
+/** Titles compared by the cheap pre-draft keyword check. */
+const TITLE_CHECK_LIMIT = 1000;
 
 function slugify(s: string): string {
   return s
@@ -104,6 +117,62 @@ Deno.serve(async (req) => {
   }
   const claimToken = claimed[0].claim_token as string;
   const currentAttempts = claimed[0].attempts as number;
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  const rejectOpp = async (reason: string) => {
+    const { error } = await supabase
+      .from("content_opportunities")
+      .update({ status: "rejected", reject_reason: reason.slice(0, 500) })
+      .eq("id", opportunity_id)
+      .eq("claim_token", claimToken);
+    if (error) console.error("rejecting opportunity failed", error.message);
+  };
+
+  // PRE-DRAFT freshness gate (DB only): stale news is rejected before any AI
+  // spend instead of after the full draft + critique cycle.
+  const { data: srcMeta, error: srcMetaErr } = await supabase
+    .from("source_items")
+    .select("published_at")
+    .in("id", opp.source_item_ids || []);
+  if (srcMetaErr) {
+    console.warn("source dates unavailable", srcMetaErr.message);
+  }
+  const freshness_hours = freshnessHours(
+    (srcMeta || []).map((r: { published_at: string | null }) => r.published_at),
+  );
+  const staleReason = srcMetaErr
+    ? null
+    : staleSourcesReason(freshness_hours, opp.brief?.evergreen === true);
+  if (staleReason) {
+    await rejectOpp(staleReason);
+    return json({ error: "rejected: freshness", freshness_hours });
+  }
+
+  // PRE-DRAFT keyword originality (DB only): an existing article whose title
+  // already targets this keyword makes the draft a duplicate.
+  const { data: titleRows, error: titleErr } = await supabase
+    .from("posts")
+    .select("title")
+    .in("status", ["draft", "scheduled", "published"])
+    .order("created_at", { ascending: false })
+    .limit(TITLE_CHECK_LIMIT);
+  if (titleErr) console.warn("title check skipped", titleErr.message);
+  const coveredBy = coveredByExistingTitle(
+    opp.target_keyword,
+    (titleRows || []).map((r: { title: string | null }) => r.title),
+  );
+  if (coveredBy) {
+    await rejectOpp(
+      `pre-draft originality: keyword already covered by "${coveredBy.title}"`,
+    );
+    return json({
+      error: "rejected: pre-draft originality",
+      covered_by: coveredBy.title,
+    });
+  }
 
   // PRE-DRAFT originality gate: embed the opportunity brief and compare to existing
   // posts before spending on a full draft+critique cycle.
@@ -272,18 +341,35 @@ ${matchedNote ? `Relevant supplied author note (do not expand into invented expe
   );
   if (!aiRes.ok) {
     const t = await aiRes.text();
-    await supabase
-      .from("content_opportunities")
-      .update({
-        status: "rejected",
-        reject_reason: `draft LLM failed: ${aiRes.status}`,
-      })
-      .eq("id", opportunity_id)
-      .eq("claim_token", claimToken);
-    return new Response(JSON.stringify({ error: "draft failed", details: t }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const kind = classifyAiFailure(aiRes.status);
+    if (kind === "credits") {
+      // Stop signal: hand the opportunity back untouched by this attempt.
+      const body = creditsExhaustedBody(t);
+      const { error: releaseErr } = await supabase
+        .from("content_opportunities")
+        .update({
+          status: "proposed",
+          claim_token: null,
+          claim_started: false,
+          attempts: Math.max(0, currentAttempts - 1),
+          reject_reason: null,
+          last_error: body.error,
+        })
+        .eq("id", opportunity_id)
+        .eq("claim_token", claimToken);
+      if (releaseErr)
+        console.error("releasing claim after 402 failed", releaseErr.message);
+      return json(body, 402);
+    }
+    if (kind === "retryable") {
+      await failOpp(
+        `draft LLM failed: ${aiRes.status}`,
+        currentAttempts >= MAX_ATTEMPTS,
+      );
+      return json({ error: "draft failed", details: t }, 503);
+    }
+    await rejectOpp(`draft LLM failed: ${aiRes.status}`);
+    return json({ error: "draft failed", details: t }, 500);
   }
   const aiData = await aiRes.json();
   let raw = aiData?.choices?.[0]?.message?.content || "";
@@ -431,38 +517,7 @@ ${matchedNote ? `Relevant supplied author note (do not expand into invented expe
   }
   const originality_score = Math.round((1 - maxSim) * 100);
 
-  // Freshness: hours since newest source
-  const { data: srcMeta } = await supabase
-    .from("source_items")
-    .select("published_at")
-    .in("id", opp.source_item_ids || []);
-  const newest = Math.max(
-    ...(srcMeta || []).map((r) =>
-      r.published_at ? new Date(r.published_at).getTime() : 0,
-    ),
-  );
-  const freshness_hours = newest
-    ? Math.round((Date.now() - newest) / 3600_000)
-    : 999;
-
-  // Hard gates
-  if (freshness_hours > FRESHNESS_MAX_HOURS && opp.brief?.evergreen !== true) {
-    await supabase
-      .from("content_opportunities")
-      .update({
-        status: "rejected",
-        reject_reason: `sources too old (${freshness_hours}h > ${FRESHNESS_MAX_HOURS}h)`,
-      })
-      .eq("id", opportunity_id)
-      .eq("claim_token", claimToken);
-    return new Response(
-      JSON.stringify({ error: "rejected: freshness", freshness_hours }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
+  // Hard gates (freshness already ran before the draft)
   if (maxSim > ORIGINALITY_MAX_SIM) {
     await supabase
       .from("content_opportunities")
