@@ -46,6 +46,15 @@ export type OfferBuilderSaveResult = {
   revision_id: string;
   published: boolean;
 };
+type GeneratedSaveArgs =
+  Database["public"]["Functions"]["offer_builder_save"]["Args"];
+type SaveArgs = Omit<
+  GeneratedSaveArgs,
+  "_expected_offer_updated_at" | "_expected_draft_version"
+> & {
+  _expected_offer_updated_at: string | null;
+  _expected_draft_version: number | null;
+};
 
 function readDocument(value: Json): OfferBuilderDocument {
   if (
@@ -103,15 +112,18 @@ export async function saveOfferBuilder(
   input: OfferBuilderSaveInput,
 ): Promise<OfferBuilderSaveResult> {
   offerBuilderSchema.parse(input.document.builder);
+  const args: SaveArgs = {
+    _offer_id: input.offerId,
+    _document: input.document as unknown as Json,
+    _expected_offer_updated_at: input.expectedOfferUpdatedAt,
+    _expected_draft_version: input.expectedDraftVersion,
+    _publish: input.publish,
+    _request_id: input.requestId,
+  };
+  // Postgres RPC argument metadata omits nullability. The save function requires
+  // actual null tokens for new offers/drafts; keep this override at its boundary.
   const { data, error } = await supabase
-    .rpc("offer_builder_save", {
-      _offer_id: input.offerId,
-      _document: input.document as unknown as Json,
-      _expected_offer_updated_at: input.expectedOfferUpdatedAt,
-      _expected_draft_version: input.expectedDraftVersion,
-      _publish: input.publish,
-      _request_id: input.requestId,
-    })
+    .rpc("offer_builder_save", args as GeneratedSaveArgs)
     .abortSignal(AbortSignal.timeout(20000));
   if (error) throw error;
   if (
