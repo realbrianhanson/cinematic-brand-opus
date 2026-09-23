@@ -14,6 +14,7 @@ import {
   type PostRow,
 } from "../_shared/newsletter-compose.ts";
 import { resolveNewsletterConfig } from "../_shared/newsletterConfig.ts";
+import { providerErrorDetail } from "../_shared/newsletterDelivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,11 +83,24 @@ Deno.serve(async (req) => {
     });
   }
 
-  const posts = await fetchRecentPosts(admin);
+  // Posts whose fact-check marked any claim contradicted are never included.
+  let posts: PostRow[];
+  try {
+    posts = await fetchRecentPosts(admin);
+  } catch (error) {
+    console.error(
+      "Newsletter post read failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return json(503, {
+      ok: false,
+      error: "This week's posts could not be read. Try again shortly.",
+    });
+  }
   if (posts.length === 0) {
     return json(200, {
       ok: true,
-      skipped: "no posts this week",
+      skipped: "no eligible posts this week",
       week_key: weekKey,
     });
   }
@@ -139,8 +153,9 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const adminEmail = (privateSettings?.report_email || "").trim();
 
-  const html = buildHtml(composed, posts as PostRow[], null, config);
+  const html = buildHtml(composed, posts, null, config);
   let previewSent = false;
+  let previewError: string | null = null;
 
   if (adminEmail) {
     const body: Record<string, unknown> = {
@@ -173,11 +188,15 @@ Deno.serve(async (req) => {
         body: JSON.stringify(body),
       });
       previewSent = res.ok;
-      if (!res.ok)
-        console.error(
-          `Preview send failed [${res.status}]: ${await res.text()}`,
+      if (!res.ok) {
+        previewError = providerErrorDetail(
+          res.status,
+          await res.text().catch(() => ""),
         );
+        console.error("Preview send failed:", previewError);
+      }
     } catch (e) {
+      previewError = "Provider request failed before Resend answered.";
       console.error("Preview send threw:", e);
     }
   }
@@ -187,6 +206,7 @@ Deno.serve(async (req) => {
     week_key: weekKey,
     subject: composed.subject,
     preview_email_sent: previewSent,
+    preview_email_error: previewError,
     admin_email_configured: Boolean(adminEmail),
     posts: posts.length,
   });

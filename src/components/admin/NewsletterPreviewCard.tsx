@@ -2,7 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { safeMutation } from "@/lib/withTimeout";
+import { functionPayload } from "@/lib/newsletterAdmin";
 import { Loader2, Mail, RefreshCw, X } from "lucide-react";
+import {
+  DeliveryProblem,
+  NewsletterHistory,
+  SendBadge,
+  type DeliveryRow,
+} from "./NewsletterDeliveryStatus";
 
 // Returns the current ISO week key (e.g. "2026-W30") in UTC, matching the
 // server-side helper in _shared/newsletterCompose.ts.
@@ -25,15 +32,16 @@ interface Blurb {
   blurb: string;
 }
 
-interface PreviewRow {
-  id: string;
-  week_key: string;
-  status: string;
+interface PreviewRow extends DeliveryRow {
   subject: string | null;
   intro: string | null;
   post_blurbs: Blurb[] | null;
   post_ids: string[] | null;
 }
+
+// last_error* ship in 20260923140000_newsletter_truth.sql.
+const PREVIEW_COLUMNS =
+  "id, week_key, status, subject, intro, post_blurbs, post_ids, sent_count, recipient_count, last_error, last_error_status, delivery_lease_until, from_address:delivery_template->>from";
 
 const NewsletterPreviewCard = () => {
   const { toast } = useToast();
@@ -49,7 +57,7 @@ const NewsletterPreviewCard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("newsletter_sends")
-        .select("id, week_key, status, subject, intro, post_blurbs, post_ids")
+        .select(PREVIEW_COLUMNS)
         .eq("week_key", weekKey)
         .maybeSingle();
       if (error) throw error;
@@ -93,11 +101,26 @@ const NewsletterPreviewCard = () => {
   const regenerateMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
-        const { data, error } = await supabase.functions.invoke(
+        const response = await supabase.functions.invoke(
           "compose-weekly-newsletter-preview",
           { body: {} },
         );
-        if (error) throw error;
+        const { payload } = await functionPayload(
+          response.data,
+          response.error,
+        );
+        const data = payload as {
+          ok?: boolean;
+          skipped?: string;
+          error?: string;
+          missing?: string[];
+          preview_email_sent?: boolean;
+          preview_email_error?: string | null;
+        };
+        if (response.error && !data.error && !data.missing?.length)
+          throw response.error;
+        if (data.missing?.length)
+          throw new Error(`Email isn't configured: ${data.missing.join(", ")}`);
         if (!data?.ok || data?.skipped)
           throw new Error(
             data?.error || data?.skipped || "Preview was not generated.",
@@ -110,7 +133,9 @@ const NewsletterPreviewCard = () => {
         title: "Preview saved",
         description: data.preview_email_sent
           ? "The preview was saved and emailed."
-          : "The preview was saved. No preview email was sent; check your email configuration.",
+          : data.preview_email_error
+            ? `The preview was saved, but the preview email failed: ${data.preview_email_error}`
+            : "The preview was saved. No preview email was sent; check your email configuration.",
       });
     },
     onError: (e: Error) =>
@@ -122,7 +147,11 @@ const NewsletterPreviewCard = () => {
   });
 
   const shell = (children: React.ReactNode) => (
-    <div className="admin-card" style={{ padding: 20, marginBottom: 32 }}>
+    <div
+      id="newsletter"
+      className="admin-card"
+      style={{ padding: 20, marginBottom: 32, scrollMarginTop: 80 }}
+    >
       <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
         <Mail size={16} style={{ color: "hsl(var(--admin-accent))" }} />
         <span
@@ -137,6 +166,7 @@ const NewsletterPreviewCard = () => {
         </span>
       </div>
       {children}
+      <NewsletterHistory />
     </div>
   );
 
@@ -144,7 +174,7 @@ const NewsletterPreviewCard = () => {
     return shell(
       <div
         className="flex items-center gap-2"
-        style={{ color: "hsl(var(--admin-muted))", fontSize: 14 }}
+        style={{ color: "hsl(var(--admin-text-soft))", fontSize: 14 }}
       >
         <Loader2 size={14} className="animate-spin" /> Loading preview…
       </div>,
@@ -158,7 +188,7 @@ const NewsletterPreviewCard = () => {
 
   if (!row) {
     return shell(
-      <div style={{ fontSize: 14, color: "hsl(var(--admin-muted))" }}>
+      <div style={{ fontSize: 14, color: "hsl(var(--admin-text-soft))" }}>
         No preview yet for this week. Composition runs Monday 14:00 UTC. You can
         generate one now:
         <div style={{ marginTop: 10 }}>
@@ -182,49 +212,12 @@ const NewsletterPreviewCard = () => {
     );
   }
 
-  const statusStyles: Record<
-    PreviewRow["status"],
-    { bg: string; fg: string; label: string }
-  > = {
-    preview: { bg: "#3a2f14", fg: "#f5d987", label: "PREVIEW · sends Tuesday" },
-    sent: { bg: "#173a24", fg: "#a5f5c1", label: "SENT" },
-    sending: { bg: "#3a2f14", fg: "#f5d987", label: "SENDING" },
-    needs_review: {
-      bg: "#3a1717",
-      fg: "#f5a5a5",
-      label: "DELIVERY NEEDS REVIEW",
-    },
-    cancelled: { bg: "#3a1717", fg: "#f5a5a5", label: "CANCELLED" },
-  };
-  const s = statusStyles[row.status] ?? {
-    bg: "#3a2f14",
-    fg: "#f5d987",
-    label: "STATUS UNKNOWN",
-  };
-
   return shell(
     <div>
-      <div
-        style={{
-          display: "inline-block",
-          padding: "3px 10px",
-          borderRadius: 4,
-          background: s.bg,
-          color: s.fg,
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          marginBottom: 12,
-        }}
-      >
-        {s.label}
+      <div style={{ marginBottom: 12 }}>
+        <SendBadge row={row} />
       </div>
-      {row.status === "needs_review" && (
-        <p role="alert">
-          Delivery stopped. Check the provider and delivery receipts before
-          resuming; some recipients may already have received this digest.
-        </p>
-      )}
+      <DeliveryProblem row={row} />
       <div
         style={{
           fontSize: 17,
@@ -234,7 +227,7 @@ const NewsletterPreviewCard = () => {
         }}
       >
         {row.subject || (
-          <em style={{ color: "hsl(var(--admin-muted))" }}>(no subject)</em>
+          <em style={{ color: "hsl(var(--admin-text-soft))" }}>(no subject)</em>
         )}
       </div>
       {row.intro ? (
@@ -242,7 +235,7 @@ const NewsletterPreviewCard = () => {
           style={{
             fontSize: 14,
             lineHeight: 1.55,
-            color: "hsl(var(--admin-muted))",
+            color: "hsl(var(--admin-text-soft))",
             margin: "0 0 14px",
           }}
         >
@@ -265,7 +258,7 @@ const NewsletterPreviewCard = () => {
                 style={{
                   fontFamily: "monospace",
                   fontSize: 11,
-                  color: "hsl(var(--admin-muted))",
+                  color: "hsl(var(--admin-text-soft))",
                 }}
               >
                 {b.slug}

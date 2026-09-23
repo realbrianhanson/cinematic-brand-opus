@@ -366,7 +366,336 @@ for (const role of ["anon", "authenticated"]) {
     /permission denied/,
   );
 }
+// ---- Automatic retries (20260923141000): upgrade over existing data ----
+await db.exec("RESET ROLE");
+const initialFor = async (orderId) =>
+  (
+    await one("SELECT id FROM offer_access_deliveries WHERE dedupe_key=$1", [
+      `initial:${orderId}`,
+    ])
+  ).id;
+// Production shape: frozen payload, one legacy attempt days ago, stuck pending.
+const stuck = await initialFor(
+  await insertOrder("stuck@example.com", "fulfilled", "3".repeat(64)),
+);
+await db.query(
+  "UPDATE offer_access_deliveries SET attempts=1,first_attempt_at=now()-interval '3 days',next_attempt_at=now()-interval '3 days',payload_cipher=$2,last_error='provider_unavailable' WHERE id=$1",
+  [stuck, "frozen".repeat(8)],
+);
+const untouched = await initialFor(
+  await insertOrder("fresh@example.com", "fulfilled", "4".repeat(64)),
+);
+const retrySql = readFileSync(
+  "supabase/migrations/20260923141000_offer_access_retry_cron.sql",
+  "utf8",
+);
+await db.exec(retrySql); // No pg_cron here: scheduling is skipped.
+await db.exec(retrySql); // Re-running is harmless.
+const row = (id) =>
+  one("SELECT * FROM offer_access_deliveries WHERE id=$1", [id]);
+assert.ok((await row(stuck)).uncertain_since, "legacy attempts are uncertain");
+assert.match((await row(stuck)).last_error_detail, /unknown whether Resend/);
+assert.equal(
+  (await row(untouched)).uncertain_since,
+  null,
+  "unattempted deliveries are not marked uncertain",
+);
+await db.exec("SET ROLE service_role");
+const claimFor = async (id) =>
+  (await one("SELECT offer_claim_access_delivery($1) value", [id])).value;
+const record = async (id, lease, outcome, extra = {}) =>
+  (
+    await one(
+      "SELECT offer_record_access_attempt($1,$2,$3,$4,$5,$6,$7,$8) value",
+      [
+        id,
+        lease,
+        outcome,
+        extra.providerId ?? null,
+        extra.error ?? null,
+        extra.status ?? null,
+        extra.detail ?? null,
+        extra.retry ?? null,
+      ],
+    )
+  ).value;
+const due = (id) =>
+  db.query(
+    "UPDATE offer_access_deliveries SET next_attempt_at=now()-interval '1 second' WHERE id=$1",
+    [id],
+  );
+const secondsUntilRetry = async (id) =>
+  (
+    await one(
+      "SELECT round(extract(epoch FROM next_attempt_at-now()))::int s FROM offer_access_deliveries WHERE id=$1",
+      [id],
+    )
+  ).s;
+
+assert.equal(await claimFor(stuck), null);
+assert.equal((await row(stuck)).status, "needs_review");
+assert.equal((await row(stuck)).last_error, "retry_window_closed");
+assert.match(
+  (await row(stuck)).last_error_detail,
+  /Check the Resend log before requeueing/,
+  "possibly-accepted legacy mail is never replayed after the idempotency window",
+);
+assert.equal(
+  (await one("SELECT offer_requeue_access_delivery($1) value", [stuck])).value,
+  true,
+  "an administrator can requeue after checking the provider log",
+);
+assert.equal((await row(stuck)).status, "pending");
+assert.equal((await row(stuck)).attempts, 0);
+assert.equal((await row(stuck)).payload_cipher, "frozen".repeat(8));
+
+// Definite rejections back off, store the status and reason, then fail.
+const rejectedClaim = await claimFor(stuck);
+assert.equal(rejectedClaim.attempts, 1);
+assert.ok(rejectedClaim.last_attempt_at);
+assert.equal(
+  await record(stuck, rejectedClaim.lease_id, "not_sent", {
+    error: "provider_rejected",
+    status: 403,
+    detail: "Resend refused to send (HTTP 403).\nDomain not verified",
+    retry: 300,
+  }),
+  "pending",
+);
+let current = await row(stuck);
+assert.equal(current.last_provider_status, 403);
+assert.equal(current.last_error, "provider_rejected");
+assert.equal(
+  current.last_error_detail,
+  "Resend refused to send (HTTP 403). Domain not verified",
+);
+assert.equal(current.uncertain_since, null, "a rejection is not uncertain");
+assert.ok(Math.abs((await secondsUntilRetry(stuck)) - 300) <= 2);
+assert.equal(await claimFor(stuck), null, "backoff blocks early retries");
+for (const [retry, expected] of [
+  [5, 60],
+  [999999, 21600],
+]) {
+  await due(stuck);
+  const lease = (await claimFor(stuck)).lease_id;
+  await record(stuck, lease, "not_sent", { error: "provider_rejected", retry });
+  assert.ok(
+    Math.abs((await secondsUntilRetry(stuck)) - expected) <= 2,
+    "retry delay is clamped",
+  );
+}
+await db.exec("RESET ROLE");
+await db.query(
+  "UPDATE offer_access_deliveries SET attempts=9,next_attempt_at=now()-interval '1 second' WHERE id=$1",
+  [stuck],
+);
+await db.exec("SET ROLE service_role");
+const lastClaim = await claimFor(stuck);
+assert.equal(lastClaim.attempts, 10);
+assert.equal(
+  await record(stuck, lastClaim.lease_id, "not_sent", {
+    error: "provider_rejected",
+    status: 403,
+    detail: "Resend refused to send (HTTP 403).",
+  }),
+  "failed",
+);
+current = await row(stuck);
+assert.equal(current.last_error, "max_attempts_reached");
+assert.match(
+  current.last_error_detail,
+  /^Gave up after 10 attempts; Resend never accepted this email\. Last result: Resend refused/,
+);
+assert.equal(current.last_provider_status, 403);
+await due(stuck);
+assert.equal(await claimFor(stuck), null, "failed deliveries stay stopped");
+assert.equal(
+  (await one("SELECT offer_requeue_access_delivery($1) value", [stuck])).value,
+  true,
+);
+
+// Uncertain results keep the same key but stop inside the provider window.
+const unsureClaim = await claimFor(untouched);
+assert.equal(
+  await record(untouched, unsureClaim.lease_id, "uncertain", {
+    error: "provider_uncertain",
+    status: 503,
+    detail: "Resend had a server error (HTTP 503).",
+    retry: 300,
+  }),
+  "pending",
+);
+assert.ok((await row(untouched)).uncertain_since);
+await db.exec("RESET ROLE");
+await db.query(
+  "UPDATE offer_access_deliveries SET uncertain_since=now()-interval '21 hours',next_attempt_at=now()-interval '1 second' WHERE id=$1",
+  [untouched],
+);
+await db.exec("SET ROLE service_role");
+assert.equal(await claimFor(untouched), null);
+assert.equal((await row(untouched)).status, "needs_review");
+assert.equal((await row(untouched)).last_error, "retry_window_closed");
+
+// An interrupted attempt with a frozen payload may have been accepted.
+const interruptedOrder = await (async () => {
+  await db.exec("RESET ROLE");
+  const id = await insertOrder(
+    "crash@example.com",
+    "fulfilled",
+    "5".repeat(64),
+  );
+  await db.exec("SET ROLE service_role");
+  return id;
+})();
+const interrupted = await initialFor(interruptedOrder);
+const crashed = await claimFor(interrupted);
+assert.equal(
+  (
+    await one("SELECT offer_freeze_access_delivery($1,$2,$3,$4) value", [
+      interrupted,
+      crashed.lease_id,
+      "encrypted".repeat(8),
+      JSON.stringify([
+        { order_id: interruptedOrder, token_hash: "6".repeat(64) },
+      ]),
+    ])
+  ).value,
+  true,
+);
+await db.exec("RESET ROLE");
+await db.query(
+  "UPDATE offer_access_deliveries SET lease_until=now()-interval '1 second' WHERE id=$1",
+  [interrupted],
+);
+await db.exec("SET ROLE service_role");
+const resumed = await claimFor(interrupted);
+assert.ok(resumed.uncertain_since, "lapsed frozen attempt becomes uncertain");
+assert.equal(resumed.payload_cipher, "encrypted".repeat(8));
+assert.equal(
+  await record(interrupted, crashed.lease_id, "sent", { providerId: "late" }),
+  null,
+  "a lapsed lease cannot record a result",
+);
+await assert.rejects(
+  db.query("SELECT offer_record_access_attempt($1,$2,'sent')", [
+    interrupted,
+    resumed.lease_id,
+  ]),
+  /Invalid receipt/,
+);
+await assert.rejects(
+  db.query("SELECT offer_record_access_attempt($1,$2,'maybe')", [
+    interrupted,
+    resumed.lease_id,
+  ]),
+  /Invalid delivery outcome/,
+);
+assert.equal(
+  await record(interrupted, resumed.lease_id, "sent", {
+    providerId: "receipt-2",
+    status: 200,
+  }),
+  "sent",
+);
+assert.equal((await row(interrupted)).last_error_detail, null);
+await due(interrupted);
+assert.equal(
+  await claimFor(interrupted),
+  null,
+  "accepted mail is never resent",
+);
+assert.equal(
+  (await one("SELECT offer_requeue_access_delivery($1) value", [interrupted]))
+    .value,
+  false,
+  "accepted mail cannot be requeued",
+);
+
+// Blocked recipients stop immediately and cannot be requeued.
+await db.exec("RESET ROLE");
+const blocked = await initialFor(
+  await insertOrder("bounced@example.com", "fulfilled", "7".repeat(64)),
+);
+await db.exec("SET ROLE service_role");
+const blockedClaim = await claimFor(blocked);
+assert.equal(
+  await record(blocked, blockedClaim.lease_id, "blocked", {
+    error: "recipient_suppressed",
+    detail: "Not sent: this address previously bounced.",
+  }),
+  "needs_review",
+);
+assert.equal(
+  (await one("SELECT offer_requeue_access_delivery($1) value", [blocked]))
+    .value,
+  false,
+);
+
+// A not-yet-redeployed offers-api still records through the old signature.
+await db.exec("RESET ROLE");
+const legacyCaller = await initialFor(
+  await insertOrder("old-api@example.com", "fulfilled", "8".repeat(64)),
+);
+await db.exec("SET ROLE service_role");
+const legacyClaim = await claimFor(legacyCaller);
+assert.equal(
+  (
+    await one(
+      "SELECT offer_finish_access_delivery($1,$2,null,'provider_unavailable') value",
+      [legacyCaller, legacyClaim.lease_id],
+    )
+  ).value,
+  true,
+);
+assert.equal((await row(legacyCaller)).status, "pending");
+assert.ok((await row(legacyCaller)).uncertain_since);
+
+await db.exec("RESET ROLE");
+await assert.rejects(
+  db.query("UPDATE offer_access_deliveries SET status='bogus' WHERE id=$1", [
+    legacyCaller,
+  ]),
+  /check constraint/,
+);
+for (const role of ["anon", "authenticated"]) {
+  await db.exec(`RESET ROLE;SET ROLE ${role}`);
+  await assert.rejects(
+    db.query("SELECT offer_record_access_attempt($1,$2,'not_sent')", [
+      legacyCaller,
+      legacyClaim.lease_id,
+    ]),
+    /permission denied/,
+  );
+  await assert.rejects(
+    db.query("SELECT offer_requeue_access_delivery($1)", [stuck]),
+    /permission denied/,
+  );
+}
+await db.exec("RESET ROLE");
+
+// pg_cron present: exactly one 15-minute job using the cron-secret pattern.
+await db.exec(`CREATE SCHEMA cron;
+CREATE TABLE cron.job(jobid bigserial PRIMARY KEY,jobname text UNIQUE,schedule text,command text);
+CREATE FUNCTION cron.schedule(text,text,text) RETURNS bigint LANGUAGE sql AS $$INSERT INTO cron.job(jobname,schedule,command) VALUES($1,$2,$3) RETURNING jobid$$;
+CREATE FUNCTION cron.unschedule(text) RETURNS boolean LANGUAGE sql AS $$DELETE FROM cron.job WHERE jobname=$1 RETURNING true$$;
+INSERT INTO cron.job(jobname,schedule,command) VALUES('offer-access-retry-15min','* * * * *','stale');`);
+await db.exec(retrySql);
+await db.exec(retrySql);
+const jobs = (
+  await db.query(
+    "SELECT schedule,command FROM cron.job WHERE jobname='offer-access-retry-15min'",
+  )
+).rows;
+assert.equal(jobs.length, 1, "re-running replaces rather than duplicates");
+assert.equal(jobs[0].schedule, "*/15 * * * *");
+for (const fragment of [
+  "net.http_post(timeout_milliseconds := 120000",
+  "url := 'https://pwjdotliwsulqktavyxf.supabase.co/functions/v1/offers-api'",
+  "'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'CRON_INVOCATION_SECRET' LIMIT 1)",
+  `body := '{"action":"retry_deliveries"}'::jsonb`,
+])
+  assert.ok(jobs[0].command.includes(fragment), fragment);
 await db.close();
 console.log(
-  "PASS: private offer email delivery, frozen retries/leases/receipts, recovery isolation and cooldown, hashed grants/expiry, preserved original links, and uncertain-send quarantine.",
+  "PASS: private offer email delivery, frozen retries/leases/receipts, recovery isolation and cooldown, hashed grants/expiry, preserved original links, uncertain-send quarantine, backoff/attempt limits with provider reasons, admin requeue, and the 15-minute retry job.",
 );

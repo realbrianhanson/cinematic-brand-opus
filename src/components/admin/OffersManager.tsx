@@ -10,11 +10,14 @@ import {
 import { Link, useNavigate } from "@/lib/router-compat";
 import type { AdminOfferView } from "@/lib/adminOfferViews";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeOfferApi, offerPrice, type OfferHealth } from "@/lib/offers";
+import { invokeOfferApi, offerPrice } from "@/lib/offers";
 import { listUnpublishedDraftIds } from "@/lib/offerBuilderClient";
 import { statusChangeCopy } from "@/lib/offersStatus";
 import QueryNotice from "./QueryNotice";
 import OfferStatusActions from "./OfferStatusActions";
+import OfferDeliveryHealth, {
+  type OfferDeliveryHealthData,
+} from "./OfferDeliveryHealth";
 import { shopCategories } from "./offerEditorState";
 
 const PAGE_SIZE = 25;
@@ -24,18 +27,27 @@ const price = (amount: number, currency: string) =>
     currency: currency.toUpperCase(),
   }).format(amount / 100);
 const date = (value: string) => new Date(value).toLocaleDateString();
+/** True when any download email is stopped or still retrying after a problem */
+function deliveriesNeedAttention(health?: OfferDeliveryHealthData): boolean {
+  const issue = health?.delivery_last_issue;
+  return (
+    (health?.delivery_failed ?? 0) > 0 ||
+    (health?.delivery_needs_review ?? 0) > 0 ||
+    issue?.status === "pending" ||
+    issue?.status === "sending"
+  );
+}
 
 function SetupGuide({
   health,
   refresh,
   loading,
 }: {
-  health?: OfferHealth;
+  health?: OfferDeliveryHealthData;
   refresh: () => void;
   loading: boolean;
 }) {
-  const [retrying, setRetrying] = useState(false);
-  const [deliveryNotice, setDeliveryNotice] = useState("");
+  const stuck = deliveriesNeedAttention(health);
   const checks = [
     ["Stripe secret key configured", health?.secret_configured],
     ["Stripe webhook signing secret configured", health?.webhook_configured],
@@ -49,7 +61,7 @@ function SetupGuide({
       <div className="flex flex-wrap justify-between gap-4">
         <div>
           <h2 id="offer-setup-heading" className="text-xl font-semibold">
-            Ready when you are
+            {stuck ? "Download emails need attention" : "Ready when you are"}
           </h2>
           <p className="admin-help mt-2">
             Free downloads and external or affiliate links work now. Website
@@ -132,63 +144,7 @@ function SetupGuide({
         checkout with an explicit price; it never charges a saved card
         automatically.
       </p>
-      <div className="border-t pt-4 space-y-3">
-        <h3 className="font-semibold">Download email delivery</h3>
-        <p className="admin-help">
-          {health?.delivery_pending ?? 0} pending ·{" "}
-          {health?.delivery_needs_review ?? 0} need review. Provider acceptance
-          does not prove inbox delivery. Recovery is available at
-          /offer-access?recover=1.
-        </p>
-        {!!health?.delivery_missing?.length && (
-          <p className="admin-help">
-            Missing: {health.delivery_missing.join(", ")}. Set sender/reply-to
-            in Brand & publishing and RESEND_API_KEY in server secrets.
-          </p>
-        )}
-        <button
-          className="admin-btn-secondary"
-          disabled={
-            retrying || !health?.delivery_ready || !health?.delivery_pending
-          }
-          onClick={async () => {
-            setRetrying(true);
-            setDeliveryNotice("");
-            try {
-              const result = await invokeOfferApi<{
-                sent: number;
-                remaining: number;
-              }>({ action: "retry_deliveries" });
-              setDeliveryNotice(
-                `${result.sent} accepted by the provider; ${result.remaining} still pending or needing review in this batch.`,
-              );
-              refresh();
-            } catch (reason) {
-              setDeliveryNotice(
-                reason instanceof Error
-                  ? reason.message
-                  : "Delivery retry failed.",
-              );
-            } finally {
-              setRetrying(false);
-            }
-          }}
-        >
-          {retrying ? "Retrying…" : "Retry pending email (up to 3)"}
-        </button>
-        {deliveryNotice && (
-          <p role="status" className="admin-help">
-            {deliveryNotice}
-          </p>
-        )}
-        {!!health?.delivery_needs_review && (
-          <p className="admin-help">
-            An uncertain send exceeded its safe retry window. Do not blindly
-            resend it. Check the provider receipt or ask the customer to request
-            fresh recovery links.
-          </p>
-        )}
-      </div>
+      <OfferDeliveryHealth health={health} refresh={refresh} />
     </section>
   );
 }
@@ -278,7 +234,8 @@ export default function OffersManager({
   });
   const health = useQuery({
     queryKey: ["admin-offer-health"],
-    queryFn: () => invokeOfferApi<OfferHealth>({ action: "health" }),
+    queryFn: () =>
+      invokeOfferApi<OfferDeliveryHealthData>({ action: "health" }),
     staleTime: 30000,
     retry: false,
   });
@@ -317,9 +274,11 @@ export default function OffersManager({
             ? "Payment configuration could not be checked."
             : health.isPending
               ? "Checking payment configuration…"
-              : health.data?.payments_ready
-                ? `Stripe ${health.data.mode} and download-email configuration present`
-                : "Free downloads & external links ready · website payments need Stripe and download-email setup"}
+              : deliveriesNeedAttention(health.data)
+                ? "Download emails need attention · free downloads still open from their private link"
+                : health.data?.payments_ready
+                  ? `Stripe ${health.data.mode} and download-email configuration present`
+                  : "Free downloads & external links ready · website payments need Stripe and download-email setup"}
         </span>
         <button className="admin-btn-ghost" onClick={() => setTab("setup")}>
           View setup

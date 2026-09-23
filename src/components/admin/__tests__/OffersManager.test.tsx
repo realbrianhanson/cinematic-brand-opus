@@ -16,6 +16,7 @@ const mock = vi.hoisted(() => ({
   tables: {} as Record<string, Row[]>,
   write: vi.fn(),
   reads: [] as { table: string; filters: unknown[][] }[],
+  health: {} as Row,
 }));
 vi.mock("@/lib/router-compat", () => ({
   Link: ({
@@ -40,6 +41,7 @@ vi.mock("@/lib/offers", async (importOriginal) => ({
     webhook_configured: false,
     mode: "unconfigured",
     webhook_url: "https://backend.example.com/webhook",
+    ...mock.health,
   }),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -101,13 +103,13 @@ const offer = (id: string, status: string, title: string) => ({
   shop_featured: false,
   updated_at: `2026-09-19T00:00:0${id}Z`,
 });
-function mount() {
+function mount(tab?: "offers" | "setup") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
-      <OffersManager />
+      <OffersManager tab={tab} />
     </QueryClientProvider>,
   );
 }
@@ -117,6 +119,7 @@ const card = (title: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   mock.reads.length = 0;
+  mock.health = {};
   mock.tables = {
     offers: [
       offer("1", "published", "Live guide"),
@@ -231,5 +234,72 @@ describe("offers list", () => {
         /changed in another tab/,
       ),
     );
+  });
+});
+
+describe("offer setup delivery status", () => {
+  const stuck = {
+    delivery_ready: true,
+    delivery_missing: [],
+    delivery_pending: 1,
+    delivery_needs_review: 0,
+    delivery_failed: 2,
+    delivery_next_retry_at: "2026-09-23T10:20:00.000Z",
+    delivery_last_issue: {
+      id: "7d0f5c1e-2b3a-4c5d-8e9f-0a1b2c3d4e5f",
+      status: "failed",
+      attempts: 10,
+      provider_status: 422,
+      detail: "Resend rejected the sender domain as unverified.",
+      at: "2026-09-23T10:00:00.000Z",
+      next_attempt_at: null,
+    },
+  };
+  it("does not claim readiness while download emails are stuck", async () => {
+    mock.health = stuck;
+    mount("setup");
+    await screen.findByText(/1 pending · 0 need review · 2 failed/);
+    const page = document.body.textContent ?? "";
+    expect(page).toContain("Download emails need attention");
+    expect(page).not.toMatch(/Free downloads & external links ready/);
+    expect(page).not.toMatch(/Ready when you are/);
+    expect(screen.getByRole("button", { name: "Requeue" })).toBeTruthy();
+  });
+  it.each([
+    ["needs review", { delivery_failed: 0, delivery_needs_review: 1 }],
+    [
+      "retrying after a problem",
+      {
+        delivery_failed: 0,
+        delivery_last_issue: {
+          ...stuck.delivery_last_issue,
+          status: "pending",
+          attempts: 2,
+          next_attempt_at: "2026-09-23T10:20:00.000Z",
+        },
+      },
+    ],
+  ])("flags the summary when an email is %s", async (_label, extra) => {
+    mock.health = { ...stuck, ...extra };
+    mount();
+    await screen.findByText(/Download emails need attention/);
+    expect(document.body.textContent).not.toMatch(
+      /Free downloads & external links ready/,
+    );
+  });
+  it("keeps the ready summary when the queue is healthy", async () => {
+    mock.health = {
+      ...stuck,
+      delivery_pending: 0,
+      delivery_failed: 0,
+      delivery_last_issue: null,
+    };
+    mount("setup");
+    await screen.findByText(/Free downloads & external links ready/);
+    expect(document.body.textContent).toContain("Ready when you are");
+    expect(document.body.textContent).toContain(
+      "0 pending · 0 need review · 0 failed",
+    );
+    expect(screen.queryByRole("button", { name: "Requeue" })).toBeNull();
   });
 });

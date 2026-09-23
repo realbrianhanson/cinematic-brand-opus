@@ -17,6 +17,7 @@ import {
   PanelsTopLeft,
   Mic,
   MousePointerClick,
+  Mail,
 } from "lucide-react";
 export const adminNavigation = [
   {
@@ -36,6 +37,7 @@ export const adminNavigation = [
       },
       { to: "/admin/offers", label: "Offers & shop", icon: ShoppingBag },
       { to: "/admin/inquiries", label: "Speaking inquiries", icon: Mic },
+      { to: "/admin/audience", label: "Newsletter audience", icon: Mail },
       {
         to: "/admin/pseo-dashboard",
         label: "Search performance",

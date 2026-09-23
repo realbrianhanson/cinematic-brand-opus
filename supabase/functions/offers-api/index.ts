@@ -6,6 +6,7 @@ import {
 import {
   backgroundOfferDelivery,
   deliverOfferAccess,
+  offerDeliveryOverview,
   offerDeliveryState,
   prepareOfferDelivery,
   resolveOfferMailer,
@@ -38,6 +39,7 @@ import {
   offerThrottle,
   requireOfferAdmin,
 } from "../_shared/offersRuntime.ts";
+import { handleDeliveryRetry } from "./deliveryRetry.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return offerJson(200, { ok: true });
@@ -68,29 +70,10 @@ Deno.serve(async (req) => {
     const webhook = Deno.env.get("STRIPE_WEBHOOK_SECRET")?.trim();
     const readiness = paymentReadiness(secret, webhook);
 
-    if (
-      action === "health" ||
-      action === "preview" ||
-      action === "retry_deliveries"
-    ) {
+    if (action === "retry_deliveries")
+      return await handleDeliveryRetry(req, body, admin);
+    if (action === "health" || action === "preview") {
       await requireOfferAdmin(req, admin);
-      if (action === "retry_deliveries") {
-        const { data: items, error } = await admin
-          .from("offer_access_deliveries")
-          .select("id")
-          .in("status", ["pending", "sending"])
-          .lte("next_attempt_at", new Date().toISOString())
-          .order("created_at")
-          .limit(3);
-        if (error) throw error;
-        const results = await Promise.all(
-          (items ?? []).map((item) => deliverOfferAccess(admin, item.id)),
-        );
-        return offerJson(200, {
-          sent: results.filter(Boolean).length,
-          remaining: results.filter((value) => !value).length,
-        });
-      }
       if (action === "health") {
         const mailer = await resolveOfferMailer(admin);
         const { count: deliveryPending, error: pendingError } = await admin
@@ -110,6 +93,7 @@ Deno.serve(async (req) => {
           delivery_missing: mailer.ok ? [] : mailer.missing,
           delivery_pending: deliveryPending ?? 0,
           delivery_needs_review: deliveryReview ?? 0,
+          ...(await offerDeliveryOverview(admin)),
           webhook_url: `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/functions/v1/offer-stripe-webhook`,
         });
       }
