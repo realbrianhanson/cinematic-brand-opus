@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
-import CustomCursor from "@/components/CustomCursor";
 
 // Simple hash to pick a stable gradient direction per post
 const hashSeed = (s: string) => {
@@ -204,7 +203,6 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
       className="public-site min-h-screen"
       style={{ background: "var(--brand-backdrop)", color: "#fff" }}
     >
-      <CustomCursor />
       <Nav />
       <header
         className="pt-32 pb-16 px-6 lg:px-14 mx-auto"

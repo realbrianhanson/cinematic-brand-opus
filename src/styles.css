@@ -34,8 +34,10 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  /* --accent is a bare HSL triplet (brandStyles sets it per brand on <body>),
+     so it must be wrapped here or every bg-accent utility is invalid. */
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -109,10 +111,10 @@
   --secondary-foreground: hsl(0 0% 100%);
 
   --muted: hsl(230 20% 12%);
-  --muted-foreground: hsl(0 0% 100% / 0.4);
+  --muted-foreground: hsl(0 0% 100% / 0.62);
 
-  --accent: hsl(43 60% 58%);
-  --accent-foreground: hsl(230 33% 4%);
+  --accent: 43 60% 58%;
+  --accent-foreground: 230 33% 4%;
 
   --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
@@ -144,8 +146,9 @@
     var(--brand-accent),
     var(--brand-accent-light)
   );
-  --body-muted: rgba(255, 255, 255, 0.4);
-  --label-muted: rgba(255, 255, 255, 0.25);
+  /* Contrast floor: body and label text never below ~60% white. */
+  --body-muted: rgba(255, 255, 255, 0.64);
+  --label-muted: rgba(255, 255, 255, 0.6);
   --card-border: rgba(255, 255, 255, 0.05);
   --card-border-hover: rgba(var(--brand-accent-rgb), 0.2);
   --bg-deep: var(--brand-backdrop);
@@ -169,10 +172,10 @@
   --secondary-foreground: hsl(0 0% 100%);
 
   --muted: hsl(230 20% 12%);
-  --muted-foreground: hsl(0 0% 100% / 0.4);
+  --muted-foreground: hsl(0 0% 100% / 0.62);
 
-  --accent: hsl(43 60% 58%);
-  --accent-foreground: hsl(230 33% 4%);
+  --accent: 43 60% 58%;
+  --accent-foreground: 230 33% 4%;
 
   --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
@@ -241,6 +244,19 @@
   ::selection {
     background: rgba(var(--brand-accent-rgb), 0.3);
     color: #fff;
+  }
+}
+
+/* Public contrast floor: faint white utility text is lifted to ~62% white,
+   the lowest level that stays readable on the dark backdrop. Placeholders
+   and decorative borders are untouched. */
+@layer utilities {
+  /* :where() keeps base-utility specificity, so hover/group-hover still win. */
+  :where(.public-site) .text-white\/40,
+  :where(.public-site) .text-white\/45,
+  :where(.public-site) .text-white\/50,
+  :where(.public-site) .text-white\/55 {
+    color: rgb(255 255 255 / 0.62);
   }
 }
 
@@ -804,9 +820,14 @@
 /* Shared publishing workspace patterns */
 .admin-page-stack {
   display: grid;
+  /* minmax(0, …) lets wide children (tables) scroll instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   max-width: 1400px;
   margin-inline: auto;
+}
+.admin-page-stack > * {
+  min-width: 0;
 }
 .admin-page-header,
 .admin-section-header {

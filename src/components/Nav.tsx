@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import type { LinkItem, NavGroup, NavItem } from "@/config/types";
+import { activeSectionAt } from "@/lib/activeSection";
 
 interface NavProps {
   loaded?: boolean;
@@ -186,12 +187,12 @@ const Nav = ({ loaded = true }: NavProps) => {
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 80);
-      let current = "";
-      for (const id of sectionIds.split(",").filter(Boolean)) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= 120) current = id;
-      }
-      setActiveSection(current);
+      setActiveSection(
+        activeSectionAt(
+          sectionIds.split(",").filter(Boolean),
+          (id) => document.getElementById(id)?.getBoundingClientRect() ?? null,
+        ),
+      );
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });

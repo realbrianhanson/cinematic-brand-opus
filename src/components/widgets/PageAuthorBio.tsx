@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
   const { data: settings } = useQuery({
-    queryKey: ["widget-site-settings"],
+    queryKey: ["widget-site-settings", "author-bio"],
     queryFn: async () => {
       const { data } = await supabase
         .from("site_settings")
@@ -54,7 +54,7 @@ const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: "hsl(var(--foreground))",
+            color: "var(--foreground)",
           }}
         >
           {settings.author_name}
@@ -76,7 +76,7 @@ const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
             className="font-body"
             style={{
               fontSize: 13,
-              color: "hsl(var(--muted-foreground))",
+              color: "var(--muted-foreground)",
               lineHeight: 1.6,
             }}
           >

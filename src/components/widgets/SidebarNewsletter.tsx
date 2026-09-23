@@ -71,13 +71,13 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
     >
       <h3
         className="font-display italic mb-2"
-        style={{ fontSize: 20, color: "hsl(var(--foreground))" }}
+        style={{ fontSize: 20, color: "var(--foreground)" }}
       >
         {config.title || "Stay Updated"}
       </h3>
       <p
         className="font-body mb-4"
-        style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}
+        style={{ fontSize: 13, color: "var(--muted-foreground)" }}
       >
         {config.description || "Get the latest tips delivered to your inbox."}
       </p>

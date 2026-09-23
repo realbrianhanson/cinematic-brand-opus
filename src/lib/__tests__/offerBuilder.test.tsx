@@ -124,7 +124,7 @@ describe("consistent landing and follow-up rendering", () => {
     );
     expect(html).toContain("Turn your notes into a useful follow-up");
     expect(html).toContain("Get the implementation kit");
-    expect(html).toContain("29.00");
+    expect(html).toContain("· $29<");
     expect(html).not.toContain("Browse the Shop");
   });
   it("does not render raw HTML as executable content", () => {

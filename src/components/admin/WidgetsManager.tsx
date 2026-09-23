@@ -1,11 +1,11 @@
 import { parseWidgetConfig, type WidgetConfig } from "@/lib/widgetConfig";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useCallback, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import WidgetConfigFields from "./WidgetConfigFields";
 
 type Widget = {
   id: string;
@@ -16,17 +16,56 @@ type Widget = {
   config: WidgetConfig;
   sort_order: number;
 };
+type WidgetPatch = Partial<
+  Pick<Widget, "config" | "is_enabled" | "sort_order">
+>;
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-const ZONES = ["sidebar", "page", "footer"] as const;
+const QUERY_KEY = ["admin-widgets"];
+/** Pause after the last keystroke before a config edit is saved. */
+export const WIDGET_SAVE_DELAY_MS = 600;
+
+// Page first: it is the zone visitors see on every article. The sidebar zone
+// has no public layout, so it is listed last and explained.
+const ZONES = [
+  {
+    id: "page",
+    label: "Page",
+    help: "Shown on articles and resources, below the content.",
+  },
+  { id: "footer", label: "Footer", help: "Shown in the site-wide footer." },
+  {
+    id: "sidebar",
+    label: "Sidebar (not shown)",
+    help: "",
+  },
+] as const;
+type ZoneId = (typeof ZONES)[number]["id"];
+
+async function saveWidget(id: string, patch: WidgetPatch) {
+  const { data, error } = await supabase
+    .from("widget_config")
+    .update(patch)
+    .eq("id", id)
+    .select("id");
+  // A row blocked by RLS returns no error and no rows: treat it as a failure.
+  if (error) return error;
+  if (!data?.length) return new Error("The change was not saved.");
+  return null;
+}
 
 const WidgetsManager = () => {
-  const [activeTab, setActiveTab] = useState<string>("sidebar");
+  const [activeTab, setActiveTab] = useState<ZoneId>("page");
+  const [reordering, setReordering] = useState(false);
   const queryClient = useQueryClient();
-  const saveTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const pendingUpdates = useRef<Record<string, Partial<Widget>>>({});
+  const tabsId = useId();
 
-  const { data: widgets, isLoading } = useQuery({
-    queryKey: ["admin-widgets"],
+  const {
+    data: widgets,
+    isLoading,
+    error: loadError,
+  } = useQuery({
+    queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("widget_config")
@@ -40,77 +79,67 @@ const WidgetsManager = () => {
     },
   });
 
-  const debouncedSave = useCallback(
-    (widgetId: string, updates: Partial<Widget>) => {
-      pendingUpdates.current[widgetId] = {
-        ...pendingUpdates.current[widgetId],
-        ...updates,
-      };
-      if (saveTimers.current[widgetId])
-        clearTimeout(saveTimers.current[widgetId]);
-      saveTimers.current[widgetId] = setTimeout(async () => {
-        const patch = pendingUpdates.current[widgetId];
-        delete pendingUpdates.current[widgetId];
-        const { error } = await supabase
-          .from("widget_config")
-          .update(patch)
-          .eq("id", widgetId)
-          .select("id")
-          .single();
-        if (error) {
-          toast({
-            title: "Error saving",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({ title: "Saved" });
-        }
-        queryClient.invalidateQueries({ queryKey: ["admin-widgets"] });
-      }, 500);
-    },
-    [queryClient],
-  );
-
-  const handleToggle = (widget: Widget) => {
-    const newEnabled = !widget.is_enabled;
-    queryClient.setQueryData(["admin-widgets"], (old: Widget[] | undefined) =>
-      old?.map((w) =>
-        w.id === widget.id ? { ...w, is_enabled: newEnabled } : w,
-      ),
+  // Update only the saved row; a full refetch would overwrite newer drafts.
+  const patchCache = (id: string, patch: WidgetPatch) =>
+    queryClient.setQueryData<Widget[]>(QUERY_KEY, (old) =>
+      old?.map((w) => (w.id === id ? { ...w, ...patch } : w)),
     );
-    debouncedSave(widget.id, { is_enabled: newEnabled });
+
+  const persist = async (widget: Widget, patch: WidgetPatch) => {
+    const error = await saveWidget(widget.id, patch);
+    if (error) {
+      toast({
+        title: `Couldn't save ${widget.display_name}`,
+        description: errorMessage(error),
+        variant: "destructive",
+      });
+      return false;
+    }
+    patchCache(widget.id, patch);
+    return true;
   };
 
-  const handleConfigChange = (widget: Widget, newConfig: WidgetConfig) => {
-    queryClient.setQueryData(["admin-widgets"], (old: Widget[] | undefined) =>
-      old?.map((w) => (w.id === widget.id ? { ...w, config: newConfig } : w)),
-    );
-    debouncedSave(widget.id, { config: newConfig });
+  const handleToggle = async (widget: Widget) => {
+    const is_enabled = !widget.is_enabled;
+    patchCache(widget.id, { is_enabled });
+    if (!(await persist(widget, { is_enabled })))
+      patchCache(widget.id, { is_enabled: widget.is_enabled });
   };
 
   const handleReorder = async (widget: Widget, direction: "up" | "down") => {
-    const zoneWidgets = (widgets || [])
+    const inZone = (widgets || [])
       .filter((w) => w.widget_zone === widget.widget_zone)
       .sort((a, b) => a.sort_order - b.sort_order);
-    const idx = zoneWidgets.findIndex((w) => w.id === widget.id);
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= zoneWidgets.length) return;
-
-    const other = zoneWidgets[swapIdx];
-    await Promise.all([
-      supabase
-        .from("widget_config")
-        .update({ sort_order: other.sort_order })
-        .eq("id", widget.id),
-      supabase
-        .from("widget_config")
-        .update({ sort_order: widget.sort_order })
-        .eq("id", other.id),
-    ]);
-    queryClient.invalidateQueries({ queryKey: ["admin-widgets"] });
+    const idx = inZone.findIndex((w) => w.id === widget.id);
+    const other = inZone[direction === "up" ? idx - 1 : idx + 1];
+    if (!other) return;
+    // Equal sort_order values cannot be swapped; step past the neighbour.
+    const step = direction === "up" ? -1 : 1;
+    const [mine, theirs] =
+      widget.sort_order === other.sort_order
+        ? [other.sort_order + step, other.sort_order]
+        : [other.sort_order, widget.sort_order];
+    setReordering(true);
+    try {
+      const results = await Promise.all([
+        saveWidget(widget.id, { sort_order: mine }),
+        saveWidget(other.id, { sort_order: theirs }),
+      ]);
+      const error = results.find(Boolean);
+      if (error)
+        toast({
+          title: "Couldn't reorder widgets",
+          description: errorMessage(error),
+          variant: "destructive",
+        });
+    } finally {
+      setReordering(false);
+      // Show the order the database actually holds.
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    }
   };
 
+  const zone = ZONES.find((z) => z.id === activeTab) ?? ZONES[0];
   const zoneWidgets = (widgets || [])
     .filter((w) => w.widget_zone === activeTab)
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -124,79 +153,214 @@ const WidgetsManager = () => {
         Widgets
       </h1>
 
-      {/* Tabs */}
       <div
-        className="flex gap-1 mb-8"
+        role="tablist"
+        aria-label="Widget zones"
+        className="flex flex-wrap gap-1 mb-6"
         style={{ borderBottom: "1px solid hsl(var(--admin-border))" }}
       >
-        {ZONES.map((zone) => (
-          <button
-            key={zone}
-            onClick={() => setActiveTab(zone)}
-            className="font-body capitalize"
-            style={{
-              fontSize: 13,
-              padding: "10px 20px",
-              background: "none",
-              border: "none",
-              borderBottom:
-                activeTab === zone
-                  ? "2px solid hsl(var(--admin-accent))"
-                  : "2px solid transparent",
-              color:
-                activeTab === zone
+        {ZONES.map(({ id, label }) => {
+          const selected = activeTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`${tabsId}-${id}`}
+              aria-selected={selected}
+              aria-controls={`${tabsId}-panel`}
+              onClick={() => setActiveTab(id)}
+              className="font-body"
+              style={{
+                fontSize: 13,
+                padding: "10px 20px",
+                background: "none",
+                border: "none",
+                borderBottom: `2px solid ${selected ? "hsl(var(--admin-accent))" : "transparent"}`,
+                color: selected
                   ? "hsl(var(--admin-accent))"
                   : "hsl(var(--admin-text-soft))",
-              cursor: "pointer",
-              fontWeight: activeTab === zone ? 600 : 400,
-            }}
-          >
-            {zone}
-          </button>
-        ))}
+                cursor: "pointer",
+                fontWeight: selected ? 600 : 400,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
-      {isLoading && (
-        <p
-          className="font-body"
-          style={{ color: "hsl(var(--admin-text-ghost))", fontSize: 13 }}
-        >
-          Loading widgets...
-        </p>
-      )}
+      <div
+        role="tabpanel"
+        id={`${tabsId}-panel`}
+        aria-labelledby={`${tabsId}-${activeTab}`}
+      >
+        {zone.id === "sidebar" ? (
+          <div
+            role="note"
+            className="admin-notice font-body mb-6"
+            style={{ color: "hsl(var(--admin-text-soft))" }}
+          >
+            These widgets are not shown on the site. Articles and resources use
+            a single-column layout with no sidebar, so settings saved here,
+            including Newsletter Signup, never reach visitors. Use the Page tab
+            for widgets that appear on articles.
+          </div>
+        ) : (
+          <p
+            className="font-body mb-6"
+            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+          >
+            {zone.help}
+          </p>
+        )}
 
-      <div className="flex flex-col gap-4">
-        {zoneWidgets.map((widget, idx) => (
-          <WidgetCard
-            key={widget.id}
-            widget={widget}
-            isFirst={idx === 0}
-            isLast={idx === zoneWidgets.length - 1}
-            onToggle={() => handleToggle(widget)}
-            onConfigChange={(c) => handleConfigChange(widget, c)}
-            onReorder={(dir) => handleReorder(widget, dir)}
-          />
-        ))}
+        {isLoading && (
+          <p
+            className="font-body"
+            style={{ color: "hsl(var(--admin-text-ghost))", fontSize: 13 }}
+          >
+            Loading widgets...
+          </p>
+        )}
+        {loadError && (
+          <p
+            role="alert"
+            className="font-body"
+            style={{ color: "hsl(var(--admin-danger))", fontSize: 13 }}
+          >
+            Couldn't load widgets: {errorMessage(loadError)}. Refresh the page
+            to try again.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-4">
+          {zoneWidgets.map((widget, idx) => (
+            <WidgetCard
+              key={widget.id}
+              widget={widget}
+              isFirst={idx === 0}
+              isLast={idx === zoneWidgets.length - 1}
+              reordering={reordering}
+              onToggle={() => handleToggle(widget)}
+              onSaveConfig={(config) => persist(widget, { config })}
+              onReorder={(dir) => handleReorder(widget, dir)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
+};
+
+/**
+ * Local draft of a widget's config. Inputs are driven by the draft, never by
+ * the query cache, so a refetch cannot overwrite text being typed.
+ */
+function useWidgetDraft(
+  widget: Widget,
+  onSave: (config: WidgetConfig) => Promise<boolean>,
+) {
+  const [draft, setDraft] = useState<WidgetConfig>(widget.config);
+  const [status, setStatus] = useState<SaveStatus>("idle");
+  const edits = useRef({ made: 0, saved: 0 });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef({ draft, onSave });
+  latest.current = { draft, onSave };
+
+  const serverConfig = JSON.stringify(widget.config);
+  useEffect(() => {
+    const clean = edits.current.made === edits.current.saved;
+    if (clean) setDraft(JSON.parse(serverConfig) as WidgetConfig);
+  }, [serverConfig]);
+
+  const flush = async () => {
+    timer.current = null;
+    const version = edits.current.made;
+    setStatus("saving");
+    const ok = await latest.current.onSave(latest.current.draft);
+    if (ok) edits.current.saved = Math.max(edits.current.saved, version);
+    const pending = edits.current.made !== version || timer.current;
+    if (!pending) setStatus(ok ? "saved" : "error");
+  };
+
+  // Save anything still pending when the card unmounts (e.g. tab switch);
+  // flush reads refs only, so the empty dependency list is intentional.
+  useEffect(
+    () => () => {
+      if (!timer.current) return;
+      clearTimeout(timer.current);
+      void flush();
+    },
+    [],
+  );
+
+  const change = (next: WidgetConfig) => {
+    edits.current.made += 1;
+    latest.current.draft = next;
+    setDraft(next);
+    setStatus("idle");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void flush(), WIDGET_SAVE_DELAY_MS);
+  };
+
+  return { draft, status, change };
+}
+
+const STATUS_TEXT: Record<SaveStatus, string> = {
+  idle: "",
+  saving: "Saving…",
+  saved: "Saved",
+  error: "Not saved",
 };
 
 const WidgetCard = ({
   widget,
   isFirst,
   isLast,
+  reordering,
   onToggle,
-  onConfigChange,
+  onSaveConfig,
   onReorder,
 }: {
   widget: Widget;
   isFirst: boolean;
   isLast: boolean;
+  reordering: boolean;
   onToggle: () => void;
-  onConfigChange: (config: WidgetConfig) => void;
+  onSaveConfig: (config: WidgetConfig) => Promise<boolean>;
   onReorder: (dir: "up" | "down") => void;
 }) => {
+  const { draft, status, change } = useWidgetDraft(widget, onSaveConfig);
+  const arrow = (dir: "up" | "down", disabled: boolean) => (
+    <button
+      type="button"
+      onClick={() => onReorder(dir)}
+      disabled={disabled || reordering}
+      aria-label={`Move ${widget.display_name} ${dir}`}
+      title={dir === "up" ? "Move up" : "Move down"}
+      style={{
+        background: "none",
+        border: "none",
+        cursor: disabled ? "default" : "pointer",
+        color: disabled
+          ? "hsl(var(--admin-text-ghost))"
+          : "hsl(var(--admin-text-soft))",
+        minWidth: 32,
+        minHeight: 24,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {dir === "up" ? (
+        <ChevronUp size={14} aria-hidden="true" />
+      ) : (
+        <ChevronDown size={14} aria-hidden="true" />
+      )}
+    </button>
+  );
+
   return (
     <div
       style={{
@@ -206,41 +370,13 @@ const WidgetCard = ({
         borderRadius: 6,
       }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => onReorder("up")}
-              disabled={isFirst}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: isFirst ? "default" : "pointer",
-                color: isFirst
-                  ? "hsl(var(--admin-text-ghost))"
-                  : "hsl(var(--admin-text-soft))",
-                padding: 0,
-              }}
-            >
-              <ChevronUp size={14} />
-            </button>
-            <button
-              onClick={() => onReorder("down")}
-              disabled={isLast}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: isLast ? "default" : "pointer",
-                color: isLast
-                  ? "hsl(var(--admin-text-ghost))"
-                  : "hsl(var(--admin-text-soft))",
-                padding: 0,
-              }}
-            >
-              <ChevronDown size={14} />
-            </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex flex-col">
+            {arrow("up", isFirst)}
+            {arrow("down", isLast)}
           </div>
-          <div>
+          <div className="min-w-0">
             <p
               className="font-body"
               style={{
@@ -253,38 +389,49 @@ const WidgetCard = ({
             </p>
             <p
               className="font-body"
-              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
             >
               {widget.widget_slug}
             </p>
           </div>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.is_enabled}
-            onChange={onToggle}
-            className="sr-only peer"
-          />
-          <div
-            className="w-9 h-5 rounded-full peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:rounded-full after:h-4 after:w-4 after:transition-all"
-            style={{
-              backgroundColor: widget.is_enabled
-                ? "hsl(var(--admin-accent))"
-                : "hsl(var(--admin-border))",
-            }}
+        <div className="flex shrink-0 items-center gap-3">
+          <span
+            role="status"
+            className="font-body"
+            style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
           >
-            <div
-              className="absolute top-[2px] rounded-full h-4 w-4 transition-transform"
-              style={{
-                background: "#fff",
-                transform: widget.is_enabled
-                  ? "translateX(16px)"
-                  : "translateX(2px)",
-              }}
+            {STATUS_TEXT[status]}
+          </span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label={`Show ${widget.display_name}`}
+              checked={widget.is_enabled}
+              onChange={onToggle}
+              className="sr-only peer"
             />
-          </div>
-        </label>
+            <div
+              className="relative w-9 h-5 rounded-full peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2"
+              style={{
+                backgroundColor: widget.is_enabled
+                  ? "hsl(var(--admin-accent))"
+                  : "hsl(var(--admin-border))",
+              }}
+            >
+              <div
+                className="absolute top-[2px] rounded-full h-4 w-4 transition-transform"
+                style={{
+                  background: "#fff",
+                  transform: widget.is_enabled
+                    ? "translateX(18px)"
+                    : "translateX(2px)",
+                }}
+              />
+            </div>
+          </label>
+        </div>
       </div>
 
       {widget.is_enabled && (
@@ -292,291 +439,15 @@ const WidgetCard = ({
           className="mt-4 pt-4"
           style={{ borderTop: "1px solid hsl(var(--admin-border))" }}
         >
-          <ConfigFields widget={widget} onConfigChange={onConfigChange} />
+          <WidgetConfigFields
+            slug={widget.widget_slug}
+            config={draft}
+            onChange={change}
+          />
         </div>
       )}
     </div>
   );
-};
-
-const ConfigFields = ({
-  widget,
-  onConfigChange,
-}: {
-  widget: Widget;
-  onConfigChange: (config: WidgetConfig) => void;
-}) => {
-  const config = widget.config || {};
-  const update = (key: string, value: WidgetConfig[keyof WidgetConfig]) =>
-    onConfigChange({ ...config, [key]: value });
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    backgroundColor: "hsl(var(--admin-surface))",
-    border: "1px solid hsl(var(--admin-border))",
-    borderRadius: 4,
-    color: "hsl(var(--admin-text))",
-    fontFamily: "var(--font-body)",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 500,
-    color: "hsl(var(--admin-text-soft))",
-    marginBottom: 4,
-    display: "block",
-    fontFamily: "var(--font-body)",
-  };
-
-  switch (widget.widget_slug) {
-    case "sidebar-newsletter":
-      return (
-        <div className="flex flex-col gap-3">
-          <div>
-            <label style={labelStyle}>Title</label>
-            <input
-              style={inputStyle}
-              value={config.title || ""}
-              onChange={(e) => update("title", e.target.value)}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Description</label>
-            <input
-              style={inputStyle}
-              value={config.description || ""}
-              onChange={(e) => update("description", e.target.value)}
-            />
-          </div>
-        </div>
-      );
-
-    case "sidebar-recent-posts":
-    case "sidebar-popular-posts":
-      return (
-        <div>
-          <label style={labelStyle}>Number of posts</label>
-          <input
-            type="number"
-            min={1}
-            max={20}
-            style={{ ...inputStyle, width: 80 }}
-            value={config.count ?? 5}
-            onChange={(e) => update("count", parseInt(e.target.value) || 5)}
-          />
-        </div>
-      );
-
-    case "sidebar-custom-html":
-      return (
-        <div>
-          <label style={labelStyle}>HTML Content</label>
-          <textarea
-            rows={6}
-            style={{
-              ...inputStyle,
-              fontFamily: "monospace",
-              backgroundColor: "hsl(var(--admin-surface-2))",
-            }}
-            value={config.html || ""}
-            onChange={(e) => update("html", e.target.value)}
-          />
-        </div>
-      );
-
-    case "page-author-bio":
-      return (
-        <div>
-          <label
-            className="flex items-center gap-2 cursor-pointer font-body"
-            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-          >
-            <input
-              type="checkbox"
-              checked={config.show_image !== false}
-              onChange={(e) => update("show_image", e.target.checked)}
-            />
-            Show author image
-          </label>
-          <p
-            className="font-body mt-2"
-            style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
-          >
-            Author data is pulled from Site Config.
-          </p>
-        </div>
-      );
-
-    case "page-related-posts":
-      return (
-        <div>
-          <label style={labelStyle}>Number of related posts</label>
-          <input
-            type="number"
-            min={1}
-            max={12}
-            style={{ ...inputStyle, width: 80 }}
-            value={config.count ?? 3}
-            onChange={(e) => update("count", parseInt(e.target.value) || 3)}
-          />
-        </div>
-      );
-
-    case "page-share-bar":
-      return (
-        <div>
-          <label style={labelStyle}>Platforms</label>
-          <div className="flex flex-wrap gap-3 mt-1">
-            {["linkedin", "twitter", "facebook", "copy", "email"].map((p) => {
-              const platforms: string[] = config.platforms || [];
-              const checked = platforms.includes(p);
-              return (
-                <label
-                  key={p}
-                  className="flex items-center gap-1 font-body capitalize cursor-pointer"
-                  style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      const next = checked
-                        ? platforms.filter((x) => x !== p)
-                        : [...platforms, p];
-                      update("platforms", next);
-                    }}
-                  />
-                  {p === "copy" ? "Copy Link" : p}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      );
-
-    case "page-toc":
-      return (
-        <div>
-          <label style={labelStyle}>Minimum headings to show TOC</label>
-          <input
-            type="number"
-            min={1}
-            max={20}
-            style={{ ...inputStyle, width: 80 }}
-            value={config.min_headings ?? 3}
-            onChange={(e) =>
-              update("min_headings", parseInt(e.target.value) || 3)
-            }
-          />
-        </div>
-      );
-
-    case "page-reading-progress":
-      return (
-        <div>
-          <label style={labelStyle}>Bar color</label>
-          <select
-            style={inputStyle}
-            value={config.color || "accent"}
-            onChange={(e) => update("color", e.target.value)}
-          >
-            <option value="accent">Accent</option>
-            <option value="sage">Sage</option>
-            <option value="blue">Blue</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-      );
-
-    case "footer-columns":
-      return (
-        <div className="flex flex-col gap-3">
-          <div>
-            <label style={labelStyle}>Number of columns</label>
-            <div className="flex gap-3 mt-1">
-              {[2, 3, 4].map((n) => (
-                <label
-                  key={n}
-                  className="flex items-center gap-1 font-body cursor-pointer"
-                  style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-                >
-                  <input
-                    type="radio"
-                    name="footer-cols"
-                    checked={(config.columns ?? 3) === n}
-                    onChange={() => {
-                      const content = config.content || [];
-                      const newContent = Array.from(
-                        { length: n },
-                        (_, i) => content[i] || {},
-                      );
-                      onConfigChange({
-                        ...config,
-                        columns: n,
-                        content: newContent,
-                      });
-                    }}
-                  />
-                  {n}
-                </label>
-              ))}
-            </div>
-          </div>
-          {Array.from({ length: config.columns || 3 }).map((_, i) => {
-            const col = (config.content || [])[i] || {};
-            return (
-              <div
-                key={i}
-                className="p-3"
-                style={{
-                  border: "1px solid hsl(var(--admin-border))",
-                  borderRadius: 4,
-                }}
-              >
-                <label style={labelStyle}>Column {i + 1} Title</label>
-                <input
-                  style={inputStyle}
-                  value={col.title || ""}
-                  onChange={(e) => {
-                    const content = [...(config.content || [])];
-                    content[i] = { ...content[i], title: e.target.value };
-                    onConfigChange({ ...config, content });
-                  }}
-                />
-                <label style={{ ...labelStyle, marginTop: 8 }}>Content</label>
-                <textarea
-                  rows={3}
-                  style={inputStyle}
-                  value={col.text || ""}
-                  onChange={(e) => {
-                    const content = [...(config.content || [])];
-                    content[i] = { ...content[i], text: e.target.value };
-                    onConfigChange({ ...config, content });
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-      );
-
-    case "sidebar-categories":
-    case "sidebar-social-links":
-    case "page-back-to-top":
-      return (
-        <p
-          className="font-body"
-          style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
-        >
-          No configuration needed — just toggle on/off.
-        </p>
-      );
-
-    default:
-      return null;
-  }
 };
 
 export default WidgetsManager;

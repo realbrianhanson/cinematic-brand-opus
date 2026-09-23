@@ -39,7 +39,7 @@ const PageRelatedPosts = ({
     <div>
       <h3
         className="font-display italic mb-6"
-        style={{ fontSize: 22, color: "hsl(var(--foreground))" }}
+        style={{ fontSize: 22, color: "var(--foreground)" }}
       >
         Related Posts
       </h3>
@@ -76,7 +76,7 @@ const PageRelatedPosts = ({
                 style={{
                   fontSize: 14,
                   fontWeight: 500,
-                  color: "hsl(var(--foreground))",
+                  color: "var(--foreground)",
                   lineHeight: 1.4,
                 }}
               >

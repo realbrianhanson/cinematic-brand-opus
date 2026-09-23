@@ -111,11 +111,23 @@ export function offerPrice(
   )
     return "View current pricing";
   if (offer.kind === "free") return "Free";
+  const currency = offer.currency.toUpperCase();
+  const amount = offer.amount_minor / 100;
+  // USD reads as "$7" (cents only when present); other currencies keep the
+  // unambiguous ISO code because "$" alone could mean CAD, AUD, etc.
+  if (currency === "USD")
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      currencyDisplay: "symbol",
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: offer.currency.toUpperCase(),
+    currency,
     currencyDisplay: "code",
-  }).format(offer.amount_minor / 100);
+  }).format(amount);
 }
 
 /** Outbound destinations are public links; never fetch them or create access tokens. */

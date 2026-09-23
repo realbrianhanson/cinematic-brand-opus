@@ -21,7 +21,7 @@ const ICON_MAP: Record<string, typeof Linkedin> = {
 
 const SidebarSocialLinks = ({ config }: { config: WidgetConfig }) => {
   const { data: settings } = useQuery({
-    queryKey: ["widget-site-settings"],
+    queryKey: ["widget-site-settings", "social-links"],
     queryFn: async () => {
       const { data } = await supabase
         .from("site_settings")

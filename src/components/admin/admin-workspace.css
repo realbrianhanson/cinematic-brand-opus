@@ -732,3 +732,14 @@
     gap: 1px;
   }
 }
+/* Skip-link target: focusing the whole page region needs no ring. */
+.admin-shell .admin-main:focus {
+  outline: none;
+}
+/* Wide list tables (Content formats, Topic guides) scroll sideways inside
+   their card on phones instead of clipping the Actions column. Some cards
+   still carry a legacy inline overflow: hidden, hence !important. */
+.admin-shell .admin-card:has(> table) {
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+}

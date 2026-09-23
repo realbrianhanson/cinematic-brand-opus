@@ -182,7 +182,7 @@ describe("shop browsing", () => {
     ).toBe("/offers/starter-guide");
     expect(
       screen
-        .getByRole("link", { name: /Workflow training — USD/ })
+        .getByRole("link", { name: "Workflow training — $29" })
         .getAttribute("href"),
     ).toBe("/offers/training");
     expect(screen.getAllByText("Featured")).toHaveLength(1);
