@@ -1828,6 +1828,44 @@ export type Database = {
         }
         Relationships: []
       }
+      post_publish_overrides: {
+        Row: {
+          created_at: string
+          failures: Json
+          id: string
+          mode: string
+          overridden_by: string
+          post_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          failures?: Json
+          id?: string
+          mode: string
+          overridden_by: string
+          post_id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          failures?: Json
+          id?: string
+          mode?: string
+          overridden_by?: string
+          post_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_publish_overrides_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_revisions: {
         Row: {
           created_at: string
@@ -1862,6 +1900,7 @@ export type Database = {
           auto_scheduled_at: string | null
           category_id: string | null
           content: string | null
+          contradicted_count: number | null
           created_at: string
           draft_claim_token: string | null
           editorial_metadata: Json
@@ -1873,6 +1912,8 @@ export type Database = {
           featured_image: string | null
           featured_image_alt: string | null
           freshness_hours: number | null
+          held_at: string | null
+          held_reason: string | null
           id: string
           key_takeaways: Json | null
           lint_flags: Json | null
@@ -1886,6 +1927,8 @@ export type Database = {
           published_at: string | null
           quality_score: number | null
           reading_time: number | null
+          schedule_checked_at: string | null
+          schedule_checked_by: string | null
           scheduled_at: string | null
           slug: string
           source_citations: Json | null
@@ -1898,6 +1941,7 @@ export type Database = {
           auto_scheduled_at?: string | null
           category_id?: string | null
           content?: string | null
+          contradicted_count?: number | null
           created_at?: string
           draft_claim_token?: string | null
           editorial_metadata?: Json
@@ -1909,6 +1953,8 @@ export type Database = {
           featured_image?: string | null
           featured_image_alt?: string | null
           freshness_hours?: number | null
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null
@@ -1922,6 +1968,8 @@ export type Database = {
           published_at?: string | null
           quality_score?: number | null
           reading_time?: number | null
+          schedule_checked_at?: string | null
+          schedule_checked_by?: string | null
           scheduled_at?: string | null
           slug: string
           source_citations?: Json | null
@@ -1934,6 +1982,7 @@ export type Database = {
           auto_scheduled_at?: string | null
           category_id?: string | null
           content?: string | null
+          contradicted_count?: number | null
           created_at?: string
           draft_claim_token?: string | null
           editorial_metadata?: Json
@@ -1945,6 +1994,8 @@ export type Database = {
           featured_image?: string | null
           featured_image_alt?: string | null
           freshness_hours?: number | null
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
           key_takeaways?: Json | null
           lint_flags?: Json | null
@@ -1958,6 +2009,8 @@ export type Database = {
           published_at?: string | null
           quality_score?: number | null
           reading_time?: number | null
+          schedule_checked_at?: string | null
+          schedule_checked_by?: string | null
           scheduled_at?: string | null
           slug?: string
           source_citations?: Json | null
