@@ -27,6 +27,7 @@ import { Route as StartHereRouteImport } from './routes/start-here'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAudienceRouteImport } from './routes/admin.audience'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminConversionsRouteImport } from './routes/admin.conversions'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
@@ -162,6 +163,11 @@ const TermsRoute = TermsRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAudienceRoute = AdminAudienceRouteImport.update({
+  id: '/audience',
+  path: '/audience',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/generate': typeof AdminGenerateRoute
@@ -479,6 +486,7 @@ export interface FileRoutesByTo {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/generate': typeof AdminGenerateRoute
@@ -545,6 +553,7 @@ export interface FileRoutesById {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/generate': typeof AdminGenerateRoute
@@ -613,6 +622,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/generate'
@@ -675,6 +685,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/generate'
@@ -740,6 +751,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/generate'
@@ -947,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audience': {
+      id: '/admin/audience'
+      path: '/audience'
+      fullPath: '/admin/audience'
+      preLoaderRoute: typeof AdminAudienceRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/categories': {
@@ -1275,6 +1294,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAudienceRoute: typeof AdminAudienceRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminConversionsRoute: typeof AdminConversionsRoute
   AdminGenerateRoute: typeof AdminGenerateRoute
@@ -1305,6 +1325,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAudienceRoute: AdminAudienceRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminConversionsRoute: AdminConversionsRoute,
   AdminGenerateRoute: AdminGenerateRoute,

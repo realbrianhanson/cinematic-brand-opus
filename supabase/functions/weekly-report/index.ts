@@ -1,11 +1,27 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import { resolveNewsletterConfig } from "../_shared/newsletterConfig.ts";
+import {
+  buildReportHtml,
+  errorText,
+  reportGate,
+  reportSendFailure,
+} from "./reportLogic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Handled outcomes keep HTTP 200 so the admin button can show `error` (a plain
+// string); unexpected exceptions return 500 with a string error.
+function json(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,62 +36,75 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const reqBody = await req.json().catch(() => ({}));
 
-    // Get site settings
-    const { data: settings } = await supabase
-      .from("site_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-
-    // Sensitive report config lives in an admin-only table now.
-    const { data: privateSettings } = await supabase
+    // Sensitive report config lives in an admin-only table.
+    const { data: privateSettings, error: privateError } = await supabase
       .from("site_settings_private")
       .select("report_email, report_enabled")
       .limit(1)
       .maybeSingle();
+    if (privateError) throw privateError;
 
-    const reqBody = await req.json().catch(() => ({}) as any);
-    if (
-      !privateSettings?.report_enabled &&
-      !reqBody?.manual &&
-      !reqBody?.cron
-    ) {
-      return new Response(JSON.stringify({ message: "Reports are disabled" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const gate = reportGate({
+      mode: authResult.mode,
+      manual: reqBody?.manual === true,
+      enabled: privateSettings?.report_enabled === true,
+    });
+    if (!gate.run)
+      return json({ ok: true, skipped: true, message: gate.message });
+
+    const reportEmail = (privateSettings?.report_email ?? "").trim();
+    if (!reportEmail) {
+      return json({
+        ok: false,
+        error: "No report email is set in Brand & publishing.",
       });
     }
 
-    const reportEmail = privateSettings?.report_email;
-    if (!reportEmail) {
-      return new Response(
-        JSON.stringify({ message: "No report email configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const { data: settings, error: settingsError } = await supabase
+      .from("site_settings")
+      .select(
+        "site_url, site_name, author_name, newsletter_from_address, newsletter_reply_to, newsletter_postal_address",
+      )
+      .limit(1)
+      .maybeSingle();
+    if (settingsError) throw settingsError;
+    // Same validated sender as the newsletter; no hand-built noreply address.
+    const resolved = resolveNewsletterConfig(
+      settings,
+      Deno.env.get("RESEND_API_KEY"),
+    );
+    if (!resolved.ok) {
+      return json({
+        ok: false,
+        error: `Email isn't configured: ${resolved.missing.join(", ")}`,
+      });
     }
+    const config = resolved.config;
 
     const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString();
 
     const { count: newPages } = await supabase
       .from("generated_pages")
       .select("id", { count: "exact", head: true })
       .eq("status", "published")
-      .gte("published_at", weekAgo);
+      .gte("published_at", weekAgo.toISOString());
 
     const { count: viewsThisWeek } = await supabase
       .from("page_engagement")
       .select("id", { count: "exact", head: true })
       .eq("event_type", "view")
-      .gte("created_at", weekAgo);
+      .gte("created_at", weekAgo.toISOString());
 
     const { count: viewsLastWeek } = await supabase
       .from("page_engagement")
       .select("id", { count: "exact", head: true })
       .eq("event_type", "view")
       .gte("created_at", twoWeeksAgo)
-      .lt("created_at", weekAgo);
+      .lt("created_at", weekAgo.toISOString());
 
     const vt = viewsThisWeek ?? 0;
     const vl = viewsLastWeek ?? 0;
@@ -90,104 +119,55 @@ Deno.serve(async (req) => {
       .select("id", { count: "exact", head: true })
       .eq("performance_trend", "needs_refresh");
 
-    const siteName = settings?.site_name || "Your Site";
+    const html = buildReportHtml({
+      siteName: config.siteName,
+      weekAgo,
+      now,
+      newPages: newPages ?? 0,
+      views: vt,
+      changePercent,
+      topPages: Array.isArray(topPages) ? topPages : [],
+      refreshNeeded: refreshNeeded ?? 0,
+    });
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 560px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-    <div style="background: #0a0a0a; padding: 24px 32px;">
-      <h1 style="color: #D4AF55; font-size: 18px; margin: 0; font-weight: 600;">${siteName} — Weekly Report</h1>
-      <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin: 6px 0 0;">Week of ${new Date(weekAgo).toLocaleDateString("en-US", { month: "long", day: "numeric" })} — ${now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
-    </div>
-    <div style="padding: 28px 32px;">
-      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-        <div style="flex: 1; background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
-          <div style="font-size: 24px; font-weight: 700; color: #0a0a0a;">${newPages ?? 0}</div>
-          <div style="font-size: 11px; color: #666; margin-top: 4px;">New Pages</div>
-        </div>
-        <div style="flex: 1; background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
-          <div style="font-size: 24px; font-weight: 700; color: #0a0a0a;">${vt}</div>
-          <div style="font-size: 11px; color: #666; margin-top: 4px;">Views (${changePercent}%)</div>
-        </div>
-      </div>
-      <p style="font-size: 13px; line-height: 1.6; color: #555; margin: 0 0 24px;">For current offer views, outbound clicks, and confirmed native outcomes, open <strong>Admin → Conversions</strong>. Its visit-based rates cover visitors who allow measurement. Legacy offer-click collection ended September 19, 2026, so this report no longer presents those records as current weekly clicks.</p>
-      <h3 style="font-size: 14px; font-weight: 600; color: #0a0a0a; margin: 0 0 12px;">Top Pages</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-        ${(topPages ?? [])
-          .map(
-            (p: { title: string; view_count: number | null }, i: number) => `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 8px 0; color: #333;">${i + 1}. ${p.title}</td>
-          <td style="padding: 8px 0; color: #999; text-align: right;">${(p.view_count ?? 0).toLocaleString()} views</td>
-        </tr>`,
-          )
-          .join("")}
-      </table>
-      ${(refreshNeeded ?? 0) > 0 ? `<p style="margin-top: 20px; padding: 12px; background: #fff8e1; border-radius: 6px; font-size: 13px; color: #795548;">⚠️ ${refreshNeeded} pages need content refresh</p>` : ""}
-    </div>
-    <div style="padding: 16px 32px; background: #f8f9fa; border-top: 1px solid #eee;">
-      <p style="font-size: 11px; color: #999; margin: 0;">Sent from ${siteName} Performance Dashboard</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (resendKey) {
-      const sendResp = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: `${siteName} <noreply@${new URL(settings?.site_url || "https://example.com").hostname}>`,
-          to: reportEmail,
-          subject: `${siteName} Weekly pSEO Report`,
-          html,
-        }),
-      });
-      const sendResult = await sendResp.json();
-      if (!sendResp.ok) {
-        console.error("Resend error:", sendResult);
-        return new Response(
-          JSON.stringify({
-            message: "Report generated but email failed",
-            error: sendResult,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-    } else {
-      console.log(
-        "No RESEND_API_KEY, report HTML generated but not sent. Email:",
-        reportEmail,
+    const sendResp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: config.fromAddress,
+        reply_to: config.replyTo,
+        to: [reportEmail],
+        subject: `${config.siteName} Weekly pSEO Report`,
+        html,
+      }),
+    });
+    if (!sendResp.ok) {
+      const error = reportSendFailure(
+        sendResp.status,
+        await sendResp.text().catch(() => ""),
       );
+      console.error("Weekly report send failed:", error);
+      return json({ ok: false, error, provider_status: sendResp.status });
     }
 
-    return new Response(
-      JSON.stringify({
-        message: resendKey
-          ? "Report sent successfully"
-          : "Report generated (no email service configured — add RESEND_API_KEY to send)",
-        stats: {
-          newPages,
-          viewsThisWeek: vt,
-          viewsLastWeek: vl,
-          changePercent,
-          refreshNeeded,
-        },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: any) {
-    console.error("Weekly report error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return json({
+      ok: true,
+      message: "Report sent successfully",
+      stats: {
+        newPages,
+        viewsThisWeek: vt,
+        viewsLastWeek: vl,
+        changePercent,
+        refreshNeeded,
+      },
     });
+  } catch (error) {
+    const message = errorText(error);
+    console.error("Weekly report error:", message);
+    return json({ ok: false, error: message }, 500);
   }
 });

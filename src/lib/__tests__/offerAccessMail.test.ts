@@ -3,6 +3,7 @@ import {
   accessMailPayload,
   decryptAccessMail,
   encryptAccessMail,
+  offerDeliveryRetryDelaySeconds,
   randomAccessToken,
   sendAccessMail,
 } from "../../../supabase/functions/_shared/offerAccessMail";
@@ -70,15 +71,21 @@ describe("transactional offer access email", () => {
         status: 200,
       }),
     );
-    expect(await sendAccessMail(payload, "key", "delivery-a", fetcher)).toBe(
-      "provider-receipt",
+    expect(await sendAccessMail(payload, "key", "delivery-a", fetcher)).toEqual(
+      {
+        outcome: "sent",
+        providerId: "provider-receipt",
+        httpStatus: 200,
+        error: null,
+        detail: null,
+      },
     );
     fetcher.mockResolvedValue(
       new Response(JSON.stringify({ id: "provider-receipt" }), { status: 200 }),
     );
-    expect(await sendAccessMail(payload, "key", "delivery-a", fetcher)).toBe(
-      "provider-receipt",
-    );
+    expect(
+      (await sendAccessMail(payload, "key", "delivery-a", fetcher)).providerId,
+    ).toBe("provider-receipt");
     const first = fetcher.mock.calls[0][1];
     const second = fetcher.mock.calls[1][1];
     expect(first.body).toBe(second.body);
@@ -96,23 +103,96 @@ describe("transactional offer access email", () => {
       new Response("{}", { status: 200 }),
       new Response("not json", { status: 200 }),
     ]) {
-      expect(
-        await sendAccessMail(
-          payload,
-          "key",
-          "delivery-a",
-          vi.fn().mockResolvedValue(response),
-        ),
-      ).toBeNull();
-    }
-    expect(
-      await sendAccessMail(
+      const result = await sendAccessMail(
         payload,
         "key",
         "delivery-a",
-        vi.fn().mockRejectedValue(new Error("timeout")),
-      ),
-    ).toBeNull();
+        vi.fn().mockResolvedValue(response),
+      );
+      expect(result.providerId).toBeNull();
+      expect(result.outcome).toBe("uncertain");
+    }
+    const timeout = await sendAccessMail(
+      payload,
+      "key",
+      "delivery-a",
+      vi.fn().mockRejectedValue(new Error("timeout")),
+    );
+    expect(timeout).toMatchObject({
+      outcome: "uncertain",
+      providerId: null,
+      httpStatus: null,
+      error: "provider_uncertain",
+    });
+    expect(timeout.detail).toMatch(/could not reach Resend/i);
+  });
+  it("records a definitive provider rejection with its status and a redacted, bounded reason", async () => {
+    const payload = accessMailPayload(config, "reader@example.com", [
+      { title: "Guide", token },
+    ]);
+    const body = JSON.stringify({
+      statusCode: 403,
+      name: "validation_error",
+      message: `The example.com domain is not verified. Contact reader@example.com.\n${"x".repeat(900)}`,
+    });
+    const result = await sendAccessMail(
+      payload,
+      "key",
+      "delivery-a",
+      vi.fn().mockResolvedValue(new Response(body, { status: 403 })),
+    );
+    expect(result.outcome).toBe("not_sent");
+    expect(result.providerId).toBeNull();
+    expect(result.httpStatus).toBe(403);
+    expect(result.error).toBe("provider_rejected");
+    expect(result.detail).toMatch(/^Resend refused to send \(HTTP 403\)/);
+    expect(result.detail).toContain("domain is not verified");
+    expect(result.detail).not.toContain("reader@example.com");
+    expect(result.detail).not.toMatch(/[\r\n]/);
+    expect(result.detail!.length).toBeLessThanOrEqual(500);
+  });
+  it("treats rate limits as not sent but idempotency conflicts and server errors as uncertain", async () => {
+    const payload = accessMailPayload(config, "reader@example.com", [
+      { title: "Guide", token },
+    ]);
+    const send = (status: number) =>
+      sendAccessMail(
+        payload,
+        "key",
+        "delivery-a",
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(JSON.stringify({ message: "nope" }), { status }),
+          ),
+      );
+    expect(await send(429)).toMatchObject({
+      outcome: "not_sent",
+      httpStatus: 429,
+      error: "provider_rate_limited",
+    });
+    expect(await send(401)).toMatchObject({
+      outcome: "not_sent",
+      error: "provider_rejected",
+    });
+    expect((await send(401)).detail).toContain("RESEND_API_KEY");
+    expect(await send(422)).toMatchObject({ outcome: "not_sent" });
+    expect(await send(409)).toMatchObject({
+      outcome: "uncertain",
+      error: "provider_uncertain",
+    });
+    expect(await send(502)).toMatchObject({
+      outcome: "uncertain",
+      httpStatus: 502,
+    });
+  });
+  it("backs off exponentially from five minutes to a six-hour ceiling", () => {
+    expect(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9].map(offerDeliveryRetryDelaySeconds),
+    ).toEqual([300, 600, 1200, 2400, 4800, 9600, 19200, 21600, 21600]);
+    expect(offerDeliveryRetryDelaySeconds(0)).toBe(300);
+    expect(offerDeliveryRetryDelaySeconds(Number.NaN)).toBe(300);
+    expect(offerDeliveryRetryDelaySeconds(500)).toBe(21600);
   });
   it("generates independent 256-bit access capabilities", () => {
     const first = randomAccessToken();

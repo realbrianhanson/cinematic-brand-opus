@@ -25,6 +25,14 @@ import {
   type SubscribeState,
   subscribeResponseFor,
 } from "../_shared/newsletterConfig.ts";
+import { providerErrorDetail } from "../_shared/newsletterDelivery.ts";
+import {
+  type PendingRow,
+  RESEND_COOLDOWN_SECONDS,
+  resendPendingConfirmations,
+  type ResendPort,
+  type SendOutcome,
+} from "./resendPending.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +45,6 @@ const EMAIL_LIMIT = 3; // confirmation requests per address...
 const EMAIL_WINDOW_SECONDS = 24 * 60 * 60; // ...per 24h
 const IP_LIMIT = 8; // requests per IP...
 const IP_WINDOW_SECONDS = 60 * 60; // ...per hour
-const RESEND_COOLDOWN_SECONDS = 15 * 60; // min gap between confirmations
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -86,7 +93,8 @@ async function sendConfirmation(
   config: NewsletterConfig,
   email: string,
   token: string,
-): Promise<{ ok: boolean; error?: string }> {
+  idempotencyKey = `nl-confirm-${token}`,
+): Promise<SendOutcome> {
   const { subject, html } = buildConfirmationEmail(config, token);
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -95,8 +103,8 @@ async function sendConfirmation(
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
-        // Same address + same token must never produce two emails.
-        "Idempotency-Key": `nl-confirm-${token}`,
+        // Same address + same token (+ same claim) must never produce two emails.
+        "Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify({
         from: config.fromAddress,
@@ -106,15 +114,91 @@ async function sendConfirmation(
         html,
       }),
     });
-    if (!res.ok)
-      return { ok: false, error: `Resend ${res.status}: ${await res.text()}` };
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        ok: false,
+        status: res.status,
+        detail: providerErrorDetail(res.status, body),
+      };
+    }
     return { ok: true };
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Provider request failed",
+      status: null,
+      detail:
+        error instanceof Error
+          ? `Provider request failed: ${error.message}`
+          : "Provider request failed",
     };
   }
+}
+
+function resendPort(
+  admin: SupabaseClient,
+  config: NewsletterConfig,
+): ResendPort {
+  return {
+    async listPending(limit: number) {
+      const { data, error } = await admin
+        .from("newsletter_subscribers")
+        .select(
+          "email, confirm_token, last_confirmation_sent_at, confirmation_send_count",
+        )
+        .eq("status", "pending")
+        .order("created_at", { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as PendingRow[];
+    },
+    async countPending() {
+      const { count, error } = await admin
+        .from("newsletter_subscribers")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+    // Claim before sending; concurrent public/admin retries cannot both send.
+    async claim(row: PendingRow, claimIso: string) {
+      let claim = admin
+        .from("newsletter_subscribers")
+        .update({ last_confirmation_sent_at: claimIso })
+        .eq("email", row.email)
+        .eq("confirm_token", row.confirm_token)
+        .eq("status", "pending");
+      claim = row.last_confirmation_sent_at
+        ? claim.eq("last_confirmation_sent_at", row.last_confirmation_sent_at)
+        : claim.is("last_confirmation_sent_at", null);
+      const { data, error } = await claim.select("email").maybeSingle();
+      if (error) throw new Error(error.message);
+      return !!data;
+    },
+    async release(row: PendingRow, claimIso: string) {
+      const { error } = await admin
+        .from("newsletter_subscribers")
+        .update({ last_confirmation_sent_at: row.last_confirmation_sent_at })
+        .eq("email", row.email)
+        .eq("confirm_token", row.confirm_token)
+        .eq("last_confirmation_sent_at", claimIso);
+      if (error) console.error("resend_pending release failed:", error.message);
+    },
+    async confirmSent(row: PendingRow, claimIso: string) {
+      const { error } = await admin
+        .from("newsletter_subscribers")
+        .update({
+          confirmation_send_count: (row.confirmation_send_count ?? 0) + 1,
+        })
+        .eq("email", row.email)
+        .eq("confirm_token", row.confirm_token)
+        .eq("last_confirmation_sent_at", claimIso);
+      if (error) console.error("resend_pending count failed:", error.message);
+    },
+    send: (row: PendingRow, key: string) =>
+      sendConfirmation(config, row.email, row.confirm_token, key),
+    now: () => new Date(),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -155,52 +239,23 @@ Deno.serve(async (req) => {
         missing: resolved.missing,
       });
     }
-    const { data: pending, error: pendingError } = await admin
-      .from("newsletter_subscribers")
-      .select("email, confirm_token, last_confirmation_sent_at")
-      .eq("status", "pending")
-      .limit(50);
-    if (pendingError) return json(503, { ok: false, state: "unavailable" });
-    let sent = 0;
-    let failed = 0;
-    for (const p of pending ?? []) {
-      const now = new Date();
-      if (
-        p.last_confirmation_sent_at &&
-        Date.parse(p.last_confirmation_sent_at) >
-          now.getTime() - RESEND_COOLDOWN_SECONDS * 1000
-      )
-        continue;
-      // Claim before sending; concurrent public/admin retries cannot both send.
-      let claim = admin
-        .from("newsletter_subscribers")
-        .update({ last_confirmation_sent_at: now.toISOString() })
-        .eq("email", p.email)
-        .eq("confirm_token", p.confirm_token)
-        .eq("status", "pending");
-      claim = p.last_confirmation_sent_at
-        ? claim.eq("last_confirmation_sent_at", p.last_confirmation_sent_at)
-        : claim.is("last_confirmation_sent_at", null);
-      const { data: claimed, error: claimError } = await claim
-        .select("email")
-        .maybeSingle();
-      if (claimError) {
-        failed++;
-        continue;
-      }
-      if (!claimed) continue;
-      const r = await sendConfirmation(
-        resolved.config,
-        p.email,
-        p.confirm_token,
+    try {
+      const result = await resendPendingConfirmations(
+        resendPort(admin, resolved.config),
       );
-      if (r.ok) sent++;
-      else {
-        failed++;
-        console.error("resend_pending failed:", r.error);
-      }
+      if (result.error) console.error("resend_pending:", result.error);
+      return json(result.ok ? 200 : 502, result);
+    } catch (error) {
+      console.error(
+        "resend_pending unavailable:",
+        error instanceof Error ? error.message : error,
+      );
+      return json(503, {
+        ok: false,
+        state: "unavailable",
+        error: "Pending subscribers could not be read. Try again shortly.",
+      });
     }
-    return json(failed ? 502 : 200, { ok: failed === 0, sent, failed });
   }
 
   // ---- Public subscribe ----------------------------------------------------
@@ -255,7 +310,7 @@ Deno.serve(async (req) => {
 
   const sendRes = await sendConfirmation(config, email, row!.token as string);
   if (!sendRes.ok) {
-    console.error("newsletter confirmation send failed:", sendRes.error);
+    console.error("newsletter confirmation send failed:", sendRes.detail);
     // Allow another attempt after the provider problem is resolved.
     await admin
       .from("newsletter_subscribers")

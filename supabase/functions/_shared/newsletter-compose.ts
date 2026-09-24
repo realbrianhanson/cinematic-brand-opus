@@ -200,16 +200,52 @@ export function buildHtml(
 </body></html>`;
 }
 
+/** Most posts one weekly issue covers. */
+export const NEWSLETTER_POST_LIMIT = 5;
+/** Candidates read so flagged posts can be dropped without starving the issue. */
+const CANDIDATE_LIMIT = 25;
+
+/**
+ * True when the fact-check (posts.fact_check: { claims: [{ verdict }],
+ * contradicted_count }) marked any claim contradicted. Unknown shapes are
+ * treated as clean here; the publish gate owns missing fact checks.
+ */
+export function hasContradictedClaims(factCheck: unknown): boolean {
+  if (!factCheck || typeof factCheck !== "object") return false;
+  const fc = factCheck as { claims?: unknown; contradicted_count?: unknown };
+  if (Number(fc.contradicted_count) > 0) return true;
+  return (
+    Array.isArray(fc.claims) &&
+    fc.claims.some(
+      (claim) =>
+        !!claim &&
+        typeof claim === "object" &&
+        (claim as { verdict?: unknown }).verdict === "contradicted",
+    )
+  );
+}
+
+type CandidatePost = PostRow & { fact_check?: unknown };
+
+/** Drops posts with contradicted claims, keeps rank order, caps the issue. */
+export function selectNewsletterPosts(rows: CandidatePost[]): PostRow[] {
+  return rows
+    .filter((row) => !hasContradictedClaims(row.fact_check))
+    .slice(0, NEWSLETTER_POST_LIMIT)
+    .map(({ fact_check: _factCheck, ...post }) => post);
+}
+
 export async function fetchRecentPosts(admin: any): Promise<PostRow[]> {
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("posts")
-    .select("id, title, slug, excerpt, tldr, quality_score")
+    .select("id, title, slug, excerpt, tldr, quality_score, fact_check")
     .eq("status", "published")
     .gte("created_at", since)
     .order("quality_score", { ascending: false, nullsFirst: false })
-    .limit(5);
-  return (data || []) as PostRow[];
+    .limit(CANDIDATE_LIMIT);
+  if (error) throw new Error(error.message || "Could not read recent posts");
+  return selectNewsletterPosts((data || []) as CandidatePost[]);
 }
 
 export async function loadVoiceBlock(admin: any): Promise<string> {
