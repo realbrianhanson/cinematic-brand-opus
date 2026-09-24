@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { scoreContent } from "../_shared/voice.ts";
+import { applyTitleLint, scoreContent } from "../_shared/voice.ts";
+
+/** Largest unsaved content_json accepted for a preview score. */
+const MAX_PREVIEW_BYTES = 512 * 1024;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,8 +59,14 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { page_id } = await req.json();
-    if (!page_id) {
+    const body = await req.json();
+    const page_id = body?.page_id;
+    // Optional: score unsaved editor content without storing the result.
+    const preview =
+      body?.content_json !== undefined
+        ? { content_json: body.content_json, title: body.title }
+        : null;
+    if (!page_id || typeof page_id !== "string") {
       return new Response(JSON.stringify({ error: "page_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -77,15 +86,69 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { score, issues } = scoreContent(page.content_json, page.title);
+    if (preview) {
+      const content = preview.content_json;
+      const title =
+        typeof preview.title === "string" && preview.title.trim()
+          ? preview.title
+          : page.title;
+      if (!content || typeof content !== "object" || Array.isArray(content)) {
+        return new Response(
+          JSON.stringify({ error: "content_json must be a JSON object" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      if (JSON.stringify(content).length > MAX_PREVIEW_BYTES) {
+        return new Response(
+          JSON.stringify({ error: "content_json is too large to score" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      const { score, issues } = applyTitleLint(
+        scoreContent(content, title),
+        title,
+      );
+      return new Response(
+        JSON.stringify({
+          page_id,
+          score,
+          issues,
+          publishable: score >= 75,
+          persisted: false,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    await supabase
+    // The stored copy is scored and the score saved. Only this service (and
+    // the generators) may write quality_score; see migration
+    // 20260923152000_resources_and_guides.sql.
+    const { score, issues } = applyTitleLint(
+      scoreContent(page.content_json, page.title),
+      page.title,
+    );
+
+    const { error: saveErr } = await supabase
       .from("generated_pages")
       .update({ quality_score: score })
       .eq("id", page_id);
+    if (saveErr)
+      throw new Error(`Could not save the score: ${saveErr.message}`);
 
     return new Response(
-      JSON.stringify({ page_id, score, issues, publishable: score >= 75 }),
+      JSON.stringify({
+        page_id,
+        score,
+        issues,
+        publishable: score >= 75,
+        persisted: true,
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },

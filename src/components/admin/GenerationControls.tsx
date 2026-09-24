@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,36 +13,52 @@ import {
   Zap,
   ImageIcon,
   Link2,
-  CheckCircle2,
-  XCircle,
   AlertTriangle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { Progress } from "@/components/ui/progress";
+import {
+  estimateGeneration,
+  jobPhase,
+  MAX_PAGES_PER_COMBINATION,
+  MAX_PAGES_PER_JOB,
+  STALL_AFTER_MINUTES,
+} from "../../../supabase/functions/_shared/generationLimits";
+import { invokeAdminFunction } from "./manualPublishClient";
+import GenerationJobsPanel, { type GenerationJob } from "./GenerationJobsPanel";
 
 interface BatchGroup {
   batch_id: string;
   date: string;
   success: number;
   failed: number;
-  total: number;
+  costUsd: number;
+  dryRun: boolean;
   logs: Tables<"generation_logs">[];
 }
 
-interface GenerationJob {
-  id: string;
-  batch_id: string;
-  status: string;
-  total_combinations: number;
-  completed_count: number;
-  success_count: number;
-  failed_count: number;
-  skipped_count: number;
-  result_summary: Json;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-}
+const OPEN_STATUSES = ["pending", "running", "stalled"];
+const FINISHED_STATUSES = ["completed", "failed", "cancelled"];
+/** Re-evaluate stall state while the page stays open. */
+const CLOCK_TICK_MS = 60_000;
+
+// mark_stalled_generation_jobs is newer than the generated client types.
+const markStalledJobs = () =>
+  (
+    supabase as unknown as {
+      rpc: (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ error: unknown }>;
+    }
+  ).rpc("mark_stalled_generation_jobs", {
+    p_stall_minutes: STALL_AFTER_MINUTES,
+  });
+
+const usd = (n: number) =>
+  n >= 1 ? `$${n.toFixed(2)}` : `$${n.toFixed(n >= 0.1 ? 2 : 3)}`;
+
+const bodyError = (body: Record<string, unknown>, fallback: string) =>
+  typeof body.error === "string" && body.error.trim() ? body.error : fallback;
 
 const GenerationControls = () => {
   const { toast } = useToast();
@@ -59,6 +75,7 @@ const GenerationControls = () => {
 
   // Progress state
   const [generating, setGenerating] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<{
     results: {
       title: string;
@@ -71,12 +88,17 @@ const GenerationControls = () => {
   const [buildingLinks, setBuildingLinks] = useState(false);
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
 
-  // Active jobs (realtime)
-  const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
-  const [completedJobs, setCompletedJobs] = useState<GenerationJob[]>([]);
-  const hasRunningJob = activeJobs.some(
-    (j) => j.status === "pending" || j.status === "running",
-  );
+  // Jobs (realtime). Stalled jobs never block Generate.
+  const [openJobs, setOpenJobs] = useState<GenerationJob[]>([]);
+  const [finishedJobs, setFinishedJobs] = useState<GenerationJob[]>([]);
+  const [busyJobId, setBusyJobId] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const hasRunningJob = openJobs.some((j) => jobPhase(j, nowMs) === "active");
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), CLOCK_TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   const { data: schemas } = useQuery({
     queryKey: ["gen-schemas"],
@@ -113,19 +135,23 @@ const GenerationControls = () => {
       const groups: Record<string, BatchGroup> = {};
       for (const log of data) {
         const bid = log.batch_id || "unknown";
-        if (!groups[bid])
-          groups[bid] = {
-            batch_id: bid,
-            date: log.created_at ?? new Date().toISOString(),
-            success: 0,
-            failed: 0,
-            total: 0,
-            logs: [],
-          };
-        groups[bid].total++;
-        if (log.status === "success") groups[bid].success++;
-        else if (log.status === "failed") groups[bid].failed++;
-        groups[bid].logs.push(log);
+        const group = groups[bid] ?? {
+          batch_id: bid,
+          date: log.created_at ?? new Date().toISOString(),
+          success: 0,
+          failed: 0,
+          costUsd: 0,
+          dryRun: true,
+          logs: [],
+        };
+        groups[bid] = {
+          ...group,
+          success: group.success + (log.status === "success" ? 1 : 0),
+          failed: group.failed + (log.status === "failed" ? 1 : 0),
+          costUsd: group.costUsd + Number(log.cost ?? 0),
+          dryRun: group.dryRun && log.status === "dry_run",
+          logs: [...group.logs, log],
+        };
       }
       return Object.values(groups)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -133,21 +159,22 @@ const GenerationControls = () => {
     },
   });
 
-  // Read active jobs. Recovery is owned by the server worker, never a page visit.
-  useEffect(() => {
-    const fetchJobs = async () => {
-      const { data } = await supabase
-        .from("generation_jobs")
-        .select("*")
-        .in("status", ["pending", "running"])
-        .order("created_at", { ascending: false });
-      if (!data) return;
-
-      // Opening this page must never complete or cancel a background job.
-      setActiveJobs(data as GenerationJob[]);
-    };
-    fetchJobs();
+  // Mark stalled jobs on the server first, so a dropped chain is released
+  // (the cron sweeper does the same every 10 minutes).
+  const loadJobs = useCallback(async () => {
+    await markStalledJobs().catch(() => undefined);
+    const { data } = await supabase
+      .from("generation_jobs")
+      .select("*")
+      .in("status", OPEN_STATUSES)
+      .order("created_at", { ascending: false });
+    setOpenJobs((data ?? []) as GenerationJob[]);
+    setNowMs(Date.now());
   }, []);
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
 
   // Subscribe to realtime updates on generation_jobs
   useEffect(() => {
@@ -157,45 +184,37 @@ const GenerationControls = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "generation_jobs" },
         (payload) => {
-          const newRow = payload.new as GenerationJob;
-          if (!newRow?.id) return;
-
-          setActiveJobs((prev) => {
-            const existing = prev.findIndex((j) => j.id === newRow.id);
-            if (newRow.status === "completed" || newRow.status === "failed") {
-              // Move to completed jobs list (visible for 8 seconds)
-              setCompletedJobs((cj) => [...cj, newRow]);
-              setTimeout(() => {
-                setCompletedJobs((cj) => cj.filter((j) => j.id !== newRow.id));
-              }, 8000);
-
-              if (newRow.status === "completed") {
-                toast({
-                  title: "Generation complete",
-                  description: `${newRow.success_count} pages created, ${newRow.failed_count} failed, ${newRow.skipped_count} skipped.`,
-                });
-                qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-                refetchBatches();
-              } else {
-                toast({
-                  title: "Generation failed",
-                  description:
-                    newRow.error_message ||
-                    "An error occurred during generation.",
-                  variant: "destructive",
-                });
-              }
-              setGenerating(false);
-              return prev.filter((j) => j.id !== newRow.id);
+          const row = payload.new as GenerationJob;
+          if (!row?.id) return;
+          setNowMs(Date.now());
+          if (FINISHED_STATUSES.includes(row.status)) {
+            setOpenJobs((prev) => prev.filter((j) => j.id !== row.id));
+            setFinishedJobs((prev) => [
+              row,
+              ...prev.filter((j) => j.id !== row.id),
+            ]);
+            if (row.status === "completed") {
+              toast({
+                title: "Generation complete",
+                description: `${row.success_count} pages created, ${row.failed_count} failed, ${row.skipped_count} skipped.`,
+              });
+              qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+              refetchBatches();
+            } else if (row.status === "failed") {
+              toast({
+                title: "Generation failed",
+                description:
+                  row.error_message || "An error occurred during generation.",
+                variant: "destructive",
+              });
             }
-
-            if (existing >= 0) {
-              const updated = [...prev];
-              updated[existing] = newRow;
-              return updated;
-            }
-            return [newRow, ...prev];
-          });
+            return;
+          }
+          setOpenJobs((prev) =>
+            prev.some((j) => j.id === row.id)
+              ? prev.map((j) => (j.id === row.id ? row : j))
+              : [row, ...prev],
+          );
         },
       )
       .subscribe();
@@ -222,6 +241,8 @@ const GenerationControls = () => {
     : selectedContentTypes.size;
   const estimatedPages =
     selectedNiches.size * Math.max(activeSchemaCount, 1) * pagesPerCombo;
+  const estimate = estimateGeneration(estimatedPages);
+  const overCap = estimatedPages > MAX_PAGES_PER_JOB;
   const hasSchemas = (schemas?.length ?? 0) > 0;
 
   const toggleAllContentTypes = () => {
@@ -252,13 +273,26 @@ const GenerationControls = () => {
     });
   };
 
+  // "Select All" acts on the niches the filter shows.
+  const nicheFilterActive = nicheSearch.trim().length > 0;
+  const allShownSelected =
+    filteredNiches.length > 0 &&
+    filteredNiches.every((n) => selectedNiches.has(n.slug));
+  const selectAllLabel = nicheFilterActive
+    ? `${allShownSelected ? "Deselect" : "Select"} ${filteredNiches.length} shown`
+    : allShownSelected
+      ? "Deselect All"
+      : "Select All";
+
   const toggleAll = () => {
-    if (!niches) return;
-    if (selectedNiches.size === niches.length) {
-      setSelectedNiches(new Set());
-    } else {
-      setSelectedNiches(new Set(niches.map((n) => n.slug)));
-    }
+    setSelectedNiches((prev) => {
+      const next = new Set(prev);
+      for (const n of filteredNiches) {
+        if (allShownSelected) next.delete(n.slug);
+        else next.add(n.slug);
+      }
+      return next;
+    });
   };
 
   const toggleNiche = (slug: string) => {
@@ -270,7 +304,55 @@ const GenerationControls = () => {
     });
   };
 
-  const runGeneration = async (overrideDryRun?: boolean) => {
+  const requestBody = () => ({
+    niche_slugs: Array.from(selectedNiches),
+    content_type_slugs: isAllSelected
+      ? ["all_active"]
+      : Array.from(selectedContentTypes),
+    count_per_combination: pagesPerCombo,
+  });
+
+  const runDryRun = async () => {
+    setGenerating(true);
+    setDryRunResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "generate-content",
+        { body: { ...requestBody(), dry_run: true } },
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setDryRunResult(
+        z
+          .object({
+            results: z.array(
+              z.object({
+                title: z.string(),
+                content_type: z.string(),
+                niche: z.string(),
+                content_json: z.unknown(),
+              }),
+            ),
+          })
+          .parse(data),
+      );
+      toast({
+        title: "Dry run complete",
+        description: "Preview the generated content below.",
+      });
+    } catch (err) {
+      toast({
+        title: "Dry run failed",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+      refetchBatches();
+    }
+  };
+
+  const runGeneration = (overrideDryRun?: boolean) => {
     const isDry = overrideDryRun ?? dryRun;
     if (selectedNiches.size === 0) {
       toast({
@@ -288,109 +370,140 @@ const GenerationControls = () => {
       });
       return;
     }
-
     if (isDry) {
-      // Dry run is synchronous
-      setGenerating(true);
-      setDryRunResult(null);
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "generate-content",
-          {
-            body: {
-              niche_slugs: Array.from(selectedNiches),
-              content_type_slugs: isAllSelected
-                ? ["all_active"]
-                : Array.from(selectedContentTypes),
-              count_per_combination: pagesPerCombo,
-              dry_run: true,
-            },
-          },
-        );
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        setDryRunResult(
-          z
-            .object({
-              results: z.array(
-                z.object({
-                  title: z.string(),
-                  content_type: z.string(),
-                  niche: z.string(),
-                  content_json: z.unknown(),
-                }),
-              ),
-            })
-            .parse(data),
-        );
-        toast({
-          title: "Dry run complete",
-          description: "Preview the generated content below.",
-        });
-      } catch (err) {
-        toast({
-          title: "Dry run failed",
-          description: errorMessage(err),
-          variant: "destructive",
-        });
-      } finally {
-        setGenerating(false);
-      }
+      void runDryRun();
       return;
     }
+    if (overCap) return;
+    // Real generation always goes through the confirm dialog.
+    setConfirmOpen(true);
+  };
 
-    // Real generation — returns job_id immediately
+  const startGeneration = async () => {
+    setConfirmOpen(false);
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-content",
-        {
-          body: {
-            niche_slugs: Array.from(selectedNiches),
-            content_type_slugs: isAllSelected
-              ? ["all_active"]
-              : Array.from(selectedContentTypes),
-            count_per_combination: pagesPerCombo,
-            dry_run: false,
-          },
-        },
-      );
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
+      const { status, body } = await invokeAdminFunction("generate-content", {
+        ...requestBody(),
+        dry_run: false,
+        confirmed_total: estimatedPages,
+      });
+      if (status !== 200) {
+        if (body.code === "confirm_required")
+          throw new Error(
+            `The server counts ${String(body.total_combinations)} pages for this selection. Review it and confirm again.`,
+          );
+        if (body.code === "job_running") void loadJobs();
+        throw new Error(bodyError(body, "Generation could not start."));
+      }
+      const now = new Date().toISOString();
+      const job: GenerationJob = {
+        id: String(body.job_id),
+        batch_id: String(body.batch_id),
+        status: "pending",
+        total_combinations: Number(body.total_combinations) || estimatedPages,
+        completed_count: 0,
+        success_count: 0,
+        failed_count: 0,
+        skipped_count: 0,
+        result_summary: null,
+        error_message: null,
+        work_queue: null,
+        created_at: now,
+        updated_at: now,
+      };
+      setOpenJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
+      setNowMs(Date.now());
       toast({
         title: "Generation started",
-        description: `Job queued — ${data.total_combinations} pages. You can navigate away.`,
+        description: `Job queued — ${job.total_combinations} pages. You can navigate away.`,
       });
-
-      // Add to active jobs optimistically
-      setActiveJobs((prev) => [
-        {
-          id: data.job_id,
-          batch_id: data.batch_id,
-          status: "pending",
-          total_combinations: data.total_combinations,
-          completed_count: 0,
-          success_count: 0,
-          failed_count: 0,
-          skipped_count: 0,
-          result_summary: null,
-          error_message: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      // Keep generating=true until realtime reports completion
     } catch (err) {
-      setGenerating(false);
       toast({
         title: "Generation failed",
         description: errorMessage(err),
         variant: "destructive",
       });
+    } finally {
+      setGenerating(false);
     }
   };
+
+  const cancelJob = async (job: GenerationJob) => {
+    setBusyJobId(job.id);
+    try {
+      const { data, error } = await supabase
+        .from("generation_jobs")
+        .update({ status: "cancelled", error_message: "Cancelled by admin" })
+        .eq("id", job.id)
+        .in("status", OPEN_STATUSES)
+        .select("id");
+      if (error) throw error;
+      if (!data?.length) {
+        toast({ title: "This job had already finished" });
+        void loadJobs();
+        return;
+      }
+      const cancelled = { ...job, status: "cancelled" };
+      setOpenJobs((prev) => prev.filter((j) => j.id !== job.id));
+      setFinishedJobs((prev) => [
+        cancelled,
+        ...prev.filter((j) => j.id !== job.id),
+      ]);
+      toast({
+        title: "Job cancelled",
+        description: `${job.completed_count} of ${job.total_combinations} pages were processed.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not cancel the job",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyJobId(null);
+    }
+  };
+
+  const resumeJob = async (job: GenerationJob) => {
+    setBusyJobId(job.id);
+    try {
+      const { status, body } = await invokeAdminFunction("generate-content", {
+        resume_job_id: job.id,
+      });
+      if (status !== 200)
+        throw new Error(bodyError(body, "The job could not resume."));
+      const now = new Date().toISOString();
+      setOpenJobs((prev) =>
+        prev.map((j) =>
+          j.id === job.id
+            ? { ...j, status: "running", error_message: null, updated_at: now }
+            : j,
+        ),
+      );
+      setNowMs(Date.now());
+      toast({
+        title: "Job resumed",
+        description: `Continuing from page ${Number(body.resumed_from ?? job.completed_count) + 1}.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not resume the job",
+        description: errorMessage(err),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyJobId(null);
+    }
+  };
+
+  const generateDisabled =
+    generating ||
+    hasRunningJob ||
+    selectedNiches.size === 0 ||
+    !hasSchemas ||
+    (!isAllSelected && selectedContentTypes.size === 0) ||
+    (!dryRun && overCap);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -418,171 +531,81 @@ const GenerationControls = () => {
         to target and what type of content to create — the AI does the rest.
       </p>
 
-      {/* Active Jobs & Completed Jobs */}
-      {(activeJobs.length > 0 || completedJobs.length > 0) && (
-        <div className="admin-card" style={{ padding: 24, marginBottom: 20 }}>
-          <h2
-            className="font-body"
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: "hsl(var(--admin-text))",
-              marginBottom: 16,
-            }}
+      <GenerationJobsPanel
+        openJobs={openJobs}
+        finishedJobs={finishedJobs}
+        nowMs={nowMs}
+        busyJobId={busyJobId}
+        onCancel={cancelJob}
+        onResume={resumeJob}
+      />
+
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-generation-title"
+            className="admin-card font-body"
+            style={{ padding: 28, maxWidth: 460, width: "90%" }}
           >
-            {activeJobs.length > 0 ? "Active Jobs" : "Just Completed"}
-          </h2>
-          {activeJobs.map((job) => {
-            const pct =
-              job.total_combinations > 0
-                ? Math.round(
-                    (job.completed_count / job.total_combinations) * 100,
-                  )
-                : 0;
-            return (
-              <div key={job.id} style={{ marginBottom: 16 }}>
-                <div
-                  className="flex items-center justify-between font-body"
-                  style={{ marginBottom: 8 }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Loader2
-                      size={14}
-                      className="animate-spin"
-                      style={{ color: "hsl(var(--admin-accent))" }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "hsl(var(--admin-text-soft))",
-                      }}
-                    >
-                      {job.status === "pending"
-                        ? "Starting..."
-                        : `${job.completed_count} of ${job.total_combinations} pages`}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "hsl(var(--admin-text-ghost))",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {job.batch_id.slice(0, 8)}…
-                  </span>
-                </div>
-                <Progress value={pct} className="h-2" />
-                <div className="flex gap-4 font-body" style={{ marginTop: 6 }}>
-                  <span
-                    style={{ fontSize: 11, color: "hsl(var(--admin-sage))" }}
-                  >
-                    ✓ {job.success_count}
-                  </span>
-                  {job.failed_count > 0 && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "hsl(var(--admin-danger))",
-                      }}
-                    >
-                      ✗ {job.failed_count}
-                    </span>
-                  )}
-                  {job.skipped_count > 0 && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "hsl(var(--admin-text-ghost))",
-                      }}
-                    >
-                      ⊘ {job.skipped_count}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {completedJobs.map((job) => (
-            <div
-              key={job.id}
+            <h2
+              id="confirm-generation-title"
               style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "hsl(var(--admin-text))",
                 marginBottom: 12,
-                padding: 12,
-                borderRadius: 6,
-                backgroundColor:
-                  job.status === "completed"
-                    ? "hsl(var(--admin-sage) / 0.08)"
-                    : "hsl(var(--admin-danger) / 0.08)",
-                border: `1px solid ${job.status === "completed" ? "hsl(var(--admin-sage) / 0.2)" : "hsl(var(--admin-danger) / 0.2)"}`,
               }}
             >
-              <div className="flex items-center gap-2 font-body">
-                {job.status === "completed" ? (
-                  <CheckCircle2
-                    size={16}
-                    style={{ color: "hsl(var(--admin-sage))" }}
-                  />
-                ) : (
-                  <XCircle
-                    size={16}
-                    style={{ color: "hsl(var(--admin-danger))" }}
-                  />
-                )}
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "hsl(var(--admin-text))",
-                  }}
-                >
-                  {job.status === "completed"
-                    ? `Done — ${job.success_count} pages created${job.failed_count > 0 ? `, ${job.failed_count} failed` : ""}${job.skipped_count > 0 ? `, ${job.skipped_count} skipped` : ""}`
-                    : `Failed — ${job.error_message || "An error occurred"}`}
-                </span>
-              </div>
-              {job.status === "completed" && (
-                <a
-                  href="/admin/pages"
-                  className="font-body"
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--admin-accent))",
-                    textDecoration: "underline",
-                    marginTop: 6,
-                    display: "inline-block",
-                  }}
-                >
-                  View generated pages →
-                </a>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* No content types guard */}
-      {!hasSchemas && schemas !== undefined && (
-        <div
-          className="admin-card"
-          style={{
-            padding: 24,
-            marginBottom: 20,
-            borderColor: "hsl(var(--admin-warning) / 0.3)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle
-              size={18}
-              style={{ color: "hsl(var(--admin-warning, 45 93% 47%))" }}
-            />
-            <p
-              className="font-body"
-              style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
+              Generate {estimatedPages} pages?
+            </h2>
+            <ul
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--admin-text-soft))",
+                marginBottom: 12,
+                paddingLeft: 16,
+              }}
             >
-              No content types found. Create at least one content type before
-              generating content.
+              <li style={{ listStyle: "disc" }}>
+                {selectedNiches.size}{" "}
+                {selectedNiches.size === 1 ? "industry" : "industries"} ×{" "}
+                {activeSchemaCount} {activeSchemaCount === 1 ? "type" : "types"}{" "}
+                × {pagesPerCombo} = {estimatedPages} draft pages
+              </li>
+              <li style={{ listStyle: "disc" }}>
+                Estimated AI and research cost: about {usd(estimate.costUsd)}
+              </li>
+              <li style={{ listStyle: "disc" }}>
+                Estimated time: about {estimate.minutes} minutes in the
+                background
+              </li>
+            </ul>
+            <p
+              style={{
+                fontSize: 12,
+                color: "hsl(var(--admin-text-ghost))",
+                marginBottom: 20,
+              }}
+            >
+              Costs are estimates from past runs; the real cost of each page is
+              recorded as it is generated. You can cancel the job while it runs.
             </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="admin-btn-ghost"
+                onClick={() => setConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="admin-btn-primary" onClick={startGeneration}>
+                Generate {estimatedPages} pages
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -730,9 +753,7 @@ const GenerationControls = () => {
                     textDecoration: "underline",
                   }}
                 >
-                  {selectedNiches.size === (niches?.length ?? 0)
-                    ? "Deselect All"
-                    : "Select All"}
+                  {selectAllLabel}
                 </button>
               </div>
             </div>
@@ -830,26 +851,34 @@ const GenerationControls = () => {
             <input
               className="admin-input font-body"
               type="number"
+              aria-label="Pages per industry"
               min={1}
-              max={50}
+              max={MAX_PAGES_PER_COMBINATION}
               value={pagesPerCombo}
               onChange={(e) =>
                 setPagesPerCombo(
-                  Math.max(1, Math.min(50, parseInt(e.target.value) || 1)),
+                  Math.max(
+                    1,
+                    Math.min(
+                      MAX_PAGES_PER_COMBINATION,
+                      parseInt(e.target.value) || 1,
+                    ),
+                  ),
                 )
               }
               style={{ width: 100 }}
             />
           </div>
 
-          {/* Large batch warning */}
-          {estimatedPages > 20 && (
+          {/* Job size cap */}
+          {overCap && !dryRun && (
             <div
+              role="alert"
               style={{
                 padding: "10px 14px",
                 borderRadius: 6,
-                backgroundColor: "hsl(var(--admin-warning, 45 93% 47%) / 0.08)",
-                border: "1px solid hsl(var(--admin-warning, 45 93% 47%) / 0.2)",
+                backgroundColor: "hsl(var(--admin-danger) / 0.08)",
+                border: "1px solid hsl(var(--admin-danger) / 0.25)",
               }}
             >
               <p
@@ -861,10 +890,9 @@ const GenerationControls = () => {
                   margin: 0,
                 }}
               >
-                <strong>⏳ Large batch ({estimatedPages} pages):</strong> This
-                will run in the background and may take a while (~1-2 min per
-                page). You can close this page — generation continues on the
-                server.
+                <strong>{estimatedPages} pages is too many for one job.</strong>{" "}
+                The limit is {MAX_PAGES_PER_JOB} pages per job. Pick fewer
+                industries, content types or pages per industry.
               </p>
             </div>
           )}
@@ -927,21 +955,16 @@ const GenerationControls = () => {
               fontWeight: 500,
             }}
           >
-            This will generate approximately {dryRun ? 1 : estimatedPages} page
-            {(dryRun ? 1 : estimatedPages) !== 1 ? "s" : ""}
+            {dryRun
+              ? "A dry run generates 1 sample page (about 1 minute of AI and research credits)."
+              : `This will generate ${estimatedPages} page${estimatedPages !== 1 ? "s" : ""}: about ${usd(estimate.costUsd)} and ${estimate.minutes} minutes. You confirm before it starts.`}
           </p>
 
           {/* Generate button */}
           <button
             className="admin-btn-primary font-body"
             onClick={() => runGeneration()}
-            disabled={
-              generating ||
-              hasRunningJob ||
-              selectedNiches.size === 0 ||
-              !hasSchemas ||
-              (!isAllSelected && selectedContentTypes.size === 0)
-            }
+            disabled={generateDisabled}
             style={{
               width: "100%",
               justifyContent: "center",
@@ -954,186 +977,18 @@ const GenerationControls = () => {
                 <Loader2
                   size={16}
                   className="animate-spin"
+                  aria-hidden
                   style={{ marginRight: 8 }}
                 />{" "}
-                {hasRunningJob ? "Generation in progress..." : "Generating..."}
+                {hasRunningJob ? "Generation in progress..." : "Working..."}
               </>
             ) : (
               <>
-                <Zap size={16} style={{ marginRight: 8 }} /> Generate Content
+                <Zap size={16} aria-hidden style={{ marginRight: 8 }} />{" "}
+                Generate Content
               </>
             )}
           </button>
-
-          {/* Inline progress bar — visible immediately after clicking Generate */}
-          {(generating || hasRunningJob) && (
-            <div
-              style={{
-                marginTop: 16,
-                padding: 16,
-                borderRadius: 8,
-                backgroundColor: "hsl(var(--admin-surface-2))",
-                border: "1px solid hsl(var(--admin-border))",
-              }}
-            >
-              {activeJobs.length > 0 ? (
-                activeJobs.map((job) => {
-                  const pct =
-                    job.total_combinations > 0
-                      ? Math.round(
-                          (job.completed_count / job.total_combinations) * 100,
-                        )
-                      : 0;
-                  return (
-                    <div key={job.id}>
-                      <div
-                        className="flex items-center justify-between font-body"
-                        style={{ marginBottom: 8 }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Loader2
-                            size={14}
-                            className="animate-spin"
-                            style={{ color: "hsl(var(--admin-accent))" }}
-                          />
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                              color: "hsl(var(--admin-text))",
-                            }}
-                          >
-                            {job.status === "pending"
-                              ? "Starting generation..."
-                              : `Processing ${job.completed_count} of ${job.total_combinations} pages...`}
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "hsl(var(--admin-accent))",
-                          }}
-                        >
-                          {pct}%
-                        </span>
-                      </div>
-                      <Progress value={pct} className="h-3" />
-                      <div
-                        className="flex gap-4 font-body"
-                        style={{ marginTop: 8 }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: "hsl(var(--admin-sage))",
-                          }}
-                        >
-                          ✓ {job.success_count} created
-                        </span>
-                        {job.failed_count > 0 && (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: "hsl(var(--admin-danger))",
-                            }}
-                          >
-                            ✗ {job.failed_count} failed
-                          </span>
-                        )}
-                        {job.skipped_count > 0 && (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: "hsl(var(--admin-text-ghost))",
-                            }}
-                          >
-                            ⊘ {job.skipped_count} skipped
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="flex items-center gap-2 font-body">
-                  <Loader2
-                    size={14}
-                    className="animate-spin"
-                    style={{ color: "hsl(var(--admin-accent))" }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: "hsl(var(--admin-text-soft))",
-                    }}
-                  >
-                    Sending request to server...
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Inline completion summary */}
-          {completedJobs.length > 0 && !generating && !hasRunningJob && (
-            <div style={{ marginTop: 16 }}>
-              {completedJobs.map((job) => (
-                <div
-                  key={job.id}
-                  style={{
-                    padding: 14,
-                    borderRadius: 8,
-                    backgroundColor:
-                      job.status === "completed"
-                        ? "hsl(var(--admin-sage) / 0.1)"
-                        : "hsl(var(--admin-danger) / 0.1)",
-                    border: `1px solid ${job.status === "completed" ? "hsl(var(--admin-sage) / 0.25)" : "hsl(var(--admin-danger) / 0.25)"}`,
-                  }}
-                >
-                  <div className="flex items-center gap-2 font-body">
-                    {job.status === "completed" ? (
-                      <CheckCircle2
-                        size={16}
-                        style={{ color: "hsl(var(--admin-sage))" }}
-                      />
-                    ) : (
-                      <XCircle
-                        size={16}
-                        style={{ color: "hsl(var(--admin-danger))" }}
-                      />
-                    )}
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "hsl(var(--admin-text))",
-                      }}
-                    >
-                      {job.status === "completed"
-                        ? `Done — ${job.success_count} pages created${job.failed_count > 0 ? `, ${job.failed_count} failed` : ""}${job.skipped_count > 0 ? `, ${job.skipped_count} skipped` : ""}`
-                        : `Failed — ${job.error_message || "An error occurred"}`}
-                    </span>
-                  </div>
-                  {job.status === "completed" && (
-                    <a
-                      href="/admin/pages"
-                      className="font-body"
-                      style={{
-                        fontSize: 12,
-                        color: "hsl(var(--admin-accent))",
-                        textDecoration: "underline",
-                        marginTop: 8,
-                        display: "inline-block",
-                      }}
-                    >
-                      View generated pages →
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -1208,7 +1063,7 @@ const GenerationControls = () => {
                 setDryRun(false);
                 runGeneration(false);
               }}
-              disabled={generating}
+              disabled={generating || hasRunningJob || overCap}
             >
               Looks Good — Generate Full Batch
             </button>
@@ -1289,6 +1144,16 @@ const GenerationControls = () => {
                     >
                       {batch.batch_id.slice(0, 8)}…
                     </span>
+                    {batch.dryRun && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--admin-text-ghost))",
+                        }}
+                      >
+                        Dry run
+                      </span>
+                    )}
                     <span
                       style={{
                         fontSize: 12,
@@ -1304,6 +1169,14 @@ const GenerationControls = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "hsl(var(--admin-text-soft))",
+                      }}
+                    >
+                      {usd(batch.costUsd)}
+                    </span>
                     <span
                       style={{ fontSize: 12, color: "hsl(var(--admin-sage))" }}
                     >
@@ -1515,25 +1388,5 @@ const GenerationControls = () => {
     </div>
   );
 };
-
-const Stat = ({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) => (
-  <div
-    className="font-body"
-    style={{ display: "flex", alignItems: "center", gap: 8 }}
-  >
-    <span style={{ fontSize: 22, fontWeight: 700, color }}>{value}</span>
-    <span style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}>
-      {label}
-    </span>
-  </div>
-);
 
 export default GenerationControls;

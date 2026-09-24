@@ -240,17 +240,35 @@ async function researchPillar(
   return { context, sources: dedupedSources };
 }
 
+// Mirrors public.validate_pillar_pages_status (migration
+// 20260923152000_resources_and_guides.sql): a guide goes live only with this
+// much visible text and this many H2 sections.
+const GUIDE_MIN_TEXT_CHARS = 1500;
+const GUIDE_MIN_SECTIONS = 3;
+
+function guideStructureOk(html: string): boolean {
+  const text = html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;|&#160;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const sections = (html.match(/<h2[\s>]/gi) ?? []).length;
+  return text.length >= GUIDE_MIN_TEXT_CHARS && sections >= GUIDE_MIN_SECTIONS;
+}
+
 async function generatePillarForNiche(
   supabase: any,
   niche: any,
   apiKey: string,
   supabaseUrl: string,
   serviceRoleKey: string,
+  autoPublish = false,
 ): Promise<{
   success: boolean;
   pillar_id?: string;
   error?: string;
   score?: number;
+  status?: string;
 }> {
   const ctx = (niche.context || {}) as Record<string, any>;
   const targetKeyword: string = (
@@ -494,7 +512,10 @@ Return ONLY the JSON object.`;
     sources,
   };
 
-  const shouldPublish = score >= 75;
+  // Generated guides are saved as drafts for review. Only an explicit
+  // auto_publish request publishes, and only when the guide passes both the
+  // score threshold and the structure rule the database enforces.
+  const shouldPublish = autoPublish && score >= 75 && guideStructureOk(html);
 
   const { data: saved, error: saveErr } = await supabase
     .from("pillar_pages")
@@ -528,7 +549,7 @@ Return ONLY the JSON object.`;
     // invoking it with a synthetic call would fail. Keep pillar OG at site default for now.)
   }
 
-  return { success: true, pillar_id: saved.id, score };
+  return { success: true, pillar_id: saved.id, score, status: saved.status };
 }
 
 Deno.serve(async (req) => {
@@ -591,6 +612,7 @@ Deno.serve(async (req) => {
       niche_id?: string;
       all_missing?: boolean;
     };
+    const autoPublish = body?.auto_publish === true;
 
     if (all_missing) {
       const { data: niches } = await supabase
@@ -613,6 +635,7 @@ Deno.serve(async (req) => {
             LOVABLE_API_KEY,
             SUPABASE_URL,
             SUPABASE_SERVICE_ROLE_KEY,
+            autoPublish,
           );
           results.push({ niche: n.name, ...r });
         } catch (e: any) {
@@ -650,6 +673,7 @@ Deno.serve(async (req) => {
       LOVABLE_API_KEY,
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
+      autoPublish,
     );
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 400,

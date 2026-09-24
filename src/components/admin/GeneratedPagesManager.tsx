@@ -1,12 +1,20 @@
 import { z } from "zod";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
+import { invokeAdminFunction } from "./manualPublishClient";
+import {
+  bulkResultSummary,
+  friendlyPublishError,
+  keepVisibleSelection,
+  publishPagesOneByOne,
+  type BulkPublishResult,
+  type PublishedRow,
+} from "@/lib/resourcePages";
 import {
   Search,
   MoreHorizontal,
@@ -24,7 +32,6 @@ import {
   CheckSquare,
   ImageIcon,
   Globe,
-  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +42,14 @@ import {
 
 const STATUSES = ["all", "draft", "review", "published", "archived"] as const;
 const PER_PAGE = 25;
+// Every row renders exactly these 9 cells, so columns never shift.
+const GRID_COLUMNS = "40px 1fr 120px 120px 110px 70px 60px 90px 50px";
+// The list never loads page bodies (content_json).
+const LIST_COLUMNS =
+  "id, title, slug, status, niche_id, content_schema_id, performance_trend, quality_score, lint_flags, views, created_at, refresh_count, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)";
+/** Refresh runs take 65-116 s (generation_logs); leave headroom. */
+const REFRESH_TIMEOUT_MS = 180_000;
+const CONFIRM_LIST_LIMIT = 8;
 
 const statusColors: Record<string, { bg: string; color: string }> = {
   draft: {
@@ -66,6 +81,46 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
+const bodyError = (body: Record<string, unknown>, fallback: string) =>
+  typeof body.error === "string" && body.error.trim() ? body.error : fallback;
+
+/** Server-side quality score for one page (stored by the scoring function). */
+async function scorePageOnServer(id: string) {
+  const { status, body } = await invokeAdminFunction("score-content-quality", {
+    page_id: id,
+  });
+  if (status !== 200)
+    throw new Error(bodyError(body, "The quality check could not run."));
+  const score = Number(body.score);
+  if (!Number.isFinite(score))
+    throw new Error("The quality check returned no score.");
+  const issues = Array.isArray(body.issues)
+    ? body.issues.filter((i): i is string => typeof i === "string")
+    : [];
+  return { score, issues };
+}
+
+async function publishOnePage(id: string) {
+  const { error } = await supabase
+    .from("generated_pages")
+    .update({ status: "published", published_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+function blockedDescription(result: BulkPublishResult): string | undefined {
+  if (!result.blocked.length) return undefined;
+  const lines = result.blocked
+    .slice(0, 3)
+    .map((b) => `${b.title}: ${b.reason}`);
+  const more = result.blocked.length - lines.length;
+  return [...lines, ...(more > 0 ? [`and ${more} more`] : [])].join("\n");
+}
+
+const dialogOverlay: React.CSSProperties = {
+  backgroundColor: "rgba(0,0,0,0.6)",
+};
+
 const GeneratedPagesManager = () => {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -84,6 +139,16 @@ const GeneratedPagesManager = () => {
   const [sortAsc, setSortAsc] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkAction, setBulkAction] = useState<string | null>(null);
+  const [regenTarget, setRegenTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
+  // Bulk actions only ever apply to rows Brian can see: a filter change
+  // clears the selection.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [statusFilter, nicheFilter, schemaFilter, search, needsRefresh]);
 
   // Fetch data
   const { data: pages, isLoading } = useQuery({
@@ -91,9 +156,7 @@ const GeneratedPagesManager = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select(
-          "*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)",
-        )
+        .select(LIST_COLUMNS)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -180,20 +243,18 @@ const GeneratedPagesManager = () => {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  const selectedVisible = filtered.filter((p) => selected.has(p.id));
+  const titleFor = (id: string) =>
+    (pages ?? []).find((p) => p.id === id)?.title ?? id;
 
   const allOnPageSelected =
     paginated.length > 0 && paginated.every((p) => selected.has(p.id));
 
   const toggleAll = () => {
-    if (allOnPageSelected) {
-      const next = new Set(selected);
-      paginated.forEach((p) => next.delete(p.id));
-      setSelected(next);
-    } else {
-      const next = new Set(selected);
-      paginated.forEach((p) => next.add(p.id));
-      setSelected(next);
-    }
+    const next = new Set(selected);
+    if (allOnPageSelected) paginated.forEach((p) => next.delete(p.id));
+    else paginated.forEach((p) => next.add(p.id));
+    setSelected(next);
   };
 
   const toggleOne = (id: string) => {
@@ -217,124 +278,158 @@ const GeneratedPagesManager = () => {
     return sortAsc ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
-  // Mutations
-  const updateStatus = useMutation({
-    mutationFn: ({ ids, status }: { ids: string[]; status: string }) =>
-      safeMutation(async () => {
-        const updateData: Record<string, unknown> = { status };
-        if (status === "published")
-          updateData.published_at = new Date().toISOString();
-        const { error } = await supabase
-          .from("generated_pages")
-          .update(updateData as never)
-          .in("id", ids);
-        if (error) throw error;
+  const refreshLists = () => {
+    qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+    qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
+  };
 
-        // On publish: trigger OG image generation, silo linking, and IndexNow submission
-        if (status === "published") {
-          const publishedUrls: string[] = [];
-          for (const id of ids) {
-            const pg = (pages ?? []).find((p) => p.id === id);
-            if (!pg) continue;
-            const niche = pg.niches;
-            const schema = pg.content_schemas;
-            // Fire and forget — don't block on these
-            supabase.functions
-              .invoke("generate-og-image", { body: { page_id: id } })
-              .catch(() => {});
-            supabase.functions
-              .invoke("build-silo-links", { body: { page_id: id } })
-              .catch(() => {});
-            if (schema?.slug && pg.slug) {
-              publishedUrls.push(`/resources/${schema.slug}/${pg.slug}`);
-            }
-          }
-          // Submit all published URLs at once via IndexNow
-          if (publishedUrls.length > 0) {
-            supabase.functions
-              .invoke("submit-indexnow", { body: { urls: publishedUrls } })
-              .catch(() => {});
-          }
-        }
-      }, 30000),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-      qc.invalidateQueries({ queryKey: ["admin-indexing-logs"] });
-      setSelected(new Set());
+  // OG image, silo links and IndexNow run only for pages that went live.
+  const afterPublish = (published: PublishedRow[]) => {
+    const urls: string[] = [];
+    for (const { id } of published) {
+      const pg = (pages ?? []).find((p) => p.id === id);
+      supabase.functions
+        .invoke("generate-og-image", { body: { page_id: id } })
+        .catch(() => {});
+      supabase.functions
+        .invoke("build-silo-links", { body: { page_id: id } })
+        .catch(() => {});
+      if (pg?.content_schemas?.slug && pg.slug)
+        urls.push(`/resources/${pg.content_schemas.slug}/${pg.slug}`);
+    }
+    if (urls.length)
+      supabase.functions
+        .invoke("submit-indexnow", { body: { urls } })
+        .catch(() => {});
+  };
+
+  // Mutations
+  const publishMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      safeMutation(
+        () =>
+          publishPagesOneByOne({
+            ids,
+            titleFor,
+            scorePage: scorePageOnServer,
+            publishPage: publishOnePage,
+          }),
+        30_000 + ids.length * 15_000,
+      ),
+    onSuccess: (result) => {
+      refreshLists();
+      afterPublish(result.published);
+      setSelected(new Set(result.blocked.map((b) => b.id)));
       setBulkAction(null);
-      toast({ title: "Updated" });
+      toast({
+        title: bulkResultSummary(result),
+        description: blockedDescription(result),
+        variant:
+          result.blocked.length && !result.published.length
+            ? "destructive"
+            : "default",
+      });
     },
+    onError: (e) =>
+      toast({
+        title: "Could not publish",
+        description: friendlyPublishError(errorMessage(e)),
+        variant: "destructive",
+      }),
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      safeMutation(async () => {
+        const { error } = await supabase
+          .from("generated_pages")
+          .update({ status: "archived" })
+          .in("id", ids);
+        if (error) throw error;
+      }, 30000),
+    onSuccess: (_data, ids) => {
+      refreshLists();
+      setSelected(new Set());
+      setBulkAction(null);
+      toast({ title: `${ids.length} archived` });
+    },
+    onError: (e) =>
+      toast({
+        title: "Could not update",
+        description: errorMessage(e),
+        variant: "destructive",
+      }),
+  });
+
+  // One statement: keyword assignments cascade, and indexing/generation logs
+  // keep their rows with page_id set to NULL (migration 20260923152000).
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) =>
       safeMutation(async () => {
-        await supabase.from("keyword_assignments").delete().in("page_id", ids);
-        await supabase
-          .from("generation_logs")
-          .delete()
-          .in("generated_page_id", ids);
         const { error } = await supabase
           .from("generated_pages")
           .delete()
           .in("id", ids);
         if (error) throw error;
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+    onSuccess: (_data, ids) => {
+      refreshLists();
       setSelected(new Set());
       setDeleteId(null);
       setBulkAction(null);
-      toast({ title: "Deleted" });
+      toast({ title: ids.length === 1 ? "Deleted" : `${ids.length} deleted` });
     },
+    onError: (e) =>
+      toast({
+        title: "Could not delete",
+        description: errorMessage(e),
+        variant: "destructive",
+      }),
   });
 
+  // Rewrites one page's content in place with fresh research (same title
+  // intent and URL) through the per-page refresh function.
   const regenerateMutation = useMutation({
-    mutationFn: (pageItem: NonNullable<typeof pages>[number]) =>
+    mutationFn: (id: string) =>
       safeMutation(async () => {
-        const nicheSlug = pageItem.niches?.slug;
-        const schemaSlug = pageItem.content_schemas?.slug;
-        if (!nicheSlug || !schemaSlug)
-          throw new Error("Missing niche or schema");
-        const { data, error } = await supabase.functions.invoke(
-          "generate-content",
-          {
-            body: {
-              niche_slugs: [nicheSlug],
-              content_type_slug: schemaSlug,
-              count_per_combination: 1,
-              dry_run: true,
-            },
-          },
+        const { status, body } = await invokeAdminFunction(
+          "refresh-stale-content",
+          { page_id: id },
         );
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        if (!data?.content_json) throw new Error("No content returned");
-        // Update the page with new content
-        const { error: updateErr } = await supabase
-          .from("generated_pages")
-          .update({
-            content_json: data.content_json,
-            seo_meta: data.seo_meta,
-            schema_markup: data.schema_markup,
-            last_refreshed: new Date().toISOString(),
-            refresh_count: (pageItem.refresh_count || 0) + 1,
-          })
-          .eq("id", pageItem.id);
-        if (updateErr) throw updateErr;
-      }, 60000),
+        if (status !== 200)
+          throw new Error(bodyError(body, "The refresh could not run."));
+        if (body.refreshed !== 1)
+          throw new Error(
+            Number(body.failed) > 0
+              ? "The refresh failed. See Recent Generation Runs for the reason."
+              : bodyError(body, "Nothing was refreshed."),
+          );
+      }, REFRESH_TIMEOUT_MS),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
-      toast({ title: "Regenerated!" });
+      refreshLists();
+      setRegenTarget(null);
+      toast({
+        title: "Content refreshed",
+        description: "The page was rewritten and re-scored.",
+      });
     },
     onError: (e) => {
+      setRegenTarget(null);
       toast({
-        title: "Regeneration failed",
+        title: "Refresh failed",
         description: errorMessage(e),
         variant: "destructive",
       });
     },
   });
+
+  const bulkBusy =
+    publishMutation.isPending ||
+    archiveMutation.isPending ||
+    deleteMutation.isPending;
+  const bulkIds = [...keepVisibleSelection(selected, filtered)];
+
+  const resetPage = () => setPage(0);
 
   return (
     <div>
@@ -345,7 +440,7 @@ const GeneratedPagesManager = () => {
             className="admin-btn-ghost"
             onClick={() => {
               setParams({});
-              setPage(0);
+              resetPage();
             }}
           >
             Show all resources
@@ -375,9 +470,10 @@ const GeneratedPagesManager = () => {
           {STATUSES.map((s) => (
             <button
               key={s}
+              aria-pressed={statusFilter === s}
               onClick={() => {
                 setStatusFilter(s);
-                setPage(0);
+                resetPage();
               }}
               className="font-body"
               style={{
@@ -410,10 +506,11 @@ const GeneratedPagesManager = () => {
 
         {/* Content type dropdown */}
         <select
+          aria-label="Filter by content type"
           value={schemaFilter}
           onChange={(e) => {
             setSchemaFilter(e.target.value);
-            setPage(0);
+            resetPage();
           }}
           className="admin-input font-body"
           style={{ fontSize: 12, padding: "6px 10px", minWidth: 140 }}
@@ -428,10 +525,11 @@ const GeneratedPagesManager = () => {
 
         {/* Niche dropdown */}
         <select
+          aria-label="Filter by niche"
           value={nicheFilter}
           onChange={(e) => {
             setNicheFilter(e.target.value);
-            setPage(0);
+            resetPage();
           }}
           className="admin-input font-body"
           style={{ fontSize: 12, padding: "6px 10px", minWidth: 140 }}
@@ -448,6 +546,7 @@ const GeneratedPagesManager = () => {
         <div className="relative flex-1" style={{ minWidth: 180 }}>
           <Search
             size={14}
+            aria-hidden
             style={{
               position: "absolute",
               left: 12,
@@ -457,11 +556,12 @@ const GeneratedPagesManager = () => {
             }}
           />
           <input
+            aria-label="Search pages"
             placeholder="Search pages..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setPage(0);
+              resetPage();
             }}
             className="admin-input font-body w-full"
             style={{ paddingLeft: 34, fontSize: 12 }}
@@ -469,28 +569,13 @@ const GeneratedPagesManager = () => {
         </div>
       </div>
 
-      {needsRefresh && (
-        <div className="admin-notice">
-          Showing published resources flagged for refresh.{" "}
-          <button
-            className="admin-btn-ghost"
-            onClick={() => {
-              setParams({});
-              setPage(0);
-            }}
-          >
-            Show all resources
-          </button>
-        </div>
-      )}
       {/* Table */}
       <div className="admin-card" style={{ overflow: "hidden" }}>
         {/* Header row */}
         <div
           className="hidden lg:grid items-center"
           style={{
-            gridTemplateColumns:
-              "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
+            gridTemplateColumns: GRID_COLUMNS,
             padding: "10px 20px",
             borderBottom: "1px solid hsl(var(--admin-border))",
             backgroundColor: "hsl(var(--admin-surface-2))",
@@ -506,6 +591,7 @@ const GeneratedPagesManager = () => {
           >
             <input
               type="checkbox"
+              aria-label="Select all pages on this page"
               checked={allOnPageSelected}
               onChange={toggleAll}
               style={{ accentColor: "hsl(var(--admin-accent))" }}
@@ -583,14 +669,20 @@ const GeneratedPagesManager = () => {
           const niche = pg.niches;
           const schema = pg.content_schemas;
           const sc = statusColors[pg.status ?? "draft"] || statusColors.draft;
+          const idxStatus = indexingMap?.get(pg.id);
+          const idxLabel =
+            idxStatus === "indexed"
+              ? "Indexed by Google"
+              : "Submitted to Google";
+          const isPublished = pg.status === "published";
 
           return (
             <div
               key={pg.id}
+              data-row
               className="lg:grid flex flex-col"
               style={{
-                gridTemplateColumns:
-                  "40px 1fr 120px 120px 90px 70px 60px 90px 50px",
+                gridTemplateColumns: GRID_COLUMNS,
                 padding: "12px 20px",
                 borderBottom: "1px solid hsl(var(--admin-border))",
                 alignItems: "center",
@@ -619,6 +711,7 @@ const GeneratedPagesManager = () => {
               >
                 <input
                   type="checkbox"
+                  aria-label={`Select ${pg.title}`}
                   checked={selected.has(pg.id)}
                   onChange={() => toggleOne(pg.id)}
                   style={{ accentColor: "hsl(var(--admin-accent))" }}
@@ -628,6 +721,7 @@ const GeneratedPagesManager = () => {
                 {pg.performance_trend === "needs_refresh" && (
                   <span
                     title="Needs refresh (90+ days old)"
+                    aria-label="Needs refresh"
                     style={{
                       display: "inline-block",
                       width: 8,
@@ -674,38 +768,44 @@ const GeneratedPagesManager = () => {
               >
                 {schema?.name || "—"}
               </span>
-              <span
-                className="font-body"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 10px",
-                  borderRadius: 4,
-                  background: sc.bg,
-                  color: sc.color,
-                  width: "fit-content",
-                  textTransform: "capitalize",
-                }}
-              >
-                {pg.status}
-              </span>
-              {(() => {
-                const idxStatus = indexingMap?.get(pg.id);
-                if (!idxStatus) return null;
-                const color =
-                  idxStatus === "indexed"
-                    ? "hsl(var(--admin-sage))"
-                    : "hsl(var(--admin-accent))";
-                const label =
-                  idxStatus === "indexed"
-                    ? "Indexed by Google"
-                    : "Submitted to Google";
-                return (
-                  <span title={label}>
-                    <Globe size={12} style={{ color, flexShrink: 0 }} />
+              {/* Status and Google indexing share one cell. */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="font-body"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 10px",
+                    borderRadius: 4,
+                    background: sc.bg,
+                    color: sc.color,
+                    width: "fit-content",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {pg.status}
+                </span>
+                {idxStatus && (
+                  <span
+                    role="img"
+                    title={idxLabel}
+                    aria-label={idxLabel}
+                    style={{ display: "inline-flex" }}
+                  >
+                    <Globe
+                      size={12}
+                      aria-hidden
+                      style={{
+                        color:
+                          idxStatus === "indexed"
+                            ? "hsl(var(--admin-sage))"
+                            : "hsl(var(--admin-accent))",
+                        flexShrink: 0,
+                      }}
+                    />
                   </span>
-                );
-              })()}
+                )}
+              </div>
               <span
                 className="font-body flex items-center gap-1"
                 style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
@@ -765,6 +865,7 @@ const GeneratedPagesManager = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
+                    aria-label={`Actions for ${pg.title}`}
                     style={{
                       background: "none",
                       border: "none",
@@ -773,41 +874,46 @@ const GeneratedPagesManager = () => {
                       padding: 4,
                     }}
                   >
-                    <MoreHorizontal size={16} />
+                    <MoreHorizontal size={16} aria-hidden />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" style={{ minWidth: 160 }}>
+                <DropdownMenuContent align="end" style={{ minWidth: 180 }}>
                   <DropdownMenuItem
                     onClick={() => {
+                      // Drafts render for signed-in admins at the same URL.
                       const url = `/resources/${schema?.slug || "page"}/${pg.slug}`;
                       window.open(url, "_blank");
                     }}
                   >
-                    <Eye size={14} className="mr-2" /> Preview
+                    <Eye size={14} className="mr-2" />{" "}
+                    {isPublished ? "View live page" : "Preview draft"}
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to={`/admin/pages/${pg.id}/edit`}>
-                      <Pencil size={14} className="mr-2" /> Edit JSON
+                      <Pencil size={14} className="mr-2" /> Edit
                     </Link>
                   </DropdownMenuItem>
+                  {!isPublished && (
+                    <DropdownMenuItem
+                      disabled={publishMutation.isPending}
+                      onClick={() => publishMutation.mutate([pg.id])}
+                    >
+                      <ExternalLink size={14} className="mr-2" /> Publish
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    onClick={() =>
-                      updateStatus.mutate({ ids: [pg.id], status: "published" })
-                    }
-                  >
-                    <ExternalLink size={14} className="mr-2" /> Publish
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      updateStatus.mutate({ ids: [pg.id], status: "archived" })
-                    }
+                    disabled={archiveMutation.isPending}
+                    onClick={() => archiveMutation.mutate([pg.id])}
                   >
                     <Archive size={14} className="mr-2" /> Archive
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => regenerateMutation.mutate(pg)}
+                    disabled={regenerateMutation.isPending}
+                    onClick={() =>
+                      setRegenTarget({ id: pg.id, title: pg.title })
+                    }
                   >
-                    <RefreshCw size={14} className="mr-2" /> Regenerate
+                    <RefreshCw size={14} className="mr-2" /> Regenerate…
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={async () => {
@@ -890,7 +996,7 @@ const GeneratedPagesManager = () => {
       )}
 
       {/* Bulk actions bar */}
-      {selected.size > 0 && (
+      {selectedVisible.length > 0 && (
         <div
           className="fixed bottom-6 left-1/2 flex items-center gap-4"
           style={{
@@ -913,14 +1019,22 @@ const GeneratedPagesManager = () => {
           >
             <CheckSquare
               size={14}
+              aria-hidden
               style={{
                 display: "inline",
                 marginRight: 6,
                 verticalAlign: "middle",
               }}
             />
-            {selected.size} selected
+            {selectedVisible.length} selected
           </span>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="admin-btn-ghost"
+            style={{ fontSize: 12, padding: "6px 14px" }}
+          >
+            Clear
+          </button>
           <button
             onClick={() => setBulkAction("publish")}
             className="admin-btn-ghost"
@@ -953,13 +1067,17 @@ const GeneratedPagesManager = () => {
       {deleteId && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          style={dialogOverlay}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-page-title"
             className="admin-card"
             style={{ padding: 32, maxWidth: 380, width: "90%" }}
           >
             <p
+              id="delete-page-title"
               className="font-body"
               style={{
                 fontSize: 15,
@@ -967,7 +1085,7 @@ const GeneratedPagesManager = () => {
                 color: "hsl(var(--admin-text))",
               }}
             >
-              Delete this page? This cannot be undone.
+              Delete “{titleFor(deleteId)}”? This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -978,6 +1096,7 @@ const GeneratedPagesManager = () => {
               </button>
               <button
                 onClick={() => deleteMutation.mutate([deleteId])}
+                disabled={deleteMutation.isPending}
                 className="admin-btn-primary"
                 style={{ background: "hsl(var(--admin-danger))" }}
               >
@@ -988,47 +1107,127 @@ const GeneratedPagesManager = () => {
         </div>
       )}
 
-      {/* Bulk action confirmation */}
-      {bulkAction && (
+      {/* Regenerate confirmation */}
+      {regenTarget && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          style={dialogOverlay}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="regenerate-page-title"
             className="admin-card"
-            style={{ padding: 32, maxWidth: 420, width: "90%" }}
+            style={{ padding: 32, maxWidth: 440, width: "90%" }}
           >
             <p
+              id="regenerate-page-title"
               className="font-body"
               style={{
                 fontSize: 15,
-                marginBottom: 20,
+                marginBottom: 12,
                 color: "hsl(var(--admin-text))",
               }}
             >
-              {bulkAction === "delete"
-                ? `Delete ${selected.size} pages? This cannot be undone.`
-                : `${bulkAction === "publish" ? "Publish" : "Archive"} ${selected.size} pages?`}
+              Rewrite “{regenTarget.title}” with fresh research?
+            </p>
+            <p
+              className="font-body"
+              style={{
+                fontSize: 13,
+                marginBottom: 20,
+                color: "hsl(var(--admin-text-soft))",
+              }}
+            >
+              The current content and any manual edits are replaced. The URL
+              stays the same. It takes 1–2 minutes and uses AI and research
+              credits.
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setBulkAction(null)}
+                onClick={() => setRegenTarget(null)}
+                disabled={regenerateMutation.isPending}
                 className="admin-btn-ghost"
               >
                 Cancel
               </button>
               <button
+                onClick={() => regenerateMutation.mutate(regenTarget.id)}
+                disabled={regenerateMutation.isPending}
+                className="admin-btn-primary"
+              >
+                {regenerateMutation.isPending
+                  ? "Rewriting..."
+                  : "Rewrite content"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk action confirmation */}
+      {bulkAction && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={dialogOverlay}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-action-title"
+            className="admin-card"
+            style={{ padding: 32, maxWidth: 460, width: "90%" }}
+          >
+            <p
+              id="bulk-action-title"
+              className="font-body"
+              style={{
+                fontSize: 15,
+                marginBottom: 12,
+                color: "hsl(var(--admin-text))",
+              }}
+            >
+              {bulkAction === "delete"
+                ? `Delete ${bulkIds.length} pages? This cannot be undone.`
+                : bulkAction === "publish"
+                  ? `Publish ${bulkIds.length} pages? Each page is re-scored first; pages below 75 stay unpublished.`
+                  : `Archive ${bulkIds.length} pages?`}
+            </p>
+            <ul
+              className="font-body"
+              style={{
+                fontSize: 12,
+                marginBottom: 20,
+                paddingLeft: 16,
+                color: "hsl(var(--admin-text-soft))",
+              }}
+            >
+              {bulkIds.slice(0, CONFIRM_LIST_LIMIT).map((id) => (
+                <li key={id} style={{ listStyle: "disc" }}>
+                  {titleFor(id)}
+                </li>
+              ))}
+              {bulkIds.length > CONFIRM_LIST_LIMIT && (
+                <li style={{ listStyle: "none" }}>
+                  and {bulkIds.length - CONFIRM_LIST_LIMIT} more
+                </li>
+              )}
+            </ul>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setBulkAction(null)}
+                disabled={bulkBusy}
+                className="admin-btn-ghost"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={bulkBusy || bulkIds.length === 0}
                 onClick={() => {
-                  const ids = Array.from(selected);
-                  if (bulkAction === "delete") {
-                    deleteMutation.mutate(ids);
-                  } else {
-                    updateStatus.mutate({
-                      ids,
-                      status:
-                        bulkAction === "publish" ? "published" : "archived",
-                    });
-                  }
+                  if (bulkAction === "delete") deleteMutation.mutate(bulkIds);
+                  else if (bulkAction === "publish")
+                    publishMutation.mutate(bulkIds);
+                  else archiveMutation.mutate(bulkIds);
                 }}
                 className="admin-btn-primary"
                 style={
@@ -1037,9 +1236,7 @@ const GeneratedPagesManager = () => {
                     : {}
                 }
               >
-                {deleteMutation.isPending || updateStatus.isPending
-                  ? "Processing..."
-                  : "Confirm"}
+                {bulkBusy ? "Processing..." : "Confirm"}
               </button>
             </div>
           </div>

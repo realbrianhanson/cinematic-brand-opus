@@ -6,7 +6,16 @@ import {
   scoreContent,
   composeTitle,
   writeMetaDescription,
+  applyTitleLint,
+  shortAudienceLabel,
 } from "../_shared/voice.ts";
+import {
+  addUsage,
+  EMPTY_USAGE,
+  MAX_REFRESH_PAGES_PER_CALL,
+  roundUsd,
+  type UsageTotals,
+} from "../_shared/generationLimits.ts";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 
 const corsHeaders = {
@@ -29,6 +38,9 @@ function extractJson(raw: string): string {
   return (fenced ? fenced[1] : raw).trim();
 }
 
+/** Abort a hung AI or research call so one page fails, not the whole run. */
+const REQUEST_TIMEOUT_MS = 90_000;
+
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -42,17 +54,20 @@ async function researchTopic(
   context: string;
   hasResearch: boolean;
   sources: { url: string; title?: string }[];
+  usage: UsageTotals;
 }> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const researchParts: string[] = [];
   const sources: { url: string; title?: string }[] = [];
+  let usage: UsageTotals = EMPTY_USAGE;
 
   if (PERPLEXITY_API_KEY) {
     try {
       const query = `What are the most actively used and well-reviewed ${schemaName.toLowerCase()} for ${nicheName} in ${currentYear}? List ONLY tools and platforms that are currently popular, actively maintained, and have recent user reviews or updates. Include specific names, pricing, and what makes each one stand out. Exclude any tools that have shut down, pivoted away from this space, or lost significant market share. Focus on what ${audience} are actually adopting right now in ${currentYear}.`;
       const resp = await fetch(PERPLEXITY_API, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
           "Content-Type": "application/json",
@@ -71,6 +86,7 @@ async function researchTopic(
       });
       if (resp.ok) {
         const data = await resp.json();
+        usage = addUsage(usage, "sonar-pro", data.usage);
         const content = data.choices?.[0]?.message?.content || "";
         const citations = data.citations || [];
         if (content) {
@@ -98,6 +114,7 @@ async function researchTopic(
     try {
       const searchResp = await fetch(`${FIRECRAWL_API}/search`, {
         method: "POST",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
@@ -147,9 +164,10 @@ async function researchTopic(
     console.warn(
       `⚠️ No research data available for "${schemaName}" in "${nicheName}" — content will be conservative`,
     );
-    return { context: "", hasResearch: false, sources: dedupedSources };
+    return { context: "", hasResearch: false, sources: dedupedSources, usage };
   }
   return {
+    usage,
     context: `\n\n═══ VERIFIED REAL-TIME RESEARCH DATA (${currentYear}) ═══\nThe following is CURRENT, VERIFIED information from live web sources. This is your ONLY source of truth for tool/platform/company names.\nYou MUST ONLY reference tools, platforms, and companies that appear in this research data.\nDo NOT add any tools from your own training data. If a tool is not listed below, do NOT include it.\n\n${researchParts.join("\n\n")}\n\n═══ END OF RESEARCH DATA ═══`,
     hasResearch: true,
     sources: dedupedSources,
@@ -188,6 +206,17 @@ Deno.serve(async (req) => {
       : typeof page_id === "string"
         ? [page_id]
         : null;
+    if (explicitIds && explicitIds.length > MAX_REFRESH_PAGES_PER_CALL) {
+      return new Response(
+        JSON.stringify({
+          error: `Refresh at most ${MAX_REFRESH_PAGES_PER_CALL} pages per request.`,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     let pagesToRefresh: any[] = [];
     const skippedHumanEdited: { id: string; slug: string; title: string }[] =
@@ -301,12 +330,14 @@ Deno.serve(async (req) => {
         context: researchContext,
         hasResearch,
         sources,
+        usage: researchUsage,
       } = await researchTopic(
         niche.name,
         schema.name,
-        ctx.audience || "general",
+        shortAudienceLabel(ctx, niche.name),
         currentYear,
       );
+      let usage: UsageTotals = researchUsage;
 
       const researchConstraints = hasResearch
         ? `- CRITICAL: ONLY use tools, platforms, and companies that are EXPLICITLY mentioned in the VERIFIED REAL-TIME RESEARCH DATA above. Do NOT supplement with your own knowledge or training data.
@@ -359,7 +390,6 @@ ${title}
 Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
 
       let contentJson: any = null;
-      let tokensUsed = 0;
       let aiError: string | null = null;
 
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -378,6 +408,7 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
         try {
           const aiResp = await fetch(AI_GATEWAY, {
             method: "POST",
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -399,7 +430,7 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
           }
 
           const aiData = await aiResp.json();
-          tokensUsed = aiData.usage?.total_tokens || 0;
+          usage = addUsage(usage, AI_MODEL, aiData.usage);
           const raw = aiData.choices?.[0]?.message?.content || "";
           const jsonStr = extractJson(raw);
           contentJson = JSON.parse(jsonStr);
@@ -418,8 +449,8 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
           generated_page_id: page.id,
           status: "failed",
           error_message: aiError || "Unknown error",
-          tokens_used: tokensUsed,
-          cost: 0,
+          tokens_used: usage.tokens,
+          cost: roundUsd(usage.costUsd),
           duration_ms: Date.now() - startTime,
         });
         await delay(1000);
@@ -437,7 +468,9 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
           draftJson: contentJson,
           schemaHint: `refreshed listicle content_json for ${schema.name}`,
         });
-        tokensUsed += refined.tokensUsed;
+        usage = addUsage(usage, AI_MODEL, {
+          total_tokens: refined.tokensUsed,
+        });
         contentJson = refined.refined;
         lintFlags = refined.remainingViolations;
         if (refined.errors.length)
@@ -453,7 +486,10 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
       if (sources.length) contentJson.sources = sources;
 
       // Auto-score final content
-      const { score: qualityScore } = scoreContent(contentJson, title);
+      const { score: qualityScore } = applyTitleLint(
+        scoreContent(contentJson, title),
+        title,
+      );
 
       const siteName =
         siteSettings?.publisher_name || siteSettings?.site_name || "";
@@ -501,8 +537,8 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
           generated_page_id: page.id,
           status: "failed",
           error_message: `DB update: ${updateErr.message}`,
-          tokens_used: tokensUsed,
-          cost: 0,
+          tokens_used: usage.tokens,
+          cost: roundUsd(usage.costUsd),
           duration_ms: Date.now() - startTime,
         });
         await delay(1000);
@@ -514,8 +550,8 @@ Return ONLY the updated JSON object (same shape as EXISTING CONTENT).`;
         generated_page_id: page.id,
         status: "refreshed",
         error_message: null,
-        tokens_used: tokensUsed,
-        cost: 0,
+        tokens_used: usage.tokens,
+        cost: roundUsd(usage.costUsd),
         duration_ms: Date.now() - startTime,
       });
 

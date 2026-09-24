@@ -22,7 +22,7 @@ import Footer from "@/components/Footer";
 import { useParams, Link } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PUBLIC_GENERATED_PAGE_SELECT } from "@/lib/publicColumns";
+import { fetchGeneratedPageForViewer } from "@/lib/generatedPageQuery";
 import {
   Linkedin,
   Twitter,
@@ -98,24 +98,10 @@ const GeneratedPage = ({
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["public-gen-page", contentType, pageSlug],
-    queryFn: async () => {
-      const { data: schema } = await supabase
-        .from("content_schemas")
-        .select("id, name, slug, renderer_component")
-        .eq("slug", contentType!)
-        .maybeSingle();
-      if (!schema) return null;
-      const { data: pg } = await supabase
-        .from("generated_pages")
-        .select(PUBLIC_GENERATED_PAGE_SELECT)
-        .eq("content_schema_id", schema.id)
-        .eq("slug", pageSlug!)
-        .eq("status", "published")
-        .maybeSingle();
-      if (!pg) return null;
-      const niche = pg.niches || { id: null, name: "", slug: "", context: {} };
-      return { ...pg, schema, niche };
-    },
+    // Visitors get published pages only; a signed-in admin can preview a
+    // draft here (RLS decides). Public column allowlist either way.
+    queryFn: () =>
+      fetchGeneratedPageForViewer(supabase, contentType!, pageSlug!),
     enabled: !!contentType && !!pageSlug,
     ...(initialPage
       ? { initialData: initialPage as never, initialDataUpdatedAt: 0 }
@@ -139,15 +125,18 @@ const GeneratedPage = ({
       : {}),
   });
 
+  const isPublished = page?.status === "published";
+
   useEffect(() => {
-    if (page?.id && !viewCounted.current) {
+    // Admin draft previews must not count as views.
+    if (page?.id && isPublished && !viewCounted.current) {
       viewCounted.current = true;
       supabase
         .from("page_engagement")
         .insert({ page_id: page.id, event_type: "view", metadata: {} })
         .then(() => {});
     }
-  }, [page?.id]);
+  }, [page?.id, isPublished]);
 
   const seo = seoDocumentSchema.parse(page?.seo_meta);
   const pageUrl = `${settings?.site_url || ""}/resources/${contentType}/${pageSlug}`;
@@ -282,6 +271,14 @@ const GeneratedPage = ({
       className="min-h-screen"
       style={{ background: "#0b0b10", color: "#fff" }}
     >
+      {!isPublished && (
+        <PageHead
+          title={`Draft preview: ${page.title}`}
+          description=""
+          url={pageUrl}
+          robots="noindex, nofollow"
+        />
+      )}
       <Nav />
       <div
         className="flex gap-8 mx-auto px-6 lg:px-14 pt-32 pb-24"

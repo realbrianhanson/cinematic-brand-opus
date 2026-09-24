@@ -1,23 +1,91 @@
 import { seoDocumentSchema } from "@/lib/contentDocument";
-import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 import { z } from "zod";
-import { errorMessage } from "@/lib/errorMessage";
-import { useState, useEffect, useMemo } from "react";
+import { errorMessage, isErrorCode } from "@/lib/errorMessage";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import {
+  hasFaqItems,
+  validateGeneratedContent,
+} from "@/lib/generatedContentValidation";
+import {
+  friendlyPublishError,
+  PUBLISH_SCORE_THRESHOLD,
+  validateResourceSlug,
+  validateResourceTitle,
+} from "@/lib/resourcePages";
+import { slugifyTitle } from "../../../supabase/functions/_shared/voice";
+import { invokeAdminFunction } from "./manualPublishClient";
+import {
+  ConfirmDialog,
+  QualityWarningDialog,
+  SeoHelperCard,
+  type SeoCriterion,
+} from "./GeneratedPageEditorParts";
+import {
   ChevronDown,
   ChevronUp,
   Loader2,
   RefreshCw,
-  AlertTriangle,
-  CheckCircle,
   Wand2,
-  Sparkles,
+  Eye,
 } from "lucide-react";
+
+/** Refresh runs take 65-116 s (generation_logs); leave headroom. */
+const REFRESH_TIMEOUT_MS = 180_000;
+// These two checklist items describe the content, which the SEO endpoint
+// cannot change; never ask it to "fix" them.
+const CONTENT_CRITERIA = ["Content has FAQ items", "Content has intro section"];
+
+const seoFormSchema = z
+  .object({
+    title: z.string().catch(""),
+    description: z.string().catch(""),
+    keywords: z.array(z.string()).catch([]),
+    og_image: z.string().catch(""),
+  })
+  .catch({ title: "", description: "", keywords: [], og_image: "" });
+
+const bodyError = (body: Record<string, unknown>, fallback: string) =>
+  typeof body.error === "string" && body.error.trim() ? body.error : fallback;
+
+type ScoreResult = { score: number; issues: string[] };
+
+async function scoreOnServer(
+  pageId: string,
+  preview?: { content_json: unknown; title: string },
+): Promise<ScoreResult> {
+  const { status, body } = await invokeAdminFunction("score-content-quality", {
+    page_id: pageId,
+    ...(preview ?? {}),
+  });
+  if (status !== 200)
+    throw new Error(bodyError(body, "The quality check could not run."));
+  const score = Number(body.score);
+  if (!Number.isFinite(score))
+    throw new Error("The quality check returned no score.");
+  const issues = Array.isArray(body.issues)
+    ? body.issues.filter((i): i is string => typeof i === "string")
+    : [];
+  return { score, issues };
+}
+
+type SaveOutcome =
+  | { kind: "saved"; scoreWarning: string | null }
+  | { kind: "published" }
+  | { kind: "needs_override"; score: number; issues: string[] };
+
+function parseJson(text: string): { value: unknown; error: string | null } {
+  try {
+    return { value: JSON.parse(text), error: null };
+  } catch {
+    return { value: null, error: "Invalid JSON: fix the syntax first." };
+  }
+}
 
 const GeneratedPageEditor = () => {
   const { id } = useParams();
@@ -25,24 +93,27 @@ const GeneratedPageEditor = () => {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
   const [contentStr, setContentStr] = useState("");
   const [ogImage, setOgImage] = useState("");
   const [generatingOg, setGeneratingOg] = useState(false);
   const [status, setStatus] = useState("draft");
-  const [qualityScore, setQualityScore] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDesc, setMetaDesc] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
   const [seoOpen, setSeoOpen] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [previewScore, setPreviewScore] = useState<ScoreResult | null>(null);
   const [scoring, setScoring] = useState(false);
-  const [qualityWarning, setQualityWarning] = useState<{
-    score: number;
-    issues: string[];
-  } | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [qualityWarning, setQualityWarning] = useState<ScoreResult | null>(
+    null,
+  );
   const [aiGenerating, setAiGenerating] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const hydratedVersion = useRef<string | null>(null);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["admin-generated-page", id],
@@ -53,151 +124,122 @@ const GeneratedPageEditor = () => {
           "*, niches!generated_pages_niche_id_fkey(name, slug), content_schemas(name, slug)",
         )
         .eq("id", id!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
 
+  // Hydrate once per stored version, so a background refetch never clobbers
+  // edits but a refresh (new updated_at) loads the rewritten content.
   useEffect(() => {
-    if (page) {
-      setContentStr(JSON.stringify(page.content_json, null, 2));
-      setStatus(page.status ?? "");
-      setQualityScore(
-        page.quality_score != null ? String(page.quality_score) : "",
-      );
-      const seo = z
-        .object({
-          title: z.string().catch(""),
-          description: z.string().catch(""),
-          keywords: z.array(z.string()).catch([]),
-          og_image: z.string().catch(""),
-        })
-        .catch({ title: "", description: "", keywords: [], og_image: "" })
-        .parse(page.seo_meta);
-      setMetaTitle(seo.title || "");
-      setMetaDesc(seo.description || "");
-      setMetaKeywords(
-        Array.isArray(seo.keywords) ? seo.keywords.join(", ") : "",
-      );
-      setOgImage(seo.og_image || "");
-      if (
-        seo.title ||
-        seo.description ||
-        (Array.isArray(seo.keywords) && seo.keywords.length > 0)
-      ) {
-        setHasGenerated(true);
-      }
-    }
+    if (!page) return;
+    const version = `${page.id}:${page.updated_at ?? ""}`;
+    if (hydratedVersion.current === version) return;
+    hydratedVersion.current = version;
+    setTitle(page.title);
+    setSlug(page.slug);
+    setContentStr(JSON.stringify(page.content_json, null, 2));
+    setStatus(page.status ?? "draft");
+    setPreviewScore(null);
+    setValidationErrors([]);
+    const seo = seoFormSchema.parse(page.seo_meta);
+    setMetaTitle(seo.title || "");
+    setMetaDesc(seo.description || "");
+    setMetaKeywords(seo.keywords.join(", "));
+    setOgImage(seo.og_image || "");
+    if (seo.title || seo.description || seo.keywords.length > 0)
+      setHasGenerated(true);
   }, [page]);
 
+  const isPublished = page?.status === "published";
+  const schemaSlug = page?.content_schemas?.slug ?? "";
+  const contentDirty =
+    !!page && contentStr !== JSON.stringify(page.content_json, null, 2);
+  const titleDirty = !!page && title.trim() !== page.title;
+  const titleCheck = validateResourceTitle(title);
+  const slugError = isPublished ? null : validateResourceSlug(slug);
+
   // Formatting completeness only; not a ranking prediction.
-  const seoData = useMemo(() => {
-    const criteria: { label: string; done: boolean; points: string }[] = [];
-    let score = 0;
-
-    const hasMeta = metaTitle.length > 0 && metaTitle.length <= 60;
-    criteria.push({
-      label: "Meta title (under 60 chars)",
-      done: hasMeta,
-      points: "+20",
-    });
-    if (hasMeta) score += 20;
-
-    const hasDesc = metaDesc.length > 0 && metaDesc.length <= 160;
-    criteria.push({
-      label: "Meta description (under 160 chars)",
-      done: hasDesc,
-      points: "+20",
-    });
-    if (hasDesc) score += 20;
-
+  const seoCriteria = useMemo<SeoCriterion[]>(() => {
+    const parsed = parseJson(contentStr).value as Record<
+      string,
+      unknown
+    > | null;
+    const words = parsed
+      ? JSON.stringify(parsed)
+          .replace(/[{}[\]":,]/g, " ")
+          .split(/\s+/)
+          .filter(Boolean).length
+      : 0;
     const kwCount = metaKeywords
       .split(",")
       .map((k) => k.trim())
       .filter(Boolean).length;
-    const hasKw = kwCount >= 3;
-    criteria.push({ label: "At least 3 keywords", done: hasKw, points: "+15" });
-    if (hasKw) score += 15;
+    return [
+      {
+        label: "Meta title (under 60 chars)",
+        done: metaTitle.length > 0 && metaTitle.length <= 60,
+        points: "+20",
+      },
+      {
+        label: "Meta description (under 160 chars)",
+        done: metaDesc.length > 0 && metaDesc.length <= 160,
+        points: "+20",
+      },
+      { label: "At least 3 keywords", done: kwCount >= 3, points: "+15" },
+      {
+        label: "Content is present (review depth manually)",
+        done: words > 0,
+        points: "+15",
+      },
+      {
+        label: "Descriptive title present",
+        done: title.trim().length > 0,
+        points: "+10",
+      },
+      {
+        label: "Content has FAQ items",
+        done: hasFaqItems(parsed),
+        points: "+10",
+      },
+      {
+        label: "Content has intro section",
+        done: !!(parsed?.intro || parsed?.introduction || parsed?.description),
+        points: "+10",
+      },
+    ];
+  }, [metaTitle, metaDesc, metaKeywords, contentStr, title]);
+  const seoScore = seoCriteria.reduce(
+    (sum, c) => sum + (c.done ? Number(c.points.slice(1)) : 0),
+    0,
+  );
 
-    let wordCount = 0;
+  const introExcerpt = () => {
+    const parsed = parseJson(contentStr).value as Record<
+      string,
+      unknown
+    > | null;
+    const text = parsed?.intro ?? parsed?.description;
+    return typeof text === "string" ? text : "";
+  };
+
+  const runSeo = async (enhance: boolean) => {
+    const setBusy = enhance ? setEnhancing : setAiGenerating;
+    setBusy(true);
     try {
-      const parsed = JSON.parse(contentStr);
-      wordCount = JSON.stringify(parsed)
-        .replace(/[{}[\]":,]/g, " ")
-        .split(/\s+/)
-        .filter(Boolean).length;
-    } catch {
-      /* ignore */
-    }
-    const hasWords = wordCount > 0;
-    criteria.push({
-      label: "Content is present (review depth manually)",
-      done: hasWords,
-      points: "+15",
-    });
-    if (hasWords) score += 15;
-
-    const titleStr = page?.title || "";
-    const hasYear = titleStr.trim().length > 0;
-    criteria.push({
-      label: "Descriptive title present",
-      done: hasYear,
-      points: "+10",
-    });
-    if (hasYear) score += 10;
-
-    let hasFaq = false;
-    try {
-      const parsed = JSON.parse(contentStr);
-      hasFaq = !!(parsed.faq_items?.length || parsed.faqs?.length);
-    } catch {
-      /* ignore */
-    }
-    criteria.push({
-      label: "Content has FAQ items",
-      done: hasFaq,
-      points: "+10",
-    });
-    if (hasFaq) score += 10;
-
-    let hasIntro = false;
-    try {
-      const parsed = JSON.parse(contentStr);
-      hasIntro = !!(parsed.intro || parsed.introduction || parsed.description);
-    } catch {
-      /* ignore */
-    }
-    criteria.push({
-      label: "Content has intro section",
-      done: hasIntro,
-      points: "+10",
-    });
-    if (hasIntro) score += 10;
-
-    return { score, criteria };
-  }, [metaTitle, metaDesc, metaKeywords, contentStr, page?.title]);
-
-  const handleGenerateSeo = async () => {
-    setAiGenerating(true);
-    try {
-      let excerpt = "";
-      try {
-        excerpt =
-          JSON.parse(contentStr)?.intro ||
-          JSON.parse(contentStr)?.description ||
-          "";
-      } catch {
-        // Content is not JSON, so there is no excerpt to pull out.
-      }
+      const missing = seoCriteria
+        .filter((c) => !c.done && !CONTENT_CRITERIA.includes(c.label))
+        .map((c) => c.label);
       const { data, error } = await supabase.functions.invoke(
         "generate-seo-aeo",
         {
           body: {
-            title: page?.title || "",
+            title,
             content: contentStr.slice(0, 4000),
-            excerpt,
+            excerpt: introExcerpt(),
+            ...(enhance ? { enhance: true, missing_criteria: missing } : {}),
           },
         },
       );
@@ -207,134 +249,146 @@ const GeneratedPageEditor = () => {
       if (data?.keywords) setMetaKeywords(data.keywords);
       setHasGenerated(true);
       setSeoOpen(true);
-      toast({ title: "SEO fields generated!" });
+      toast({ title: enhance ? "SEO enhanced!" : "SEO fields generated!" });
     } catch (e) {
       toast({
-        title: "Generation failed",
+        title: enhance ? "Enhancement failed" : "Generation failed",
         description: errorMessage(e),
         variant: "destructive",
       });
     } finally {
-      setAiGenerating(false);
+      setBusy(false);
     }
   };
 
-  const handleEnhanceSeo = async () => {
-    setEnhancing(true);
-    try {
-      const missing = seoData.criteria
-        .filter((c) => !c.done)
-        .map((c) => c.label);
-      let excerpt = "";
-      try {
-        excerpt =
-          JSON.parse(contentStr)?.intro ||
-          JSON.parse(contentStr)?.description ||
-          "";
-      } catch {
-        // Content is not JSON, so there is no excerpt to pull out.
-      }
-      const { data, error } = await supabase.functions.invoke(
-        "generate-seo-aeo",
-        {
-          body: {
-            title: page?.title || "",
-            content: contentStr.slice(0, 4000),
-            excerpt,
-            enhance: true,
-            missing_criteria: missing,
-          },
-        },
-      );
-      if (error) throw error;
-      if (data?.meta_title) setMetaTitle(data.meta_title);
-      if (data?.meta_description) setMetaDesc(data.meta_description);
-      if (data?.keywords) setMetaKeywords(data.keywords);
-      setSeoOpen(true);
-      toast({ title: "SEO enhanced!" });
-    } catch (e) {
-      toast({
-        title: "Enhancement failed",
-        description: errorMessage(e),
-        variant: "destructive",
-      });
-    } finally {
-      setEnhancing(false);
-    }
+  /** Parse and shape-check the JSON box; returns null and shows why if bad. */
+  const readContent = (): Record<string, unknown> | null => {
+    const { value, error } = parseJson(contentStr);
+    const errors = error
+      ? [error]
+      : validateGeneratedContent(value, schemaSlug).errors;
+    setValidationErrors(errors);
+    return errors.length ? null : (value as Record<string, unknown>);
   };
 
-  const doSave = (overrideReason?: string) =>
-    safeMutation(async () => {
-      let parsed: Json;
-      try {
-        parsed = JSON.parse(contentStr);
-      } catch {
-        throw new Error("Invalid JSON in content editor");
-      }
+  const updatePage = async (fields: Record<string, unknown>) => {
+    const { error } = await supabase
+      .from("generated_pages")
+      .update(fields as never)
+      .eq("id", id!);
+    if (!error) return;
+    if (isErrorCode(error, "23505"))
+      throw new Error("That URL slug is already used by another resource.");
+    throw new Error(friendlyPublishError(errorMessage(error)));
+  };
 
-      const seoMeta = {
-        title: metaTitle || null,
-        description: metaDesc || null,
-        keywords: metaKeywords
-          ? metaKeywords
-              .split(",")
-              .map((k) => k.trim())
-              .filter(Boolean)
-          : [],
-        og_image: ogImage || null,
-      };
+  const afterPublish = () => {
+    if (!id) return;
+    supabase.functions
+      .invoke("build-silo-links", { body: { page_id: id } })
+      .catch(() => {});
+    supabase.functions
+      .invoke("generate-og-image", { body: { page_id: id } })
+      .catch(() => {});
+    if (schemaSlug && page?.slug)
+      supabase.functions
+        .invoke("submit-indexnow", {
+          body: { urls: [`/resources/${schemaSlug}/${page.slug}`] },
+        })
+        .catch(() => {});
+  };
 
-      const updateData: Record<string, unknown> = {
-        content_json: parsed,
-        status,
-        seo_meta: seoMeta,
-        quality_score: qualityScore ? Number(qualityScore) : null,
-        human_edited: true,
-      };
-      const wasPublishing =
-        status === "published" && page?.status !== "published";
-      if (wasPublishing) {
-        updateData.published_at = new Date().toISOString();
-      }
-      if (overrideReason) {
-        const { data: authData } = await supabase.auth.getUser();
-        updateData.publish_override = true;
-        updateData.publish_override_reason = overrideReason;
-        updateData.publish_override_at = new Date().toISOString();
-        updateData.publish_override_by = authData?.user?.id ?? null;
-      }
+  const publishWithOverride = async (reason: string): Promise<SaveOutcome> => {
+    const { data: auth } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    await updatePage({
+      status: "published",
+      published_at: now,
+      publish_override: true,
+      publish_override_reason: reason,
+      publish_override_at: now,
+      publish_override_by: auth?.user?.id ?? null,
+    });
+    afterPublish();
+    return { kind: "published" };
+  };
 
-      const { error } = await supabase
-        .from("generated_pages")
-        .update(updateData as never)
-        .eq("id", id!);
-      if (error) throw error;
-
-      // On publish transition: build silo links + submit IndexNow (fire-and-forget)
-      if (wasPublishing && id) {
-        supabase.functions
-          .invoke("build-silo-links", { body: { page_id: id } })
-          .catch(() => {});
-        supabase.functions
-          .invoke("generate-og-image", { body: { page_id: id } })
-          .catch(() => {});
-        const schemaSlug = page?.content_schemas?.slug;
-        if (schemaSlug && page?.slug) {
-          supabase.functions
-            .invoke("submit-indexnow", {
-              body: { urls: [`/resources/${schemaSlug}/${page.slug}`] },
-            })
-            .catch(() => {});
-        }
-      }
+  /**
+   * Save edits, then let the server score the saved copy. A publish happens
+   * only after that score passes; the client never writes quality_score.
+   */
+  const saveEdits = async (
+    content: Record<string, unknown>,
+  ): Promise<SaveOutcome> => {
+    const publishing = status === "published" && !isPublished;
+    const cleanTitle = title.trim();
+    const seoMeta = {
+      title: metaTitle || null,
+      description: metaDesc || null,
+      keywords: metaKeywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean),
+      og_image: ogImage || null,
+    };
+    await updatePage({
+      title: cleanTitle,
+      ...(isPublished ? {} : { slug: slug.trim() }),
+      content_json: { ...content, title: cleanTitle } as Json,
+      seo_meta: seoMeta,
+      human_edited: true,
+      ...(publishing ? {} : { status }),
     });
 
+    if (!publishing) {
+      try {
+        await scoreOnServer(id!);
+        return { kind: "saved", scoreWarning: null };
+      } catch (e) {
+        return { kind: "saved", scoreWarning: errorMessage(e) };
+      }
+    }
+    const scored = await scoreOnServer(id!);
+    if (scored.score < PUBLISH_SCORE_THRESHOLD)
+      return { kind: "needs_override", ...scored };
+    await updatePage({
+      status: "published",
+      published_at: new Date().toISOString(),
+    });
+    afterPublish();
+    return { kind: "published" };
+  };
+
   const saveMutation = useMutation({
-    mutationFn: (overrideReason?: string) => doSave(overrideReason),
-    onSuccess: () => {
+    mutationFn: (vars: {
+      content?: Record<string, unknown>;
+      overrideReason?: string;
+    }) =>
+      safeMutation(
+        () =>
+          vars.overrideReason
+            ? publishWithOverride(vars.overrideReason)
+            : saveEdits(vars.content ?? {}),
+        45_000,
+      ),
+    onSuccess: (outcome) => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
-      toast({ title: "Saved!" });
+      if (outcome.kind === "needs_override") {
+        setQualityWarning({ score: outcome.score, issues: outcome.issues });
+        return;
+      }
+      setQualityWarning(null);
+      if (outcome.kind === "saved" && outcome.scoreWarning)
+        toast({
+          title: "Saved, but not re-scored",
+          description: outcome.scoreWarning,
+          variant: "destructive",
+        });
+      else
+        toast({
+          title: outcome.kind === "published" ? "Published!" : "Saved!",
+        });
       navigate("/admin/pages");
     },
     onError: (e) => {
@@ -346,100 +400,119 @@ const GeneratedPageEditor = () => {
     },
   });
 
-  const handleSave = async () => {
-    const isPublishing = status === "published" && page?.status !== "published";
-    if (isPublishing && !qualityWarning) {
-      setScoring(true);
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const { data, error } = await supabase.functions.invoke(
-          "score-content-quality",
-          {
-            body: { page_id: id },
-          },
-        );
-        clearTimeout(timeout);
-        if (error) throw error;
-        if (data?.score != null) {
-          setQualityScore(String(data.score));
-        }
-        if (data?.score < 75) {
-          setQualityWarning({ score: data.score, issues: data.issues || [] });
-          setScoring(false);
-          return;
-        }
-      } catch (e) {
-        console.warn("Quality scoring failed:", errorMessage(e));
-        toast({
-          title: "Scoring failed",
-          description: "Publish blocked until content can be scored.",
-          variant: "destructive",
-        });
-        setScoring(false);
-        return;
-      }
-      setScoring(false);
+  const handleSave = () => {
+    if (titleCheck.error || slugError) {
+      setValidationErrors(
+        [titleCheck.error, slugError].filter((e): e is string => !!e),
+      );
+      return;
     }
-    setQualityWarning(null);
-    saveMutation.mutate(undefined);
+    const content = readContent();
+    if (!content) return;
+    saveMutation.mutate({ content });
   };
 
   const handleFormat = () => {
-    try {
-      const parsed = JSON.parse(contentStr);
-      setContentStr(JSON.stringify(parsed, null, 2));
-    } catch {
+    const { value, error } = parseJson(contentStr);
+    if (error) {
       toast({
         title: "Invalid JSON",
         description: "Fix JSON syntax before formatting.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleRegenerate = async () => {
-    if (!page) return;
-    const niche = page.niches;
-    const schema = page.content_schemas;
-    if (!niche?.slug || !schema?.slug) {
-      toast({
-        title: "Missing data",
-        description: "Niche or content type not found.",
-        variant: "destructive",
-      });
       return;
     }
-    setRegenerating(true);
+    setContentStr(JSON.stringify(value, null, 2));
+  };
+
+  // Scores what is on screen without storing it (the stored score only
+  // changes when the saved copy is scored).
+  const handlePreviewScore = async () => {
+    const content = readContent();
+    if (!content || !id) return;
+    setScoring(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-content",
-        {
-          body: {
-            niche_slugs: [niche.slug],
-            content_type_slug: schema.slug,
-            count_per_combination: 1,
-            dry_run: true,
-          },
-        },
-      );
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.content_json) {
-        setContentStr(JSON.stringify(data.content_json, null, 2));
-        toast({
-          title: "Content regenerated!",
-          description: "Review and save when ready.",
-        });
-      }
+      const result = await scoreOnServer(id, {
+        content_json: content,
+        title: title.trim(),
+      });
+      setPreviewScore(result);
+      toast({
+        title: `Score: ${result.score}/100`,
+        description: result.issues.slice(0, 3).join("; ") || undefined,
+        variant:
+          result.score >= PUBLISH_SCORE_THRESHOLD ? "default" : "destructive",
+      });
     } catch (e) {
       toast({
-        title: "Regeneration failed",
+        title: "Scoring failed",
         description: errorMessage(e),
         variant: "destructive",
       });
     } finally {
-      setRegenerating(false);
+      setScoring(false);
+    }
+  };
+
+  const regenerateMutation = useMutation({
+    mutationFn: () =>
+      safeMutation(async () => {
+        const { status: code, body } = await invokeAdminFunction(
+          "refresh-stale-content",
+          { page_id: id },
+        );
+        if (code !== 200)
+          throw new Error(bodyError(body, "The refresh could not run."));
+        if (body.refreshed !== 1)
+          throw new Error(
+            Number(body.failed) > 0
+              ? "The refresh failed. See Recent Generation Runs for the reason."
+              : bodyError(body, "Nothing was refreshed."),
+          );
+      }, REFRESH_TIMEOUT_MS),
+    onSuccess: async () => {
+      setConfirmRegenerate(false);
+      await qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
+      qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
+      toast({
+        title: "Content refreshed",
+        description:
+          "The page was rewritten with fresh research and re-scored.",
+      });
+    },
+    onError: (e) => {
+      setConfirmRegenerate(false);
+      toast({
+        title: "Refresh failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateOg = async () => {
+    setGeneratingOg(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "generate-og-image",
+        { body: { page_id: id } },
+      );
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      const { data: updated } = await supabase
+        .from("generated_pages")
+        .select("seo_meta")
+        .eq("id", id!)
+        .maybeSingle();
+      setOgImage(seoDocumentSchema.parse(updated?.seo_meta).og_image || "");
+      toast({ title: "OG image generated!" });
+    } catch (e) {
+      toast({
+        title: "Failed",
+        description: errorMessage(e),
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingOg(false);
     }
   };
 
@@ -449,6 +522,7 @@ const GeneratedPageEditor = () => {
         <Loader2
           size={24}
           className="animate-spin"
+          aria-label="Loading"
           style={{ color: "hsl(var(--admin-accent))" }}
         />
       </div>
@@ -470,107 +544,38 @@ const GeneratedPageEditor = () => {
 
   const niche = page.niches;
   const schema = page.content_schemas;
-
-  const { score: seoScore, criteria: seoCriteria } = seoData;
-  const done = seoCriteria.filter((c) => c.done).length;
-  const total = seoCriteria.length;
-  const scoreColor =
-    seoScore >= 75
-      ? "admin-sage"
-      : seoScore >= 40
-        ? "admin-accent"
-        : "admin-danger";
+  const previewUrl = `/resources/${schemaSlug || "page"}/${page.slug}`;
+  const storedScore =
+    page.quality_score != null ? Number(page.quality_score) : null;
+  const scoreStale = contentDirty || titleDirty || storedScore == null;
 
   return (
     <div>
-      {/* Quality Warning Dialog */}
       {qualityWarning && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
+        <QualityWarningDialog
+          score={qualityWarning.score}
+          issues={qualityWarning.issues}
+          busy={saveMutation.isPending}
+          onBackToDraft={() => {
+            setQualityWarning(null);
+            setStatus(page.status ?? "draft");
           }}
-        >
-          <div
-            className="admin-card"
-            style={{ maxWidth: 480, width: "90%", padding: 28 }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle
-                size={22}
-                style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }}
-              />
-              <h3
-                className="font-heading"
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: "hsl(var(--admin-text))",
-                }}
-              >
-                Low Quality Score: {qualityWarning.score}/100
-              </h3>
-            </div>
-            <p
-              className="font-body"
-              style={{
-                fontSize: 13,
-                color: "hsl(var(--admin-text-soft))",
-                marginBottom: 16,
-              }}
-            >
-              This content scored below the publish threshold of 75. The
-              database will reject the publish unless you override.
-            </p>
-            <ul style={{ marginBottom: 20, paddingLeft: 16 }}>
-              {qualityWarning.issues.map((issue, i) => (
-                <li
-                  key={i}
-                  className="font-body"
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--admin-text-ghost))",
-                    marginBottom: 4,
-                    listStyle: "disc",
-                  }}
-                >
-                  {issue}
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setQualityWarning(null);
-                  setStatus("draft");
-                }}
-                className="admin-btn-ghost"
-              >
-                Go Back to Draft
-              </button>
-              <button
-                onClick={() => {
-                  const reason = window.prompt(
-                    `This page scored ${qualityWarning.score}/100 (threshold: 75). Type a reason to publish anyway — this is logged to publish_override_reason.`,
-                  );
-                  if (!reason || !reason.trim()) return;
-                  setQualityWarning(null);
-                  saveMutation.mutate(reason.trim());
-                }}
-                className="admin-btn-primary"
-                style={{ background: "hsl(var(--admin-warning, 40 90% 50%))" }}
-              >
-                Publish Anyway
-              </button>
-            </div>
-          </div>
-        </div>
+          onPublishAnyway={(reason) =>
+            saveMutation.mutate({ overrideReason: reason })
+          }
+        />
+      )}
+      {confirmRegenerate && (
+        <ConfirmDialog
+          id="regenerate-title"
+          title="Rewrite this page with fresh research?"
+          body={`The current content${contentDirty ? ", your unsaved edits," : ""} and any manual edits are replaced. The title intent and URL stay the same. It takes 1–2 minutes and uses AI and research credits.`}
+          confirmLabel="Rewrite content"
+          busyLabel="Rewriting..."
+          busy={regenerateMutation.isPending}
+          onConfirm={() => regenerateMutation.mutate()}
+          onCancel={() => setConfirmRegenerate(false)}
+        />
       )}
 
       {/* Header */}
@@ -585,6 +590,15 @@ const GeneratedPageEditor = () => {
           Edit Page
         </h1>
         <div className="flex gap-3">
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="admin-btn-ghost flex items-center gap-2"
+          >
+            <Eye size={14} aria-hidden />
+            {isPublished ? "View live page" : "Preview draft"}
+          </a>
           <button
             onClick={() => navigate("/admin/pages")}
             className="admin-btn-ghost"
@@ -593,16 +607,14 @@ const GeneratedPageEditor = () => {
           </button>
           <button
             onClick={handleSave}
-            disabled={saveMutation.isPending || scoring}
+            disabled={saveMutation.isPending}
             className="admin-btn-primary"
           >
-            {scoring ? (
+            {saveMutation.isPending ? (
               <span className="flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin" />
-                Scoring...
+                <Loader2 size={14} className="animate-spin" aria-hidden />
+                Saving...
               </span>
-            ) : saveMutation.isPending ? (
-              "Saving..."
             ) : (
               "Save Changes"
             )}
@@ -610,28 +622,111 @@ const GeneratedPageEditor = () => {
         </div>
       </div>
 
+      {validationErrors.length > 0 && (
+        <div
+          role="alert"
+          className="admin-card font-body"
+          style={{
+            padding: 16,
+            marginBottom: 20,
+            border: "1px solid hsl(var(--admin-danger) / 0.4)",
+            color: "hsl(var(--admin-text))",
+            fontSize: 13,
+          }}
+        >
+          <p style={{ fontWeight: 600, marginBottom: 6 }}>
+            Not saved. Fix these first:
+          </p>
+          <ul style={{ paddingLeft: 16 }}>
+            {validationErrors.slice(0, 12).map((e) => (
+              <li key={e} style={{ listStyle: "disc" }}>
+                {e}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left column */}
         <div className="lg:col-span-2 flex flex-col gap-5">
-          {/* Title */}
-          <div className="admin-card" style={{ padding: 20 }}>
-            <h2
-              className="font-heading"
-              style={{
-                fontSize: 22,
-                fontWeight: 500,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 8,
-              }}
-            >
-              {page.title}
-            </h2>
-            <span
-              className="font-body"
-              style={{ fontSize: 12, color: "hsl(var(--admin-text-ghost))" }}
-            >
-              /{page.slug}
-            </span>
+          {/* Title + slug */}
+          <div
+            className="admin-card flex flex-col gap-3"
+            style={{ padding: 20 }}
+          >
+            <div>
+              <label htmlFor="page-title" className="admin-label">
+                Title
+              </label>
+              <input
+                id="page-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="admin-input font-body w-full"
+                style={{ fontSize: 16 }}
+              />
+              <span
+                className="font-body"
+                style={{
+                  fontSize: 10,
+                  color:
+                    title.trim().length > 70
+                      ? "hsl(var(--admin-danger))"
+                      : "hsl(var(--admin-text-ghost))",
+                }}
+              >
+                {title.trim().length}/70
+              </span>
+              {titleCheck.warnings.map((w) => (
+                <p
+                  key={w}
+                  className="font-body"
+                  style={{ fontSize: 11, color: "hsl(var(--admin-danger))" }}
+                >
+                  {w} (costs 30 quality points)
+                </p>
+              ))}
+            </div>
+            <div>
+              <label htmlFor="page-slug" className="admin-label">
+                URL slug
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="page-slug"
+                  value={slug}
+                  readOnly={isPublished}
+                  aria-describedby="page-slug-help"
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="admin-input font-body w-full"
+                />
+                {!isPublished && (
+                  <button
+                    type="button"
+                    onClick={() => setSlug(slugifyTitle(title))}
+                    className="admin-btn-ghost whitespace-nowrap"
+                    style={{ fontSize: 11 }}
+                  >
+                    From title
+                  </button>
+                )}
+              </div>
+              <p
+                id="page-slug-help"
+                className="font-body"
+                style={{
+                  fontSize: 11,
+                  color: slugError
+                    ? "hsl(var(--admin-danger))"
+                    : "hsl(var(--admin-text-ghost))",
+                }}
+              >
+                {isPublished
+                  ? "Published pages keep their URL so existing links keep working."
+                  : (slugError ?? `/resources/${schemaSlug}/${slug}`)}
+              </p>
+            </div>
           </div>
 
           {/* JSON editor */}
@@ -640,9 +735,13 @@ const GeneratedPageEditor = () => {
               className="flex items-center justify-between"
               style={{ marginBottom: 8 }}
             >
-              <span className="admin-label" style={{ marginBottom: 0 }}>
+              <label
+                htmlFor="page-content"
+                className="admin-label"
+                style={{ marginBottom: 0 }}
+              >
                 Content JSON
-              </span>
+              </label>
               <button
                 onClick={handleFormat}
                 className="admin-btn-ghost"
@@ -652,6 +751,7 @@ const GeneratedPageEditor = () => {
               </button>
             </div>
             <textarea
+              id="page-content"
               value={contentStr}
               onChange={(e) => setContentStr(e.target.value)}
               className="font-body w-full"
@@ -677,8 +777,11 @@ const GeneratedPageEditor = () => {
         <div className="flex flex-col gap-5">
           {/* Status */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label">Status</label>
+            <label htmlFor="page-status" className="admin-label">
+              Status
+            </label>
             <select
+              id="page-status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="admin-input font-body w-full"
@@ -688,352 +791,104 @@ const GeneratedPageEditor = () => {
               <option value="published">Published</option>
               <option value="archived">Archived</option>
             </select>
-          </div>
-
-          {/* AI SEO Helper */}
-          <div className="admin-card" style={{ padding: 20 }}>
-            <div
-              className="flex items-center gap-2"
-              style={{ marginBottom: 12 }}
-            >
-              <Wand2 size={14} style={{ color: "hsl(var(--admin-accent))" }} />
-              <span className="admin-label" style={{ marginBottom: 0 }}>
-                AI. SEO Helper
-              </span>
-            </div>
-            <p
-              className="font-body"
-              style={{
-                fontSize: 11,
-                color: "hsl(var(--admin-text-ghost))",
-                marginBottom: 14,
-                lineHeight: 1.5,
-              }}
-            >
-              Generate &amp; optimize SEO fields using AI based on your page
-              content.
-            </p>
-
-            {/* Score Ring */}
-            <div style={{ marginBottom: 16, textAlign: "center" }}>
-              <div
-                style={{
-                  position: "relative",
-                  width: 100,
-                  height: 100,
-                  margin: "0 auto 10px",
-                }}
-              >
-                <svg
-                  viewBox="0 0 36 36"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    transform: "rotate(-90deg)",
-                  }}
-                >
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="15.9"
-                    fill="none"
-                    stroke="hsl(var(--admin-surface-2))"
-                    strokeWidth="2.8"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="15.9"
-                    fill="none"
-                    stroke={`hsl(var(--${scoreColor}))`}
-                    strokeWidth="2.8"
-                    strokeDasharray={`${seoScore} ${100 - seoScore}`}
-                    strokeLinecap="round"
-                    style={{ transition: "stroke-dasharray 0.5s ease" }}
-                  />
-                </svg>
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span
-                    className="font-heading"
-                    style={{
-                      fontSize: 24,
-                      color: `hsl(var(--${scoreColor}))`,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {seoScore}
-                  </span>
-                  <span
-                    className="font-body"
-                    style={{
-                      fontSize: 9,
-                      color: "hsl(var(--admin-text-ghost))",
-                    }}
-                  >
-                    / 100
-                  </span>
-                </div>
-              </div>
+            {status === "published" && !isPublished && (
               <p
                 className="font-body"
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
+                  marginTop: 6,
                   color: "hsl(var(--admin-text-ghost))",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
                 }}
               >
-                Formatting completeness
+                Saving scores the page first; it publishes at{" "}
+                {PUBLISH_SCORE_THRESHOLD}+ or with an override reason.
               </p>
-            </div>
-
-            {/* Checklist */}
-            <div style={{ marginBottom: 14 }}>
-              <p
-                className="admin-label"
-                style={{ marginBottom: 10, fontSize: 10 }}
-              >
-                📈 Increase Your Score
-              </p>
-              <div
-                style={{
-                  backgroundColor: "hsl(var(--admin-surface-2))",
-                  borderRadius: 6,
-                  padding: "4px",
-                  marginBottom: 10,
-                }}
-              >
-                <div
-                  style={{
-                    height: 6,
-                    borderRadius: 3,
-                    background:
-                      done === total
-                        ? "hsl(var(--admin-sage))"
-                        : "linear-gradient(90deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-                    width: `${(done / total) * 100}%`,
-                    transition: "width 0.4s ease",
-                  }}
-                />
-              </div>
-              <p
-                className="font-body"
-                style={{
-                  fontSize: 10,
-                  color: "hsl(var(--admin-text-ghost))",
-                  marginBottom: 10,
-                  textAlign: "right",
-                }}
-              >
-                {done}/{total} completed
-              </p>
-              {seoCriteria.map((c, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2"
-                  style={{ marginBottom: 6 }}
-                >
-                  <span
-                    style={{
-                      fontSize: 13,
-                      lineHeight: "18px",
-                      flexShrink: 0,
-                      color: c.done
-                        ? "hsl(var(--admin-sage))"
-                        : "hsl(var(--admin-text-ghost))",
-                    }}
-                  >
-                    {c.done ? "✓" : "○"}
-                  </span>
-                  <span
-                    className="font-body"
-                    style={{
-                      fontSize: 11,
-                      lineHeight: "18px",
-                      flex: 1,
-                      color: c.done
-                        ? "hsl(var(--admin-text-ghost))"
-                        : "hsl(var(--admin-text-soft))",
-                      textDecoration: c.done ? "line-through" : "none",
-                    }}
-                  >
-                    {c.label}
-                  </span>
-                  <span
-                    className="font-body"
-                    style={{
-                      fontSize: 9,
-                      lineHeight: "18px",
-                      color: c.done
-                        ? "hsl(var(--admin-sage))"
-                        : "hsl(var(--admin-accent))",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {c.done ? "✓" : c.points}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Buttons */}
-            <button
-              onClick={handleGenerateSeo}
-              disabled={aiGenerating}
-              className="admin-btn-primary w-full flex items-center justify-center gap-2"
-              style={{ fontSize: 13 }}
-            >
-              {aiGenerating ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={14} />
-                  Generate SEO
-                </>
-              )}
-            </button>
-
-            {hasGenerated && (
-              <button
-                onClick={handleEnhanceSeo}
-                disabled={enhancing}
-                className="w-full flex items-center justify-center gap-2 font-body"
-                style={{
-                  marginTop: 8,
-                  background: enhancing
-                    ? "hsl(var(--admin-surface-2))"
-                    : "linear-gradient(135deg, hsl(var(--admin-accent)), hsl(var(--admin-sage)))",
-                  color: enhancing ? "hsl(var(--admin-text-ghost))" : "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "10px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: enhancing ? "not-allowed" : "pointer",
-                }}
-              >
-                {enhancing ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Enhancing...
-                  </>
-                ) : (
-                  <>
-                    📈 Increase Score{" "}
-                    <span
-                      style={{
-                        background: "rgba(255,255,255,0.2)",
-                        borderRadius: 12,
-                        padding: "2px 8px",
-                        fontSize: 11,
-                      }}
-                    >
-                      {seoScore}%
-                    </span>
-                  </>
-                )}
-              </button>
             )}
           </div>
 
-          {/* Quality score */}
+          <SeoHelperCard
+            score={seoScore}
+            criteria={seoCriteria}
+            hasGenerated={hasGenerated}
+            aiGenerating={aiGenerating}
+            enhancing={enhancing}
+            onGenerate={() => runSeo(false)}
+            onEnhance={() => runSeo(true)}
+          />
+
+          {/* Quality score (server-owned) */}
           <div className="admin-card" style={{ padding: 20 }}>
             <div
               className="flex items-center justify-between"
               style={{ marginBottom: 8 }}
             >
-              <label className="admin-label" style={{ marginBottom: 0 }}>
+              <span className="admin-label" style={{ marginBottom: 0 }}>
                 Quality Score
-              </label>
+              </span>
               <button
-                onClick={async () => {
-                  setScoring(true);
-                  try {
-                    const { data, error } = await supabase.functions.invoke(
-                      "score-content-quality",
-                      {
-                        body: { page_id: id },
-                      },
-                    );
-                    if (error) throw error;
-                    if (data?.score != null)
-                      setQualityScore(String(data.score));
-                    if (data?.issues?.length > 0) {
-                      toast({
-                        title: `Score: ${data.score}/100`,
-                        description: data.issues.slice(0, 3).join("; "),
-                        variant: data.score >= 60 ? "default" : "destructive",
-                      });
-                    } else {
-                      toast({ title: `Score: ${data.score}/100` });
-                    }
-                  } catch (e) {
-                    toast({
-                      title: "Scoring failed",
-                      description: errorMessage(e),
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setScoring(false);
-                  }
-                }}
+                onClick={handlePreviewScore}
                 disabled={scoring}
                 className="admin-btn-ghost"
                 style={{ fontSize: 10, padding: "2px 8px" }}
               >
                 {scoring ? (
-                  <Loader2 size={12} className="animate-spin" />
+                  <Loader2
+                    size={12}
+                    className="animate-spin"
+                    aria-label="Scoring"
+                  />
                 ) : (
-                  "Run Score"
+                  "Check score"
                 )}
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.1"
-                value={qualityScore}
-                onChange={(e) => setQualityScore(e.target.value)}
-                placeholder="—"
-                className="admin-input font-body w-full"
-              />
-              {qualityScore && (
-                <span style={{ flexShrink: 0 }}>
-                  {Number(qualityScore) >= 60 ? (
-                    <CheckCircle
-                      size={16}
-                      style={{
-                        color: "hsl(var(--admin-success, 142 71% 45%))",
-                      }}
-                    />
-                  ) : (
-                    <AlertTriangle
-                      size={16}
-                      style={{ color: "hsl(var(--admin-warning, 40 90% 50%))" }}
-                    />
-                  )}
-                </span>
-              )}
-            </div>
+            <p
+              data-testid="quality-score"
+              className="font-heading"
+              style={{
+                fontSize: 22,
+                color:
+                  storedScore != null && storedScore >= PUBLISH_SCORE_THRESHOLD
+                    ? "hsl(var(--admin-sage))"
+                    : "hsl(var(--admin-text))",
+              }}
+            >
+              {storedScore != null ? storedScore.toFixed(1) : "—"}
+              <span
+                className="font-body"
+                style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+              >
+                {" "}
+                / 100 saved
+              </span>
+            </p>
+            <p
+              className="font-body"
+              style={{ fontSize: 11, color: "hsl(var(--admin-text-ghost))" }}
+            >
+              {scoreStale
+                ? "Not scored since your last edit. Saving re-scores it."
+                : "Set by the scoring service; it cannot be typed in."}
+            </p>
+            {previewScore && (
+              <p
+                className="font-body"
+                style={{
+                  fontSize: 11,
+                  marginTop: 6,
+                  color: "hsl(var(--admin-text-soft))",
+                }}
+              >
+                On-screen version: {previewScore.score}/100 (not saved)
+              </p>
+            )}
           </div>
 
           {/* Info */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label" style={{ marginBottom: 12 }}>
+            <span className="admin-label" style={{ marginBottom: 12 }}>
               Info
-            </label>
+            </span>
             <div className="flex flex-col gap-2">
               {[
                 ["Niche", niche?.name || "—"],
@@ -1088,6 +943,7 @@ const GeneratedPageEditor = () => {
           <div className="admin-card" style={{ padding: 20 }}>
             <button
               onClick={() => setSeoOpen(!seoOpen)}
+              aria-expanded={seoOpen}
               className="flex items-center justify-between w-full"
               style={{
                 background: "none",
@@ -1102,11 +958,13 @@ const GeneratedPageEditor = () => {
               {seoOpen ? (
                 <ChevronUp
                   size={14}
+                  aria-hidden
                   style={{ color: "hsl(var(--admin-text-ghost))" }}
                 />
               ) : (
                 <ChevronDown
                   size={14}
+                  aria-hidden
                   style={{ color: "hsl(var(--admin-text-ghost))" }}
                 />
               )}
@@ -1114,10 +972,15 @@ const GeneratedPageEditor = () => {
             {seoOpen && (
               <div className="flex flex-col gap-3" style={{ marginTop: 12 }}>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>
+                  <label
+                    htmlFor="seo-title"
+                    className="admin-label"
+                    style={{ fontSize: 10 }}
+                  >
                     Meta Title
                   </label>
                   <input
+                    id="seo-title"
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
                     className="admin-input font-body w-full"
@@ -1136,10 +999,15 @@ const GeneratedPageEditor = () => {
                   </span>
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>
+                  <label
+                    htmlFor="seo-description"
+                    className="admin-label"
+                    style={{ fontSize: 10 }}
+                  >
                     Meta Description
                   </label>
                   <textarea
+                    id="seo-description"
                     value={metaDesc}
                     onChange={(e) => setMetaDesc(e.target.value)}
                     className="admin-input font-body w-full"
@@ -1160,10 +1028,15 @@ const GeneratedPageEditor = () => {
                   </span>
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>
+                  <label
+                    htmlFor="seo-keywords"
+                    className="admin-label"
+                    style={{ fontSize: 10 }}
+                  >
                     Keywords
                   </label>
                   <input
+                    id="seo-keywords"
                     value={metaKeywords}
                     onChange={(e) => setMetaKeywords(e.target.value)}
                     placeholder="comma, separated, keywords"
@@ -1171,58 +1044,35 @@ const GeneratedPageEditor = () => {
                   />
                 </div>
                 <div>
-                  <label className="admin-label" style={{ fontSize: 10 }}>
+                  <label
+                    htmlFor="seo-og-image"
+                    className="admin-label"
+                    style={{ fontSize: 10 }}
+                  >
                     OG Image URL
                   </label>
                   <div className="flex gap-2">
                     <input
+                      id="seo-og-image"
                       value={ogImage}
                       onChange={(e) => setOgImage(e.target.value)}
                       placeholder="https://..."
                       className="admin-input font-body w-full"
                     />
                     <button
-                      onClick={async () => {
-                        setGeneratingOg(true);
-                        try {
-                          const { data, error } =
-                            await supabase.functions.invoke(
-                              "generate-og-image",
-                              {
-                                body: { page_id: id },
-                              },
-                            );
-                          if (error || data?.error)
-                            throw new Error(error?.message || data?.error);
-                          // Refetch page to get updated og_image
-                          const { data: updated } = await supabase
-                            .from("generated_pages")
-                            .select("seo_meta")
-                            .eq("id", id!)
-                            .single();
-                          const newOg =
-                            seoDocumentSchema.parse(updated?.seo_meta)
-                              .og_image || "";
-                          setOgImage(newOg);
-                          toast({ title: "OG image generated!" });
-                        } catch (e) {
-                          toast({
-                            title: "Failed",
-                            description: errorMessage(e),
-                            variant: "destructive",
-                          });
-                        } finally {
-                          setGeneratingOg(false);
-                        }
-                      }}
+                      onClick={handleGenerateOg}
                       disabled={generatingOg}
                       className="admin-btn-ghost flex items-center gap-1 whitespace-nowrap"
                       style={{ fontSize: 11 }}
                     >
                       {generatingOg ? (
-                        <Loader2 size={12} className="animate-spin" />
+                        <Loader2
+                          size={12}
+                          className="animate-spin"
+                          aria-hidden
+                        />
                       ) : (
-                        <Wand2 size={12} />
+                        <Wand2 size={12} aria-hidden />
                       )}
                       {generatingOg ? "Generating..." : "Generate"}
                     </button>
@@ -1246,9 +1096,9 @@ const GeneratedPageEditor = () => {
 
           {/* Regenerate */}
           <div className="admin-card" style={{ padding: 20 }}>
-            <label className="admin-label" style={{ marginBottom: 8 }}>
+            <span className="admin-label" style={{ marginBottom: 8 }}>
               Regenerate
-            </label>
+            </span>
             <p
               className="font-body"
               style={{
@@ -1257,18 +1107,22 @@ const GeneratedPageEditor = () => {
                 marginBottom: 12,
               }}
             >
-              Re-generate content using AI. The slug and URL will stay the same.
+              Rewrites this page's content with fresh research. Title and URL
+              stay the same; manual edits are replaced.
             </p>
             <button
-              onClick={handleRegenerate}
-              disabled={regenerating}
+              onClick={() => setConfirmRegenerate(true)}
+              disabled={regenerateMutation.isPending}
               className="admin-btn-ghost w-full flex items-center justify-center gap-2"
             >
               <RefreshCw
                 size={14}
-                className={regenerating ? "animate-spin" : ""}
+                aria-hidden
+                className={regenerateMutation.isPending ? "animate-spin" : ""}
               />
-              {regenerating ? "Regenerating..." : "Regenerate Content"}
+              {regenerateMutation.isPending
+                ? "Regenerating..."
+                : "Regenerate Content"}
             </button>
           </div>
         </div>
