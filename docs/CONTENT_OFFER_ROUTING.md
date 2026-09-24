@@ -2,6 +2,8 @@
 
 Site Config → **Relevant offers for your content** lets an administrator assign a published offer to one article/guide, a resource type, an industry, or a site-wide content default. Each assignment saves independently of the other Site Config fields. Optional headline, supporting copy and button text override the offer title/summary and neutral button defaults. Assigning the same scope and content replaces its previous assignment. Remove restores the next applicable fallback.
 
+Assignments customize the shared `PublicCTA` recommendation block. The inline article signup cards continue to use the separately configured global free download; assigning an offer does not change those signup forms.
+
 Resolution order is deterministic: **specific article/guide → resource type → industry → default offer → existing global CTA**. Resource types apply to generated resources and their listings. Industry rules apply where a page supplies an explicit niche, currently generated resources and guides; blog articles use explicit article assignments or the default. No keyword inference, behavioral profiling, or guessed topic matches are used. No assignments are seeded automatically.
 
 Targets are selected from published offers with `funnel_only=false`. The public resolver checks that state on every request and skips unavailable offers so an old assignment cannot expose a draft or funnel-only upsell. Browser recommendations are cached for 30 seconds; saving/removing an assignment invalidates that browser's cache. Private fulfillment fields and the route registry are never exposed by the resolver.

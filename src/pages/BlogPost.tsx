@@ -26,6 +26,11 @@ import { findRelatedNiches } from "@/lib/crossLinkMatcher";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import PublicCTA from "@/components/PublicCTA";
+import ArticleLeadCard from "@/components/ArticleLeadCard";
+import PageRelatedPosts from "@/components/widgets/PageRelatedPosts";
+import { splitArticleHtml } from "@/lib/articleSplit";
+import { tagSummitLinksInHtml } from "@/lib/summitLink";
+import type { LeadMagnetOffer } from "@/lib/shop.functions";
 
 interface BlogPostProps {
   initialSeo?: {
@@ -39,12 +44,15 @@ interface BlogPostProps {
   /** Server-rendered article, so the body is in the initial HTML. */
   initialPost?: PublicPost | null;
   initialSettings?: PublicSiteSettings | null;
+  /** The site's free download, offered mid-article and at the end. */
+  leadOffer?: LeadMagnetOffer | null;
 }
 
 const BlogPost = ({
   initialSeo,
   initialPost,
   initialSettings,
+  leadOffer = null,
   preview = false,
 }: BlogPostProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
@@ -152,6 +160,15 @@ const BlogPost = ({
   });
 
   const reading = articleReading(post?.content || "", post?.title || "");
+  const [bodyStart, bodyRest] = splitArticleHtml(
+    tagSummitLinksInHtml(reading.html, "article-mid"),
+    0.4,
+  );
+  const takeaways = z
+    .array(z.string())
+    .catch([])
+    .parse(post?.key_takeaways)
+    .filter((item) => item.trim().length > 0);
   const blogFaqs = z
     .array(z.object({ question: z.string(), answer: z.string() }))
     .catch([])
@@ -163,9 +180,7 @@ const BlogPost = ({
         className="min-h-screen flex items-center justify-center"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
-          Loading...
-        </p>
+        <p className="font-body text-body text-white/70">Loading…</p>
       </div>
     );
   }
@@ -176,17 +191,10 @@ const BlogPost = ({
         className="min-h-screen flex flex-col items-center justify-center gap-6"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
-          Post not found
-        </p>
+        <p className="font-display text-title text-white">Post not found</p>
         <Link
           to="/blog"
-          className="font-body uppercase"
-          style={{
-            fontSize: 12,
-            letterSpacing: "0.15em",
-            color: "var(--brand-accent)",
-          }}
+          className="font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]"
         >
           ← Back to Blog
         </Link>
@@ -195,70 +203,42 @@ const BlogPost = ({
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ background: "#0b0b10", color: "#fff" }}
-    >
+    <div className="public-site min-h-screen bg-[#0b0b10] text-white">
       <Nav />
       <article
         id="main-content"
-        className="mx-auto px-6 lg:px-14 pt-32 pb-24"
-        style={{ maxWidth: 820 }}
+        className="mx-auto max-w-[820px] px-6 pt-32 pb-24 lg:px-14"
       >
         <Link
           to="/blog"
-          className="inline-flex items-center gap-2 font-body uppercase mb-12 transition-colors duration-200"
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.4)",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--brand-accent)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
-          }
+          className="mb-12 inline-flex items-center gap-2 font-body text-label uppercase tracking-[0.18em] text-white/70 transition-colors duration-200 hover:text-[var(--brand-accent)]"
         >
-          <ArrowLeft size={14} />
+          <ArrowLeft size={14} aria-hidden="true" />
           Back to Blog
         </Link>
 
         {/* Meta */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-4">
           {post.categories?.name && (
-            <span
-              className="font-body uppercase"
-              style={{
-                fontSize: 11,
-                letterSpacing: "0.15em",
-                color: "var(--brand-accent)",
-              }}
-            >
+            <span className="font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]">
               {post.categories.name}
             </span>
           )}
-          <span
-            className="font-body flex items-center gap-1"
-            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-          >
-            <Calendar size={12} />
+          <span className="flex items-center gap-1 font-body text-meta text-white/75">
+            <Calendar size={13} aria-hidden="true" />
             {formatPublicDate(post.created_at, {
               year: "numeric",
               month: "long",
               day: "numeric",
             })}
           </span>
-          <span
-            className="font-body flex items-center gap-1"
-            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-          >
-            <Clock size={12} />
+          <span className="flex items-center gap-1 font-body text-meta text-white/75">
+            <Clock size={13} aria-hidden="true" />
             {post.reading_time ?? 1} min read
           </span>
         </div>
 
-        <p className="font-body text-sm text-white/70 mb-5">
+        <p className="mb-5 font-body text-meta text-white/75">
           By {siteSettings?.author_name || "the editorial team"}
           {post.updated_at &&
             new Date(post.updated_at).toISOString().slice(0, 10) !==
@@ -268,56 +248,51 @@ const BlogPost = ({
               <> · Updated {formatPublicDate(post.updated_at)}</>
             )}
         </p>
-        {/* Title */}
-        <h1
-          className="font-display italic mb-8"
-          style={{
-            fontSize: "clamp(2rem, 5vw, 3.5rem)",
-            lineHeight: 1.15,
-          }}
-        >
-          {post.title}
-        </h1>
+        {/* Title: upright serif, matching the home page and Shop */}
+        <h1 className="mb-8 font-display text-headline">{post.title}</h1>
 
         <ArticleContents headings={reading.headings} />
         {/* Reading surface wrapper */}
-        <div
-          style={{
-            background: "#14141b",
-            border: "1px solid rgba(255,255,255,0.06)",
-            padding: "clamp(24px, 4vw, 40px)",
-          }}
-        >
+        <div className="border border-white/[0.06] bg-[#14141b] p-[clamp(24px,4vw,40px)]">
           {/* TL;DR */}
           {post.tldr && (
-            <div
-              className="answer-block mb-10 p-6"
-              style={{
-                borderLeft: "3px solid var(--brand-accent)",
-                background: "rgba(var(--brand-accent-rgb),0.06)",
-              }}
-            >
-              <span
-                className="font-body uppercase block mb-2"
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.15em",
-                  color: "var(--brand-accent)",
-                }}
-              >
+            <div className="answer-block mb-10 border-l-[3px] border-[var(--brand-accent)] bg-[rgba(var(--brand-accent-rgb),0.06)] p-6">
+              <span className="mb-2 block font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]">
                 TL;DR
               </span>
-              <p
-                className="font-body"
-                style={{
-                  fontSize: 17,
-                  color: "rgba(255,255,255,0.92)",
-                  lineHeight: 1.7,
-                }}
-              >
-                {post.tldr}
-              </p>
+              <p className="font-body text-lead text-white/90">{post.tldr}</p>
             </div>
+          )}
+
+          {/* Key Takeaways: up front, so skimmers get the answer first */}
+          {takeaways.length > 0 && (
+            <section
+              aria-labelledby="key-takeaways"
+              className="mb-10 border border-[rgba(var(--brand-accent-rgb),0.25)] bg-[rgba(var(--brand-accent-rgb),0.04)] p-6 sm:p-8"
+            >
+              <h2
+                id="key-takeaways"
+                className="mb-5 font-display text-title text-[var(--brand-accent)]"
+              >
+                Key Takeaways
+              </h2>
+              <ul className="flex flex-col gap-3">
+                {takeaways.map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-3 font-body text-body text-white/85"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 text-[var(--brand-accent)]"
+                    >
+                      →
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {/* Featured image */}
@@ -326,123 +301,80 @@ const BlogPost = ({
               src={post.featured_image}
               alt={post.featured_image_alt || post.title}
               loading="lazy"
-              className="w-full mb-10"
-              style={{ maxHeight: 450, objectFit: "cover" }}
+              className="mb-10 max-h-[450px] w-full object-cover"
             />
           )}
 
-          {/* Content */}
+          {/* Content, with the signup card about 40% of the way through */}
           <div
-            className="blog-content font-body"
-            style={{
-              fontSize: 17,
-              lineHeight: 1.85,
-              color: "rgba(255,255,255,0.9)",
-            }}
-            dangerouslySetInnerHTML={{ __html: reading.html }}
+            className="blog-content font-body text-lead text-white/90"
+            dangerouslySetInnerHTML={{ __html: bodyStart }}
           />
+          {bodyRest && (
+            <>
+              <ArticleLeadCard offer={leadOffer} placement="article-mid" />
+              <div
+                className="blog-content font-body text-lead text-white/90"
+                dangerouslySetInnerHTML={{ __html: bodyRest }}
+              />
+            </>
+          )}
         </div>
+
+        {/* FAQ */}
+        {blogFaqs.length > 0 && (
+          <section aria-labelledby="article-faq" className="mt-14">
+            <h2
+              id="article-faq"
+              className="mb-6 font-display text-title text-white"
+            >
+              FAQ
+            </h2>
+            <div className="flex flex-col gap-6">
+              {blogFaqs.map((faq, i) => (
+                <div key={i} className="border-b border-white/[0.08] pb-6">
+                  <h3 className="mb-2 font-body text-body font-semibold text-white/90">
+                    {faq.question}
+                  </h3>
+                  <p className="faq-answer font-body text-body text-white/75">
+                    {faq.answer}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <ArticleLeadCard offer={leadOffer} placement="article-end" />
 
         <ArticleDetails
           settings={siteSettings}
           sources={post.source_citations}
         />
-        {/* Key Takeaways */}
-        {post.key_takeaways &&
-          Array.isArray(post.key_takeaways) &&
-          (post.key_takeaways as string[]).length > 0 && (
-            <div
-              className="mt-14 p-8"
-              style={{
-                border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
-                background: "rgba(var(--brand-accent-rgb),0.03)",
-              }}
-            >
-              <h3
-                className="font-display italic mb-5"
-                style={{ fontSize: 22, color: "var(--brand-accent)" }}
-              >
-                Key Takeaways
-              </h3>
-              <ul className="flex flex-col gap-3">
-                {(post.key_takeaways as string[]).map((item, i) => (
-                  <li
-                    key={i}
-                    className="font-body flex items-start gap-3"
-                    style={{
-                      fontSize: 14,
-                      color: "rgba(255,255,255,0.55)",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    <span
-                      style={{ color: "var(--brand-accent)", marginTop: 2 }}
-                    >
-                      →
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
-        {/* FAQ */}
-        {post.faq_items &&
-          Array.isArray(post.faq_items) &&
-          blogFaqs.length > 0 && (
-            <div className="mt-14">
-              <h3
-                className="font-display italic mb-6"
-                style={{ fontSize: 22, color: "#fff" }}
-              >
-                FAQ
-              </h3>
-              <div className="flex flex-col gap-6">
-                {blogFaqs.map((faq, i) => (
-                  <div
-                    key={i}
-                    className="pb-6"
-                    style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <h4
-                      className="font-body font-semibold mb-2"
-                      style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
-                    >
-                      {faq.question}
-                    </h4>
-                    <p
-                      className="faq-answer font-body"
-                      style={{
-                        fontSize: 14,
-                        color: "rgba(255,255,255,0.45)",
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {faq.answer}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        <WidgetRenderer
-          zone="page"
-          pageContext={{
-            postId: post.id,
-            categoryId: post.category_id ?? undefined,
-          }}
+        <PublicCTA
+          variant="end"
+          pageId={post.id}
+          pageType="post"
+          summitPlacement="article-end"
         />
+
+        <div className="mt-16">
+          <PageRelatedPosts
+            config={{ count: 3 }}
+            pageContext={{
+              postId: post.id,
+              categoryId: post.category_id ?? undefined,
+            }}
+          />
+        </div>
 
         {/* Cross-links into silo structure */}
         {crossLinkData &&
           (crossLinkData.pillars.length > 0 ||
             crossLinkData.pages.length > 0) && (
             <div className="mt-16">
-              <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+              <h2 className="mb-6 font-display text-title">
                 Related Resources
               </h2>
 
@@ -455,49 +387,25 @@ const BlogPost = ({
                   <a
                     key={p.id}
                     href={`/guides/${p.slug}`}
-                    className="group flex items-center gap-4 mb-4 p-5"
-                    style={{
-                      border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
-                      background: "rgba(var(--brand-accent-rgb),0.04)",
-                      textDecoration: "none",
-                      transition: "border-color 0.3s",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(var(--brand-accent-rgb),0.35)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(var(--brand-accent-rgb),0.15)")
-                    }
+                    className="group mb-4 flex items-center gap-4 border border-[rgba(var(--brand-accent-rgb),0.15)] bg-[rgba(var(--brand-accent-rgb),0.04)] p-5 no-underline transition-colors duration-300 hover:border-[rgba(var(--brand-accent-rgb),0.35)]"
                   >
                     <BookOpen
                       size={20}
-                      style={{ color: "hsl(var(--accent))", flexShrink: 0 }}
+                      aria-hidden="true"
+                      className="shrink-0 text-[var(--brand-accent)]"
                     />
-                    <div style={{ flex: 1 }}>
-                      <span
-                        className="font-body uppercase block"
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          color: "rgba(255,255,255,0.35)",
-                          marginBottom: 4,
-                        }}
-                      >
-                        📖 Complete Guide{niche ? ` · ${niche.nicheName}` : ""}
+                    <div className="flex-1">
+                      <span className="mb-1 block font-body text-label uppercase tracking-[0.12em] text-white/70">
+                        Complete Guide{niche ? ` · ${niche.nicheName}` : ""}
                       </span>
-                      <span
-                        className="font-body font-medium group-hover:text-[var(--brand-accent)] transition-colors"
-                        style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
-                      >
+                      <span className="font-body text-body font-medium text-white/85 transition-colors group-hover:text-[var(--brand-accent)]">
                         {p.title}
                       </span>
                     </div>
                     <ArrowRight
                       size={16}
-                      className="shrink-0 group-hover:text-[var(--brand-accent)] transition-colors"
-                      style={{ color: "rgba(255,255,255,0.2)" }}
+                      aria-hidden="true"
+                      className="shrink-0 text-white/60 transition-colors group-hover:text-[var(--brand-accent)]"
                     />
                   </a>
                 );
@@ -505,45 +413,18 @@ const BlogPost = ({
 
               {/* Generated page links */}
               {crossLinkData.pages.length > 0 && (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                   {crossLinkData.pages.slice(0, 3).map((pg) => (
                     <a
                       key={pg.id}
                       href={`/resources/${pg.content_schemas?.slug}/${pg.slug}`}
-                      className="group block p-4"
-                      style={{
-                        border: "1px solid rgba(255,255,255,0.06)",
-                        textDecoration: "none",
-                        transition: "border-color 0.3s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.borderColor =
-                          "rgba(var(--brand-accent-rgb),0.2)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.borderColor =
-                          "rgba(255,255,255,0.06)")
-                      }
+                      className="group block border border-white/[0.08] p-4 no-underline transition-colors duration-300 hover:border-[rgba(var(--brand-accent-rgb),0.3)]"
                     >
-                      <h3
-                        className="font-body font-medium mb-1 group-hover:text-[var(--brand-accent)] transition-colors"
-                        style={{
-                          fontSize: 13,
-                          color: "rgba(255,255,255,0.7)",
-                          lineHeight: 1.4,
-                        }}
-                      >
+                      <h3 className="mb-1 font-body text-meta font-medium text-white/85 transition-colors group-hover:text-[var(--brand-accent)]">
                         {pg.title}
                       </h3>
-                      <span
-                        className="font-body uppercase flex items-center gap-1 group-hover:text-[var(--brand-accent)] transition-colors"
-                        style={{
-                          fontSize: 10,
-                          letterSpacing: "0.1em",
-                          color: "rgba(255,255,255,0.25)",
-                        }}
-                      >
-                        View <ArrowRight size={10} />
+                      <span className="flex items-center gap-1 font-body text-label uppercase tracking-[0.1em] text-white/70 transition-colors group-hover:text-[var(--brand-accent)]">
+                        View <ArrowRight size={12} aria-hidden="true" />
                       </span>
                     </a>
                   ))}
@@ -552,7 +433,16 @@ const BlogPost = ({
             </div>
           )}
 
-        <PublicCTA variant="end" pageId={post.id} pageType="post" />
+        <div className="mt-16">
+          <WidgetRenderer
+            zone="page"
+            exclude={["page-related-posts"]}
+            pageContext={{
+              postId: post.id,
+              categoryId: post.category_id ?? undefined,
+            }}
+          />
+        </div>
       </article>
       <Footer />
     </div>

@@ -1,10 +1,8 @@
 import { useState } from "react";
+import { summitHref } from "@/lib/summitLink";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  interpretSubscribeResult,
-  type SubscribeUiState,
-} from "@/lib/newsletterClient";
+import type { SubscribeUiState } from "@/lib/newsletterClient";
+import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import FormPrivacyLink from "@/components/FormPrivacyLink";
 
@@ -21,34 +19,7 @@ const FinalCTA = () => {
     setStatus("loading");
     setMessage("");
 
-    let httpStatus = 200;
-    let payload: unknown = null;
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "newsletter-subscribe",
-        {
-          body: { email, source: "final_cta" },
-        },
-      );
-      if (error) {
-        const res = error?.context as Response | undefined;
-        if (res) {
-          httpStatus = res.status;
-          payload = await res
-            .clone()
-            .json()
-            .catch(() => null);
-        } else {
-          httpStatus = 0;
-        }
-      } else {
-        payload = data;
-      }
-    } catch {
-      httpStatus = 0;
-    }
-
-    const result = interpretSubscribeResult(httpStatus, payload);
+    const result = await subscribeToNewsletter(email, "final_cta");
     setStatus(result.state);
     setMessage(result.message);
     if (result.state === "confirmation_sent") setEmail("");
@@ -126,7 +97,7 @@ const FinalCTA = () => {
                 {newsletter.secondaryCtaLabel}
               </p>
               <a
-                href={newsletter.secondaryCta.href}
+                href={summitHref(newsletter.secondaryCta.href, "footer")}
                 data-conversion-destination="summit"
                 data-conversion-placement="footer"
                 target={newsletter.secondaryCta.external ? "_blank" : undefined}

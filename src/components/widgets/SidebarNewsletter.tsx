@@ -1,11 +1,8 @@
 import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import FormPrivacyLink from "@/components/FormPrivacyLink";
-import {
-  interpretSubscribeResult,
-  type SubscribeUiState,
-} from "@/lib/newsletterClient";
+import type { SubscribeUiState } from "@/lib/newsletterClient";
+import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
 
 const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
   const [email, setEmail] = useState("");
@@ -18,34 +15,7 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
     setState("loading");
     setMessage("");
 
-    let status = 200;
-    let payload: unknown = null;
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "newsletter-subscribe",
-        {
-          body: { email, source: "sidebar" },
-        },
-      );
-      if (error) {
-        const res = error?.context as Response | undefined;
-        if (res) {
-          status = res.status;
-          payload = await res
-            .clone()
-            .json()
-            .catch(() => null);
-        } else {
-          status = 0;
-        }
-      } else {
-        payload = data;
-      }
-    } catch {
-      status = 0;
-    }
-
-    const result = interpretSubscribeResult(status, payload);
+    const result = await subscribeToNewsletter(email, "sidebar");
     setState(result.state);
     setMessage(result.message);
     if (result.state === "confirmation_sent") setEmail("");
@@ -70,7 +40,7 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
       }}
     >
       <h3
-        className="font-display italic mb-2"
+        className="font-display mb-2"
         style={{ fontSize: 20, color: "var(--foreground)" }}
       >
         {config.title || "Stay Updated"}
@@ -118,7 +88,7 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
             className="font-body uppercase"
             style={{
               padding: "10px",
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.1em",
               background: "hsl(var(--accent))",
               color: "hsl(var(--accent-foreground))",

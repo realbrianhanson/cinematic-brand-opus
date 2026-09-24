@@ -19,7 +19,7 @@ const FooterColumns = ({ config }: { config: WidgetConfig }) => {
             <h4
               className="font-body font-bold uppercase mb-3"
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 letterSpacing: "0.2em",
                 color: "hsl(var(--accent))",
               }}
@@ -32,7 +32,7 @@ const FooterColumns = ({ config }: { config: WidgetConfig }) => {
               className="font-body"
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(255,255,255,0.7)",
                 lineHeight: 1.7,
               }}
             >

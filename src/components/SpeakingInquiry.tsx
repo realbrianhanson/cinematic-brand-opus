@@ -60,7 +60,7 @@ export default function SpeakingInquiry({ href }: SpeakingInquiryProps) {
       setError(
         failure instanceof Error
           ? failure.message
-          : "We could not confirm your inquiry. Please try again.",
+          : "We couldn’t confirm your inquiry. Please try again",
       );
     } finally {
       pendingRef.current = false;
@@ -83,11 +83,11 @@ export default function SpeakingInquiry({ href }: SpeakingInquiryProps) {
             className="mx-auto text-[var(--brand-accent)]"
           />
           <h3 className="mt-5 font-display text-3xl text-white">
-            Your inquiry is in.
+            Your inquiry is in
           </h3>
           <p className="mx-auto mt-3 max-w-md text-white/75 leading-relaxed">
             Thanks for sharing your event. We’ll review the details and follow
-            up at the email address you provided.
+            up at the email address you provided
           </p>
         </div>
       ) : (
@@ -99,8 +99,8 @@ export default function SpeakingInquiry({ href }: SpeakingInquiryProps) {
             id="speaking-inquiry-help"
             className="mt-2 text-sm leading-relaxed text-white/75"
           >
-            A few details will help us find the right session for your audience.
-            No commitment required.
+            A few details help us find the right session for your audience. No
+            commitment required
           </p>
           <form
             method="post"
@@ -235,7 +235,7 @@ export default function SpeakingInquiry({ href }: SpeakingInquiryProps) {
           <noscript>
             <p className="mt-4 text-sm text-white/75">
               Enable JavaScript to use the inquiry form, or contact us by email
-              below.
+              below
             </p>
           </noscript>
           {emailHref && (

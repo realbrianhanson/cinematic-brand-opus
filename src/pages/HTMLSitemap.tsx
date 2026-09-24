@@ -82,14 +82,14 @@ const HTMLSitemap = () => {
         style={{ maxWidth: 900 }}
       >
         <h1
-          className="font-display italic mb-4"
+          className="font-display mb-4"
           style={{ fontSize: "clamp(32px, 5vw, 48px)", lineHeight: 1.15 }}
         >
           Sitemap
         </h1>
         <p
           className="font-body mb-12"
-          style={{ fontSize: 15, color: "rgba(255,255,255,0.4)" }}
+          style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
         >
           A complete index of every page on this site.
         </p>
@@ -97,7 +97,7 @@ const HTMLSitemap = () => {
         {/* Main pages */}
         <section className="mb-12">
           <h2
-            className="font-display italic mb-4"
+            className="font-display mb-4"
             style={{ fontSize: 22, color: "var(--brand-accent)" }}
           >
             Pages
@@ -118,6 +118,16 @@ const HTMLSitemap = () => {
                 </Link>
               </li>
             ))}
+            {config.sections.story && (
+              <li>
+                <Link
+                  to="/about"
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                >
+                  About {config.identity.name}
+                </Link>
+              </li>
+            )}
             {config.sections.speaking && (
               <li>
                 <Link
@@ -178,7 +188,7 @@ const HTMLSitemap = () => {
         {!!shop.data?.length && (
           <section className="mb-12">
             <h2
-              className="font-display italic mb-4"
+              className="font-display mb-4"
               style={{ fontSize: 22, color: "var(--brand-accent)" }}
             >
               Shop offers
@@ -203,7 +213,7 @@ const HTMLSitemap = () => {
         {pillarPages && pillarPages.length > 0 && (
           <section className="mb-12">
             <h2
-              className="font-display italic mb-4"
+              className="font-display mb-4"
               style={{ fontSize: 22, color: "var(--brand-accent)" }}
             >
               Guides
@@ -228,7 +238,7 @@ const HTMLSitemap = () => {
         {Object.keys(groupedByType).length > 0 && (
           <section className="mb-12">
             <h2
-              className="font-display italic mb-6"
+              className="font-display mb-6"
               style={{ fontSize: 22, color: "var(--brand-accent)" }}
             >
               Resources
@@ -240,7 +250,7 @@ const HTMLSitemap = () => {
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.12em",
-                    color: "rgba(255,255,255,0.5)",
+                    color: "rgba(255,255,255,0.7)",
                   }}
                 >
                   {group.name}
@@ -272,7 +282,7 @@ const HTMLSitemap = () => {
         {blogPosts && blogPosts.length > 0 && (
           <section className="mb-12">
             <h2
-              className="font-display italic mb-4"
+              className="font-display mb-4"
               style={{ fontSize: 22, color: "var(--brand-accent)" }}
             >
               Blog Articles

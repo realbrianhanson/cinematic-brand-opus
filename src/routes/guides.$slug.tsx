@@ -96,7 +96,7 @@ export const Route = createFileRoute("/guides/$slug")({
   },
   component: GuideRoute,
   errorComponent: () => (
-    <PublicRouteError message="This guide could not be loaded." />
+    <PublicRouteError message="This guide could not be loaded" />
   ),
   notFoundComponent: () => <PillarPage />,
 });

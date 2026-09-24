@@ -1,4 +1,5 @@
 import { Brain, Target, Code2, Users, ArrowUpRight } from "lucide-react";
+import { summitHref } from "@/lib/summitLink";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 const ICONS = {
   brain: Brain,
@@ -29,7 +30,7 @@ export default function Expertise() {
           </p>
           {sections.event && event.cta && (
             <a
-              href={event.cta.href}
+              href={summitHref(event.cta.href, "expertise")}
               data-conversion-destination="summit"
               data-conversion-placement="other"
               target={event.cta.external ? "_blank" : undefined}

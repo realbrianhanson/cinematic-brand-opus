@@ -59,7 +59,7 @@ const TypographicCover = ({
             position: "absolute",
             top: 12,
             left: 16,
-            fontSize: 10,
+            fontSize: 12,
             letterSpacing: "0.2em",
             color: "rgba(var(--brand-backdrop-rgb),0.85)",
             background: "rgba(255,255,255,0.35)",
@@ -274,7 +274,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
           Back to Home
         </Link>
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
             lineHeight: 1.1,
@@ -310,7 +310,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 left: 14,
                 top: "50%",
                 transform: "translateY(-50%)",
-                color: "rgba(255,255,255,0.5)",
+                color: "rgba(255,255,255,0.7)",
               }}
             />
             <input
@@ -347,7 +347,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   aria-pressed={active}
                   className="font-body uppercase transition-colors"
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     letterSpacing: "0.15em",
                     padding: "8px 14px",
                     border: `1px solid ${active ? "var(--brand-accent)" : "rgba(255,255,255,0.12)"}`,
@@ -382,7 +382,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            Failed to load news. Please refresh the page.
+            News didn’t load. Refresh the page to try again
           </p>
         )}
         {!isLoading && !isError && !hasNextPage && filtered.length === 0 && (
@@ -391,8 +391,8 @@ const News = ({ initialPage }: NewsProps = {}) => {
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             {query || lane !== "all"
-              ? "No news matches your search."
-              : "No briefings are available at the moment."}
+              ? "No news matches your search"
+              : "No briefings are available right now"}
           </p>
         )}
 
@@ -436,7 +436,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 <span
                   className="font-body uppercase mb-3"
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     letterSpacing: "0.2em",
                     color: "var(--brand-accent)",
                   }}
@@ -444,7 +444,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   Featured · {laneLabel(featured.topic_lane)}
                 </span>
                 <h2
-                  className="font-display italic mb-4 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="font-display mb-4 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
                   style={{
                     fontSize: "clamp(28px, 3.5vw, 44px)",
                     lineHeight: 1.15,
@@ -540,7 +540,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 <span
                   className="font-body uppercase mb-2"
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     letterSpacing: "0.18em",
                     color: "var(--brand-accent)",
                   }}
@@ -548,7 +548,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   {laneLabel(n.topic_lane)}
                 </span>
                 <h3
-                  className="font-display italic mb-2 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="font-display mb-2 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
                   style={{
                     fontSize: "clamp(18px, 2.2vw, 24px)",
                     lineHeight: 1.25,
@@ -620,9 +620,9 @@ const News = ({ initialPage }: NewsProps = {}) => {
           <p
             className="text-center font-body uppercase mt-10"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.2em",
-              color: "rgba(255,255,255,0.4)",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             — No more news —

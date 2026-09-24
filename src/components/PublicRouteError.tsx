@@ -23,7 +23,7 @@ const PublicRouteError = ({ message }: { message?: string }) => {
         className="min-h-[70vh] flex flex-col items-center justify-center gap-6 px-6 text-center"
       >
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{ fontSize: "clamp(1.75rem, 4vw, 2.5rem)" }}
         >
           This page could not load

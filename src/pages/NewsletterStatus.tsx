@@ -2,16 +2,16 @@ import { Link, useLocation } from "@/lib/router-compat";
 
 const MESSAGES: Record<string, { headline: string; line: string }> = {
   "/newsletter/confirmed": {
-    headline: "You're in.",
-    line: "Talk soon.",
+    headline: "You're in",
+    line: "Talk soon",
   },
   "/newsletter/unsubscribed": {
-    headline: "You're unsubscribed.",
-    line: "No hard feelings.",
+    headline: "You're unsubscribed",
+    line: "No hard feelings",
   },
   "/newsletter/invalid": {
-    headline: "That link didn't work.",
-    line: "Try subscribing again.",
+    headline: "That link didn't work",
+    line: "Try subscribing again",
   },
 };
 

@@ -1071,6 +1071,33 @@ export type Database = {
           },
         ];
       };
+      not_found_hits: {
+        Row: {
+          first_seen: string;
+          hits: number;
+          last_referrer: string | null;
+          last_seen: string;
+          last_user_agent_class: string;
+          path: string;
+        };
+        Insert: {
+          first_seen?: string;
+          hits?: number;
+          last_referrer?: string | null;
+          last_seen?: string;
+          last_user_agent_class?: string;
+          path: string;
+        };
+        Update: {
+          first_seen?: string;
+          hits?: number;
+          last_referrer?: string | null;
+          last_seen?: string;
+          last_user_agent_class?: string;
+          path?: string;
+        };
+        Relationships: [];
+      };
       offer_access_deliveries: {
         Row: {
           attempts: number;
@@ -1782,6 +1809,45 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      redirect_rules: {
+        Row: {
+          created_at: string;
+          from_path: string;
+          hits: number;
+          id: string;
+          is_active: boolean;
+          last_hit_at: string | null;
+          note: string | null;
+          status_code: number;
+          to_path: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          from_path: string;
+          hits?: number;
+          id?: string;
+          is_active?: boolean;
+          last_hit_at?: string | null;
+          note?: string | null;
+          status_code?: number;
+          to_path: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          from_path?: string;
+          hits?: number;
+          id?: string;
+          is_active?: boolean;
+          last_hit_at?: string | null;
+          note?: string | null;
+          status_code?: number;
+          to_path?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       seo_metadata: {
         Row: {
@@ -2523,6 +2589,17 @@ export type Database = {
         Returns: {
           content_schema_id: string;
           page_count: number;
+        }[];
+      };
+      record_not_found: {
+        Args: { p_path: string; p_referrer?: string | null; p_ua_class?: string };
+        Returns: boolean;
+      };
+      resolve_redirect: {
+        Args: { p_path: string };
+        Returns: {
+          status_code: number;
+          to_path: string;
         }[];
       };
       save_site_branding: { Args: { value: Json }; Returns: undefined };

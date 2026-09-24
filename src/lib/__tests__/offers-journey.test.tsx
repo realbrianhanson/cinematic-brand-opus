@@ -315,7 +315,7 @@ describe("offer visitor journey", () => {
     expect(
       document.querySelector<HTMLInputElement>('input[name="email"]')?.disabled,
     ).toBe(true);
-    expect(html).toContain("Enable JavaScript to securely request");
+    expect(html).toContain("Enable JavaScript to request");
     expect(invoke).not.toHaveBeenCalled();
   });
   it("repeats the external paid offer link after the details without starting checkout", () => {
@@ -433,7 +433,9 @@ describe("offer visitor journey", () => {
         }}
       />,
     );
-    expect(screen.getAllByText(/destination is not available/)).toHaveLength(2);
+    expect(screen.getAllByText(/link isn’t available right now/)).toHaveLength(
+      2,
+    );
     expect(screen.queryByRole("link", { name: "Visit website" })).toBeNull();
     expect(document.querySelector("form")).toBeNull();
     expect(invoke).not.toHaveBeenCalled();
@@ -490,7 +492,7 @@ describe("offer visitor journey", () => {
       safeOfferRedirect("https://owner:secret@example.com"),
     ).toThrow();
   });
-  it("free download retries reuse the same token without subscribing to a newsletter", async () => {
+  it("free download retries reuse the same token, then start the opted-in newsletter confirmation", async () => {
     invoke
       .mockRejectedValueOnce(new Error("Temporary connection issue"))
       .mockResolvedValueOnce(
@@ -501,7 +503,7 @@ describe("offer visitor journey", () => {
       target: { value: "PERSON@example.com" },
     });
     const form = screen
-      .getByRole("button", { name: /Get my free download/ })
+      .getByRole("button", { name: /Send Me the Free Download/ })
       .closest("form")!;
     fireEvent.submit(form);
     await screen.findByRole("alert");
@@ -518,9 +520,57 @@ describe("offer visitor journey", () => {
     expect(sessionStorage.getItem("offer-access-token")).toBe(
       requests[0].token,
     );
+    const consent = screen.getByRole("checkbox", {
+      name: /weekly email/,
+    }) as HTMLInputElement;
+    expect(consent.checked).toBe(true);
+    expect(screen.getByText(/Unsubscribe in one click/)).toBeTruthy();
+    expect(screen.queryByText(/does not sign you up/)).toBeNull();
+    const subscribe = invoke.mock.calls.filter(
+      (call) => call[0] === "newsletter-subscribe",
+    );
+    expect(subscribe).toHaveLength(1);
+    expect(subscribe[0][1].body).toEqual({
+      email: "person@example.com",
+      source: "starter-kit",
+    });
+  });
+  it("respects an unchecked opt-in: the download opens and nothing is subscribed", async () => {
+    invoke.mockResolvedValue(
+      respond({ status: "fulfilled", access_url: access.access_url }),
+    );
+    render(<OfferLanding offer={offer} />);
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "person@example.com" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /weekly email/ }));
+    const form = screen
+      .getByRole("button", { name: /Send Me the Free Download/ })
+      .closest("form")!;
+    fireEvent.submit(form);
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(access.access_url));
     expect(
-      screen.getByText(/does not sign you up for a newsletter/),
-    ).toBeTruthy();
+      invoke.mock.calls.some((call) => call[0] === "newsletter-subscribe"),
+    ).toBe(false);
+  });
+  it("still opens the download when the newsletter confirmation fails", async () => {
+    invoke.mockImplementation((name: string) =>
+      name === "newsletter-subscribe"
+        ? Promise.reject(new Error("offline"))
+        : Promise.resolve(
+            respond({ status: "fulfilled", access_url: access.access_url }),
+          ),
+    );
+    render(<OfferLanding offer={offer} />);
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "person@example.com" },
+    });
+    fireEvent.submit(
+      screen
+        .getByRole("button", { name: /Send Me the Free Download/ })
+        .closest("form")!,
+    );
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(access.access_url));
   });
   it("keeps paid checkout disabled without payment configuration", async () => {
     invoke.mockResolvedValue(respond({ offer, payments_ready: false }));
@@ -552,7 +602,7 @@ describe("offer visitor journey", () => {
       target: { value: "person@example.com" },
     });
     const form = screen
-      .getByRole("button", { name: /Get my free download/ })
+      .getByRole("button", { name: /Send Me the Free Download/ })
       .closest("form")!;
     fireEvent.submit(form);
     await screen.findByText(/previous checkout is closed/);
@@ -572,7 +622,7 @@ describe("offer visitor journey", () => {
     expect(invoke).not.toHaveBeenCalled();
     rerender(<OfferLanding offer={{ ...offer, funnel_only: true }} />);
     expect(
-      screen.queryByRole("button", { name: /Get my free download/ }),
+      screen.queryByRole("button", { name: /Send Me the Free Download/ }),
     ).toBeNull();
   });
   it("removes the bearer fragment, uses POST data and keeps original access after declining", async () => {

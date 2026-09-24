@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
@@ -37,6 +38,7 @@ import { Route as AdminLibraryRouteImport } from './routes/admin.library'
 import { Route as AdminNichesRouteImport } from './routes/admin.niches'
 import { Route as AdminPseoDashboardRouteImport } from './routes/admin.pseo-dashboard'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
+import { Route as AdminRedirectsRouteImport } from './routes/admin.redirects'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
@@ -79,6 +81,11 @@ import { Route as ApiPublicNewsletterUnsubscribeRouteImport } from './routes/api
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -215,6 +222,11 @@ const AdminPseoDashboardRoute = AdminPseoDashboardRouteImport.update({
 const AdminQueueRoute = AdminQueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRedirectsRoute = AdminRedirectsRouteImport.update({
+  id: '/redirects',
+  path: '/redirects',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -414,6 +426,7 @@ const ApiPublicNewsletterUnsubscribeRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/blog': typeof BlogRouteWithChildren
   '/llms-full.txt': typeof LlmsFullDottxtRoute
@@ -440,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/redirects': typeof AdminRedirectsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
@@ -482,6 +496,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/offer-access': typeof OfferAccessRoute
@@ -504,6 +519,7 @@ export interface FileRoutesByTo {
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/redirects': typeof AdminRedirectsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
@@ -546,6 +562,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/blog': typeof BlogRouteWithChildren
   '/llms-full.txt': typeof LlmsFullDottxtRoute
@@ -572,6 +589,7 @@ export interface FileRoutesById {
   '/admin/niches': typeof AdminNichesRoute
   '/admin/pseo-dashboard': typeof AdminPseoDashboardRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/redirects': typeof AdminRedirectsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/site-settings': typeof AdminSiteSettingsRoute
@@ -616,6 +634,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/admin'
     | '/blog'
     | '/llms-full.txt'
@@ -642,6 +661,7 @@ export interface FileRouteTypes {
     | '/admin/niches'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
+    | '/admin/redirects'
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/site-settings'
@@ -684,6 +704,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/offer-access'
@@ -706,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/niches'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
+    | '/admin/redirects'
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/site-settings'
@@ -747,6 +769,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/admin'
     | '/blog'
     | '/llms-full.txt'
@@ -773,6 +796,7 @@ export interface FileRouteTypes {
     | '/admin/niches'
     | '/admin/pseo-dashboard'
     | '/admin/queue'
+    | '/admin/redirects'
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/site-settings'
@@ -816,6 +840,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   BlogRoute: typeof BlogRouteWithChildren
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
@@ -854,6 +879,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1043,6 +1075,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/admin/queue'
       preLoaderRoute: typeof AdminQueueRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/redirects': {
+      id: '/admin/redirects'
+      path: '/redirects'
+      fullPath: '/admin/redirects'
+      preLoaderRoute: typeof AdminRedirectsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -1324,6 +1363,7 @@ interface AdminRouteChildren {
   AdminNichesRoute: typeof AdminNichesRoute
   AdminPseoDashboardRoute: typeof AdminPseoDashboardRoute
   AdminQueueRoute: typeof AdminQueueRoute
+  AdminRedirectsRoute: typeof AdminRedirectsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSetupRoute: typeof AdminSetupRoute
   AdminSiteSettingsRoute: typeof AdminSiteSettingsRoute
@@ -1355,6 +1395,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminNichesRoute: AdminNichesRoute,
   AdminPseoDashboardRoute: AdminPseoDashboardRoute,
   AdminQueueRoute: AdminQueueRoute,
+  AdminRedirectsRoute: AdminRedirectsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSetupRoute: AdminSetupRoute,
   AdminSiteSettingsRoute: AdminSiteSettingsRoute,
@@ -1431,6 +1472,7 @@ const ResourcesRouteWithChildren = ResourcesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   BlogRoute: BlogRouteWithChildren,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,

@@ -14,7 +14,7 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
       <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--brand-accent)]">
-            Learn. Build. Put it to work.
+            The Shop
           </p>
           <h2
             id="home-shop-heading"
@@ -23,14 +23,14 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
             Your next step,
             <br />
             <span className="italic text-[var(--brand-accent)]">
-              ready when you are.
+              ready when you are
             </span>
           </h2>
         </div>
         <div className="max-w-sm">
           <p className="mb-5 text-sm leading-relaxed text-white/70">
-            Go beyond the idea. Explore practical training, useful resources,
-            and tools you can make your own.
+            Training, resources, and tools you can make your own. Start free and
+            build from there
           </p>
           <Link
             to="/shop"

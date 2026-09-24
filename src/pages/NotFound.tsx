@@ -11,7 +11,7 @@ const NotFound = () => {
     >
       <PageHead
         title="Page Not Found"
-        description="The page you're looking for doesn't exist."
+        description="The page you're looking for doesn't exist"
         url="/404"
       />
       <Nav />
@@ -30,7 +30,7 @@ const NotFound = () => {
           404
         </p>
         <h1
-          className="font-display italic mb-4"
+          className="font-display mb-4"
           style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.15 }}
         >
           Page Not Found
@@ -39,12 +39,12 @@ const NotFound = () => {
           className="font-body mb-10"
           style={{
             fontSize: 15,
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.7)",
             maxWidth: 420,
             lineHeight: 1.6,
           }}
         >
-          The page you're looking for doesn't exist or has been moved.
+          The page you're looking for doesn't exist or has moved
         </p>
         <nav
           className="flex flex-col sm:flex-row gap-4"
@@ -54,7 +54,7 @@ const NotFound = () => {
             to="/resources"
             className="font-body uppercase inline-flex items-center gap-2 px-6 py-3 transition-all"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.12em",
               fontWeight: 600,
               background: "hsl(var(--accent))",
@@ -68,7 +68,7 @@ const NotFound = () => {
             to="/blog"
             className="font-body uppercase inline-flex items-center gap-2 px-6 py-3 transition-all"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.12em",
               fontWeight: 500,
               border: "1px solid rgba(255,255,255,0.1)",
@@ -82,10 +82,10 @@ const NotFound = () => {
             to="/"
             className="font-body uppercase inline-flex items-center gap-2 px-6 py-3 transition-all"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.12em",
               fontWeight: 500,
-              color: "rgba(255,255,255,0.4)",
+              color: "rgba(255,255,255,0.7)",
               textDecoration: "none",
             }}
           >

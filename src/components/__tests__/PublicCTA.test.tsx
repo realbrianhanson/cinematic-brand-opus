@@ -33,8 +33,9 @@ vi.mock("@/lib/contentOfferRouting", async (importOriginal) => ({
   resolveContentOffer: h.resolve,
 }));
 import PublicCTA from "../PublicCTA";
+import type { SummitPlacement } from "@/lib/summitLink";
 
-function show() {
+function show(summitPlacement?: SummitPlacement) {
   return render(
     <QueryClientProvider
       client={
@@ -47,15 +48,34 @@ function show() {
         pageId="00000000-0000-4000-8000-000000000001"
         nicheSlug="landscaping"
         nicheName="Landscaping"
+        summitPlacement={summitPlacement}
       />
     </QueryClientProvider>,
   );
 }
 beforeEach(() => {
   h.resolve.mockReset();
+  h.settings.cta_url = "https://example.com/training";
 });
 afterEach(cleanup);
 describe("contextual public CTA", () => {
+  it("preserves article Summit placement tags and the referral code on global fallback", async () => {
+    h.settings.cta_url = "https://go.aiforbusiness.com/summit?_go=brian60";
+    h.resolve.mockResolvedValue(null);
+    show("article-end");
+    const link = await screen.findByRole("link", { name: /Join/ });
+    const url = new URL(link.getAttribute("href")!);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      _go: "brian60",
+      utm_source: "brianhanson.com",
+      utm_medium: "site",
+      utm_campaign: "summit",
+      utm_content: "article-end",
+    });
+    expect(
+      screen.getByRole("heading", { name: "Global training" }),
+    ).toHaveClass("text-title");
+  });
   it("retains the global CTA when no assignment matches", async () => {
     h.resolve.mockResolvedValue(null);
     show();
@@ -65,6 +85,7 @@ describe("contextual public CTA", () => {
     expect(screen.getByText("Grow your Landscaping business")).toBeVisible();
   });
   it("uses a relevant native offer without the unrelated global proof or outbound tag", async () => {
+    h.settings.cta_url = "https://go.aiforbusiness.com/summit?_go=brian60";
     h.resolve.mockResolvedValue({
       route_id: "r",
       offer_id: "o",
@@ -77,7 +98,7 @@ describe("contextual public CTA", () => {
       subtext: "",
       button_text: "",
     });
-    show();
+    show("article-end");
     const link = await screen.findByRole("link", {
       name: /Get the free resource/,
     });

@@ -27,26 +27,26 @@ export function interpretSubscribeResult(
     return {
       state: "unavailable",
       message:
-        "Sign-ups are temporarily unavailable because email delivery is not configured yet. Please try again later.",
+        "Sign-ups are temporarily unavailable because email delivery is not configured yet. Please try again later",
     };
   }
   if (status === 429 || state === "rate_limited") {
     return {
       state: "rate_limited",
-      message: "Too many attempts. Please wait a little while and try again.",
+      message: "Too many attempts. Please wait a little while and try again",
     };
   }
   if (status === 400 || state === "invalid_email") {
     return {
       state: "invalid_email",
-      message: "That email address doesn't look right.",
+      message: "That email address doesn't look right",
     };
   }
   if (status === 502 || state === "send_failed") {
     return {
       state: "error",
       message:
-        "We couldn't send your confirmation email just now. Please try again in a few minutes.",
+        "We couldn't send your confirmation email just now. Please try again in a few minutes",
     };
   }
 
@@ -54,28 +54,28 @@ export function interpretSubscribeResult(
     case "accepted":
       return {
         state: "confirmation_sent",
-        message: "If confirmation is needed, check your inbox for a link.",
+        message: "If confirmation is needed, check your inbox for a link",
       };
     case "confirmation_sent":
       return {
         state: "confirmation_sent",
-        message: "Check your inbox for the confirmation link.",
+        message: "Check your inbox for the confirmation link",
       };
     case "already_subscribed":
       return {
         state: "already_subscribed",
-        message: "You're already subscribed.",
+        message: "You're already subscribed",
       };
     case "confirmation_already_requested":
       return {
         state: "already_requested",
         message:
-          "A confirmation link was already sent recently. Check your inbox, including spam.",
+          "A confirmation link was already sent recently. Check your inbox, including spam",
       };
     default:
       return {
         state: "error",
-        message: "Something went wrong. Please try again.",
+        message: "Something went wrong. Please try again",
       };
   }
 }

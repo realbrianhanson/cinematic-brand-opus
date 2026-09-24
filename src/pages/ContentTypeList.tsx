@@ -101,7 +101,7 @@ const ContentTypeList = ({
         />
 
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.1 }}
         >
           {schema?.name || "Loading..."}
@@ -111,7 +111,7 @@ const ContentTypeList = ({
             className="font-body mt-4"
             style={{
               fontSize: 16,
-              color: "rgba(255,255,255,0.4)",
+              color: "rgba(255,255,255,0.7)",
               maxWidth: 560,
             }}
           >
@@ -132,7 +132,7 @@ const ContentTypeList = ({
               onClick={() => setNicheFilter("")}
               className="font-body uppercase px-4 py-2 transition-all duration-200"
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 letterSpacing: "0.12em",
                 border: "1px solid",
                 borderColor: !nicheFilter
@@ -159,7 +159,7 @@ const ContentTypeList = ({
                   onClick={() => setNicheFilter(n.slug)}
                   className="font-body uppercase px-4 py-2 transition-all duration-200"
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     letterSpacing: "0.12em",
                     border: "1px solid",
                     borderColor: active
@@ -207,7 +207,7 @@ const ContentTypeList = ({
                   <span
                     className="font-body uppercase"
                     style={{
-                      fontSize: 9,
+                      fontSize: 12,
                       letterSpacing: "0.15em",
                       color: "var(--brand-accent)",
                     }}
@@ -217,7 +217,7 @@ const ContentTypeList = ({
                 )}
               </div>
               <h2
-                className="font-display italic mb-3 transition-colors group-hover:text-[var(--brand-accent)]"
+                className="font-display mb-3 transition-colors group-hover:text-[var(--brand-accent)]"
                 style={{ fontSize: 20, lineHeight: 1.3 }}
               >
                 {p.title}
@@ -225,9 +225,9 @@ const ContentTypeList = ({
               <div
                 className="flex items-center gap-1 font-body uppercase transition-colors group-hover:text-[var(--brand-accent)]"
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   letterSpacing: "0.15em",
-                  color: "rgba(255,255,255,0.3)",
+                  color: "rgba(255,255,255,0.7)",
                 }}
               >
                 View {schema?.name?.toLowerCase() || "resource"}{" "}
@@ -240,7 +240,7 @@ const ContentTypeList = ({
         {filtered.length === 0 && !pages && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+            style={{ color: "rgba(255,255,255,0.7)", fontSize: 14 }}
           >
             Loading...
           </p>
@@ -248,7 +248,7 @@ const ContentTypeList = ({
         {filtered.length === 0 && pages && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}
+            style={{ color: "rgba(255,255,255,0.7)", fontSize: 14 }}
           >
             No published resources found.
           </p>

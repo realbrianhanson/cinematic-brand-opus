@@ -15,7 +15,7 @@ export const Route = createFileRoute("/speaking")({
     if (!config)
       return buildPageHead({
         title: "Page not found",
-        description: "This page is unavailable.",
+        description: "This page is unavailable",
         url: "",
         robots: "noindex, nofollow",
       });
@@ -47,6 +47,6 @@ export const Route = createFileRoute("/speaking")({
   },
   component: SpeakingPage,
   errorComponent: () => (
-    <PublicRouteError message="Speaking information could not be loaded." />
+    <PublicRouteError message="Speaking information could not be loaded" />
   ),
 });

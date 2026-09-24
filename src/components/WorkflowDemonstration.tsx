@@ -34,13 +34,10 @@ export default function WorkflowDemonstration() {
       <p className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--brand-accent)]">
         A worked example
       </p>
-      <h2 id="workflow-demo-heading">
-        From messy notes to a useful follow-up.
-      </h2>
+      <h2 id="workflow-demo-heading">From messy notes to a useful follow-up</h2>
       <p className="mt-4 max-w-2xl text-white/75">
-        This fictional scenario shows the method: provide the facts, ask for a
-        bounded draft, and check it before sending. The example below is
-        illustrative, not a customer result or a live AI response.
+        A made-up example that shows the method: facts in, short draft out,
+        check it before you send
       </p>
       <div className="mt-7 grid gap-5 md:grid-cols-2">
         <div className="rounded-xl border border-white/15 p-6">
@@ -48,7 +45,7 @@ export default function WorkflowDemonstration() {
           <p className="mt-4 text-white/80">
             Maya wants better follow-up after landscaping quote requests. You
             discussed an inquiry form and a weekly review. You promised an
-            outline by Thursday. Nobody agreed on a price or start date.
+            outline by Thursday. Nobody agreed on a price or start date
           </p>
           <p className="mt-4 text-sm text-white/60">
             Missing detail: who will review the inquiries?
@@ -108,10 +105,10 @@ export default function WorkflowDemonstration() {
         </button>
         <p aria-live="polite" className="mt-3 text-sm text-white/65">
           {copyState === "copied"
-            ? "Paste it into an AI tool you use, then review the result."
+            ? "Paste it into an AI tool you use, then review the result"
             : copyState === "manual"
-              ? "Copy is unavailable in this browser. Select and copy the prompt above."
-              : "Use fictional or approved information. Check your AI tool’s data settings before entering real client details."}
+              ? "Copy is unavailable in this browser. Select and copy the prompt above"
+              : "Use made-up or approved details. Check your AI tool’s data settings before you add real client details"}
         </p>
       </details>
     </section>

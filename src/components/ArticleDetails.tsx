@@ -56,7 +56,7 @@ export function ArticleDetails({
         {settings?.author_credentials?.length ? (
           <p>{settings.author_credentials.join(" · ")}</p>
         ) : null}
-        <a href="/">About the author →</a>
+        <a href={config.sections.story ? "/about" : "/"}>About the author →</a>
       </section>
     </aside>
   );

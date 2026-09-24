@@ -36,13 +36,13 @@ const PageRelatedPosts = ({
   if (!posts?.length) return null;
 
   return (
-    <div>
-      <h3
-        className="font-display italic mb-6"
-        style={{ fontSize: 22, color: "var(--foreground)" }}
+    <section aria-labelledby="related-posts-heading">
+      <h2
+        id="related-posts-heading"
+        className="mb-6 font-display text-title text-white"
       >
-        Related Posts
-      </h3>
+        {config.title || "Keep reading"}
+      </h2>
       <div className="grid md:grid-cols-3 gap-4">
         {posts.map((post) => (
           <a
@@ -65,28 +65,20 @@ const PageRelatedPosts = ({
             {post.featured_image && (
               <img
                 src={post.featured_image}
-                alt={post.title}
+                alt=""
                 style={{ width: "100%", height: 120, objectFit: "cover" }}
                 loading="lazy"
               />
             )}
             <div style={{ padding: 16 }}>
-              <p
-                className="font-body"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "var(--foreground)",
-                  lineHeight: 1.4,
-                }}
-              >
+              <p className="font-body text-body font-medium leading-snug text-white">
                 {post.title}
               </p>
             </div>
           </a>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 

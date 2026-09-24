@@ -3,7 +3,7 @@ import {
   overrideCheck,
   parsePublishRequest,
   publishDecision,
-} from "../../../supabase/functions/manual-publish/request";
+} from "../../../supabase/functions/manual-publish-v2/request";
 import {
   AI_CREDITS_EXHAUSTED,
   isCreditsExhausted,

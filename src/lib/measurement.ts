@@ -47,7 +47,7 @@ const UUID =
 export function measurementPath(path: string): string | null {
   if (path.length > 200 || /[?#%@\\]/.test(path)) return null;
   if (
-    /^\/(?:shop|start-here|support|privacy|terms|speaking|resources|blog|news|sitemap)?\/?$/.test(
+    /^\/(?:shop|start-here|about|support|privacy|terms|speaking|resources|blog|news|sitemap)?\/?$/.test(
       path,
     )
   )

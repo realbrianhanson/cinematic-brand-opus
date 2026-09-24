@@ -119,7 +119,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         className="min-h-screen flex flex-col items-center justify-center gap-6"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
+        <p className="font-display text-2xl" style={{ color: "#fff" }}>
           News item not found
         </p>
         <Link
@@ -167,9 +167,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           to="/news"
           className="inline-flex items-center gap-2 font-body uppercase mb-10 transition-colors duration-200"
           style={{
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.45)",
+            color: "rgba(255,255,255,0.7)",
           }}
         >
           <ArrowLeft size={14} /> Back to News
@@ -192,7 +192,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           <span
             className="font-body uppercase"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.15em",
               color: "var(--brand-accent)",
             }}
@@ -221,7 +221,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         </div>
 
         <h1
-          className="font-display italic mb-6 [overflow-wrap:anywhere]"
+          className="font-display mb-6 [overflow-wrap:anywhere]"
           style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", lineHeight: 1.15 }}
         >
           {title}
@@ -275,9 +275,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
               <span
                 className="font-body uppercase block mb-2"
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   letterSpacing: "0.18em",
-                  color: "rgba(255,255,255,0.5)",
+                  color: "rgba(255,255,255,0.7)",
                 }}
               >
                 Reference
@@ -303,7 +303,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           <span
             className="font-body uppercase flex items-center gap-2"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.15em",
               color: "rgba(255,255,255,0.6)",
             }}
@@ -367,7 +367,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
         {related && related.length > 0 && (
           <section className="mt-16">
             <h2
-              className="font-display italic mb-6 [overflow-wrap:anywhere]"
+              className="font-display mb-6 [overflow-wrap:anywhere]"
               style={{ fontSize: 24 }}
             >
               Related News
@@ -388,7 +388,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                     <span
                       className="font-body uppercase"
                       style={{
-                        fontSize: 10,
+                        fontSize: 12,
                         letterSpacing: "0.15em",
                         color: "var(--brand-accent)",
                       }}
@@ -397,7 +397,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                     </span>
                     <span
                       className="font-body"
-                      style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
+                      style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
                     >
                       {r.published_at
                         ? formatPublicDate(r.published_at, {
@@ -408,14 +408,14 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                     </span>
                   </div>
                   <h3
-                    className="font-display italic group-hover:text-[var(--brand-accent)] transition-colors"
+                    className="font-display group-hover:text-[var(--brand-accent)] transition-colors"
                     style={{ fontSize: 17, lineHeight: 1.35, color: "#fff" }}
                   >
                     {newsDisplay(r).title}
                   </h3>
                   <p
                     className="font-body mt-2 [overflow-wrap:anywhere]"
-                    style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}
+                    style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
                   >
                     {sourceName(r)}
                   </p>

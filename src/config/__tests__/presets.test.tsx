@@ -65,7 +65,7 @@ describe("live preset", () => {
     expect(brianPreset.identity.name).toBe("Brian Hanson");
     expect(brianPreset.identity.siteUrl).toBe("https://brianhanson.com");
     expect(brianPreset.hero.primaryCta?.href).toBe(
-      "https://go.aiforbusiness.com/summit?_go=brian60",
+      "https://go.aiforbusiness.com/summit?_go=brian60&utm_source=brianhanson.com&utm_medium=site&utm_campaign=summit&utm_content=hero",
     );
     expect(brianPreset.proofBadges.length).toBeGreaterThan(0);
     expect(brianPreset.results.length).toBe(3);

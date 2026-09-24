@@ -230,7 +230,7 @@ describe("publishing from the editor", () => {
     await waitFor(() =>
       expect(h.navigate).toHaveBeenCalledWith("/admin/posts"),
     );
-    expect(h.invoke).toHaveBeenLastCalledWith("manual-publish", {
+    expect(h.invoke).toHaveBeenLastCalledWith("manual-publish-v2", {
       body: {
         post_id: "post-1",
         mode: "publish",
@@ -324,7 +324,7 @@ describe("publishing from the editor", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save & schedule" }));
     await waitFor(() =>
-      expect(h.invoke).toHaveBeenCalledWith("manual-publish", {
+      expect(h.invoke).toHaveBeenCalledWith("manual-publish-v2", {
         body: { post_id: "post-1", mode: "schedule", scheduled_at: FUTURE },
       }),
     );

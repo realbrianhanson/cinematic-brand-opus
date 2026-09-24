@@ -167,3 +167,40 @@ export const getShopCatalog = createServerFn({ method: "GET" })
           : await (pendingAvailability ?? shopAvailability()),
     };
   });
+
+/** Columns the article signup card needs to claim a free download. */
+export const LEAD_MAGNET_COLUMNS =
+  "id,slug,title,summary,kind,checkout_mode,cover_url";
+
+export type LeadMagnetOffer = Pick<
+  ShopOffer,
+  "id" | "slug" | "title" | "summary" | "kind" | "checkout_mode" | "cover_url"
+>;
+
+/**
+ * The site's free download (for Brian, the AI Follow-Up Starter Kit), offered
+ * inside articles. Optional: articles fall back to the newsletter on failure.
+ */
+export const getLeadMagnetOffer = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LeadMagnetOffer | null> => {
+    try {
+      const { data, error } = await createPublicServerClient()
+        .from("offers")
+        .select(LEAD_MAGNET_COLUMNS)
+        .eq("status", "published")
+        .eq("kind", "free")
+        .eq("checkout_mode", "native")
+        .eq("show_in_shop", true)
+        .eq("funnel_only", false)
+        .order("shop_featured", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .order("id")
+        .limit(1)
+        .abortSignal(AbortSignal.timeout(4000));
+      if (error || !data?.length) return null;
+      return data[0] as LeadMagnetOffer;
+    } catch {
+      return null;
+    }
+  },
+);

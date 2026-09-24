@@ -2,8 +2,8 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { redirectForNotFound } from "./lib/notFoundRedirect.server";
 import { withSecurityHeaders } from "./lib/securityHeaders";
-import { legacyRedirect } from "./lib/legacyRedirects";
 
 type ServerEntry = {
   fetch: (
@@ -60,10 +60,17 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
-      const redirect = legacyRedirect(request);
-      if (redirect) return withSecurityHeaders(request, redirect);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      // Missing public pages (unknown routes and loader notFound) go to a
+      // saved redirect rule or the home page instead of a dead end.
+      const redirect = await redirectForNotFound(request, response).catch(
+        (error: unknown) => {
+          console.error("[not-found] redirect skipped", error);
+          return null;
+        },
+      );
+      if (redirect) return withSecurityHeaders(request, redirect);
       return withSecurityHeaders(
         request,
         await normalizeCatastrophicSsrResponse(response),
