@@ -1,6 +1,13 @@
 import { QueryClient, MutationCache } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { toast } from "@/hooks/use-toast";
+import {
+  mutationErrorToast,
+  queryRetry,
+  queryRetryDelay,
+  shouldToastMutationError,
+} from "@/lib/queryResilience";
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -15,14 +22,25 @@ export const getRouter = () => {
         ])
           void queryClient.invalidateQueries({ queryKey: [key] });
       },
+      // No admin action may fail silently. Mutations with their own onError
+      // (or meta.errorToast === false) already report the error themselves.
+      onError: (error, _variables, _onMutateResult, mutation) => {
+        console.error("[mutation] failed", error);
+        if (!shouldToastMutationError(mutation)) return;
+        toast(mutationErrorToast(error, mutation.meta));
+      },
     }),
     defaultOptions: {
       queries: {
         staleTime: 60_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: false,
-        retry: 1,
+        // Retry only transient failures (5xx, PGRST002, network) with backoff.
+        retry: queryRetry,
+        retryDelay: (failureCount) => queryRetryDelay(failureCount),
       },
+      // Writes are not idempotent: never replay them automatically.
+      mutations: { retry: false },
     },
   });
 

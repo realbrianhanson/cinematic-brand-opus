@@ -17,6 +17,7 @@ import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { embedText, toPgVector } from "../_shared/embeddings.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
 import { fetchTextBounded } from "../_shared/safeFetch.ts";
+import { PAID_SOURCE_MIN_INTERVAL_HOURS, paidSourceDue } from "./schedule.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -261,10 +262,13 @@ Deno.serve(async (req) => {
   );
   const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
   const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+  const body = await req.json().catch(() => ({}));
+  // Manual "poll everything now" may bypass the paid-source cadence.
+  const forcePaid = body?.force === true;
 
   const { data: sources, error: srcErr } = await supabase
     .from("content_sources")
-    .select("id, name, kind, url, topic_lane")
+    .select("id, name, kind, url, topic_lane, last_polled_at")
     .eq("active", true);
   if (srcErr) {
     return new Response(JSON.stringify({ error: srcErr.message }), {
@@ -310,8 +314,16 @@ Deno.serve(async (req) => {
   let totalHeldForReview = 0;
   let totalDuplicates = 0;
   const perSource: Record<string, number> = {};
+  const skippedPaid: string[] = [];
 
   for (const src of sources || []) {
+    // Paid digests (Perplexity sonar-pro, recency "day") at most every
+    // PAID_SOURCE_MIN_INTERVAL_HOURS; last_polled_at is left untouched so the
+    // source becomes due on schedule.
+    if (!forcePaid && !paidSourceDue(src.kind, src.last_polled_at)) {
+      skippedPaid.push(src.name);
+      continue;
+    }
     let items: Item[] = [];
     if (src.kind === "rss" && src.url) {
       items = await fetchRss(src.url);
@@ -416,6 +428,8 @@ Deno.serve(async (req) => {
       totalHeldForReview,
       totalDuplicates,
       perSource,
+      skippedPaid,
+      paidIntervalHours: PAID_SOURCE_MIN_INTERVAL_HOURS,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
