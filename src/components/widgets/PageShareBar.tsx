@@ -54,11 +54,11 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
               onClick={handleCopy}
               className="p-2 transition-colors font-body flex items-center gap-1"
               style={{
-                color: "rgba(255,255,255,0.3)",
+                color: "rgba(255,255,255,0.7)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 background: "none",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 12,
               }}
             >
               <Icon size={14} /> {copied ? "Copied!" : "Copy"}
@@ -74,14 +74,14 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
             rel="noopener noreferrer"
             className="p-2 transition-colors"
             style={{
-              color: "rgba(255,255,255,0.3)",
+              color: "rgba(255,255,255,0.7)",
               border: "1px solid rgba(255,255,255,0.08)",
             }}
             onMouseEnter={(e) =>
               (e.currentTarget.style.color = "hsl(var(--accent))")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.3)")
+              (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
             }
           >
             <Icon size={14} />

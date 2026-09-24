@@ -156,6 +156,62 @@ export interface Testimonial {
   attribution: string;
 }
 
+/** A chat screenshot shown in place of the typed quote. */
+export interface TestimonialScreenshot {
+  /** Site-relative path to an image in /public, e.g. "/testimonials/name.webp". */
+  src: string;
+  /** Natural pixel size. Cards show the image at half this size. */
+  width: number;
+  height: number;
+  /** The exact visible text of the screenshot. Used as its alt text. */
+  alt: string;
+  /**
+   * Also show `quote` under the image. Use it when the typed quote is a
+   * contiguous excerpt of a longer message that the image shows in full.
+   */
+  showQuote?: boolean;
+}
+
+export interface TestimonialItem extends Testimonial {
+  /** Where it was said, e.g. "Live training · June 2026". */
+  context?: string;
+  screenshot?: TestimonialScreenshot;
+  /** Card shape on wide screens: "wide" spans two columns, "tall" two rows. */
+  layout?: "wide" | "tall";
+}
+
+export interface TestimonialGroup {
+  /** Unique, stable id, e.g. "results". */
+  id: string;
+  /** Short overline-style heading for the group. */
+  label: string;
+  items: TestimonialItem[];
+  /** Readable note shown directly under the group, e.g. an income disclosure. */
+  disclosure?: string;
+}
+
+/** A slow scrolling wall of one-line quotes. */
+export interface TestimonialWallConfig {
+  label: string;
+  items: Testimonial[];
+}
+
+/** A pull quote plus a grid of quotes, e.g. for the About page. */
+export interface TestimonialQuoteGridConfig {
+  overline?: string;
+  heading: string;
+  intro?: string;
+  /** Shown large above the grid. */
+  pullQuote?: TestimonialItem;
+  items: TestimonialItem[];
+}
+
+/** A compact pair of quotes for the speaking page. */
+export interface SpeakingTestimonialsConfig {
+  label: string;
+  items: TestimonialItem[];
+}
+
 export interface SpeakingConfig {
   overline: string;
   headingLead: string;
@@ -255,8 +311,20 @@ export interface SiteConfig {
     overline: string;
     heading: string;
     intro?: string;
+    /**
+     * Without `groups`, the first item leads and the rest follow. With
+     * `groups`, these move into a collapsed "More from the community" list.
+     */
     items: Array<Testimonial & { context?: string }>;
+    /** Optional grouped layout shown before `items`. */
+    groups?: TestimonialGroup[];
+    /** Optional scrolling wall of short lines, shown after the groups. */
+    wall?: TestimonialWallConfig;
   };
+  /** Optional quotes for the About page. Omit to hide them. */
+  aboutTestimonials?: TestimonialQuoteGridConfig;
+  /** Optional quotes for the speaking page. Omit to hide them. */
+  speakingTestimonials?: SpeakingTestimonialsConfig;
   story: StoryConfig;
   expertise: ExpertiseConfig;
   results: ResultStat[];

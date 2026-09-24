@@ -74,7 +74,7 @@ const FAQRenderer = ({
         <Search
           size={14}
           className="absolute left-3 top-1/2 -translate-y-1/2"
-          style={{ color: "rgba(255,255,255,0.25)" }}
+          style={{ color: "rgba(255,255,255,0.7)" }}
         />
         <input
           value={search}
@@ -158,7 +158,7 @@ const FAQRenderer = ({
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.45)",
+                      color: "rgba(255,255,255,0.7)",
                       lineHeight: 1.7,
                     }}
                   >
@@ -170,9 +170,9 @@ const FAQRenderer = ({
                         <p
                           className="font-body uppercase mb-1"
                           style={{
-                            fontSize: 9,
+                            fontSize: 12,
                             letterSpacing: "0.12em",
-                            color: "rgba(255,255,255,0.25)",
+                            color: "rgba(255,255,255,0.7)",
                           }}
                         >
                           Related
@@ -189,7 +189,7 @@ const FAQRenderer = ({
                             className="block font-body transition-colors hover:text-[var(--brand-accent)]"
                             style={{
                               fontSize: 12,
-                              color: "rgba(255,255,255,0.3)",
+                              color: "rgba(255,255,255,0.7)",
                               background: "none",
                               border: "none",
                               cursor: "pointer",
@@ -212,7 +212,7 @@ const FAQRenderer = ({
       {filtered.length === 0 && (
         <p
           className="font-body mb-8"
-          style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}
+          style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
         >
           No questions match your search.
         </p>
@@ -236,7 +236,7 @@ const FilterBtn = ({
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all"
     style={{
-      fontSize: 10,
+      fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
       borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",

@@ -8,6 +8,7 @@ import {
 import InformationPage from "@/components/InformationPage";
 import WorkflowDemonstration from "@/components/WorkflowDemonstration";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import { summitHref } from "@/lib/summitLink";
 import { isBrianOwner } from "@/lib/informationPages";
 import { Link } from "@/lib/router-compat";
 import type { ShopOffer } from "@/lib/shop";
@@ -21,7 +22,7 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
     {
       title: "Try one useful thing",
       description:
-        "Start with a free guide and a task you already understand. Work through one example before adding more tools.",
+        "Start with a free guide and a task you already understand. Work through one example before adding more tools",
       label: "Explore free resources",
       href: "/resources",
       icon: BookOpen,
@@ -31,10 +32,10 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
           {
             title: "Learn with a demonstration",
             description: owner
-              ? "Join the free 3-day AI for Business Summit for practical examples of tools, marketing, sales, and follow-up."
+              ? "Join the free 3-day AI for Business Summit for practical examples of tools, marketing, sales, and follow-up"
               : config.event.intro,
             label: event.label,
-            href: event.href,
+            href: summitHref(event.href, "start-here"),
             icon: Play,
           },
         ]
@@ -42,7 +43,7 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
     {
       title: "Build on what works",
       description:
-        "Explore the Shop when you know what you want to learn or build next. Each listing explains what is included and where to get access.",
+        "Explore the Shop when you know what you want to learn or build next. Each listing explains what’s included and where to get access",
       label: "Browse the Shop",
       href: "/shop",
       icon: ShoppingBag,
@@ -52,13 +53,11 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
     <InformationPage
       eyebrow="Start here"
       title={
-        owner
-          ? "One useful step beats another open tab."
-          : "Find your next useful step."
+        owner ? "New here? Start with one AI win" : "Find your next useful step"
       }
       intro={
         owner
-          ? "You don’t need to learn every AI tool. Choose one task, follow a practical example, and check the result. Here are three ways to get moving."
+          ? "Pick one task you already do. Follow one example, check the result, then add the next tool. Here are three ways to start"
           : `Explore the resources and training from ${config.identity.name}. Choose the path that fits what you want to do next.`
       }
       wide
@@ -97,7 +96,9 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
             <a
               href={href}
               data-conversion-destination={
-                href === event?.href ? "summit" : undefined
+                event && href === summitHref(event.href, "start-here")
+                  ? "summit"
+                  : undefined
               }
               data-conversion-placement="event"
               className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-accent)] underline underline-offset-4"
@@ -119,7 +120,6 @@ export default function StartHere({ offers }: { offers: ShopOffer[] }) {
           >
             support page
           </Link>
-          .
         </p>
       </section>
     </InformationPage>

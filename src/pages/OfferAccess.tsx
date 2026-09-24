@@ -109,7 +109,7 @@ export default function OfferAccess() {
           setError(
             err instanceof Error
               ? err.message
-              : "Your download could not be loaded.",
+              : "Your download could not be loaded",
           );
       }
     };
@@ -187,7 +187,7 @@ export default function OfferAccess() {
         ) : !token ? (
           <p className="mt-6 text-white/80">
             Open the complete access link you saved after requesting your
-            download. This page needs that private link to find your resource.
+            download. This page needs that private link to find your resource
           </p>
         ) : null}
         {initialized && (!token || (error && !data)) && <OfferRecovery />}
@@ -257,7 +257,7 @@ export default function OfferAccess() {
                 <p className="mt-4 text-white/80">
                   Your file will unlock once payment is confirmed. If you left
                   checkout, you can continue below. Some payment methods take
-                  longer to confirm.
+                  longer to confirm
                 </p>
                 {data.checkout_url && (
                   <a
@@ -292,8 +292,8 @@ export default function OfferAccess() {
                 </h2>
                 <p className="mt-4 text-white/80">
                   {data.order.status === "refunded"
-                    ? "Download access for this purchase is no longer available."
-                    : "No download has been unlocked. Contact us if you need help or believe payment was completed."}
+                    ? "Download access for this purchase is no longer available"
+                    : "No download has been unlocked. Contact us if you need help or believe payment was completed"}
                 </p>
                 <button
                   className={`${buttonClass} mt-5`}
@@ -317,7 +317,7 @@ export default function OfferAccess() {
                       await navigator.clipboard.writeText(data.access_url);
                       if (currentToken.current !== token) return;
                       setNotice(
-                        "Access link copied. Save it somewhere private.",
+                        "Access link copied. Save it somewhere private",
                       );
                     } catch {
                       if (currentToken.current === token)
@@ -331,20 +331,20 @@ export default function OfferAccess() {
               </button>
               <p className="mt-2 text-xs leading-relaxed text-white/65">
                 Save this link before leaving. Anyone with it can access your
-                resource.
+                resource
               </p>
               {data.order.status === "fulfilled" && (
                 <div className="mt-5 text-sm leading-relaxed text-white/75">
                   <p>
                     {data.delivery_state === "sent"
-                      ? "Your access email was accepted by the email provider. Check your inbox and spam folder; delivery is not guaranteed."
+                      ? "Your access email was accepted by the email provider. Check your inbox and spam folder; delivery is not guaranteed"
                       : data.delivery_state === "processing"
-                        ? "Your access email is being prepared. You can download now and save this private link."
+                        ? "Your access email is being prepared. You can download now and save this private link"
                         : data.delivery_state === "needs_review"
-                          ? "We couldn’t confirm the access email. Save your private link or use email recovery below."
+                          ? "We couldn’t confirm the access email. Save your private link or use email recovery below"
                           : data.delivery_ready
-                            ? "Your access email has not been confirmed. Your download is available here."
-                            : "Email delivery is currently unavailable. Save your private link to return to this download."}
+                            ? "Your access email has not been confirmed. Your download is available here"
+                            : "Email delivery is currently unavailable. Save your private link to return to this download"}
                   </p>
                   {data.delivery_ready &&
                     data.delivery_state !== "sent" &&
@@ -368,8 +368,8 @@ export default function OfferAccess() {
                             );
                             setNotice(
                               result.delivery_state === "sent"
-                                ? "Access email accepted by the provider. Check your inbox and spam folder."
-                                : "The email has not been confirmed yet. Save your private link and try again in a minute, or contact support.",
+                                ? "Access email accepted by the provider. Check your inbox and spam folder"
+                                : "The email has not been confirmed yet. Save your private link and try again in a minute, or contact support",
                             );
                           })
                         }
@@ -448,7 +448,7 @@ export default function OfferAccess() {
               <p className="mt-3 text-sm text-white/75">
                 Start checkout by{" "}
                 {new Date(data.next_offer_deadline).toLocaleString()} to take
-                this offer. Your original download stays available.
+                this offer. Your original download stays available
               </p>
             )}
             <div className="flex flex-wrap gap-3 mt-6">
@@ -479,7 +479,7 @@ export default function OfferAccess() {
                     await refresh();
                     if (currentToken.current !== token) return;
                     setNotice(
-                      "Follow-up offer declined. Your original download is still available.",
+                      "Follow-up offer declined. Your original download is still available",
                     );
                   })
                 }
@@ -494,12 +494,12 @@ export default function OfferAccess() {
             )}
             {next.kind === "paid" && (
               <p className="mt-3 text-sm text-white/75">
-                You will review and confirm this separate payment at checkout.
+                You will review and confirm this separate payment at checkout
               </p>
             )}
             {next.kind === "paid" && !data?.payments_ready && (
               <p className="mt-3 text-sm text-white/75">
-                This purchase is not available yet.
+                This purchase is not available yet
               </p>
             )}
           </section>
@@ -507,7 +507,7 @@ export default function OfferAccess() {
         {expiredNext && (
           <p className="mt-6 text-white/75">
             The follow-up offer window has ended. Your original download stays
-            available.
+            available
           </p>
         )}
         {error && (

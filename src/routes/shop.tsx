@@ -21,9 +21,9 @@ export const Route = createFileRoute("/shop")({
     const filters = shopFilters({ ...match.search });
     const url = absoluteUrl("/shop", config);
     const description =
-      "Explore trainings, courses, tools, and practical resources. Browse free downloads and paid digital offers in one place.";
+      "Explore trainings, courses, tools, and practical resources. Browse free downloads and paid digital offers in one place";
     return buildPageHead({
-      title: pageTitle("Shop — Trainings, Tools & Resources", config),
+      title: pageTitle("Shop: Trainings, Tools & Resources", config),
       description,
       url,
       type: "website",
@@ -63,7 +63,7 @@ export const Route = createFileRoute("/shop")({
   },
   component: ShopRoute,
   errorComponent: () => (
-    <PublicRouteError message="The shop could not be loaded." />
+    <PublicRouteError message="The shop could not be loaded" />
   ),
 });
 function ShopRoute() {

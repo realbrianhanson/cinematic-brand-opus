@@ -1,5 +1,6 @@
 import PublicMeasurement from "@/components/PublicMeasurement";
 import SiteChat from "@/components/SiteChat";
+import NotFoundRedirect from "@/components/NotFoundRedirect";
 import { readPresentation } from "@/lib/offerBuilder";
 import { brandStyles } from "@/config/brandStyles";
 import {
@@ -106,23 +107,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+// Missing pages move on automatically: a saved redirect rule or the home page.
 function NotFoundComponent() {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground px-6">
-      <h1 className="font-heading text-3xl md:text-4xl mb-4 text-center">
-        Page not found
-      </h1>
-      <p className="text-muted-foreground text-center max-w-md mb-8">
-        The page you're looking for doesn't exist or has been moved.
-      </p>
-      <a
-        href="/"
-        className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      >
-        Go home
-      </a>
-    </div>
-  );
+  return <NotFoundRedirect />;
 }
 
 function RootComponent() {

@@ -155,7 +155,7 @@ const IdeaListRenderer = ({
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: "rgba(255,255,255,0.25)" }}
+            style={{ color: "rgba(255,255,255,0.7)" }}
           />
           <input
             value={search}
@@ -175,7 +175,7 @@ const IdeaListRenderer = ({
 
       <p
         className="font-body mb-6"
-        style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}
+        style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
       >
         Showing {filtered.length} of {items.length} ideas
       </p>
@@ -243,7 +243,7 @@ const IdeaListRenderer = ({
                   <span
                     className="font-body uppercase px-2 py-0.5"
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: "0.1em",
                       background: dc.bg,
                       color: dc.color,
@@ -257,7 +257,7 @@ const IdeaListRenderer = ({
                   <span
                     className="font-body uppercase px-2 py-0.5"
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: "0.1em",
                       background: "rgba(var(--brand-accent-rgb),0.08)",
                       color: "rgba(255,255,255,0.75)",
@@ -292,7 +292,7 @@ const FilterBtn = ({
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all"
     style={{
-      fontSize: 10,
+      fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
       borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
@@ -318,7 +318,7 @@ const ProTips = ({ tips }: { tips?: ContentDocument["pro_tips"] }) => {
       }}
     >
       <h3
-        className="font-display italic mb-4"
+        className="font-display mb-4"
         style={{ fontSize: 20, color: "var(--brand-accent-light)" }}
       >
         Pro Tips

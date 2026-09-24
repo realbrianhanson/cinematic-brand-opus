@@ -4,6 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { safeHref } from "@/lib/newsMarkdown";
 import { X, ArrowRight } from "lucide-react";
+import {
+  isSummitUrl,
+  summitHref,
+  type SummitPlacement,
+} from "@/lib/summitLink";
 
 interface PublicCTAProps {
   variant: "inline" | "sticky" | "end";
@@ -12,6 +17,11 @@ interface PublicCTAProps {
   nicheName?: string;
   pageId?: string;
   pageType?: string;
+  /**
+   * When set and the configured CTA is the Summit, the link carries the
+   * site-wide Summit tags for this placement instead of the pSEO tags.
+   */
+  summitPlacement?: SummitPlacement;
 }
 
 const PublicCTA = ({
@@ -19,6 +29,7 @@ const PublicCTA = ({
   nicheSlug,
   contentTypeSlug,
   nicheName,
+  summitPlacement,
 }: PublicCTAProps) => {
   const siteConfig = useSiteConfig();
   const { data: settings } = useQuery({
@@ -54,6 +65,8 @@ const PublicCTA = ({
   const buildUrl = useCallback(() => {
     if (!safeHref(settings?.cta_url)) return "";
     try {
+      if (summitPlacement && isSummitUrl(settings!.cta_url))
+        return summitHref(settings!.cta_url!, summitPlacement);
       const url = new URL(settings!.cta_url!, siteConfig.identity.siteUrl);
       url.searchParams.set(
         "utm_source",
@@ -67,7 +80,7 @@ const PublicCTA = ({
     } catch {
       return "";
     }
-  }, [settings?.cta_url, nicheSlug, contentTypeSlug]);
+  }, [settings?.cta_url, nicheSlug, contentTypeSlug, summitPlacement]);
 
   if (!settings?.cta_url) return null;
 
@@ -95,7 +108,7 @@ const PublicCTA = ({
         <div>
           <p
             className="font-body font-bold mb-1"
-            style={{ fontSize: 18, color: "rgba(255,255,255,0.85)" }}
+            style={{ fontSize: 18, color: "rgba(255,255,255,0.9)" }}
           >
             {settings.cta_headline || "Get Started"}
           </p>
@@ -104,7 +117,7 @@ const PublicCTA = ({
               className="font-body"
               style={{
                 fontSize: 14,
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(255,255,255,0.75)",
                 lineHeight: 1.5,
               }}
             >
@@ -120,7 +133,7 @@ const PublicCTA = ({
           rel="noopener noreferrer"
           className="font-body uppercase shrink-0 inline-flex items-center gap-2 px-6 py-3 transition-all duration-200"
           style={{
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: "0.12em",
             fontWeight: 600,
             background: "var(--brand-accent)",
@@ -158,7 +171,7 @@ const PublicCTA = ({
         <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
         <p
           className="font-body truncate mr-4"
-          style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}
+          style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}
         >
           {settings.cta_headline || "Get Started"} →
         </p>
@@ -171,7 +184,7 @@ const PublicCTA = ({
             rel="noopener noreferrer"
             className="font-body uppercase px-4 py-1.5 transition-all"
             style={{
-              fontSize: 10,
+              fontSize: 12,
               letterSpacing: "0.1em",
               fontWeight: 600,
               background: "var(--brand-accent)",
@@ -191,7 +204,7 @@ const PublicCTA = ({
             onClick={() => setDismissed(true)}
             aria-label="Dismiss notification"
             style={{
-              color: "rgba(255,255,255,0.3)",
+              color: "rgba(255,255,255,0.7)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -215,10 +228,7 @@ const PublicCTA = ({
         border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
       }}
     >
-      <h3
-        className="font-display italic mb-4"
-        style={{ fontSize: 24, color: "#fff" }}
-      >
+      <h3 className="font-display text-title mb-4 text-white">
         {settings.cta_headline || "Get Started"}
       </h3>
       {subtext && (
@@ -226,7 +236,7 @@ const PublicCTA = ({
           className="font-body mb-6 mx-auto"
           style={{
             fontSize: 15,
-            color: "rgba(255,255,255,0.5)",
+            color: "rgba(255,255,255,0.8)",
             lineHeight: 1.6,
             maxWidth: 480,
           }}
@@ -261,7 +271,7 @@ const PublicCTA = ({
       {settings.cta_social_proof && (
         <p
           className="font-body mt-5"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}
+          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
         >
           {settings.cta_social_proof}
         </p>

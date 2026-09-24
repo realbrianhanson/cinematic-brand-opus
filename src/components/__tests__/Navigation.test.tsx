@@ -82,7 +82,9 @@ describe("public navigation journeys", () => {
       within(nav)
         .getByRole("link", { name: "Free AI Summit" })
         .getAttribute("href"),
-    ).toBe("https://go.aiforbusiness.com/summit?_go=brian60");
+    ).toBe(
+      "https://go.aiforbusiness.com/summit?_go=brian60&utm_source=brianhanson.com&utm_medium=site&utm_campaign=summit&utm_content=nav",
+    );
   });
   it("closes resource disclosure on Escape, focus-away and outside interaction", () => {
     mount();
@@ -124,10 +126,12 @@ describe("public navigation journeys", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
-  it("uses the homepage story anchor from another route", () => {
+  it("sends About Brian to the dedicated /about page", () => {
     mount();
-    fireEvent.click(screen.getByRole("link", { name: "About Brian" }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/#story");
+    const about = screen.getByRole("link", { name: "About Brian" });
+    expect(about.getAttribute("href")).toBe("/about");
+    fireEvent.click(about);
+    expect(mocks.navigate).not.toHaveBeenCalledWith("/#story");
   });
   it("does not inherit owner destinations or disabled sections in a member install", () => {
     const { unmount } = mount(memberPreset);

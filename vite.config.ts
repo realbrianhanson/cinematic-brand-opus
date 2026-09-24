@@ -26,12 +26,15 @@ export default defineConfig({
           // Splitting react/react-dom or React-consuming libs into separate
           // chunks causes TDZ ("Cannot access '_' before initialization")
           // errors at runtime, so keep them with the main bundle.
+          //
+          // The editor (@tiptap/prosemirror) and charts (recharts/d3) are
+          // admin-only. Naming them as manual chunks also pulled React and the
+          // JSX runtime into those chunks, so every public page preloaded
+          // ~1 MB of admin code. Left to automatic splitting, they stay behind
+          // the lazy admin routes.
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
-            if (id.includes("@tiptap") || id.includes("prosemirror"))
-              return "editor";
             if (id.includes("@supabase")) return "supabase";
-            if (id.includes("recharts") || id.includes("d3-")) return "charts";
           },
         },
       },

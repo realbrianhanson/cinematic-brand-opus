@@ -236,6 +236,13 @@ export async function buildSitemapXml(): Promise<string> {
     { loc: `${siteUrl}/terms`, changefreq: "monthly", priority: "0.3" },
   ];
 
+  if (config.sections.story)
+    entries.push({
+      loc: `${siteUrl}/about`,
+      changefreq: "monthly",
+      priority: "0.8",
+    });
+
   if (config.sections.speaking)
     entries.push({
       loc: `${siteUrl}/speaking`,

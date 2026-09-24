@@ -7,8 +7,8 @@ import { buildPageHead } from "@/lib/seoHead";
 import OfferLanding from "@/pages/OfferLanding";
 import { readPresentation } from "@/lib/offerBuilder";
 import { offerSeoText } from "@/lib/offersSeo";
-import OfferShell from "@/components/OfferShell";
 import PublicRouteError from "@/components/PublicRouteError";
+import NotFoundRedirect from "@/components/NotFoundRedirect";
 
 export const Route = createFileRoute("/offers/$slug")({
   loader: async ({ params }) => {
@@ -42,17 +42,8 @@ export const Route = createFileRoute("/offers/$slug")({
   errorComponent: () => (
     <PublicRouteError message="This offer could not be loaded." />
   ),
-  notFoundComponent: () => (
-    <OfferShell>
-      <h1 className="font-display text-4xl">This offer is not available</h1>
-      <p className="mt-5 text-white/75">
-        The link may have changed or the offer may no longer be published.
-      </p>
-      <a href="/" className="inline-block mt-6 underline">
-        Back to home
-      </a>
-    </OfferShell>
-  ),
+  // Retired or unknown offers move on to a saved redirect or the home page.
+  notFoundComponent: NotFoundRedirect,
 });
 
 function OfferRoute() {

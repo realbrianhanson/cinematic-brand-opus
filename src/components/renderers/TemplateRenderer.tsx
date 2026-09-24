@@ -144,7 +144,7 @@ const TemplateRenderer = ({
                     onClick={() => toggleExpand(i)}
                     className="shrink-0 p-1"
                     style={{
-                      color: "rgba(255,255,255,0.3)",
+                      color: "rgba(255,255,255,0.7)",
                       background: "none",
                       border: "none",
                       cursor: "pointer",
@@ -162,7 +162,7 @@ const TemplateRenderer = ({
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.55)",
+                      color: "rgba(255,255,255,0.7)",
                       lineHeight: 1.6,
                     }}
                   >
@@ -174,7 +174,7 @@ const TemplateRenderer = ({
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.55)",
+                      color: "rgba(255,255,255,0.7)",
                       lineHeight: 1.6,
                     }}
                   >
@@ -196,7 +196,7 @@ const TemplateRenderer = ({
                       className="font-body whitespace-pre-wrap"
                       style={{
                         fontSize: 13,
-                        color: "rgba(255,255,255,0.55)",
+                        color: "rgba(255,255,255,0.7)",
                         lineHeight: 1.7,
                       }}
                     >
@@ -206,7 +206,7 @@ const TemplateRenderer = ({
                       onClick={() => handleCopy(templateText, i)}
                       className="absolute top-3 right-3 font-body flex items-center gap-1 px-2 py-1 transition-colors"
                       style={{
-                        fontSize: 10,
+                        fontSize: 12,
                         color:
                           copiedIdx === i
                             ? "var(--brand-accent)"
@@ -232,7 +232,7 @@ const TemplateRenderer = ({
                       <p
                         className="font-body uppercase mb-1"
                         style={{
-                          fontSize: 9,
+                          fontSize: 12,
                           letterSpacing: "0.12em",
                           color: "var(--brand-accent)",
                         }}
@@ -243,7 +243,7 @@ const TemplateRenderer = ({
                         className="font-body"
                         style={{
                           fontSize: 12,
-                          color: "rgba(255,255,255,0.35)",
+                          color: "rgba(255,255,255,0.7)",
                           lineHeight: 1.5,
                         }}
                       >
@@ -278,7 +278,7 @@ const FilterBtn = ({
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all"
     style={{
-      fontSize: 10,
+      fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
       borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",

@@ -86,6 +86,23 @@
   /* Fonts */
   --font-display: var(--font-display-family);
   --font-body: var(--font-body-family);
+
+  /* Public type scale. Headlines are upright serif (gold italic is reserved
+     for an accent line, as on the home page and Shop). Nothing below 12px. */
+  --text-display: clamp(2.5rem, 6vw, 4.5rem);
+  --text-display--line-height: 1.08;
+  --text-headline: clamp(2.25rem, 5vw, 3.5rem);
+  --text-headline--line-height: 1.12;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.25;
+  --text-lead: 1.0625rem;
+  --text-lead--line-height: 1.8;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.7;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.5;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.4;
 }
 
 :root {

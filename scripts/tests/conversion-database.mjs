@@ -21,6 +21,7 @@ for (const file of [
   "20260919123000_offer_shop_catalog.sql",
   "20260919150000_offer_external_listings.sql",
   "20260919220000_conversion_measurement.sql",
+  "20260923171000_measure_about_page.sql",
 ])
   await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 assert.equal(

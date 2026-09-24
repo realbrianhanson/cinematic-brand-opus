@@ -22,7 +22,11 @@ export default function SiteChat() {
   if (!mounted) return null;
 
   return (
-    <div className="public-site fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 print:hidden">
+    <div
+      className="public-site fixed right-4 z-50 flex flex-col items-end gap-3 print:hidden"
+      // Clears the phone-only Summit bar when it is showing.
+      style={{ bottom: "calc(1rem + var(--mobile-bar-space, 0px))" }}
+    >
       {open && (
         <Suspense
           fallback={

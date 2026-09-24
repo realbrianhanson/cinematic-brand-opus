@@ -51,7 +51,7 @@ export const Route = createFileRoute("/resources/$contentType/")({
   },
   component: ContentTypeRoute,
   errorComponent: () => (
-    <PublicRouteError message="This resource list could not be loaded." />
+    <PublicRouteError message="This resource list could not be loaded" />
   ),
   notFoundComponent: () => <ContentTypeList />,
 });

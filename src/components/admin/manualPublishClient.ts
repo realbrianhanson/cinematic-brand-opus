@@ -42,6 +42,16 @@ export interface Readiness {
   reasons: GateReason[];
 }
 
+/**
+ * The v2 name is deliberate: the original "manual-publish" function ignores
+ * mode and publishes on every call, so a "check" or "schedule" sent to it
+ * would publish the article. Calling a separate name means a new admin that
+ * goes live before its backend can only get "not found", never a publish.
+ */
+export const PUBLISH_FUNCTION = "manual-publish-v2";
+export const BACKEND_NOT_READY =
+  "Publishing is paused until the latest backend update is deployed. Nothing was changed";
+
 const NETWORK_ERROR =
   "Couldn't reach the publishing service. Check your connection and try again";
 const NOT_CONFIRMED =
@@ -133,6 +143,7 @@ export async function invokeAdminFunction(
 }
 
 function failureFor(status: number, body: Body): Error {
+  if (status === 404) return new Error(BACKEND_NOT_READY);
   const message = bodyMessage(body);
   if (message) return new Error(message);
   if (status === 401 || status === 403)
@@ -168,7 +179,7 @@ export async function callManualPublish(request: {
   const reason = request.overrideReason?.trim();
   if (reason) payload.override_reason = reason;
 
-  const { status, body } = await invokeAdminFunction("manual-publish", payload);
+  const { status, body } = await invokeAdminFunction(PUBLISH_FUNCTION, payload);
   if (status === 422 && body.decision === "blocked") return blocked(body);
   if (status !== 200 || body.ok !== true) throw failureFor(status, body);
   if (body.already_published === true)
@@ -192,7 +203,7 @@ export async function callManualPublish(request: {
 export async function checkPublishReadiness(
   postId: string,
 ): Promise<Readiness> {
-  const { status, body } = await invokeAdminFunction("manual-publish", {
+  const { status, body } = await invokeAdminFunction(PUBLISH_FUNCTION, {
     post_id: postId,
     mode: "check",
   });

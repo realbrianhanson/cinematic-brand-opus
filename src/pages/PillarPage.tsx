@@ -140,7 +140,7 @@ const PillarPage = ({
         className="min-h-screen flex items-center justify-center"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
+        <p className="font-body" style={{ color: "rgba(255,255,255,0.7)" }}>
           Loading...
         </p>
       </div>
@@ -153,7 +153,7 @@ const PillarPage = ({
         className="min-h-screen flex flex-col items-center justify-center gap-6"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-display italic text-2xl" style={{ color: "#fff" }}>
+        <p className="font-display text-2xl" style={{ color: "#fff" }}>
           Guide not found
         </p>
         <Link
@@ -197,7 +197,7 @@ const PillarPage = ({
         />
 
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{
             fontSize: "clamp(32px, 5vw, 48px)",
             lineHeight: 1.15,
@@ -214,7 +214,7 @@ const PillarPage = ({
           <span className="font-body" style={{ fontSize: 12 }}>
             By {authorName}
           </span>
-          <span style={{ fontSize: 10 }}>•</span>
+          <span style={{ fontSize: 12 }}>•</span>
           <span
             className="font-body flex items-center gap-1"
             style={{ fontSize: 12 }}
@@ -226,7 +226,7 @@ const PillarPage = ({
               year: "numeric",
             })}
           </span>
-          <span style={{ fontSize: 10 }}>•</span>
+          <span style={{ fontSize: 12 }}>•</span>
           <span
             className="font-body flex items-center gap-1"
             style={{ fontSize: 12 }}
@@ -261,7 +261,7 @@ const PillarPage = ({
               borderTop: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+            <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
               Related Pillar Guides
             </h2>
             <div className="grid md:grid-cols-3 gap-4">
@@ -288,7 +288,7 @@ const PillarPage = ({
                     <span
                       className="font-body uppercase block mb-2"
                       style={{
-                        fontSize: 9,
+                        fontSize: 12,
                         letterSpacing: "0.12em",
                         color: "var(--brand-accent)",
                       }}
@@ -321,7 +321,7 @@ const PillarPage = ({
               borderTop: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+            <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
               Related Articles
             </h2>
             <div className="flex flex-col gap-3">

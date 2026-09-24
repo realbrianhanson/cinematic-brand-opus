@@ -88,12 +88,12 @@ describe("speaking inquiry capture", () => {
     submit();
     submit();
     expect(send).toHaveBeenCalledOnce();
-    expect(screen.queryByText("Your inquiry is in.")).toBeNull();
+    expect(screen.queryByText("Your inquiry is in")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Sending inquiry" }),
     ).toBeDisabled();
     finish();
-    expect(await screen.findByText("Your inquiry is in.")).toBeVisible();
+    expect(await screen.findByText("Your inquiry is in")).toBeVisible();
     expect(screen.getByRole("status")).toHaveFocus();
     expect(send.mock.calls[0][0]).toMatchObject({
       request_id: id,
@@ -119,7 +119,7 @@ describe("speaking inquiry capture", () => {
       ).toBeEnabled(),
     );
     submit();
-    expect(await screen.findByText("Your inquiry is in.")).toBeVisible();
+    expect(await screen.findByText("Your inquiry is in")).toBeVisible();
     expect(send.mock.calls[1][0]).toEqual(send.mock.calls[0][0]);
   });
   it("safely provides email fallback without requiring a configured email to collect inquiries", () => {

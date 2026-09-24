@@ -86,7 +86,7 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
   },
   component: GeneratedPageRoute,
   errorComponent: () => (
-    <PublicRouteError message="This resource could not be loaded." />
+    <PublicRouteError message="This resource could not be loaded" />
   ),
   notFoundComponent: () => <GeneratedPage />,
 });

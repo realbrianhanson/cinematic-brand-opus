@@ -30,7 +30,7 @@ export const Route = createFileRoute("/news/$id")({
   },
   component: NewsDetailRoute,
   errorComponent: () => (
-    <PublicRouteError message="This news item could not be loaded." />
+    <PublicRouteError message="This news item could not be loaded" />
   ),
   notFoundComponent: () => <NewsDetail />,
 });

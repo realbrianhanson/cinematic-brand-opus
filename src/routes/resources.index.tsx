@@ -41,7 +41,7 @@ export const Route = createFileRoute("/resources/")({
   },
   component: ResourcesIndexRoute,
   errorComponent: () => (
-    <PublicRouteError message="The resource library could not be loaded." />
+    <PublicRouteError message="The resource library could not be loaded" />
   ),
 });
 

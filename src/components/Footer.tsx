@@ -1,4 +1,5 @@
 import { MeasurementPreferencesButton } from "@/components/PublicMeasurement";
+import MobileSummitBar from "@/components/MobileSummitBar";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
 import WidgetRenderer from "@/components/WidgetRenderer";
 import { copyrightLine } from "@/config/site";
@@ -106,7 +107,7 @@ const Footer = () => {
             <h4
               className="font-body font-bold uppercase mb-5"
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 letterSpacing: "0.2em",
                 color: brand.accent,
               }}
@@ -153,7 +154,7 @@ const Footer = () => {
               <h4
                 className="font-body font-bold uppercase mb-5"
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   letterSpacing: "0.2em",
                   color: brand.accent,
                 }}
@@ -225,6 +226,7 @@ const Footer = () => {
           )}
         </div>
       </div>
+      <MobileSummitBar />
     </footer>
   );
 };

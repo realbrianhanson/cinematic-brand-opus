@@ -18,6 +18,7 @@ import {
   Mic,
   MousePointerClick,
   Mail,
+  Signpost,
 } from "lucide-react";
 export const adminNavigation = [
   {
@@ -69,6 +70,7 @@ export const adminNavigation = [
       { to: "/admin/content-types", label: "Content formats", icon: Shapes },
       { to: "/admin/categories", label: "Categories", icon: Tags },
       { to: "/admin/widgets", label: "Widgets", icon: PanelsTopLeft },
+      { to: "/admin/redirects", label: "Redirects", icon: Signpost },
     ],
   },
 ];

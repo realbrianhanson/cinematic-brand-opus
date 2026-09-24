@@ -15,7 +15,7 @@ export default function RelatedOffers({ offers }: { offers: ShopOffer[] }) {
           id="related-offers-heading"
           className="font-display text-3xl text-white"
         >
-          More ways to move forward.
+          More ways to move forward
         </h2>
         <Link
           to="/shop"
@@ -34,7 +34,7 @@ export default function RelatedOffers({ offers }: { offers: ShopOffer[] }) {
             className="group flex min-w-0 items-center justify-between gap-6 rounded-xl border border-white/15 p-5 transition-colors hover:border-[var(--brand-accent)]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
           >
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/55">
                 {SHOP_CATEGORIES[offer.shop_category]}
               </p>
               <h3 className="mt-2 font-display text-2xl text-white">

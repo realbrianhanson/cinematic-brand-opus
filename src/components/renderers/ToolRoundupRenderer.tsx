@@ -161,7 +161,7 @@ const ToolRoundupRenderer = ({
                   <span
                     className="font-body uppercase absolute top-4 right-4 px-2 py-0.5"
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: "0.1em",
                       background: vc.bg,
                       color: vc.color,
@@ -232,7 +232,7 @@ const ToolRoundupRenderer = ({
                           className="font-body flex items-start gap-1.5 mb-1"
                           style={{
                             fontSize: 13,
-                            color: "rgba(255,255,255,0.55)",
+                            color: "rgba(255,255,255,0.7)",
                           }}
                         >
                           <X size={13} className="shrink-0 mt-0.5" />{" "}
@@ -258,9 +258,9 @@ const ToolRoundupRenderer = ({
                     key={h}
                     className="font-body uppercase text-left px-4 py-3"
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: "0.12em",
-                      color: "rgba(255,255,255,0.3)",
+                      color: "rgba(255,255,255,0.7)",
                     }}
                   >
                     {h}
@@ -288,7 +288,7 @@ const ToolRoundupRenderer = ({
                   </td>
                   <td
                     className="font-body px-4 py-3"
-                    style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}
+                    style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
                   >
                     {tool.best_for || "—"}
                   </td>
@@ -296,9 +296,9 @@ const ToolRoundupRenderer = ({
                     <span
                       className="uppercase"
                       style={{
-                        fontSize: 9,
+                        fontSize: 12,
                         letterSpacing: "0.1em",
-                        color: "rgba(255,255,255,0.35)",
+                        color: "rgba(255,255,255,0.7)",
                       }}
                     >
                       {tool.verdict?.replace(/-/g, " ") || "—"}
@@ -329,7 +329,7 @@ const FilterBtn = ({
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all capitalize"
     style={{
-      fontSize: 10,
+      fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
       borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",

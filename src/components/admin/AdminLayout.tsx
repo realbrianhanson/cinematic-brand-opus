@@ -18,6 +18,10 @@ import {
 import { adminCreateActions, adminNavigation } from "./adminNavigation";
 import AdminCommandMenu from "./AdminCommandMenu";
 import {
+  clearAdminPreviewBrowser,
+  markAdminPreviewBrowser,
+} from "@/lib/adminPreviewCookie";
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -32,6 +36,8 @@ export default function AdminLayout() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Draft previews open public URLs; keep them out of the 404 -> home redirect.
+  useEffect(() => markAdminPreviewBrowser(), []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -161,6 +167,7 @@ export default function AdminLayout() {
             aria-label="Sign out"
             onClick={async () => {
               await signOut();
+              clearAdminPreviewBrowser();
               navigate("/admin/login");
             }}
           >
