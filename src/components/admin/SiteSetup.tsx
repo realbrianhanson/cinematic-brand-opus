@@ -10,18 +10,123 @@ import {
   setupSchema,
   type SetupValues,
 } from "@/config/runtime";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  confirmationHost,
+  planSiteSetupChanges,
+  seedSetupValues,
+  storedBrandingMode,
+  type SetupChange,
+  type SetupChangePlan,
+} from "./siteSetupChanges";
 import { memberPreset } from "@/config/presets/member";
 import { brandStyles } from "@/config/brandStyles";
 import type { Json } from "@/integrations/supabase/types";
 import QueryNotice from "./QueryNotice";
 import { toast } from "sonner";
 const steps = ["Identity", "Brand & offer", "Preview & launch"];
+function ChangeList({ title, rows }: { title: string; rows: SetupChange[] }) {
+  if (!rows.length) return null;
+  return (
+    <div>
+      <h3 className="font-semibold text-sm mb-2">{title}</h3>
+      <ul className="space-y-2 text-sm">
+        {rows.map((r) => (
+          <li key={r.label} data-testid="setup-change">
+            <span className="font-medium">{r.label}:</span>{" "}
+            <span className="line-through text-muted-foreground break-words">
+              {r.from}
+            </span>{" "}
+            → <span className="break-words">{r.to}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+function ConfirmApply({
+  plan,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  plan: SetupChangePlan | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const empty = !!plan && !plan.website.length && !plan.publishing.length;
+  return (
+    <AlertDialog
+      open={!!plan}
+      onOpenChange={(open) => {
+        if (!open && !pending) onCancel();
+      }}
+    >
+      <AlertDialogContent className="admin-shell max-h-[85vh] overflow-auto">
+        <AlertDialogTitle>
+          Apply these changes to the live site?
+        </AlertDialogTitle>
+        <AlertDialogDescription>
+          {empty
+            ? "No live values will change."
+            : "These live values will change. Everything not listed stays as it is."}
+        </AlertDialogDescription>
+        {plan?.memberReset && (
+          <p role="alert" className="text-sm font-semibold text-red-500">
+            Fresh member brand: this clears the author credentials, social
+            links, byline title, and article call-to-action box. Only do this on
+            a member copy.
+          </p>
+        )}
+        {plan && (
+          <div className="space-y-4">
+            <ChangeList
+              title="Public website (homepage, metadata, navigation)"
+              rows={plan.website}
+            />
+            <ChangeList
+              title="Brand & publishing (articles and author byline)"
+              rows={plan.publishing}
+            />
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={pending}
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
+          >
+            {pending ? "Applying…" : "Apply these changes"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 export default function SiteSetup() {
   const config = useSiteConfig();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<SetupValues | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
+  const [confirming, setConfirming] = useState<{
+    value: SetupValues;
+    plan: SetupChangePlan;
+  } | null>(null);
+  const [memberGuard, setMemberGuard] = useState(false);
+  const [memberConfirmText, setMemberConfirmText] = useState("");
   const settings = useQuery({
     queryKey: ["site-setup"],
     queryFn: async () => {
@@ -36,10 +141,11 @@ export default function SiteSetup() {
       if (brand.error) throw brand.error;
       if (identity.error) throw identity.error;
       const row = identity.data?.[0];
+      const stored = brand.data?.settings ?? null;
       return {
-        values: brand.data
-          ? setupSchema.parse(brand.data.settings)
-          : { ...setupDefaults(config), authorBio: row?.author_bio || "" },
+        values: seedSetupValues(config, stored, row),
+        storedMode: storedBrandingMode(stored),
+        row,
         initialized: !!row,
       };
     },
@@ -58,10 +164,24 @@ export default function SiteSetup() {
       await router.invalidate();
       await settings.refetch();
       setDraft(null);
+      setConfirming(null);
       toast.success("Site identity and public branding updated");
     },
     onError: (e) => toast.error(e.message),
   });
+  const baseline = settings.data?.values || setupDefaults(config);
+  const liveHost = confirmationHost(baseline.siteUrl);
+  const switchToMember = () => {
+    setMemberGuard(false);
+    setMemberConfirmText("");
+    setDraft({ ...setupDefaults(memberPreset), mode: "member" });
+  };
+  const switchToOwner = () =>
+    setDraft({
+      ...(baseline.mode === "owner" ? baseline : setupDefaults(config)),
+      mode: "owner",
+      authorBio: baseline.authorBio,
+    });
   const change = (field: keyof SetupValues, value: string) =>
     setDraft({ ...values, [field]: value });
   const field = (
@@ -132,7 +252,16 @@ export default function SiteSetup() {
               }
               setIssues([]);
               if (step < 2) setStep(step + 1);
-              else save.mutate(parsed.data);
+              else
+                setConfirming({
+                  value: parsed.data,
+                  plan: planSiteSetupChanges({
+                    current: baseline,
+                    next: parsed.data,
+                    row: settings.data?.row,
+                    storedMode: settings.data?.storedMode ?? null,
+                  }),
+                });
             }}
             className="admin-card p-6 space-y-6"
           >
@@ -145,33 +274,75 @@ export default function SiteSetup() {
                       className="admin-input"
                       value={values.mode}
                       onChange={(e) => {
-                        if (e.target.value === "member")
-                          setDraft({
-                            ...setupDefaults(memberPreset),
-                            mode: "member",
-                          });
-                        else
-                          setDraft({
-                            ...setupDefaults(config),
-                            mode: "owner",
-                            authorBio: settings.data?.values.authorBio || "",
-                          });
+                        if (e.target.value !== "member") {
+                          setMemberGuard(false);
+                          switchToOwner();
+                        } else if (baseline.mode === "member") switchToMember();
+                        else setMemberGuard(true);
                       }}
                     >
                       <option value="owner">
                         Keep the current personal website sections
                       </option>
                       <option value="member">
-                        Fresh member brand — hide personal proof and photos
+                        Fresh member brand (member copies only — resets identity
+                        and credentials)
                       </option>
                     </select>
                   </label>
+                  {memberGuard && (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-red-500 p-4 space-y-3"
+                    >
+                      <p className="font-semibold text-red-500">
+                        This is for a member copy, not this live site.
+                      </p>
+                      <p className="text-sm">
+                        Switching replaces every field below with a blank member
+                        template. Applying it then clears the author
+                        credentials, social links, byline title, social proof,
+                        and article call-to-action box, and removes the homepage
+                        claims, photos, and testimonials.
+                      </p>
+                      <label className="grid gap-2 text-sm">
+                        <span>
+                          Type <strong>{liveHost}</strong> to switch anyway
+                        </span>
+                        <input
+                          className="admin-input"
+                          value={memberConfirmText}
+                          onChange={(e) => setMemberConfirmText(e.target.value)}
+                        />
+                      </label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          className="admin-btn-secondary"
+                          onClick={() => {
+                            setMemberGuard(false);
+                            setMemberConfirmText("");
+                          }}
+                        >
+                          Keep my site
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-btn-primary"
+                          disabled={memberConfirmText.trim() !== liveHost}
+                          onClick={switchToMember}
+                        >
+                          Switch to fresh member brand
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-sm text-muted-foreground">
-                    For a member copy, choose the fresh starting point. It
+                    Keep the current sections for this site. The fresh starting
+                    point is only for a member copy on its own backend: it
                     removes Brian’s homepage claims, photos, testimonials,
-                    external offers, and domain verification. Existing articles
-                    and private account data are separate; use a fresh backend
-                    for a member installation.
+                    external offers, and domain verification, and clears author
+                    credentials and social links.
                   </p>
                   <div className="grid sm:grid-cols-2 gap-5">
                     {field("name", "Name or brand")}
@@ -310,8 +481,12 @@ export default function SiteSetup() {
                   </ul>
                   <p className="text-sm text-muted-foreground">
                     Applying updates the live site’s homepage, navigation,
-                    colors, metadata, author identity, and main offer. It does
-                    not copy private data, configure a domain, or enable
+                    colors, metadata, author name, bio, and main offer. You see
+                    every changed value before it is applied.{" "}
+                    {values.mode === "owner"
+                      ? "The article call-to-action box and author byline title stay as set in Brand & publishing."
+                      : "A member brand also replaces the article call-to-action box and author byline title."}{" "}
+                    It does not copy private data, configure a domain, or enable
                     integrations.
                   </p>
                 </>
@@ -356,6 +531,12 @@ export default function SiteSetup() {
               </button>
             </div>
           </form>
+          <ConfirmApply
+            plan={confirming?.plan ?? null}
+            pending={save.isPending}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => confirming && save.mutate(confirming.value)}
+          />
         </>
       )}
     </section>

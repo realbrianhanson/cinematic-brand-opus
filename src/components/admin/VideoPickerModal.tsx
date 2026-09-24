@@ -8,8 +8,8 @@ import {
   Loader2,
   Film,
   FolderOpen,
-  Trash2,
   Code,
+  RefreshCw,
 } from "lucide-react";
 
 interface VideoPickerModalProps {
@@ -74,10 +74,11 @@ const VideoPickerModal = ({
   const [videos, setVideos] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchVideos = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const { data, error } = await supabase
         .from("media")
@@ -88,7 +89,8 @@ const VideoPickerModal = ({
       if (error) throw error;
       setVideos((data as MediaItem[]) || []);
     } catch (err) {
-      console.error("Failed to load videos:", errorMessage(err));
+      console.error("Failed to load videos:", err);
+      setLoadError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -180,7 +182,6 @@ const VideoPickerModal = ({
       toast({ title: "Video uploaded" });
       onSelect(`video:${publicUrl}`);
       onClose();
-      onClose();
     } catch (err) {
       toast({
         title: "Upload failed",
@@ -196,31 +197,6 @@ const VideoPickerModal = ({
   const handleLibrarySelect = (video: MediaItem) => {
     onSelect(`video:${video.url}`);
     onClose();
-  };
-
-  const handleDelete = async (item: MediaItem) => {
-    setDeleting(item.id);
-    try {
-      const { error: storageErr } = await supabase.storage
-        .from("blog-images")
-        .remove([item.file_path]);
-      if (storageErr) throw storageErr;
-      const { error: dbErr } = await supabase
-        .from("media")
-        .delete()
-        .eq("id", item.id);
-      if (dbErr) throw dbErr;
-      setVideos((prev) => prev.filter((v) => v.id !== item.id));
-      toast({ title: "Video deleted" });
-    } catch (err) {
-      toast({
-        title: "Delete failed",
-        description: errorMessage(err),
-        variant: "destructive",
-      });
-    } finally {
-      setDeleting(null);
-    }
   };
 
   if (!open) return null;
@@ -402,6 +378,29 @@ const VideoPickerModal = ({
                     style={{ color: "hsl(var(--admin-accent))" }}
                   />
                 </div>
+              ) : loadError && videos.length === 0 ? (
+                <div
+                  role="alert"
+                  className="flex flex-col items-center justify-center gap-3"
+                  style={{ padding: 48, textAlign: "center" }}
+                >
+                  <p
+                    style={{
+                      color: "hsl(var(--admin-text))",
+                      fontSize: 14,
+                      margin: 0,
+                    }}
+                  >
+                    Couldn't load your videos. {loadError}
+                  </p>
+                  <button
+                    type="button"
+                    className="admin-btn-ghost flex items-center gap-2"
+                    onClick={fetchVideos}
+                  >
+                    <RefreshCw size={13} aria-hidden /> Retry
+                  </button>
+                </div>
               ) : videos.length === 0 ? (
                 <div
                   className="flex flex-col items-center justify-center gap-2"
@@ -432,8 +431,10 @@ const VideoPickerModal = ({
                   }}
                 >
                   {videos.map((vid) => (
-                    <div
+                    <button
                       key={vid.id}
+                      type="button"
+                      aria-label={`Insert ${vid.name}`}
                       className="group relative"
                       style={{
                         aspectRatio: "16/9",
@@ -441,6 +442,8 @@ const VideoPickerModal = ({
                         overflow: "hidden",
                         cursor: "pointer",
                         border: "1px solid hsl(var(--admin-border))",
+                        padding: 0,
+                        background: "none",
                       }}
                       onClick={() => handleLibrarySelect(vid)}
                     >
@@ -454,18 +457,20 @@ const VideoPickerModal = ({
                         muted
                         preload="metadata"
                       />
-                      <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      <span
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center"
                         style={{ background: "rgba(0,0,0,0.4)" }}
+                        aria-hidden
                       >
                         <Film size={24} style={{ color: "#fff" }} />
-                      </div>
-                      <div
-                        className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between"
+                      </span>
+                      <span
+                        className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center"
                         style={{
                           background: "rgba(0,0,0,0.7)",
                           padding: "4px 8px",
                         }}
+                        aria-hidden
                       >
                         <span
                           style={{
@@ -474,38 +479,24 @@ const VideoPickerModal = ({
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            maxWidth: "70%",
                           }}
                         >
                           {vid.name}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(vid);
-                          }}
-                          disabled={deleting === vid.id}
-                          style={{
-                            background: "rgba(220,38,38,0.8)",
-                            border: "none",
-                            borderRadius: 2,
-                            padding: 3,
-                            cursor: "pointer",
-                            color: "#fff",
-                          }}
-                          title="Delete"
-                        >
-                          {deleting === vid.id ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={12} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                      </span>
+                    </button>
                   ))}
                 </div>
               )}
+              <p
+                style={{
+                  color: "hsl(var(--admin-text-soft))",
+                  fontSize: 12,
+                  margin: "16px 0 0",
+                }}
+              >
+                To delete videos, go to Media library in the admin menu
+              </p>
             </>
           )}
         </div>

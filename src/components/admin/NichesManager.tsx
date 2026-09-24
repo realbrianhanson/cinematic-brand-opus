@@ -1,6 +1,12 @@
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { parseNicheCsv } from "@/lib/nicheCsv";
+import {
+  deleteErrorMessage,
+  describeNicheDelete,
+  mergeNicheContext,
+  type NicheDependents,
+} from "@/lib/adminDependents";
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -40,6 +45,7 @@ interface NicheContext {
   subtopics?: string[];
   ai_opportunities?: string;
   keywords_seed?: string[];
+  target_keyword?: string;
 }
 
 interface NicheForm {
@@ -65,8 +71,18 @@ const emptyForm: NicheForm = {
     subtopics: [],
     ai_opportunities: "",
     keywords_seed: [],
+    target_keyword: "",
   },
 };
+
+/** Same fallback supabase/functions/generate-pillar uses when target_keyword is blank. */
+const defaultTargetKeyword = (name: string) => `AI training for ${name.trim()}`;
+
+interface DeleteTarget {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
 
 const NichesManager = () => {
   const { toast } = useToast();
@@ -77,11 +93,10 @@ const NichesManager = () => {
   const [form, setForm] = useState<NicheForm>({ ...emptyForm });
   const [subtopicInput, setSubtopicInput] = useState("");
   const [keywordInput, setKeywordInput] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-    pageCount: number;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  // The niche's stored context when the edit dialog opened. Saving merges the
+  // form over it so keys the form doesn't show (content_focus, …) survive.
+  const [originalContext, setOriginalContext] = useState<unknown>({});
   const [slugManual, setSlugManual] = useState(false);
 
   // CSV import state
@@ -90,7 +105,11 @@ const NichesManager = () => {
   const [csvImporting, setCsvImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: niches, isLoading } = useQuery({
+  const {
+    data: niches,
+    isLoading,
+    error: nichesError,
+  } = useQuery({
     queryKey: ["admin-niches"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_read_niches");
@@ -104,15 +123,55 @@ const NichesManager = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_pages")
-        .select("niche_id");
+        .select("niche_id, silo_niche_id");
       if (error) throw error;
       const counts: Record<string, number> = {};
       (data ?? []).forEach((p) => {
-        if (p.niche_id) counts[p.niche_id] = (counts[p.niche_id] || 0) + 1;
+        const ids = new Set([p.niche_id, p.silo_niche_id].filter(Boolean));
+        ids.forEach((id) => {
+          if (id) counts[id] = (counts[id] || 0) + 1;
+        });
       });
       return counts;
     },
   });
+
+  // Fresh dependent counts for the niche being deleted. Counted when the
+  // dialog opens so the dialog never promises something the DB will reject.
+  const {
+    data: deleteDeps,
+    isLoading: deleteDepsLoading,
+    error: deleteDepsError,
+  } = useQuery({
+    queryKey: ["admin-niche-dependents", deleteTarget?.id],
+    enabled: !!deleteTarget,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async (): Promise<NicheDependents> => {
+      const id = deleteTarget!.id;
+      const [generated, pillars] = await Promise.all([
+        supabase
+          .from("generated_pages")
+          .select("id", { count: "exact", head: true })
+          .or(`niche_id.eq.${id},silo_niche_id.eq.${id}`),
+        supabase
+          .from("pillar_pages")
+          .select("id", { count: "exact", head: true })
+          .eq("niche_id", id),
+      ]);
+      if (generated.error) throw generated.error;
+      if (pillars.error) throw pillars.error;
+      return {
+        generated: generated.count ?? 0,
+        pillars: pillars.count ?? 0,
+        children: (niches ?? []).filter((n) => n.parent_niche_id === id).length,
+      };
+    },
+  });
+  const deleteVerdict =
+    deleteTarget && deleteDeps
+      ? describeNicheDelete(deleteTarget.name, deleteDeps)
+      : null;
 
   const filtered = useMemo(() => {
     if (!niches) return [];
@@ -130,20 +189,34 @@ const NichesManager = () => {
   const saveMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
+        // New niches get the explicit fallback keyword so topic-guide
+        // generation never has to guess; edits keep what the admin typed.
+        const targetKeyword =
+          (form.context.target_keyword ?? "").trim() ||
+          (editingId ? "" : defaultTargetKeyword(form.name));
+        const context = mergeNicheContext(originalContext, {
+          ...form.context,
+          target_keyword: targetKeyword,
+        });
         const payload = {
           name: form.name,
           slug: form.slug,
           parent_niche_id: form.parent_niche_id || null,
           is_active: form.is_active,
           expert_pov: form.expert_pov || null,
-          context: { ...form.context },
+          context: context as Json,
         };
         if (editingId) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from("niches")
             .update(payload)
-            .eq("id", editingId);
+            .eq("id", editingId)
+            .select("id");
           if (error) throw error;
+          if (!data?.length)
+            throw new Error(
+              "This niche no longer exists, so your changes were not saved. Close this dialog and refresh the list.",
+            );
         } else {
           const { error } = await supabase.from("niches").insert(payload);
           if (error) throw error;
@@ -166,18 +239,27 @@ const NichesManager = () => {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       safeMutation(async () => {
-        const { error } = await supabase.from("niches").delete().eq("id", id);
+        const { data, error } = await supabase
+          .from("niches")
+          .delete()
+          .eq("id", id)
+          .select("id");
         if (error) throw error;
+        if (!data?.length)
+          throw new Error(
+            "Nothing was deleted. The niche may already be gone, or you may not have permission.",
+          );
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
+      qc.invalidateQueries({ queryKey: ["admin-niche-page-counts"] });
       toast({ title: "Niche deleted" });
       setDeleteTarget(null);
     },
     onError: (err: Error) => {
       toast({
-        title: "Error",
-        description: errorMessage(err),
+        title: "Couldn't delete niche",
+        description: deleteErrorMessage(err, "niche"),
         variant: "destructive",
       });
     },
@@ -187,11 +269,16 @@ const NichesManager = () => {
     mutationFn: ({ ids, is_active }: { ids: string[]; is_active: boolean }) =>
       safeMutation(async () => {
         if (!ids.length) return;
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("niches")
           .update({ is_active })
-          .in("id", ids);
+          .in("id", ids)
+          .select("id");
         if (error) throw error;
+        if (!data?.length)
+          throw new Error(
+            "No niches were updated. They may have been deleted, or you may not have permission.",
+          );
       }),
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["admin-niches"] });
@@ -209,6 +296,7 @@ const NichesManager = () => {
 
   const openNew = () => {
     setEditingId(null);
+    setOriginalContext({});
     setForm({
       ...emptyForm,
       context: { ...emptyForm.context, subtopics: [], keywords_seed: [] },
@@ -222,6 +310,7 @@ const NichesManager = () => {
   const openEdit = (niche: Tables<"niches">) => {
     const ctx = (niche.context ?? {}) as NicheContext;
     setEditingId(niche.id);
+    setOriginalContext(niche.context ?? {});
     setForm({
       name: niche.name,
       slug: niche.slug,
@@ -236,6 +325,8 @@ const NichesManager = () => {
         subtopics: ctx.subtopics ?? [],
         ai_opportunities: ctx.ai_opportunities ?? "",
         keywords_seed: ctx.keywords_seed ?? [],
+        target_keyword:
+          typeof ctx.target_keyword === "string" ? ctx.target_keyword : "",
       },
     });
     setSlugManual(true);
@@ -348,6 +439,7 @@ const NichesManager = () => {
             : [],
           ai_opportunities: "",
           keywords_seed: [],
+          target_keyword: defaultTargetKeyword(r.name),
         },
       }));
       const { error } = await supabase.from("niches").insert(payload);
@@ -551,6 +643,20 @@ const NichesManager = () => {
             style={{ color: "hsl(var(--admin-text-ghost))" }}
           />
         </div>
+      ) : nichesError ? (
+        <div
+          role="alert"
+          className="admin-card font-body"
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "hsl(var(--admin-danger))",
+            fontSize: 13,
+          }}
+        >
+          Couldn't load niches: {errorMessage(nichesError)}. Refresh the page to
+          try again.
+        </div>
       ) : filtered.length === 0 ? (
         <div
           className="admin-card font-body"
@@ -656,7 +762,9 @@ const NichesManager = () => {
                       color: "hsl(var(--admin-text-ghost))",
                     }}
                   >
-                    {count} page{count !== 1 ? "s" : ""} generated
+                    {pageCounts
+                      ? `${count} page${count !== 1 ? "s" : ""} generated`
+                      : "—"}
                   </span>
                   <div className="flex items-center gap-1">
                     <button
@@ -678,11 +786,14 @@ const NichesManager = () => {
                       <Pencil size={12} /> Edit
                     </button>
                     <button
+                      type="button"
+                      aria-label={`Delete ${niche.name}`}
+                      title="Delete"
                       onClick={() =>
                         setDeleteTarget({
                           id: niche.id,
                           name: niche.name,
-                          pageCount: count,
+                          isActive: niche.is_active ?? true,
                         })
                       }
                       style={{
@@ -750,15 +861,17 @@ const NichesManager = () => {
               padding: "8px 0",
             }}
           >
-            <ModalField label="Name">
+            <ModalField label="Name" htmlFor="niche-name">
               <input
+                id="niche-name"
                 className="admin-input font-body"
                 value={form.name}
                 onChange={(e) => updateName(e.target.value)}
               />
             </ModalField>
-            <ModalField label="Slug">
+            <ModalField label="Slug" htmlFor="niche-slug">
               <input
+                id="niche-slug"
                 className="admin-input font-body"
                 value={form.slug}
                 onChange={(e) => {
@@ -810,8 +923,9 @@ const NichesManager = () => {
               Niche Context
             </span>
 
-            <ModalField label="Audience">
+            <ModalField label="Audience" htmlFor="niche-audience">
               <textarea
+                id="niche-audience"
                 className="admin-input font-body"
                 rows={3}
                 placeholder="Who is the target audience in this niche?"
@@ -912,6 +1026,37 @@ const NichesManager = () => {
                 placeholder="keyword1, keyword2..."
               />
             </ModalField>
+            <ModalField
+              label="Target keyword (topic guide)"
+              htmlFor="niche-target-keyword"
+            >
+              <input
+                id="niche-target-keyword"
+                className="admin-input font-body"
+                value={form.context.target_keyword ?? ""}
+                placeholder={defaultTargetKeyword(form.name || "<niche name>")}
+                aria-describedby="niche-target-keyword-help"
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    context: { ...p.context, target_keyword: e.target.value },
+                  }))
+                }
+                style={{ width: "100%" }}
+              />
+              <p
+                id="niche-target-keyword-help"
+                className="font-body"
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--admin-text-ghost))",
+                  marginTop: 4,
+                }}
+              >
+                Used as the topic guide's title and SEO keyword. Leave blank to
+                use "{defaultTargetKeyword(form.name || "<niche name>")}".
+              </p>
+            </ModalField>
             <ModalField label="Expert POV (used for 'From the trenches' callouts — only claims from this text are allowed)">
               <textarea
                 className="admin-input font-body"
@@ -977,15 +1122,21 @@ const NichesManager = () => {
         >
           <AlertDialogHeader>
             <AlertDialogTitle className="font-body">
-              Delete "{deleteTarget?.name}"?
+              {deleteVerdict?.blocked
+                ? `Can't delete "${deleteTarget?.name}"`
+                : `Delete "${deleteTarget?.name}"?`}
             </AlertDialogTitle>
             <AlertDialogDescription
               className="font-body"
               style={{ color: "hsl(var(--admin-text-soft))" }}
             >
-              {(deleteTarget?.pageCount ?? 0) > 0
-                ? `Warning: This niche has ${deleteTarget?.pageCount} generated page(s). Deleting it may orphan those pages.`
-                : "This action cannot be undone."}
+              {deleteDepsLoading
+                ? "Checking which pages and guides use this niche…"
+                : deleteDepsError
+                  ? `Couldn't check what uses this niche (${errorMessage(deleteDepsError)}). Close this and try again.`
+                  : deleteVerdict?.blocked && !deleteTarget?.isActive
+                    ? `${deleteVerdict.message} It's already inactive.`
+                    : deleteVerdict?.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -997,21 +1148,60 @@ const NichesManager = () => {
                 color: "hsl(var(--admin-text-soft))",
               }}
             >
-              Cancel
+              {deleteVerdict?.blocked ? "Close" : "Cancel"}
             </AlertDialogCancel>
-            <AlertDialogAction
-              className="font-body"
-              onClick={() =>
-                deleteTarget && deleteMutation.mutate(deleteTarget.id)
-              }
-              style={{
-                backgroundColor: "hsl(var(--admin-danger))",
-                color: "#fff",
-                border: "none",
-              }}
-            >
-              Delete
-            </AlertDialogAction>
+            {deleteVerdict?.blocked && deleteTarget?.isActive && (
+              <button
+                type="button"
+                className="admin-btn-primary font-body"
+                disabled={bulkActiveMutation.isPending}
+                onClick={() =>
+                  bulkActiveMutation.mutate(
+                    { ids: [deleteTarget.id], is_active: false },
+                    { onSuccess: () => setDeleteTarget(null) },
+                  )
+                }
+              >
+                {bulkActiveMutation.isPending && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                    style={{ marginRight: 6 }}
+                  />
+                )}
+                Deactivate instead
+              </button>
+            )}
+            {deleteVerdict && !deleteVerdict.blocked && (
+              <button
+                type="button"
+                className="font-body"
+                disabled={deleteMutation.isPending}
+                onClick={() =>
+                  deleteTarget && deleteMutation.mutate(deleteTarget.id)
+                }
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  borderRadius: 6,
+                  backgroundColor: "hsl(var(--admin-danger))",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {deleteMutation.isPending && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                    style={{ marginRight: 6 }}
+                  />
+                )}
+                Delete
+              </button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1156,13 +1346,21 @@ const NichesManager = () => {
 
 const ModalField = ({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) => (
   <div>
-    <span className="admin-label">{label}</span>
+    {htmlFor ? (
+      <label htmlFor={htmlFor} className="admin-label">
+        {label}
+      </label>
+    ) : (
+      <span className="admin-label">{label}</span>
+    )}
     <div style={{ marginTop: 5 }}>{children}</div>
   </div>
 );

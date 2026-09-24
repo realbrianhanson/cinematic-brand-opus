@@ -17,6 +17,80 @@ import {
 const SIZE = 25;
 const statuses = ["all", "draft", "scheduled", "published"] as const;
 type Status = (typeof statuses)[number];
+const DELETE_WORD = "DELETE";
+const LIST_KEYS = [
+  ["admin-posts"],
+  ["admin-post-stats"],
+  ["admin-recent-posts"],
+  ["admin-content-queue"],
+] as const;
+type RowPost = { id: string; title: string; slug: string; status: string };
+type RowAction = { kind: "unpublish" | "delete"; post: RowPost };
+type Confirmation = "publish" | RowAction | null;
+type DbError = { code?: string; message?: string };
+class StaleRowError extends Error {}
+
+function isRowAction(value: Confirmation): value is RowAction {
+  return value !== null && value !== "publish";
+}
+
+function isPermissionError(error: DbError) {
+  return (
+    error.code === "42501" ||
+    error.code === "PGRST301" ||
+    /row-level security|permission denied|jwt/i.test(error.message ?? "")
+  );
+}
+
+/** Turn a failed row action into a sentence Brian can act on. */
+function describeRowFailure(action: RowAction, error: unknown): string {
+  const { post, kind } = action;
+  const name = `"${post.title}"`;
+  const scheduled = post.status === "scheduled";
+  if (error instanceof StaleRowError) {
+    return kind === "delete"
+      ? `${name} is no longer a draft, so it was not deleted. The list has been refreshed.`
+      : `${name} is no longer ${scheduled ? "scheduled" : "published"}, so nothing was changed. The list has been refreshed.`;
+  }
+  const dbError = (error ?? {}) as DbError;
+  if (kind === "delete" && dbError.code === "23503") {
+    return `${name} is still linked to other content, so it can't be deleted. Nothing was removed.`;
+  }
+  const retry = isPermissionError(dbError)
+    ? "Your admin session may have expired. Sign in again, then retry."
+    : "Check your connection and try again.";
+  if (kind === "delete") {
+    return `Couldn't delete ${name}. Nothing was removed. ${retry}`;
+  }
+  return scheduled
+    ? `Couldn't unschedule ${name}. It is still scheduled. ${retry}`
+    : `Couldn't unpublish ${name}. It is still live. ${retry}`;
+}
+
+async function runRowAction({ kind, post }: RowAction) {
+  // The status guard makes the change a no-op if the row moved on in another
+  // tab (for example a draft that was published since this list loaded).
+  const query =
+    kind === "delete"
+      ? supabase.from("posts").delete().eq("id", post.id).eq("status", "draft")
+      : supabase
+          .from("posts")
+          .update({ status: "draft" })
+          .eq("id", post.id)
+          .eq("status", post.status);
+  const { data, error } = await query.select("id");
+  if (error) throw error;
+  if (!data?.length) throw new StaleRowError();
+}
+
+function rowSuccessMessage({ kind, post }: RowAction) {
+  if (kind === "delete")
+    return `"${post.title}" and its revision history were permanently deleted.`;
+  return post.status === "scheduled"
+    ? `"${post.title}" is now a draft and will not go live.`
+    : `"${post.title}" is now a draft. Its page is offline until you publish it again.`;
+}
+
 export default function PostsManager() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -30,9 +104,16 @@ export default function PostsManager() {
   const [sort, setSort] = useState("updated_at");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [confirmation, setConfirmation] = useState<"publish" | string | null>(
-    null,
-  );
+  // The last confirmation stays in state while the dialog animates closed so
+  // its content does not flash to a different variant.
+  const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const confirm = (next: Confirmation) => {
+    setTyped("");
+    setConfirmation(next);
+    setDialogOpen(true);
+  };
   useEffect(() => {
     const timer = setTimeout(() => {
       setTerm(search.trim());
@@ -77,16 +158,12 @@ export default function PostsManager() {
       return data ?? [];
     },
   });
+  const refreshLists = () =>
+    Promise.all(
+      LIST_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey })),
+    );
   const mutation = useMutation({
-    mutationFn: async (action: string) => {
-      if (action !== "publish") {
-        const { error } = await supabase
-          .from("posts")
-          .delete()
-          .eq("id", action);
-        if (error) throw error;
-        return "Post deleted.";
-      }
+    mutationFn: async () => {
       const candidates =
         posts.data?.items.filter(
           (p) => selected.has(p.id) && p.status === "draft",
@@ -108,12 +185,37 @@ export default function PostsManager() {
     },
     onSuccess: (message) => {
       toast.success(message);
-      setConfirmation(null);
+      setDialogOpen(false);
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
     },
     onError: (error) => toast.error(error.message),
   });
+  const rowMutation = useMutation({
+    mutationFn: runRowAction,
+    onSuccess: (_data, action) => {
+      toast.success(rowSuccessMessage(action));
+      setDialogOpen(false);
+      setSelected((previous) => {
+        if (!previous.has(action.post.id)) return previous;
+        const next = new Set(previous);
+        next.delete(action.post.id);
+        return next;
+      });
+      if (action.kind === "delete") {
+        qc.removeQueries({ queryKey: ["admin-post", action.post.id] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["admin-post", action.post.id] });
+        qc.invalidateQueries({ queryKey: ["post-revisions", action.post.id] });
+      }
+      void refreshLists();
+    },
+    onError: (error, action) => {
+      toast.error(describeRowFailure(action, error));
+      if (error instanceof StaleRowError) void refreshLists();
+    },
+  });
+  const busy = mutation.isPending || rowMutation.isPending;
   const items = posts.data?.items ?? [];
   const drafts = items.filter(
     (p) => p.status === "draft" && selected.has(p.id),
@@ -207,8 +309,8 @@ export default function PostsManager() {
           <span>{drafts.length} drafts selected on this page.</span>
           <button
             className="admin-btn-primary"
-            disabled={mutation.isPending}
-            onClick={() => setConfirmation("publish")}
+            disabled={busy}
+            onClick={() => confirm("publish")}
           >
             Review publishing
           </button>
@@ -269,14 +371,24 @@ export default function PostsManager() {
                     View
                   </a>
                 )}
-                <button
-                  className="text-red-400"
-                  aria-label={`Delete ${post.title}`}
-                  disabled={mutation.isPending}
-                  onClick={() => setConfirmation(post.id)}
-                >
-                  Delete
-                </button>
+                {post.status === "draft" ? (
+                  <button
+                    className="text-red-400"
+                    aria-label={`Delete ${post.title}`}
+                    disabled={busy}
+                    onClick={() => confirm({ kind: "delete", post })}
+                  >
+                    Delete
+                  </button>
+                ) : (
+                  <button
+                    aria-label={`${post.status === "scheduled" ? "Unschedule" : "Unpublish"} ${post.title}`}
+                    disabled={busy}
+                    onClick={() => confirm({ kind: "unpublish", post })}
+                  >
+                    {post.status === "scheduled" ? "Unschedule" : "Unpublish"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -313,50 +425,134 @@ export default function PostsManager() {
         </section>
       )}
       <AlertDialog
-        open={!!confirmation}
+        open={dialogOpen && !!confirmation}
         onOpenChange={(open) => {
-          if (!open && !mutation.isPending) setConfirmation(null);
+          if (!open && !busy) setDialogOpen(false);
         }}
       >
         <AlertDialogContent className="admin-shell">
-          <AlertDialogTitle>
-            {confirmation === "publish"
-              ? `Publish ${drafts.length} selected drafts?`
-              : "Delete this article?"}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {confirmation === "publish"
-              ? "Each article will go through the normal publishing checks. Articles that fail remain unpublished."
-              : "This permanently removes the article. This action cannot be undone."}
-          </AlertDialogDescription>
-          <ul className="max-h-48 overflow-auto text-sm">
-            {(confirmation === "publish"
-              ? drafts
-              : items.filter((p) => p.id === confirmation)
-            ).map((p) => (
-              <li key={p.id}>{p.title}</li>
-            ))}
-          </ul>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={mutation.isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                if (confirmation) mutation.mutate(confirmation);
-              }}
-            >
-              {mutation.isPending
-                ? "Working…"
-                : confirmation === "publish"
-                  ? "Publish selected"
-                  : "Delete article"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {isRowAction(confirmation) ? (
+            <RowActionConfirmation
+              action={confirmation}
+              typed={typed}
+              onType={setTyped}
+              pending={rowMutation.isPending}
+              onConfirm={() => rowMutation.mutate(confirmation)}
+            />
+          ) : (
+            <>
+              <AlertDialogTitle>
+                Publish {drafts.length} selected drafts?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Each article will go through the normal publishing checks.
+                Articles that fail remain unpublished.
+              </AlertDialogDescription>
+              <ul className="max-h-48 overflow-auto text-sm">
+                {drafts.map((p) => (
+                  <li key={p.id}>{p.title}</li>
+                ))}
+              </ul>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={busy}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    mutation.mutate();
+                  }}
+                >
+                  {mutation.isPending ? "Working…" : "Publish selected"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function RowActionConfirmation({
+  action,
+  typed,
+  onType,
+  pending,
+  onConfirm,
+}: {
+  action: RowAction;
+  typed: string;
+  onType: (value: string) => void;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  const { kind, post } = action;
+  const isDelete = kind === "delete";
+  const scheduled = post.status === "scheduled";
+  const ready =
+    !pending && (!isDelete || typed.trim().toUpperCase() === DELETE_WORD);
+  return (
+    <>
+      <AlertDialogTitle>
+        {isDelete
+          ? "Permanently delete this draft?"
+          : scheduled
+            ? "Unschedule this article?"
+            : "Unpublish this article?"}
+      </AlertDialogTitle>
+      <p className="font-medium">{post.title}</p>
+      <AlertDialogDescription>
+        {isDelete ? (
+          <>
+            This permanently deletes the article, its entire revision history,
+            and its SEO settings. There is no trash, so it cannot be recovered.
+            This cannot be undone.
+          </>
+        ) : scheduled ? (
+          <>
+            It moves back to Drafts and will not go live at its scheduled time.
+            Nothing is deleted. Schedule it again from the editor when it is
+            ready.
+          </>
+        ) : (
+          <>
+            It moves back to Drafts. The page at <code>/blog/{post.slug}</code>{" "}
+            will stop working until you publish it again, so visitors and search
+            engines following that link will see a “page not found” error.
+            Nothing is deleted: the content, SEO settings, and revision history
+            stay intact.
+          </>
+        )}
+      </AlertDialogDescription>
+      {isDelete && (
+        <label className="admin-help flex flex-col gap-1">
+          Type {DELETE_WORD} to confirm
+          <input
+            className="admin-input"
+            autoComplete="off"
+            value={typed}
+            disabled={pending}
+            onChange={(e) => onType(e.target.value)}
+          />
+        </label>
+      )}
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          className={isDelete ? "bg-red-600 hover:bg-red-700" : undefined}
+          disabled={!ready}
+          onClick={(e) => {
+            e.preventDefault();
+            if (ready) onConfirm();
+          }}
+        >
+          {pending
+            ? "Working…"
+            : isDelete
+              ? "Delete forever"
+              : "Move back to draft"}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
   );
 }

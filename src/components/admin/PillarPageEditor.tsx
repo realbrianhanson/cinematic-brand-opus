@@ -1,7 +1,7 @@
 import { seoDocumentSchema } from "@/lib/contentDocument";
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
@@ -17,6 +17,38 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+/** Saves that keep less than this share of the stored body text need a confirm. */
+const MIN_KEPT_BODY_RATIO = 0.5;
+
+/** Visible text length of stored HTML, measured the same way as the DB guard. */
+const bodyTextLength = (html: string | null | undefined) =>
+  (html ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;|&#160;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim().length;
+
+const bodyLossWarning = (
+  stored: string | null | undefined,
+  next: string,
+): string | null => {
+  const before = bodyTextLength(stored);
+  if (before === 0) return null;
+  const after = bodyTextLength(next);
+  if (after === 0)
+    return "The guide body is empty. Saving will erase the stored guide text. Save anyway?";
+  if (after < before * MIN_KEPT_BODY_RATIO)
+    return `The guide body shrank from ${before} to ${after} characters of text. Save anyway?`;
+  return null;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asText = (value: unknown) => (typeof value === "string" ? value : "");
+
 const PillarPageEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,6 +56,8 @@ const PillarPageEditor = () => {
   const { toast } = useToast();
   const isNew = !id;
   const editorRef = useRef<Editor | null>(null);
+  const hydratedId = useRef<string | null>(null);
+  const [editorReady, setEditorReady] = useState(false);
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -38,7 +72,11 @@ const PillarPageEditor = () => {
   const [ogImage, setOgImage] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const { data: pillar, isLoading } = useQuery({
+  const {
+    data: pillar,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["admin-pillar", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -78,7 +116,9 @@ const PillarPageEditor = () => {
   });
 
   useEffect(() => {
-    if (pillar) {
+    // Hydrate once per guide so a background refetch never clobbers edits.
+    if (pillar && hydratedId.current !== pillar.id) {
+      hydratedId.current = pillar.id;
       setTitle(pillar.title);
       setSlug(pillar.slug);
       setSlugManual(true);
@@ -86,34 +126,61 @@ const PillarPageEditor = () => {
       setNicheId(pillar.niche_id ?? "");
       setEditorContent(pillar.content ?? "");
       const seo = seoDocumentSchema.parse(pillar.seo_meta);
-      setMetaTitle(seo.title ?? "");
-      setMetaDesc(seo.description ?? "");
+      // Generated guides store meta_title/meta_description; read both shapes.
+      const rawSeo = asRecord(pillar.seo_meta);
+      setMetaTitle(seo.title || asText(rawSeo.meta_title));
+      setMetaDesc(seo.description || asText(rawSeo.meta_description));
       setKeywords((seo.keywords ?? []).join(", "));
       setOgImage(seo.og_image ?? "");
-      if (editorRef.current && pillar.content) {
-        editorRef.current.commands.setContent(pillar.content);
+      const editor = editorRef.current;
+      if (editor && !editor.isDestroyed && pillar.content) {
+        editor.commands.setContent(pillar.content, { emitUpdate: false });
       }
     }
   }, [pillar]);
+
+  // The editor is created after the data arrives (immediatelyRender: false),
+  // so the stored body must be loaded when it reports ready, as PostEditor does.
+  const handleEditorReady = useCallback(
+    (editor: Editor | null) => {
+      editorRef.current = editor;
+      setEditorReady(!!editor);
+      if (editor && !editor.isDestroyed && editor.isEmpty && pillar?.content) {
+        editor.commands.setContent(pillar.content, { emitUpdate: false });
+      }
+    },
+    [pillar],
+  );
 
   useEffect(() => {
     if (!slugManual && title) setSlug(slugify(title));
   }, [title, slugManual]);
 
   const saveMutation = useMutation({
-    mutationFn: (publishNow: boolean) =>
+    mutationFn: ({
+      publishNow,
+      content,
+    }: {
+      publishNow: boolean;
+      content: string;
+    }) =>
       safeMutation(async () => {
-        const content = editorRef.current?.getHTML() ?? editorContent;
         const finalStatus = publishNow ? "published" : status;
+        const seoTitle = metaTitle || title;
+        // Merge so keys this form does not edit (faqs, sources, ...) survive,
+        // and write both key shapes the site and generator read.
         const seoMeta = {
-          title: metaTitle || title,
+          ...asRecord(pillar?.seo_meta),
+          title: seoTitle,
+          meta_title: seoTitle,
           description: metaDesc,
+          meta_description: metaDesc,
           keywords: keywords
             .split(",")
             .map((k) => k.trim())
             .filter(Boolean),
           og_image: ogImage || null,
-        };
+        } as Json;
         const payload: TablesInsert<"pillar_pages"> = {
           title,
           slug,
@@ -126,11 +193,16 @@ const PillarPageEditor = () => {
         if (publishNow) payload.published_at = new Date().toISOString();
 
         if (id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from("pillar_pages")
             .update(payload)
-            .eq("id", id);
+            .eq("id", id)
+            .select("id");
           if (error) throw error;
+          if (!data?.length)
+            throw new Error(
+              "This topic guide no longer exists. Your changes were not saved.",
+            );
         } else {
           const { error } = await supabase.from("pillar_pages").insert(payload);
           if (error) throw error;
@@ -148,6 +220,22 @@ const PillarPageEditor = () => {
         variant: "destructive",
       }),
   });
+
+  const requestSave = (publishNow: boolean) => {
+    const editor = editorRef.current;
+    if (!editor || editor.isDestroyed) {
+      toast({
+        title: "Editor still loading",
+        description: "Wait for the guide body to load, then save.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const content = editor.getHTML();
+    const warning = id ? bodyLossWarning(pillar?.content, content) : null;
+    if (warning && !window.confirm(warning)) return;
+    saveMutation.mutate({ publishNow, content });
+  };
 
   const handleOgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -181,6 +269,37 @@ const PillarPageEditor = () => {
       </div>
     );
   }
+
+  if (!isNew && isError) {
+    return (
+      <p role="alert" className="font-body" style={{ padding: 24 }}>
+        The topic guide could not be loaded. Reload before editing.
+      </p>
+    );
+  }
+
+  if (!isNew && !pillar) {
+    return (
+      <p role="alert" className="font-body" style={{ padding: 24 }}>
+        This topic guide no longer exists.{" "}
+        <button
+          type="button"
+          onClick={() => navigate("/admin/pillars")}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            textDecoration: "underline",
+            color: "hsl(var(--admin-accent))",
+          }}
+        >
+          Back to topic guides
+        </button>
+      </p>
+    );
+  }
+
+  const saveDisabled = saveMutation.isPending || !title.trim() || !editorReady;
 
   const publishedCount =
     connectedPages?.filter((p) => p.status === "published").length ?? 0;
@@ -219,8 +338,8 @@ const PillarPageEditor = () => {
         <div className="flex items-center gap-2">
           <button
             className="admin-btn-primary font-body"
-            onClick={() => saveMutation.mutate(false)}
-            disabled={saveMutation.isPending || !title.trim()}
+            onClick={() => requestSave(false)}
+            disabled={saveDisabled}
           >
             {saveMutation.isPending && (
               <Loader2
@@ -234,8 +353,8 @@ const PillarPageEditor = () => {
           {status !== "published" && (
             <button
               className="font-body"
-              onClick={() => saveMutation.mutate(true)}
-              disabled={saveMutation.isPending || !title.trim()}
+              onClick={() => requestSave(true)}
+              disabled={saveDisabled}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -296,11 +415,10 @@ const PillarPageEditor = () => {
             style={{ padding: 0, overflow: "hidden" }}
           >
             <RichTextEditor
-              content={editorContent}
+              key={pillar?.id ?? "new"}
+              content={editorContent || pillar?.content || ""}
               onChange={(html) => setEditorContent(html)}
-              onEditorReady={(editor) => {
-                editorRef.current = editor;
-              }}
+              onEditorReady={handleEditorReady}
             />
           </div>
         </div>
