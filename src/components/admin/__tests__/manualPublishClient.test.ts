@@ -7,6 +7,8 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import {
+  BACKEND_NOT_READY,
+  PUBLISH_FUNCTION,
   callManualPublish,
   checkPublishReadiness,
   heldReasonSentences,
@@ -21,6 +23,33 @@ const httpError = (status: number, body: unknown) => ({
 beforeEach(() => mock.invoke.mockReset());
 
 describe("manual-publish client", () => {
+  it("only ever calls the v2 function, never the original manual-publish", () => {
+    // The original function ignores mode and publishes on every call.
+    expect(PUBLISH_FUNCTION).toBe("manual-publish-v2");
+  });
+
+  it("pauses safely when the v2 backend is not deployed yet", async () => {
+    mock.invoke.mockResolvedValue(
+      httpError(404, {
+        code: "NOT_FOUND",
+        message: "Requested function was not found",
+      }),
+    );
+    await expect(checkPublishReadiness(POST)).rejects.toThrow(
+      BACKEND_NOT_READY,
+    );
+    await expect(
+      callManualPublish({
+        postId: POST,
+        mode: "schedule",
+        scheduledAt: "2026-10-01T15:00:00Z",
+      }),
+    ).rejects.toThrow(BACKEND_NOT_READY);
+    expect(mock.invoke).toHaveBeenCalledTimes(2);
+    for (const call of mock.invoke.mock.calls)
+      expect(call[0]).toBe("manual-publish-v2");
+  });
+
   it("checks readiness with mode 'check' for exactly one post", async () => {
     mock.invoke.mockResolvedValue({
       data: { ok: true, decision: "ready", failures: [], reasons: [] },
@@ -31,7 +60,7 @@ describe("manual-publish client", () => {
       failures: [],
       reasons: [],
     });
-    expect(mock.invoke).toHaveBeenCalledWith("manual-publish", {
+    expect(mock.invoke).toHaveBeenCalledWith("manual-publish-v2", {
       body: { post_id: POST, mode: "check" },
     });
   });
@@ -95,7 +124,7 @@ describe("manual-publish client", () => {
       scheduledAt: "2026-10-01T09:00:00.000Z",
       overrideReason: "  Reviewed every claim by hand  ",
     });
-    expect(mock.invoke).toHaveBeenCalledWith("manual-publish", {
+    expect(mock.invoke).toHaveBeenCalledWith("manual-publish-v2", {
       body: {
         post_id: POST,
         mode: "schedule",

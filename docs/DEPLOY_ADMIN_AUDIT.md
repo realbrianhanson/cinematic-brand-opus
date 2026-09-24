@@ -23,9 +23,11 @@ Apply these migrations from `supabase/migrations/` in order:
 
 ## 2. Deploy edge functions
 
-`manual-publish`, `publish-scheduled-posts`, `auto-publish-gate`, `daily-content-run`, `send-weekly-newsletter`, `compose-weekly-newsletter-preview`, `newsletter-subscribe`, `newsletter-unsubscribe`, `weekly-report`, `offers-api`, `offer-stripe-webhook`, `conversion-events`, `submit-indexnow`, `poll-sources`, `cluster-opportunities`, `draft-from-opportunity`, `generate-blog-post`, `generate-content`, `refresh-stale-content`, `score-content-quality`, `generate-pillar`, `jev-shadow-score`, `render-page`
+`manual-publish-v2`, `publish-scheduled-posts`, `auto-publish-gate`, `daily-content-run`, `send-weekly-newsletter`, `compose-weekly-newsletter-preview`, `newsletter-subscribe`, `newsletter-unsubscribe`, `weekly-report`, `offers-api`, `offer-stripe-webhook`, `conversion-events`, `submit-indexnow`, `poll-sources`, `cluster-opportunities`, `draft-from-opportunity`, `generate-blog-post`, `generate-content`, `refresh-stale-content`, `score-content-quality`, `generate-pillar`, `jev-shadow-score`, `render-page`
 
 ## 3. Publish the site
+
+The new admin only talks to `manual-publish-v2`, so publishing early can never trigger the old function (which ignores check/schedule and publishes). After publishing, the old `manual-publish` function is unused and can be deleted.
 
 ## 4. Right after publishing (order matters)
 
@@ -51,7 +53,7 @@ Ask Lovable for the exact Jev endpoint and model id on its AI Gateway, set `JEV_
 Deployment only. Do not edit, regenerate or refactor any code.
 
 1. Apply these migrations from supabase/migrations exactly as written, in order, and record each in migration history: 20260923101000_site_setup_preserve_settings, 20260923112000_lock_legacy_analytics, 20260923120000_jev_shadow_scores, 20260923140000_newsletter_truth, 20260923141000_offer_access_retry_cron, 20260923150000_admin_overview_truth, 20260923151000_indexnow_and_settings_checks, 20260923152000_resources_and_guides, 20260923160000_redirects, 20260923170000_site_copy_voice, 20260923171000_measure_about_page. Skip any already in migration history.
-2. Deploy these edge functions from the current main: manual-publish, publish-scheduled-posts, auto-publish-gate, daily-content-run, send-weekly-newsletter, compose-weekly-newsletter-preview, newsletter-subscribe, newsletter-unsubscribe, weekly-report, offers-api, offer-stripe-webhook, conversion-events, submit-indexnow, poll-sources, cluster-opportunities, draft-from-opportunity, generate-blog-post, generate-content, refresh-stale-content, score-content-quality, generate-pillar, jev-shadow-score, render-page.
+2. Deploy these edge functions from the current main: manual-publish-v2, publish-scheduled-posts, auto-publish-gate, daily-content-run, send-weekly-newsletter, compose-weekly-newsletter-preview, newsletter-subscribe, newsletter-unsubscribe, weekly-report, offers-api, offer-stripe-webhook, conversion-events, submit-indexnow, poll-sources, cluster-opportunities, draft-from-opportunity, generate-blog-post, generate-content, refresh-stale-content, score-content-quality, generate-pillar, jev-shadow-score, render-page.
 3. Do NOT apply 20260923111000_public_column_grants, 20260923130000_post_hold_reasons or 20260923120100_jev_shadow_cron yet.
 4. Tell me the exact Jev endpoint URL and model id on the Lovable AI Gateway.
 

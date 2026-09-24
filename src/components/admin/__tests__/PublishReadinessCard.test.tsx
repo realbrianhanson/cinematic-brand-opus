@@ -88,7 +88,7 @@ describe("publish readiness in the editor", () => {
     });
     mount();
     expect(await screen.findByText("Ready to publish")).toBeInTheDocument();
-    expect(mock.invoke).toHaveBeenCalledWith("manual-publish", {
+    expect(mock.invoke).toHaveBeenCalledWith("manual-publish-v2", {
       body: { post_id: POST, mode: "check" },
     });
   });
@@ -140,7 +140,7 @@ describe("publish readiness in the editor", () => {
 
   it("fixes facts for this one article, then reloads it", async () => {
     mock.invoke.mockImplementation(async (name: string) =>
-      name === "manual-publish"
+      name === "manual-publish-v2"
         ? blockedCheck
         : { data: { ok: true, changed: true }, error: null },
     );

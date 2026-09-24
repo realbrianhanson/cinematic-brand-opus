@@ -304,7 +304,7 @@ describe("holds, credit stops and one-article overrides", () => {
         expect.objectContaining({ title: "Published with override" }),
       ),
     );
-    expect(mock.invoke).toHaveBeenLastCalledWith("manual-publish", {
+    expect(mock.invoke).toHaveBeenLastCalledWith("manual-publish-v2", {
       body: {
         post_id: "post",
         mode: "publish",

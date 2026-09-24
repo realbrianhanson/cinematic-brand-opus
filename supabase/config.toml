@@ -95,7 +95,7 @@ verify_jwt = false
 [functions.resend-webhook]
 verify_jwt = false
 
-[functions.manual-publish]
+[functions.manual-publish-v2]
 verify_jwt = false
 
 [functions.remediate-post-facts]
