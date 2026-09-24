@@ -56,7 +56,7 @@ const TypographicCover = ({
             position: "absolute",
             top: 12,
             left: 16,
-            fontSize: 10,
+            fontSize: 12,
             letterSpacing: "0.2em",
             color: "rgba(var(--brand-backdrop-rgb),0.85)",
             background: "rgba(255,255,255,0.35)",
@@ -227,7 +227,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
           Back to Home
         </Link>
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
             lineHeight: 1.1,
@@ -264,7 +264,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            Failed to load posts. Please refresh the page.
+            Posts didn’t load. Refresh the page to try again
           </p>
         )}
         {!isLoading && !isError && posts.length === 0 && (
@@ -272,7 +272,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            No posts published yet. Check back soon.
+            No posts published yet. Check back soon
           </p>
         )}
 
@@ -333,7 +333,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
                     <span
                       className="font-body uppercase"
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         letterSpacing: "0.15em",
                         color: "var(--brand-accent)",
                       }}
@@ -350,7 +350,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
                   </span>
                 </div>
                 <h2
-                  className="font-display italic mb-3 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="font-display mb-3 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
                   style={{ fontSize: 22, lineHeight: 1.3, color: "#fff" }}
                 >
                   {post.title}
@@ -374,7 +374,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
                 <div
                   className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     letterSpacing: "0.15em",
                     color: "rgba(255,255,255,0.75)",
                   }}
@@ -397,9 +397,9 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
           <p
             className="text-center font-body uppercase mt-12"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.2em",
-              color: "rgba(255,255,255,0.4)",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             — End of articles —

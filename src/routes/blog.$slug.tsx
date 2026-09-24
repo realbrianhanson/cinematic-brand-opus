@@ -3,6 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
+import NotFoundRedirect from "@/components/NotFoundRedirect";
 import { useAuth } from "@/contexts/AuthContext";
 import PublicRouteError from "@/components/PublicRouteError";
 import {
@@ -10,6 +11,7 @@ import {
   getPublicPostSeo,
   getPublicSiteSettings,
 } from "@/lib/publicData.functions";
+import { getLeadMagnetOffer } from "@/lib/shop.functions";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
@@ -24,14 +26,16 @@ import { absoluteUrl } from "@/config/site";
 
 export const Route = createFileRoute("/blog/$slug")({
   loader: async ({ params }) => {
-    const [post, settings] = await Promise.all([
+    const [post, settings, leadOffer] = await Promise.all([
       getPublicPostBySlug({ data: { slug: params.slug } }),
       getPublicSiteSettings(),
+      // Optional: an unavailable offer only swaps the card for the newsletter.
+      getLeadMagnetOffer().catch(() => null),
     ]);
     // Missing published content is a real 404, never an empty page.
     if (!post) throw notFound();
     const seo = await getPublicPostSeo({ data: { postId: post.id } });
-    return { post, settings, seo };
+    return { post, settings, seo, leadOffer };
   },
   head: ({ loaderData, params, matches }) => {
     const config = configFromMatches(matches);
@@ -76,21 +80,29 @@ export const Route = createFileRoute("/blog/$slug")({
   },
   component: BlogPostRoute,
   errorComponent: () => (
-    <PublicRouteError message="This article could not be loaded." />
+    <PublicRouteError message="This article could not be loaded" />
   ),
-  // Anonymous visitors get the 404 shell. Signed-in admins fall through to the
-  // component's own authenticated read so drafts stay previewable.
+  // Anonymous visitors move on to a saved redirect or the home page. Signed-in
+  // admins fall through to the component's own authenticated read so drafts
+  // stay previewable.
   notFoundComponent: MissingPost,
 });
 
 function MissingPost() {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <BlogPost preview /> : <NotFound />;
+  const { isAdmin, loading } = useAuth();
+  if (isAdmin) return <BlogPost preview />;
+  // Wait for the session before moving on so admins can still preview drafts.
+  return loading ? <NotFound /> : <NotFoundRedirect />;
 }
 
 function BlogPostRoute() {
-  const { post, settings, seo } = Route.useLoaderData();
+  const { post, settings, seo, leadOffer } = Route.useLoaderData();
   return (
-    <BlogPost initialSeo={seo} initialPost={post} initialSettings={settings} />
+    <BlogPost
+      initialSeo={seo}
+      initialPost={post}
+      initialSettings={settings}
+      leadOffer={leadOffer}
+    />
   );
 }

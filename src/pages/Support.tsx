@@ -11,7 +11,7 @@ export default function Support() {
     <InformationPage
       eyebrow="A clear next step"
       title="How can we help?"
-      intro="Start with the type of resource or purchase you need help with."
+      intro="Start with the type of resource or purchase you need help with"
       wide
     >
       <div className="grid gap-5 md:grid-cols-2">
@@ -21,7 +21,7 @@ export default function Support() {
           <p className="mt-4 text-white/75">
             Use the private access link from your confirmation page or access
             email. If you have lost it, request a new link using the email you
-            entered when claiming or buying the resource.
+            entered when claiming or buying the resource
           </p>
           <Link
             to="/offer-access?recover=1"
@@ -30,8 +30,7 @@ export default function Support() {
             Recover download access <ArrowRight size={16} aria-hidden="true" />
           </Link>
           <p className="mt-4 text-sm text-white/60">
-            Access depends on the order remaining fulfilled. Keep private access
-            links to yourself.
+            Keep your access link private. A refund can turn it off
           </p>
         </section>
         <section className="rounded-xl border border-white/15 bg-white/[0.03] p-7">
@@ -43,11 +42,11 @@ export default function Support() {
           <p className="mt-4 text-white/75">
             Some Shop listings open a separate checkout or membership platform.
             Use that provider’s receipt, access instructions, and support for
-            course access, subscriptions, billing, or refunds.
+            course access, subscriptions, billing, or refunds
           </p>
           <p className="mt-4 text-white/75">
             Those purchases are managed by the destination provider and will not
-            appear in this website’s download recovery.
+            appear in this website’s download recovery
           </p>
           <Link
             to="/shop"
@@ -64,7 +63,7 @@ export default function Support() {
         <p className="mt-4 max-w-2xl text-white/75">
           Include the resource or product name, the email used at checkout, and
           any order reference. Describe what happened and which page you were
-          on. Never send passwords, private access links, or full card details.
+          on. Never send passwords, private access links, or full card details
         </p>
         {emailLink ? (
           <a
@@ -76,7 +75,7 @@ export default function Support() {
         ) : (
           <p className="mt-4 text-white/70">
             Contact details have not been configured yet. For purchases made
-            elsewhere, use the support details on your provider’s receipt.
+            elsewhere, use the support details on your provider’s receipt
           </p>
         )}
         {config.sections.speaking && (
@@ -86,7 +85,7 @@ export default function Support() {
               to="/speaking"
               className="text-white underline underline-offset-4"
             >
-              Use the speaking inquiry page.
+              Use the speaking inquiry page
             </Link>
           </p>
         )}

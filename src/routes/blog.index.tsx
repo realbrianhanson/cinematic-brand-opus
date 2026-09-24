@@ -26,7 +26,7 @@ export const Route = createFileRoute("/blog/")({
   },
   component: BlogRoute,
   errorComponent: () => (
-    <PublicRouteError message="The article list could not be loaded." />
+    <PublicRouteError message="The article list could not be loaded" />
   ),
 });
 

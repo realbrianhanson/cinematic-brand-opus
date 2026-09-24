@@ -1,4 +1,5 @@
 import { ArrowUpRight, Check } from "lucide-react";
+import { summitHref } from "@/lib/summitLink";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
 export default function EventCTA() {
@@ -48,7 +49,7 @@ export default function EventCTA() {
           )}
           {event.cta && (
             <a
-              href={event.cta.href}
+              href={summitHref(event.cta.href, "event")}
               data-conversion-destination="summit"
               data-conversion-placement="event"
               target={event.cta.external ? "_blank" : undefined}

@@ -63,9 +63,9 @@ const GuideRenderer = ({
         <p
           className="font-body uppercase mb-4"
           style={{
-            fontSize: 9,
+            fontSize: 12,
             letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.25)",
+            color: "rgba(255,255,255,0.7)",
           }}
         >
           Contents
@@ -111,7 +111,7 @@ const GuideRenderer = ({
             className="mb-12"
           >
             <h2
-              className="font-display italic mb-4"
+              className="font-display mb-4"
               style={{ fontSize: 22, color: "#fff" }}
             >
               {section.title || section.heading}
@@ -121,7 +121,7 @@ const GuideRenderer = ({
                 className="font-body mb-4"
                 style={{
                   fontSize: 15,
-                  color: "rgba(255,255,255,0.55)",
+                  color: "rgba(255,255,255,0.7)",
                   lineHeight: 1.8,
                 }}
               >
@@ -136,7 +136,7 @@ const GuideRenderer = ({
                     className="font-body flex items-start gap-2"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.5)",
+                      color: "rgba(255,255,255,0.7)",
                       lineHeight: 1.6,
                     }}
                   >
@@ -211,7 +211,7 @@ const GuideRenderer = ({
                       <span
                         className="font-body uppercase inline-block mt-2 px-2 py-0.5"
                         style={{
-                          fontSize: 10,
+                          fontSize: 12,
                           letterSpacing: "0.1em",
                           background: "rgba(var(--brand-accent-rgb),0.14)",
                           color: "var(--brand-accent)",
@@ -249,7 +249,7 @@ const GuideRenderer = ({
                           className="font-body mt-1"
                           style={{
                             fontSize: 13,
-                            color: "rgba(255,255,255,0.55)",
+                            color: "rgba(255,255,255,0.7)",
                           }}
                         >
                           {renderInlineMarkdown(tool.description)}
@@ -278,7 +278,7 @@ const GuideRenderer = ({
         {mistakes.length > 0 && (
           <div className="mb-12">
             <h2
-              className="font-display italic mb-6"
+              className="font-display mb-6"
               style={{ fontSize: 22, color: "#fff" }}
             >
               Common Mistakes to Avoid
@@ -309,7 +309,7 @@ const GuideRenderer = ({
                       className="font-body"
                       style={{
                         fontSize: 13,
-                        color: "rgba(255,255,255,0.4)",
+                        color: "rgba(255,255,255,0.7)",
                         lineHeight: 1.5,
                       }}
                     >

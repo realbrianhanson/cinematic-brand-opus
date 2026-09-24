@@ -41,9 +41,15 @@ const WIDGET_MAP: Record<
 interface WidgetRendererProps {
   zone: "sidebar" | "page" | "footer";
   pageContext?: { postId?: string; categoryId?: string; tags?: string[] };
+  /** Widget slugs the page already renders itself, so they never duplicate. */
+  exclude?: string[];
 }
 
-const WidgetRenderer = ({ zone, pageContext }: WidgetRendererProps) => {
+const WidgetRenderer = ({
+  zone,
+  pageContext,
+  exclude = [],
+}: WidgetRendererProps) => {
   const { data: widgets } = useQuery({
     queryKey: ["public-widgets", zone],
     queryFn: async () => {
@@ -59,7 +65,10 @@ const WidgetRenderer = ({ zone, pageContext }: WidgetRendererProps) => {
     staleTime: 60000,
   });
 
-  if (!widgets || widgets.length === 0) return null;
+  const visible = (widgets ?? []).filter(
+    (widget) => !exclude.includes(widget.widget_slug),
+  );
+  if (visible.length === 0) return null;
 
   return (
     <div
@@ -71,7 +80,7 @@ const WidgetRenderer = ({ zone, pageContext }: WidgetRendererProps) => {
             : "flex flex-col gap-8"
       }
     >
-      {widgets.map((widget) => {
+      {visible.map((widget) => {
         const Component = WIDGET_MAP[widget.widget_slug];
         if (!Component) return null;
         return (

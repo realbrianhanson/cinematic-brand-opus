@@ -44,7 +44,7 @@ export default function OfferArtwork({
     >
       <div className="pointer-events-none absolute -right-14 -top-24 h-72 w-72 rounded-full border border-current opacity-[0.12]" />
       <div className="pointer-events-none absolute -right-2 -top-12 h-72 w-72 rounded-full border border-current opacity-[0.12]" />
-      <div className="relative flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-[0.2em]">
+      <div className="relative flex items-center justify-between gap-4 text-xs font-bold uppercase tracking-[0.2em]">
         <span className="max-w-[75%] truncate">{identity.name}</span>
         <span>{design.number}</span>
       </div>
@@ -56,7 +56,7 @@ export default function OfferArtwork({
         <ArrowUpRight size={23} strokeWidth={1.25} />
       </div>
       <div className="relative max-w-[95%]">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-75">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-75">
           {design.label}
         </p>
         <p

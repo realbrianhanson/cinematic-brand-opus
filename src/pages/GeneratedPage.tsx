@@ -214,7 +214,7 @@ const GeneratedPage = ({
         className="min-h-screen flex items-center justify-center"
         style={{ background: "var(--brand-backdrop)" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
+        <p className="font-body" style={{ color: "rgba(255,255,255,0.7)" }}>
           Loading...
         </p>
       </div>
@@ -229,7 +229,7 @@ const GeneratedPage = ({
       >
         <p
           className="font-display italic text-2xl"
-          style={{ color: "rgba(255,255,255,0.5)" }}
+          style={{ color: "rgba(255,255,255,0.7)" }}
         >
           Page not found
         </p>
@@ -326,7 +326,7 @@ const GeneratedPage = ({
           )}
 
           <h1
-            className="font-display italic mb-6"
+            className="font-display mb-6"
             style={{ fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1.15 }}
           >
             {page.title}
@@ -388,7 +388,7 @@ const GeneratedPage = ({
                 rel="noopener noreferrer"
                 className="p-2 transition-colors hover:text-[var(--brand-accent)]"
                 style={{
-                  color: "rgba(255,255,255,0.3)",
+                  color: "rgba(255,255,255,0.7)",
                   border: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
@@ -399,9 +399,9 @@ const GeneratedPage = ({
               onClick={handleCopyLink}
               className="p-2 transition-colors hover:text-[var(--brand-accent)] font-body flex items-center gap-1"
               style={{
-                color: "rgba(255,255,255,0.3)",
+                color: "rgba(255,255,255,0.7)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                fontSize: 11,
+                fontSize: 12,
                 cursor: "pointer",
                 background: "none",
               }}
@@ -462,7 +462,7 @@ const GeneratedPage = ({
               <p
                 className="font-body uppercase"
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   letterSpacing: "0.18em",
                   color: "var(--brand-accent)",
                   marginBottom: 10,
@@ -484,7 +484,7 @@ const GeneratedPage = ({
               {settings?.author_name && (
                 <p
                   className="font-body mt-3"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
                 >
                   — {settings.author_name}
                 </p>
@@ -504,7 +504,7 @@ const GeneratedPage = ({
 
           {faqs && Array.isArray(faqs) && faqs.length > 0 && (
             <div className="mt-16">
-              <h2 className="font-display italic mb-8" style={{ fontSize: 24 }}>
+              <h2 className="font-display mb-8" style={{ fontSize: 24 }}>
                 Frequently Asked Questions
               </h2>
               <FAQAccordion faqs={faqs} pageId={page.id} />
@@ -522,7 +522,7 @@ const GeneratedPage = ({
           >
             <p
               className="font-body mb-4"
-              style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}
+              style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
             >
               Was this helpful?
             </p>
@@ -642,7 +642,7 @@ const StickyTOC = ({ items }: { items: { id: string; label: string }[] }) => {
       <span
         className="font-body uppercase block"
         style={{
-          fontSize: 10,
+          fontSize: 12,
           letterSpacing: "0.18em",
           color: "var(--brand-accent)",
           marginBottom: 14,
@@ -760,7 +760,7 @@ const FAQAccordion = ({
                 className="faq-answer font-body pb-5"
                 style={{
                   fontSize: 14,
-                  color: "rgba(255,255,255,0.45)",
+                  color: "rgba(255,255,255,0.7)",
                   lineHeight: 1.7,
                 }}
               >
@@ -784,14 +784,14 @@ const SourcesSection = ({ sources }: { sources: unknown }) => {
   if (!items.length) return null;
   return (
     <div className="mt-16">
-      <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+      <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
         Sources
       </h2>
       <ul
         className="font-body"
         style={{
           fontSize: 13,
-          color: "rgba(255,255,255,0.55)",
+          color: "rgba(255,255,255,0.7)",
           lineHeight: 1.8,
           listStyle: "disc",
           paddingLeft: "1.25rem",
@@ -836,7 +836,7 @@ const AuthorBox = ({
         background: "rgba(var(--brand-accent-rgb),0.02)",
       }}
     >
-      <h2 className="font-display italic mb-4" style={{ fontSize: 20 }}>
+      <h2 className="font-display mb-4" style={{ fontSize: 20 }}>
         About the author
       </h2>
       <p
@@ -861,7 +861,7 @@ const AuthorBox = ({
       {creds.length > 0 && (
         <p
           className="font-body mb-3"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}
+          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
         >
           <strong style={{ color: "rgba(255,255,255,0.65)" }}>
             Credentials:
@@ -874,7 +874,7 @@ const AuthorBox = ({
           {social.map(([k, v], i) => (
             <span key={k}>
               {i > 0 && (
-                <span style={{ color: "rgba(255,255,255,0.25)" }}> · </span>
+                <span style={{ color: "rgba(255,255,255,0.7)" }}> · </span>
               )}
               <a
                 href={v}
@@ -891,7 +891,7 @@ const AuthorBox = ({
       {lastVerified && (
         <p
           className="font-body mt-4"
-          style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}
+          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
         >
           Last verified{" "}
           {formatPublicDate(lastVerified, {

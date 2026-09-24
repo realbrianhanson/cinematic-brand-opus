@@ -148,7 +148,7 @@ const ResourcesIndex = ({
           items={[{ label: "Home", href: "/" }, { label: "Resources" }]}
         />
         <h1
-          className="font-display italic"
+          className="font-display"
           style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", lineHeight: 1.1 }}
         >
           Free Resources
@@ -242,7 +242,7 @@ const ResourcesIndex = ({
                   ))}
                 </div>
                 {!search.data.total && (
-                  <p>Try a broader topic or a different tool name.</p>
+                  <p>Try a broader topic or a different tool name</p>
                 )}
                 <div className="flex gap-4 mt-6">
                   <button
@@ -272,7 +272,7 @@ const ResourcesIndex = ({
                 </h2>
                 <p className="text-white/70 mb-6">
                   Choose a topic, find a practical starting point, and work
-                  through the related guides.
+                  through the related guides
                 </p>
                 <div className="grid md:grid-cols-3 gap-5">
                   {guides.map((g) => (
@@ -325,7 +325,7 @@ const ResourcesIndex = ({
                         strokeWidth={1.5}
                       />
                       <h2
-                        className="font-display italic mb-2 transition-colors group-hover:text-[var(--brand-accent)]"
+                        className="font-display mb-2 transition-colors group-hover:text-[var(--brand-accent)]"
                         style={{ fontSize: 22, lineHeight: 1.3 }}
                       >
                         {s.name}
@@ -346,7 +346,7 @@ const ResourcesIndex = ({
                         <span
                           className="font-body"
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "rgba(255,255,255,0.65)",
                           }}
                         >
@@ -355,7 +355,7 @@ const ResourcesIndex = ({
                         <span
                           className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-[var(--brand-accent)]"
                           style={{
-                            fontSize: 10,
+                            fontSize: 12,
                             letterSpacing: "0.15em",
                             color: "rgba(255,255,255,0.7)",
                           }}

@@ -45,7 +45,7 @@ const SidebarSocialLinks = ({ config }: { config: WidgetConfig }) => {
       <h3
         className="font-body uppercase mb-4"
         style={{
-          fontSize: 10,
+          fontSize: 12,
           letterSpacing: "0.15em",
           color: "hsl(var(--accent))",
           fontWeight: 700,
@@ -65,7 +65,7 @@ const SidebarSocialLinks = ({ config }: { config: WidgetConfig }) => {
               rel="noopener noreferrer"
               className="transition-colors"
               style={{
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(255,255,255,0.7)",
                 padding: 8,
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
@@ -73,7 +73,7 @@ const SidebarSocialLinks = ({ config }: { config: WidgetConfig }) => {
                 (e.currentTarget.style.color = "hsl(var(--accent))")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
+                (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
               }
             >
               <Icon size={16} />

@@ -10,9 +10,9 @@ const Breadcrumbs = ({ items }: { items: BreadcrumbItem[] }) => (
     <ol
       className="flex items-center gap-2 flex-wrap font-body uppercase"
       style={{
-        fontSize: 10,
+        fontSize: 12,
         letterSpacing: "0.15em",
-        color: "rgba(255,255,255,0.3)",
+        color: "rgba(255,255,255,0.7)",
         listStyle: "none",
         padding: 0,
         margin: 0,
@@ -33,7 +33,7 @@ const Breadcrumbs = ({ items }: { items: BreadcrumbItem[] }) => (
             <span
               style={{
                 color:
-                  i === items.length - 1 ? "rgba(255,255,255,0.5)" : undefined,
+                  i === items.length - 1 ? "rgba(255,255,255,0.85)" : undefined,
               }}
             >
               {item.label}

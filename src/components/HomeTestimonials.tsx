@@ -1,28 +1,99 @@
+import { useId } from "react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import type { SiteConfig } from "@/config/types";
+import { testimonialCopy } from "@/components/testimonials/copy";
+import TestimonialGroupSection from "@/components/testimonials/TestimonialGroupSection";
+import TestimonialWall from "@/components/testimonials/TestimonialWall";
 
+type HomepageTestimonials = NonNullable<SiteConfig["homepageTestimonials"]>;
+type CommunityItem = HomepageTestimonials["items"][number];
+
+/**
+ * Homepage testimonials. A preset with `groups` gets the grouped layout: the
+ * groups, the short-lines wall, then `items` in a collapsed list. A preset
+ * with only `items` renders exactly as it always has.
+ */
 export default function HomeTestimonials() {
   const { homepageTestimonials } = useSiteConfig();
-  if (!homepageTestimonials?.items.length) return null;
-  const [lead, ...rest] = homepageTestimonials.items;
+  if (!homepageTestimonials) return null;
+  if (homepageTestimonials.groups?.some((group) => group.items.length > 0))
+    return <GroupedTestimonials testimonials={homepageTestimonials} />;
+  if (homepageTestimonials.items.length === 0) return null;
+  return <FlatTestimonials testimonials={homepageTestimonials} />;
+}
+
+function GroupedTestimonials({
+  testimonials,
+}: {
+  testimonials: HomepageTestimonials;
+}) {
+  const headingId = useId();
+  const { overline, heading, intro, groups = [], wall, items } = testimonials;
   return (
     <section
       id="testimonials"
-      aria-label={homepageTestimonials.heading}
+      aria-labelledby={headingId}
+      className="bg-[var(--brand-backdrop)] py-20 lg:py-28"
+    >
+      <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
+        <header className="mb-12 grid gap-6 lg:mb-16 lg:grid-cols-2 lg:gap-24">
+          <div>
+            <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">
+              {overline}
+            </p>
+            <h2
+              id={headingId}
+              className="font-display text-4xl leading-[1.12] text-white lg:text-5xl"
+            >
+              {heading}
+            </h2>
+          </div>
+          {intro && (
+            <p className="self-end text-balance font-body text-base leading-relaxed text-white/70 lg:max-w-md">
+              {intro}
+            </p>
+          )}
+        </header>
+        <div className="space-y-16 lg:space-y-20">
+          {groups.map((group) => (
+            <TestimonialGroupSection key={group.id} group={group} />
+          ))}
+          {wall && wall.items.length > 0 && <TestimonialWall wall={wall} />}
+        </div>
+        {items.length > 0 && (
+          <CommunityQuotes items={items} spacing="mt-16 lg:mt-20" />
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The original single-list layout, unchanged for presets without groups. */
+function FlatTestimonials({
+  testimonials,
+}: {
+  testimonials: HomepageTestimonials;
+}) {
+  const [lead, ...rest] = testimonials.items;
+  return (
+    <section
+      id="testimonials"
+      aria-label={testimonials.heading}
       className="bg-[var(--brand-backdrop)] py-20 lg:py-28"
     >
       <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
         <header className="mb-12 grid gap-6 lg:grid-cols-2 lg:gap-24">
           <div>
             <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">
-              {homepageTestimonials.overline}
+              {testimonials.overline}
             </p>
             <h2 className="font-display text-4xl leading-[1.12] text-white lg:text-5xl">
-              {homepageTestimonials.heading}
+              {testimonials.heading}
             </h2>
           </div>
-          {homepageTestimonials.intro && (
+          {testimonials.intro && (
             <p className="self-end font-body text-base leading-relaxed text-white/65 lg:max-w-md">
-              {homepageTestimonials.intro}
+              {testimonials.intro}
             </p>
           )}
         </header>
@@ -74,33 +145,43 @@ export default function HomeTestimonials() {
           </div>
         </div>
         {rest.length > 2 && (
-          <details className="group mt-10 border-t border-white/15 pt-5">
-            <summary className="w-fit cursor-pointer font-body text-sm font-semibold text-[var(--brand-accent)] marker:text-[var(--brand-accent)]">
-              More from the community
-            </summary>
-            <div className="mt-7 grid gap-8 md:grid-cols-3">
-              {rest.slice(2).map((item) => (
-                <figure
-                  key={`${item.attribution}-${item.quote}`}
-                  className="m-0"
-                >
-                  <blockquote className="font-body text-sm leading-relaxed text-white/75">
-                    <p>“{item.quote}”</p>
-                  </blockquote>
-                  <figcaption className="mt-4 font-body text-sm font-semibold text-white">
-                    {item.attribution}
-                    {item.context && (
-                      <span className="mt-1 block text-xs font-normal text-white/55">
-                        {item.context}
-                      </span>
-                    )}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          </details>
+          <CommunityQuotes items={rest.slice(2)} spacing="mt-10" />
         )}
       </div>
     </section>
+  );
+}
+
+/** Additional quotes in an accessible, collapsed disclosure. */
+function CommunityQuotes({
+  items,
+  spacing,
+}: {
+  items: CommunityItem[];
+  spacing: string;
+}) {
+  return (
+    <details className={`group ${spacing} border-t border-white/15 pt-5`}>
+      <summary className="w-fit cursor-pointer font-body text-sm font-semibold text-[var(--brand-accent)] marker:text-[var(--brand-accent)]">
+        {testimonialCopy.moreFromCommunity}
+      </summary>
+      <div className="mt-7 grid gap-8 md:grid-cols-3">
+        {items.map((item) => (
+          <figure key={`${item.attribution}-${item.quote}`} className="m-0">
+            <blockquote className="font-body text-sm leading-relaxed text-white/75">
+              <p>“{item.quote}”</p>
+            </blockquote>
+            <figcaption className="mt-4 font-body text-sm font-semibold text-white">
+              {item.attribution}
+              {item.context && (
+                <span className="mt-1 block text-xs font-normal text-white/55">
+                  {item.context}
+                </span>
+              )}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </details>
   );
 }

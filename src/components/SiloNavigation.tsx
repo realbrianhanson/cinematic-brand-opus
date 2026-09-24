@@ -47,10 +47,7 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      <h2
-        className="font-display italic"
-        style={{ fontSize: 28, marginBottom: 28 }}
-      >
+      <h2 className="font-display" style={{ fontSize: 28, marginBottom: 28 }}>
         Everything in This Guide
       </h2>
       {Object.entries(grouped).map(([schemaSlug, group]) => (

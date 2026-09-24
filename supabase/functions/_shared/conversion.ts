@@ -5,7 +5,7 @@ const TOKEN = /^[a-f0-9]{64}$/;
 const SLUG = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const ROUTE_SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const PUBLIC_PATH = new RegExp(
-  `^/(?:|shop|start-here|speaking|support|privacy|terms|sitemap|blog(?:/${ROUTE_SLUG})?|guides/${ROUTE_SLUG}|news(?:/[a-f0-9-]{36})?|resources(?:/${ROUTE_SLUG}){0,2}|offers/${ROUTE_SLUG})$`,
+  `^/(?:|shop|start-here|about|speaking|support|privacy|terms|sitemap|blog(?:/${ROUTE_SLUG})?|guides/${ROUTE_SLUG}|news(?:/[a-f0-9-]{36})?|resources(?:/${ROUTE_SLUG}){0,2}|offers/${ROUTE_SLUG})$`,
 );
 const TYPES = [
   "page_view",

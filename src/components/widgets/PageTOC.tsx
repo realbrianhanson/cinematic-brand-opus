@@ -39,7 +39,7 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
       <h3
         className="font-body uppercase mb-4"
         style={{
-          fontSize: 10,
+          fontSize: 12,
           letterSpacing: "0.15em",
           color: "hsl(var(--accent))",
           fontWeight: 700,
@@ -55,7 +55,7 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
             className="font-body transition-colors"
             style={{
               fontSize: 13,
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(255,255,255,0.7)",
               textDecoration: "none",
               paddingLeft: h.level === 3 ? 16 : 0,
             }}
@@ -63,7 +63,7 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
               (e.currentTarget.style.color = "hsl(var(--accent))")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.5)")
+              (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
             }
           >
             {h.text}

@@ -6,22 +6,22 @@ export const informationPages = {
   "/start-here": {
     title: "Start Here",
     description:
-      "Choose a practical first step, explore free resources, and find the right training for your next project.",
+      "Choose a practical first step, explore free resources, and find the right training for your next project",
   },
   "/support": {
     title: "Help & Support",
     description:
-      "Find your download, recover access, get help with an order, or contact the site.",
+      "Find your download, recover access, get help with an order, or contact the site",
   },
   "/privacy": {
     title: "Privacy Notice",
     description:
-      "How information from this website's forms, downloads, and purchases is used, and how to contact us about it.",
+      "How information from this website's forms, downloads, and purchases is used, and how to contact us about it",
   },
   "/terms": {
     title: "Website Terms",
     description:
-      "Terms for using this website, educational resources, digital downloads, and external offers.",
+      "Terms for using this website, educational resources, digital downloads, and external offers",
   },
 } as const;
 

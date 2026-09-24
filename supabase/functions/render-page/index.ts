@@ -3,6 +3,13 @@ import sanitize from "npm:sanitize-html@2.17.7";
 import { htmlPolicy } from "../_shared/htmlPolicy.ts";
 import { decodeHTML } from "npm:entities@7.0.1";
 import { normalizeArticleBody } from "../_shared/articleBody.ts";
+import {
+  buildRedirectLocation,
+  HOME_PATH,
+  isRedirectEligiblePath,
+  normalizeRedirectPath,
+  validateRedirectTarget,
+} from "../_shared/redirectPaths.ts";
 
 // Server-rendered HTML for crawlers. Public, no auth.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -434,6 +441,92 @@ function notFound(settings: Settings, path: string): Response {
   });
 }
 
+// ---------- missing pages ----------
+// Mirrors the site's automatic 404 handling (src/lib/notFoundRedirect.server.ts):
+// a saved rule wins, otherwise the missing path is recorded and the crawler is
+// sent home. Files and app internals keep the 404 above.
+
+const REDIRECT_LOOKUP_TIMEOUT_MS = 1500;
+
+// Real site pages this renderer does not draw. They keep the plain 404 here so
+// a crawler is never redirected away from a page that exists on the site.
+const APP_ONLY_PATHS = new Set([
+  "/about",
+  "/speaking",
+  "/shop",
+  "/start-here",
+  "/support",
+  "/privacy",
+  "/terms",
+  "/news",
+  "/offer-access",
+  "/newsletter/confirmed",
+  "/newsletter/invalid",
+  "/newsletter/unsubscribed",
+]);
+const APP_ONLY_PREFIXES = ["/news/", "/offers/"];
+
+function isAppOnlyPath(path: string): boolean {
+  return (
+    APP_ONLY_PATHS.has(path) ||
+    APP_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix))
+  );
+}
+
+function redirectTo(location: string, status: 301 | 302): Response {
+  return new Response(null, {
+    status,
+    headers: {
+      Location: location,
+      "Cache-Control": status === 301 ? "public, max-age=3600" : "no-store",
+      "Access-Control-Allow-Origin": "*",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+/**
+ * `authoritative`: this renderer owns the route (a missing post, guide or
+ * resource), so the page truly does not exist. Otherwise the path is outside
+ * what this function renders and real app pages keep the old 404.
+ */
+async function missingPage(
+  settings: Settings,
+  rawPath: string,
+  authoritative: boolean,
+): Promise<Response> {
+  const path = normalizeRedirectPath(rawPath);
+  if (!path || !isRedirectEligiblePath(path))
+    return notFound(settings, rawPath);
+  if (!authoritative && isAppOnlyPath(path)) return notFound(settings, rawPath);
+  try {
+    const { data, error } = await supabase
+      .rpc("resolve_redirect", { p_path: path })
+      .abortSignal(AbortSignal.timeout(REDIRECT_LOOKUP_TIMEOUT_MS));
+    if (error) throw error;
+    const rule = (Array.isArray(data) ? data[0] : data) as
+      { to_path: string; status_code: number } | undefined;
+    const target = rule ? validateRedirectTarget(rule.to_path) : null;
+    if (rule && target?.ok)
+      return redirectTo(
+        buildRedirectLocation(target.value, ""),
+        rule.status_code === 301 ? 301 : 302,
+      );
+    // This function only serves crawlers; it never sees a visitor's referrer.
+    const { error: recordError } = await supabase
+      .rpc("record_not_found", {
+        p_path: path,
+        p_referrer: null,
+        p_ua_class: "bot",
+      })
+      .abortSignal(AbortSignal.timeout(REDIRECT_LOOKUP_TIMEOUT_MS));
+    if (recordError) throw recordError;
+  } catch (err) {
+    console.error("render-page redirect lookup failed", path, err);
+  }
+  return redirectTo(HOME_PATH, 302);
+}
+
 // ---------- route handlers ----------
 
 async function renderHome(settings: Settings, path: string): Promise<Response> {
@@ -514,7 +607,7 @@ async function renderBlogPost(
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
-  if (!post) return notFound(settings, path);
+  if (!post) return missingPage(settings, path, true);
 
   const { data: seo } = await supabase
     .from("seo_metadata")
@@ -676,7 +769,7 @@ async function renderContentTypeList(
     .eq("slug", typeSlug)
     .eq("is_active", true)
     .maybeSingle();
-  if (!schema) return notFound(settings, path);
+  if (!schema) return missingPage(settings, path, true);
 
   const { data: pages } = await supabase
     .from("generated_pages")
@@ -721,7 +814,7 @@ async function renderGeneratedPage(
     .select("id, name, slug, renderer_component")
     .eq("slug", typeSlug)
     .maybeSingle();
-  if (!schema) return notFound(settings, path);
+  if (!schema) return missingPage(settings, path, true);
 
   const { data: page } = await supabase
     .from("generated_pages")
@@ -732,7 +825,7 @@ async function renderGeneratedPage(
     .eq("content_schema_id", schema.id)
     .eq("status", "published")
     .maybeSingle();
-  if (!page) return notFound(settings, path);
+  if (!page) return missingPage(settings, path, true);
 
   const content = (page.content_json ?? {}) as Record<string, any>;
   const seo = (page.seo_meta ?? {}) as Record<string, any>;
@@ -1053,7 +1146,7 @@ async function renderPillarPage(
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
-  if (!pillar) return notFound(settings, path);
+  if (!pillar) return missingPage(settings, path, true);
 
   const seo = (pillar.seo_meta ?? {}) as Record<string, any>;
   const base = siteBase(settings);
@@ -1266,7 +1359,7 @@ Deno.serve(async (req) => {
     if (parts[0] === "sitemap" && parts.length === 1) {
       return renderSitemap(settings, path);
     }
-    return notFound(settings, path);
+    return await missingPage(settings, path, false);
   } catch (err) {
     console.error("render-page error", err);
     return new Response(

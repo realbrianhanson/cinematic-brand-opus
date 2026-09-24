@@ -6,6 +6,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import { Link, useNavigate } from "@/lib/router-compat";
 import OfferCard from "@/components/OfferCard";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import { isBrianOwner } from "@/lib/informationPages";
 import {
   SHOP_CATEGORIES,
   shopHref,
@@ -23,7 +24,9 @@ export default function Shop({
   catalog: ShopResult;
   filters: ShopFilters;
 }) {
-  const { identity } = useSiteConfig();
+  const config = useSiteConfig();
+  const { identity } = config;
+  const owner = isBrianOwner(config);
   const [search, setSearch] = useState(filters.q);
   const navigate = useNavigate();
   useEffect(() => setSearch(filters.q), [filters.q]);
@@ -64,15 +67,16 @@ export default function Shop({
         </p>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <h1 className="font-display text-4xl md:text-6xl leading-[1.1] max-w-2xl">
-            Good ideas.
+            {owner ? "Tools and training" : "Good ideas"}
             <br />
             <span className="italic" style={{ color: "var(--brand-accent)" }}>
-              A place to start.
+              {owner ? "to build with AI" : "A place to start"}
             </span>
           </h1>
           <p className="max-w-md text-base md:text-lg text-white/75 leading-relaxed">
-            Practical training. Useful tools. Resources worth returning to. Find
-            the next step that fits what you want to learn or build.
+            {owner
+              ? "Start with the free kit. Then pick the training or tool that fits your next build"
+              : "Practical training, useful tools, and resources worth returning to. Find the next step that fits what you want to learn or build"}
           </p>
         </div>
       </header>
@@ -214,8 +218,8 @@ export default function Shop({
             </h2>
             <p className="text-white/70 max-w-md mx-auto mt-4 leading-relaxed">
               {filtered || filters.page > 1
-                ? "Try another category, a different search, or browse the full shop."
-                : "New trainings, courses, tools, and downloads will appear here. In the meantime, explore the free resource library."}
+                ? "Try another category, a different search, or browse the full shop"
+                : "New trainings, courses, tools, and downloads will appear here. Until then, explore the free resource library"}
             </p>
             <Link
               to={filtered || filters.page > 1 ? "/shop" : "/resources"}

@@ -116,9 +116,9 @@ const RelatedResources = ({
             <span
               className="font-body uppercase block"
               style={{
-                fontSize: 9,
+                fontSize: 12,
                 letterSpacing: "0.12em",
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(255,255,255,0.7)",
                 marginBottom: 4,
               }}
             >
@@ -134,7 +134,7 @@ const RelatedResources = ({
           <ArrowRight
             size={16}
             className="shrink-0 group-hover:text-accent transition-colors"
-            style={{ color: "rgba(255,255,255,0.2)" }}
+            style={{ color: "rgba(255,255,255,0.7)" }}
           />
         </a>
       )}
@@ -142,7 +142,7 @@ const RelatedResources = ({
       {/* Sibling resources — same niche only (silo-contained) */}
       {hasSiblings && (
         <div>
-          <h2 className="font-display italic mb-6" style={{ fontSize: 22 }}>
+          <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
             More {nicheName} Resources
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -172,7 +172,7 @@ const RelatedResources = ({
                   <span
                     className="font-body uppercase block mb-2"
                     style={{
-                      fontSize: 9,
+                      fontSize: 12,
                       letterSpacing: "0.12em",
                       color: "hsl(var(--accent))",
                     }}
@@ -192,9 +192,9 @@ const RelatedResources = ({
                   <span
                     className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-accent"
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: "0.12em",
-                      color: "rgba(255,255,255,0.25)",
+                      color: "rgba(255,255,255,0.7)",
                     }}
                   >
                     View <ArrowRight size={10} />
@@ -218,7 +218,7 @@ const RelatedResources = ({
           <h3
             className="font-body uppercase mb-4"
             style={{
-              fontSize: 10,
+              fontSize: 12,
               letterSpacing: "0.15em",
               color: "hsl(var(--accent))",
               fontWeight: 700,

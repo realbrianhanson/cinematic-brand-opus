@@ -34,7 +34,7 @@ export default function OfferCard({
           <OfferArtwork offer={offer} compact={compact} />
         </div>
         <div className="flex flex-1 flex-col p-6 sm:p-7">
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em]">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em]">
             <span className="text-white/65">
               {SHOP_CATEGORIES[offer.shop_category]}
             </span>

@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUpRight, Play } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import SpeakingInquiry from "@/components/SpeakingInquiry";
+import SpeakingTestimonials from "@/components/testimonials/SpeakingTestimonials";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
 export default function SpeakingPage() {
@@ -57,7 +58,7 @@ export default function SpeakingPage() {
               </a>
             )}
             {proofBadges.length > 0 && (
-              <ul className="mt-8 space-y-2 border-t border-white/15 pt-6 font-body text-sm text-white/60">
+              <ul className="mt-8 space-y-2 border-t border-white/15 pt-6 font-body text-base text-white/85">
                 {proofBadges.map((badge) => (
                   <li key={badge}>{badge}</li>
                 ))}
@@ -92,11 +93,11 @@ export default function SpeakingPage() {
               <h2 className="font-display text-4xl leading-tight lg:text-5xl">
                 Ideas your audience
                 <br />
-                <em className="text-[var(--brand-accent)]">can put to work.</em>
+                <em className="text-[var(--brand-accent)]">can put to work</em>
               </h2>
               <p className="mt-5 font-body text-base leading-relaxed text-white/65">
                 Share your audience, event format, and goals in your inquiry so
-                we can discuss the right topic.
+                we can pick the right topic
               </p>
             </header>
             <ol className="divide-y divide-white/15 border-y border-white/15">
@@ -130,7 +131,7 @@ export default function SpeakingPage() {
                 className="text-[var(--brand-accent)]"
                 aria-hidden="true"
               />
-              <h2 className="font-display text-3xl">A look inside the room.</h2>
+              <h2 className="font-display text-3xl">A look inside the room</h2>
             </div>
             <video
               src={hero.videoSrc}
@@ -145,6 +146,7 @@ export default function SpeakingPage() {
             </video>
           </section>
         )}
+        <SpeakingTestimonials />
         {speaking.testimonial && (
           <figure className="mx-auto mb-16 max-w-3xl px-6 text-center">
             <blockquote className="font-display text-3xl italic leading-relaxed">
@@ -168,11 +170,11 @@ export default function SpeakingPage() {
                 <h2 className="font-display text-4xl leading-tight lg:text-5xl">
                   Start the
                   <br />
-                  <em className="text-[var(--brand-accent)]">conversation.</em>
+                  <em className="text-[var(--brand-accent)]">conversation</em>
                 </h2>
                 <p className="mt-5 max-w-sm font-body text-base leading-relaxed text-white/65">
                   Tell us a little about your audience and what you have in
-                  mind. An inquiry does not commit you to a booking.
+                  mind. An inquiry doesn’t commit you to a booking
                 </p>
               </header>
               <SpeakingInquiry href={speaking.bookingCta.href} />

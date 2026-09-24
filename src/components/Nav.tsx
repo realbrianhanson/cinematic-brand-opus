@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { summitHref } from "@/lib/summitLink";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
@@ -143,7 +144,7 @@ const Nav = ({ loaded = true }: NavProps) => {
   ];
   const availableLink = (link: LinkItem) =>
     (link.href !== "/speaking" || sections.speaking) &&
-    (!["#story", "/#story"].includes(link.href) || sections.story);
+    (!["#story", "/#story", "/about"].includes(link.href) || sections.story);
   const navItems = configuredItems.flatMap((item): NavItem[] => {
     if (!("children" in item)) return availableLink(item) ? [item] : [];
     const children = item.children.filter(availableLink);
@@ -369,7 +370,7 @@ const Nav = ({ loaded = true }: NavProps) => {
                   }}
                 />
                 <a
-                  href={nav.cta.href}
+                  href={summitHref(nav.cta.href, "nav")}
                   data-conversion-destination="summit"
                   data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}
@@ -453,7 +454,7 @@ const Nav = ({ loaded = true }: NavProps) => {
             {nav.cta && (
               <div className="px-8 pb-10">
                 <a
-                  href={nav.cta.href}
+                  href={summitHref(nav.cta.href, "nav")}
                   data-conversion-destination="summit"
                   data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}

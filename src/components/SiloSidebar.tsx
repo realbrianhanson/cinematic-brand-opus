@@ -73,9 +73,9 @@ const SiloSidebar = ({
         <span
           className="font-body uppercase block"
           style={{
-            fontSize: 9,
+            fontSize: 12,
             letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.3)",
+            color: "rgba(255,255,255,0.7)",
             marginBottom: 12,
           }}
         >
@@ -116,7 +116,7 @@ const SiloSidebar = ({
                 to={`/resources/${ctSlug}/${pg.slug}`}
                 className="font-body flex items-start gap-2 py-1.5"
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: isActive
                     ? "var(--brand-accent)"
                     : "rgba(255,255,255,0.45)",
@@ -131,7 +131,7 @@ const SiloSidebar = ({
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive)
-                    e.currentTarget.style.color = "rgba(255,255,255,0.45)";
+                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
                 }}
               >
                 <ChevronRight

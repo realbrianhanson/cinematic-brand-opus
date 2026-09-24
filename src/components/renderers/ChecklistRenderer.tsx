@@ -77,7 +77,7 @@ const ChecklistRenderer = ({
         <div className="flex items-center justify-between mb-2">
           <span
             className="font-body"
-            style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}
+            style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
           >
             {done} of {total} completed ({pct}%)
           </span>
@@ -87,8 +87,8 @@ const ChecklistRenderer = ({
               aria-label="Reset checklist"
               className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
               style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.3)",
+                fontSize: 12,
+                color: "rgba(255,255,255,0.7)",
                 background: "none",
                 border: "1px solid rgba(255,255,255,0.08)",
                 cursor: "pointer",
@@ -102,8 +102,8 @@ const ChecklistRenderer = ({
               data-print-hide
               className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
               style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.3)",
+                fontSize: 12,
+                color: "rgba(255,255,255,0.7)",
                 background: "none",
                 border: "1px solid rgba(255,255,255,0.08)",
                 cursor: "pointer",
@@ -137,7 +137,7 @@ const ChecklistRenderer = ({
       {phases.map((phase, pi) => (
         <div key={pi} className="mb-10">
           <h2
-            className="font-display italic mb-2"
+            className="font-display mb-2"
             style={{ fontSize: 20, color: "#fff" }}
           >
             {phase.title || phase.name || `Phase ${pi + 1}`}
@@ -147,7 +147,7 @@ const ChecklistRenderer = ({
               className="font-body mb-5"
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(255,255,255,0.7)",
                 lineHeight: 1.6,
               }}
             >
@@ -212,7 +212,7 @@ const ChecklistRenderer = ({
                         <span
                           className="font-body uppercase px-2 py-0.5"
                           style={{
-                            fontSize: 10,
+                            fontSize: 12,
                             letterSpacing: "0.1em",
                             background: pc.bg,
                             color: pc.color,

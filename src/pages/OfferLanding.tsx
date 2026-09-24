@@ -1,4 +1,3 @@
-import { measurementForClaim } from "@/lib/measurement";
 import {
   useEffect,
   useRef,
@@ -15,16 +14,17 @@ import RelatedOffers from "@/components/RelatedOffers";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import {
   invokeOfferApi,
-  clearOfferAttempt,
   offerPrice,
-  persistOfferToken,
   retryToken,
-  safeOfferRedirect,
   safeExternalOfferUrl,
   affiliateDisclosure,
-  type OfferClaim,
   type PublicOffer,
 } from "@/lib/offers";
+import {
+  freeOfferButtonLabel,
+  optInAfterClaim,
+  requestOfferAccess,
+} from "@/lib/offerClaim";
 
 const fieldClass =
   "w-full mt-2 rounded border border-white/25 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]";
@@ -111,7 +111,7 @@ function OfferDetails({
         actionLabel={
           page?.ctaText ||
           (offer.kind === "free"
-            ? "Get my free download"
+            ? freeOfferButtonLabel(offer)
             : "See purchase options")
         }
         onAction={() => {
@@ -192,8 +192,7 @@ function ExternalOfferAction({
         </a>
       ) : (
         <p role="status" className="mt-6 text-sm leading-relaxed text-white/80">
-          This offer’s destination is not available right now. Please check back
-          soon.
+          This link isn’t available right now. Check back soon
         </p>
       )}
       {readPresentation(offer.presentation)?.landing.ctaMicrocopy && (
@@ -203,7 +202,7 @@ function ExternalOfferAction({
       )}
       {destination && (
         <p className="mt-3 text-xs leading-relaxed text-white/65">
-          Opens {new URL(destination).hostname} in a new tab.
+          Opens {new URL(destination).hostname} in a new tab
         </p>
       )}
     </>
@@ -255,8 +254,8 @@ function ExternalOfferLanding({
           <h2 className="font-display text-3xl mt-4">{offerPrice(offer)}</h2>
           <p className="text-sm leading-relaxed mt-3 text-white/80">
             {offer.kind === "free"
-              ? "Continue to the provider’s website for access and availability."
-              : "See what’s included, review the current terms, and complete your purchase on the linked website."}
+              ? "Continue to the provider’s website for access and availability"
+              : "See what’s included and the current terms, then buy on the linked website"}
           </p>
           {disclosure && (
             <p className="mt-6 rounded border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-4 text-sm leading-relaxed text-white/90 whitespace-pre-line">
@@ -298,7 +297,7 @@ function NativeOfferLanding({
   compact = false,
   relatedOffers = [],
 }: OfferLandingProps) {
-  const { footer } = useSiteConfig();
+  const { footer, identity } = useSiteConfig();
   const [hydrated, setHydrated] = useState(false);
   const [ready, setReady] = useState<boolean | null>(
     offer.kind === "free" ? true : null,
@@ -340,32 +339,28 @@ function NativeOfferLanding({
         token: retryToken(offer.id, email),
       };
     const token = tokenRef.current.token;
-    persistOfferToken(token);
+    const consent = offer.kind === "free" && form.get("newsletter") === "yes";
     setBusy(true);
     setError("");
     try {
-      const result = await invokeOfferApi<OfferClaim>({
-        action: "claim",
-        measurement: await measurementForClaim(),
-        offer_id: offer.id,
+      const result = await requestOfferAccess({
+        offerId: offer.id,
         email,
         name,
         token,
       });
-      if (["expired", "failed", "refunded"].includes(result.status)) {
-        clearOfferAttempt(offer.id, email);
+      if (result.status === "closed") {
         tokenRef.current = null;
         setError(
-          "Your previous checkout is closed. Submit this form again to start a new purchase.",
+          "Your previous checkout is closed. Submit this form again to start a new purchase",
         );
         setBusy(false);
         return;
       }
-      window.location.assign(
-        safeOfferRedirect(result.checkout_url || result.access_url),
-      );
+      await optInAfterClaim(email, consent);
+      window.location.assign(result.destination);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Please try again.");
+      setError(err instanceof Error ? err.message : "Please try again");
       setBusy(false);
     }
   }
@@ -404,13 +399,13 @@ function NativeOfferLanding({
           <h2 className="font-display text-3xl mt-4">{offerPrice(offer)}</h2>
           <p className="text-sm leading-relaxed mt-3 text-white/75">
             {offer.kind === "free"
-              ? "Enter your details to unlock your download on the next page."
-              : "One payment. Get access after your payment is confirmed."}
+              ? "Enter your email and your download opens on the next page"
+              : "One payment. Your access opens once the payment is confirmed"}
           </p>
           {offer.funnel_only ? (
             <p className="mt-6 text-white/80">
-              This offer is available as a follow-up to another resource. Use
-              the link on your download page to continue.
+              This offer comes as a follow-up to another resource. Use the link
+              on your download page to continue
             </p>
           ) : (
             <CheckoutForm preview={preview} submit={submit}>
@@ -436,6 +431,12 @@ function NativeOfferLanding({
                   disabled={!hydrated || busy || preview}
                 />
               </label>
+              {offer.kind === "free" && (
+                <NewsletterConsent
+                  owner={identity.name}
+                  disabled={!hydrated || busy || preview}
+                />
+              )}
               <button
                 type="submit"
                 aria-label={preview ? "Preview only" : undefined}
@@ -450,7 +451,7 @@ function NativeOfferLanding({
                   ? "Opening…"
                   : offer.kind === "free"
                     ? readPresentation(offer.presentation)?.landing.ctaText ||
-                      "Get my free download"
+                      freeOfferButtonLabel(offer)
                     : `${readPresentation(offer.presentation)?.landing.ctaText || "Continue to checkout"} · ${offerPrice(offer)}`}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
@@ -461,15 +462,14 @@ function NativeOfferLanding({
               )}
               <noscript>
                 <p className="text-sm text-white/75">
-                  Enable JavaScript to securely request this resource or start
-                  checkout.
+                  Enable JavaScript to request this resource or start checkout
                 </p>
               </noscript>
               {offer.kind === "paid" && !preview && ready !== true && (
                 <p role="status" className="text-sm text-white/75">
                   {ready === null
                     ? "Checking availability…"
-                    : "Purchases are not available yet. Please check back soon."}
+                    : "Purchases are not available yet. Check back soon"}
                 </p>
               )}
               {error && (
@@ -485,29 +485,27 @@ function NativeOfferLanding({
                   )}
                 </p>
               )}
-              <p className="text-xs text-white/65 leading-relaxed">
-                Your details are shared with the site owner for this request.
-                This does not sign you up for a newsletter. Your download opens
-                here, and we’ll attempt to email a private access link when
-                email delivery is available. Save the link shown on your
-                download page as a backup.
+              <p className="text-xs text-white/70 leading-relaxed">
+                We use your email to deliver this{" "}
+                {offer.kind === "free"
+                  ? "download and, if you opt in, the weekly email"
+                  : "purchase"}
                 {footer.privacyUrl && (
                   <>
-                    {" "}
+                    {" · "}
                     <a
                       href={preview ? undefined : footer.privacyUrl}
                       className="underline underline-offset-4"
                     >
                       Privacy policy
                     </a>
-                    .
                   </>
                 )}
               </p>
               {offer.kind === "paid" && (
                 <p className="text-xs text-white/70 flex items-center gap-2">
                   <LockKeyhole size={13} aria-hidden="true" />
-                  Payment is handled by Stripe.
+                  Payment is handled by Stripe
                 </p>
               )}
             </CheckoutForm>
@@ -521,5 +519,36 @@ function NativeOfferLanding({
           <RelatedOffers offers={relatedOffers} />
         )}
     </OfferShell>
+  );
+}
+
+/**
+ * Explicit, pre-checked consent for the weekly email. Unchecking it is
+ * respected: the claim still works and nothing is sent to the newsletter.
+ */
+function NewsletterConsent({
+  owner,
+  disabled,
+}: {
+  owner: string;
+  disabled: boolean;
+}) {
+  return (
+    <label className="flex items-start gap-3 text-sm leading-relaxed text-white/85">
+      <input
+        type="checkbox"
+        name="newsletter"
+        value="yes"
+        defaultChecked
+        disabled={disabled}
+        className="mt-1 h-4 w-4 shrink-0 accent-[var(--brand-accent)]"
+      />
+      <span>
+        Also send me the weekly email from {owner}
+        <span className="block text-xs text-white/70">
+          You’ll get a confirmation email first. Unsubscribe in one click
+        </span>
+      </span>
+    </label>
   );
 }
