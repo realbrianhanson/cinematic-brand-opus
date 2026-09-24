@@ -354,6 +354,7 @@ const PillarPage = ({
           pageId={pillar.id}
           pageType="pillar"
           nicheName={pillar.niches?.name}
+          nicheSlug={pillar.niches?.slug}
         />
       </article>
       <Footer />

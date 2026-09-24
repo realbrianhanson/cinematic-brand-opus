@@ -143,6 +143,17 @@ export const brianPreset: SiteConfig = {
       },
       {
         quote:
+          "I had no experience in this, but I really feel more confident now.",
+        attribution: "Susie Satram",
+        context: "PushTen member · September 2026 · Excerpt",
+      },
+      {
+        quote: "Amazing training. I didn't get lost in the weeds once!",
+        attribution: "Cindy Trump",
+        context: "App-building workshop · March 17, 2026 · Excerpt",
+      },
+      {
+        quote:
           "Brian is just giving out GOLD! To me, the tips he's giving has taken a long time to gather. If you are on the fence, talk to him.",
         attribution: "E B Soloway",
         context: "Training feedback · May 2026",

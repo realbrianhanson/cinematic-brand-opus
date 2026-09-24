@@ -118,3 +118,6 @@ verify_jwt = false
 
 [functions.jev-shadow-score]
 verify_jwt = false
+
+[functions.process-speaking-notifications]
+verify_jwt = false

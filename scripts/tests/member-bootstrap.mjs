@@ -57,10 +57,13 @@ create table offer_orders(id uuid);
 create table offer_stripe_events(event_id text);
 create table offer_access_deliveries(id uuid,email text);
 create table offer_access_grants(token_hash text);
+create table transactional_email_suppressions(email text,reason text);
 create table conversion_sessions(id uuid);
 create table conversion_events(id uuid);
 create table conversion_order_links(id uuid);
 create table conversion_order_facts(id uuid);
+create table external_conversion_outcomes(id uuid);
+create table external_conversion_imports(id uuid);
 create schema storage;
 create table storage.objects(bucket_id text,name text);`;
 for (const [label, seed, count] of [
@@ -69,6 +72,8 @@ for (const [label, seed, count] of [
     "conversion_events",
     "conversion_order_links",
     "conversion_order_facts",
+    "external_conversion_outcomes",
+    "external_conversion_imports",
   ].map((table) => [
     table,
     `insert into ${table} values(gen_random_uuid())`,
@@ -100,6 +105,11 @@ for (const [label, seed, count] of [
     "select count(*)::int n from offer_access_grants",
   ],
   [
+    "transactional_email_suppressions",
+    "insert into transactional_email_suppressions values('private@example.com','complained')",
+    "select count(*)::int n from transactional_email_suppressions",
+  ],
+  [
     "offer-files",
     "insert into storage.objects values('offer-files','private-guide.pdf')",
     "select count(*)::int n from storage.objects where bucket_id='offer-files'",
@@ -124,14 +134,20 @@ for (const [label, seed, count] of [
 }
 
 const cleanCommerce = new PGlite();
-for (const table of ["offer_access_deliveries", "offer_access_grants"]) {
+for (const table of [
+  "offer_access_deliveries",
+  "offer_access_grants",
+  "transactional_email_suppressions",
+]) {
   const marked = new PGlite();
   await marked.exec(fixture + commerceFixture);
   await marked.exec(sql);
   await marked.exec(
     table === "offer_access_deliveries"
       ? "insert into offer_access_deliveries values(gen_random_uuid(),'private@example.com')"
-      : "insert into offer_access_grants values(repeat('a',64))",
+      : table === "transactional_email_suppressions"
+        ? "insert into transactional_email_suppressions values('private@example.com','complained')"
+        : "insert into offer_access_grants values(repeat('a',64))",
   );
   await assert.rejects(
     marked.exec(sql),
@@ -372,6 +388,8 @@ for (const table of [
   "conversion_events",
   "conversion_order_links",
   "conversion_order_facts",
+  "external_conversion_outcomes",
+  "external_conversion_imports",
 ]) {
   const marked = new PGlite();
   await marked.exec(

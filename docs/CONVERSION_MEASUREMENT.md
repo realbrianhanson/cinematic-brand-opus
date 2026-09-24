@@ -54,3 +54,7 @@ The browser uses a local-storage preference and session-storage capability. Only
 Resource CTA collection now uses the same private collector. The previous `cta_events` writer is retired; existing historical rows are not mixed into conversion totals. Legacy reports identify the change in collection rather than implying the old data still measures current activity.
 
 Deploy migration `20260919220000_conversion_measurement.sql` and the `conversion-events`, `offers-api`, `offer-stripe-webhook`, and `weekly-report` edge functions, then publish the frontend. Verify the managed backend deployment independently from GitHub sync. Member sites use their own canonical URL and a clean database; the bootstrap refuses inherited conversion data but permits the initialized configuration singleton. No third-party analytics key is needed. Stripe credentials remain a separate owner setup step.
+
+## External provider outcomes
+
+The separate **Confirmed external outcomes** panel supports admin reconciliation of verified provider CSV exports. These operational records are not joined to browser sessions, native revenue, or measured conversion-rate denominators. Provider campaign labels and import coverage are explicit; an outbound click remains a click. See [external conversion reconciliation](EXTERNAL_CONVERSIONS.md) for deployment, import columns, correction/refund handling, privacy, limitations and the future signed-provider callback contract.

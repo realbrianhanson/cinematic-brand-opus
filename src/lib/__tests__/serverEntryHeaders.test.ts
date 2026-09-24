@@ -6,6 +6,18 @@ vi.mock("@tanstack/react-start/server-entry", () => ({ default: upstream }));
 import server from "@/server";
 
 describe("server entry", () => {
+  it("redirects reviewed legacy entrances before invoking the application", async () => {
+    upstream.fetch.mockClear();
+    const res = await server.fetch(
+      new Request("https://brianhanson.com/my-story?utm_source=old-email"),
+      {},
+      {},
+    );
+    expect(res.status).toBe(308);
+    expect(res.headers.get("location")).toBe("/?utm_source=old-email#story");
+    expect(upstream.fetch).not.toHaveBeenCalled();
+  });
+
   it("adds framing protection to admin responses", async () => {
     upstream.fetch.mockResolvedValue(
       new Response("<html></html>", {

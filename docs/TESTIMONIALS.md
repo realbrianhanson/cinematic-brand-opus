@@ -6,7 +6,7 @@ On September 20, 2026, all 26 documents currently in Brian's supplied testimonia
 
 Prioritize concrete evidence of Brian's ability, clear enthusiasm, an identifiable benefit or change in behavior, and direct Brian attribution. Preserve actual words and the context of the event or product. Short general praise is less useful than a specific statement of why the experience mattered. Joint praise must not be edited to remove another instructor.
 
-The featured three are Steve Cunningham (a concrete app-building example), E B Soloway (enthusiastic praise of Brian's knowledge), and the full lisa bond quote (a Brian-attributed change in mindset and working approach). Lynn, Marla, and Patricia appear in the accessible additional-quotes section.
+The September 20 selection featured Steve Cunningham (a concrete app-building example), E B Soloway (enthusiastic praise of Brian's knowledge), and the full lisa bond quote (a Brian-attributed change in mindset and working approach). The September 24 update below retains these quotes while featuring two newly checked excerpts beside Steve.
 
 No selected quote mentions Francis. No ratings, titles, companies, headshots, or financial outcomes are invented. Summit feedback remains labeled as summit feedback; only Lynn's quote specifically endorses the PushTen seminar/program.
 
@@ -40,3 +40,28 @@ The Drive originals remain unchanged. Private source URLs and the full unselecte
 Edit `homepageTestimonials` in `src/config/presets/brian.ts`. Each item contains `quote`, `attribution`, and an optional `context` label. Preserve the speaker's words and meaning; add source context here when changing the selection.
 
 The section renders only when the active preset supplies at least one item. PushTen members start without these testimonials and should add their own accurately attributed feedback. Omit the block or use an empty `items` array to hide it. Homepage testimonials remain preset-configured; the separate offer testimonial uses the existing Admin offer-description editor.
+
+## Additional verified excerpts — September 24, 2026
+
+Brian supplied the AI4B testimonial master list and its original source folder.
+Exact source links are retained in his private Obsidian testimonial proof library.
+The following additions were checked against original material, not just the compilation:
+
+- **Susie Satram:** “I had no experience in this, but I really feel more confident now.”
+  A contiguous excerpt from her PushTen message in the September screenshot, visually verified.
+  Label: PushTen member, September 2026, excerpt. This describes her confidence;
+  it does not claim a universal completion time or business result.
+- **Cindy Trump:** “Amazing training. I didn't get lost in the weeds once!”
+  A contiguous excerpt from the March 17 workshop chat, timestamp **07:11:20**.
+  Label: App-building workshop, March 17, 2026, excerpt. Whitespace is normalized;
+  the words and punctuation are preserved.
+
+These appear alongside the existing homepage feedback. Previous quotes remain
+available under “More from the community.” They are teaching/program feedback,
+not endorsements of every product on the site. Member presets remain empty.
+The full master and a reusable offer/objection shortlist are saved privately in
+Brian's Obsidian vault rather than copying the entire collection into this repo.
+
+The compilation has incorrect filename references for some loose screenshots.
+Use the verified original URL for any published excerpt. No earnings quote or
+historical price was added to the website in this batch.

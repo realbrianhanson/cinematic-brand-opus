@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { Webhook } from "https://esm.sh/svix@1.24.0";
+import { persistVerifiedResendSuppressions } from "../_shared/transactionalEmailSuppression.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,7 @@ Deno.serve(async (req) => {
   }
 
   const payload = await req.text();
-  let event: any;
+  let event: unknown;
   try {
     const wh = new Webhook(secret);
     event = wh.verify(payload, {
@@ -39,20 +40,9 @@ Deno.serve(async (req) => {
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
     });
-  } catch (e) {
-    console.error("svix verification failed:", (e as Error).message);
+  } catch {
+    console.error("Resend webhook signature verification failed");
     return json(401, { error: "invalid signature" });
-  }
-
-  const type: string = event?.type || "";
-  if (type !== "email.bounced" && type !== "email.complained") {
-    return json(200, { ok: true, ignored: type });
-  }
-
-  const to = event?.data?.to;
-  const email: string | undefined = Array.isArray(to) ? to[0] : to;
-  if (!email || typeof email !== "string") {
-    return json(200, { ok: true, ignored: "no recipient" });
   }
 
   const admin = createClient(
@@ -60,15 +50,21 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const nextStatus = type === "email.bounced" ? "bounced" : "complained";
-  const { error } = await admin
-    .from("newsletter_subscribers")
-    .update({ status: nextStatus })
-    .eq("email", email.toLowerCase().trim());
-  if (error) {
-    console.error("update failed:", error.message);
-    return json(500, { error: error.message });
+  try {
+    const recorded = await persistVerifiedResendSuppressions(
+      event,
+      async ({ email, reason }) => {
+        const { data, error } = await admin.rpc(
+          "record_transactional_email_suppression",
+          { _email: email, _reason: reason },
+        );
+        return !error && data === true;
+      },
+    );
+    return json(200, { ok: true, recorded });
+  } catch {
+    // Non-2xx asks Resend to retry; never acknowledge a lost suppression event.
+    console.error("Resend webhook suppression storage failed");
+    return json(503, { error: "Suppression storage temporarily unavailable" });
   }
-
-  return json(200, { ok: true, type, email });
 });

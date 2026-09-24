@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { readBoundedJson } from "../_shared/boundedJson.ts";
 import {
+  backgroundSpeakingNotifications,
+  processSpeakingNotifications,
+} from "../_shared/speakingNotificationsRuntime.ts";
+import {
   parseSpeakingInquiry,
   speakingDatabaseError,
   SpeakingInquiryError,
@@ -90,6 +94,9 @@ Deno.serve(async (request) => {
       _message: inquiry.message,
     });
     if (error) throw speakingDatabaseError(error.message);
+    backgroundSpeakingNotifications(
+      processSpeakingNotifications(admin, inquiry.request_id),
+    );
     return json(200, { accepted: true });
   } catch (error) {
     if (error instanceof SpeakingInquiryError)

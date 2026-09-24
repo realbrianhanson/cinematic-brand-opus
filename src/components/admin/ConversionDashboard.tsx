@@ -17,6 +17,7 @@ import {
   type ConversionReport,
 } from "@/lib/conversions";
 import QueryNotice from "./QueryNotice";
+import ExternalConversionPanel from "./ExternalConversionPanel";
 
 const number = (value: number) => value.toLocaleString("en-US");
 
@@ -224,7 +225,7 @@ export default function ConversionDashboard({
           <h1>See what moves people to act.</h1>
           <p>
             Follow measured visits into offer views, outbound clicks, and
-            confirmed native orders.
+            confirmed native orders, with provider exports reported separately.
           </p>
         </div>
         <button
@@ -537,8 +538,9 @@ export default function ConversionDashboard({
               <h2>Which links get the next click</h2>
               <p className="admin-help">
                 Top 20 destination and placement pairs by clicks. Event,
-                workshop, and affiliate clicks show interest; registrations and
-                purchases on another website are not verified here.
+                workshop, and affiliate clicks show interest. Confirmed provider
+                exports are reported separately below; clicks never count as
+                registrations or purchases.
               </p>
             </div>
             {data.placements.length ? (
@@ -680,6 +682,7 @@ export default function ConversionDashboard({
           </details>
         </>
       )}
+      <ExternalConversionPanel days={days} />
     </div>
   );
 }
