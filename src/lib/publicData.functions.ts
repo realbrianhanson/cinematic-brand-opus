@@ -27,6 +27,12 @@ type PublicNiche = {
 };
 
 import { fetchBlogPage, fetchNewsPage } from "./publicLists";
+import {
+  PUBLIC_GENERATED_PAGE_LIST_SELECT,
+  PUBLIC_GENERATED_PAGE_SELECT,
+  PUBLIC_POST_SELECT,
+  PUBLIC_POST_SEO_SELECT,
+} from "./publicColumns";
 
 function slugInput(input: unknown): { slug: string } {
   const slug = (input as { slug?: unknown } | null)?.slug;
@@ -66,7 +72,7 @@ export const getPublicPostBySlug = createServerFn({ method: "GET" })
     const supabase = createPublicServerClient();
     const { data, error } = await supabase
       .from("posts")
-      .select("*, categories(name, slug)")
+      .select(PUBLIC_POST_SELECT)
       .eq("slug", slug)
       .eq("status", "published")
       .maybeSingle();
@@ -158,7 +164,7 @@ export const getPublicContentType = createServerFn({ method: "GET" })
 
     const { data: pages, error: pagesError } = await supabase
       .from("generated_pages")
-      .select("*, niches!generated_pages_niche_id_fkey(name, slug)")
+      .select(PUBLIC_GENERATED_PAGE_LIST_SELECT)
       .eq("content_schema_id", schema.id)
       .eq("status", "published")
       .order("title");
@@ -190,7 +196,7 @@ export const getPublicGeneratedPage = createServerFn({ method: "GET" })
 
     const { data: page, error: pageError } = await supabase
       .from("generated_pages")
-      .select("*, niches!generated_pages_niche_id_fkey(id, name, slug)")
+      .select(PUBLIC_GENERATED_PAGE_SELECT)
       .eq("content_schema_id", schema.id)
       .eq("slug", pageSlug)
       .eq("status", "published")
@@ -239,7 +245,7 @@ export const getPublicPostSeo = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: seo, error } = await createPublicServerClient()
       .from("seo_metadata")
-      .select("meta_title,meta_description,og_image,keywords")
+      .select(PUBLIC_POST_SEO_SELECT)
       .eq("post_id", data.postId)
       .maybeSingle();
     if (error) throw error;

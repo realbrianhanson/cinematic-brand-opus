@@ -1,4 +1,7 @@
-// Public unsubscribe endpoint. Redirect target comes from site_settings.site_url.
+// Legacy public unsubscribe endpoint (older emails link here). Redirect target
+// comes from site_settings.site_url. GET never mutates — email link scanners
+// fetch every link — it forwards to the site's confirmation page instead.
+// POST (RFC 8058 one-click, token in the query string) still unsubscribes.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { normalizeSiteUrl } from "../_shared/newsletterConfig.ts";
@@ -22,6 +25,20 @@ Deno.serve(async (req) => {
   const base = `${siteUrl}/newsletter`;
 
   const token = new URL(req.url).searchParams.get("token");
+  if (req.method === "GET" || req.method === "HEAD") {
+    return Response.redirect(
+      token
+        ? `${siteUrl}/api/public/newsletter/unsubscribe?token=${encodeURIComponent(token)}`
+        : `${base}/unsubscribed`,
+      302,
+    );
+  }
+  if (req.method !== "POST") {
+    return new Response("Method not allowed.", {
+      status: 405,
+      headers: { Allow: "GET, POST" },
+    });
+  }
   if (token) {
     const { data: row, error: readError } = await admin
       .from("newsletter_subscribers")

@@ -20,6 +20,11 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import {
+  SITE_CHAT_LIMITS,
+  siteChatErrorMessage,
+  toSiteChatRequestMessages,
+} from "@/lib/siteChat";
 
 const STORAGE_KEY = "site-chat-conversation-v1";
 
@@ -58,7 +63,14 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
     id: `site-chat-${resetCount}`,
     messages: resetCount === 0 ? initialMessages : [],
     transport: useMemo(
-      () => new DefaultChatTransport({ api: "/api/chat" }),
+      () =>
+        new DefaultChatTransport({
+          api: "/api/chat",
+          // Send only recent text turns so the request stays under the server caps.
+          prepareSendMessagesRequest: ({ id, messages }) => ({
+            body: { id, messages: toSiteChatRequestMessages(messages) },
+          }),
+        }),
       [],
     ),
   });
@@ -163,8 +175,8 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
           )}
           {error && (
             <p role="alert" className="text-sm text-red-200">
-              The assistant is unavailable right now.{" "}
-              {emailHref ? "Please use the email link below." : ""}
+              {siteChatErrorMessage(error)}{" "}
+              {emailHref ? "You can also use the email link below." : ""}
             </p>
           )}
         </ConversationContent>
@@ -182,6 +194,7 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
           <PromptInputTextarea
             ref={textareaRef}
             autoFocus
+            maxLength={SITE_CHAT_LIMITS.maxTextChars}
             placeholder="Ask a question..."
             className="text-base"
           />

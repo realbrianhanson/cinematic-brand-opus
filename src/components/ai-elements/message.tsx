@@ -10,9 +10,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
@@ -318,7 +315,9 @@ export const MessageBranchPage = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
-const streamdownPlugins = { cjk, code, math, mermaid };
+// Plain product answers only: the code-highlighting, math and mermaid plugins
+// added ~17 MB of emitted JS and are intentionally not loaded here.
+const streamdownPlugins = { cjk };
 
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (

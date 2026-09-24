@@ -39,7 +39,7 @@ const SiloSidebar = ({
       const { data } = await supabase
         .from("generated_pages")
         .select(
-          "id, title, slug, content_schema_id, content_schemas(name, slug), niches(slug)",
+          "id, title, slug, content_schema_id, content_schemas(name, slug), niches!generated_pages_niche_id_fkey(slug)",
         )
         .eq("niche_id", nicheId)
         .eq("status", "published")

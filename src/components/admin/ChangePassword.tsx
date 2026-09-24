@@ -1,261 +1,136 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Check, X } from "lucide-react";
+import {
+  describePasswordUpdateError,
+  passwordProblems,
+} from "@/lib/passwordPolicy";
+import PasswordField, { NewPasswordFields } from "./PasswordField";
 
+type Outcome = { kind: "error"; messages: string[] } | { kind: "success" };
+
+function describeReauthError(error: { status?: number; code?: string }) {
+  if (error.status === 429 || error.code === "over_request_rate_limit")
+    return "Too many attempts. Wait a few minutes and try again.";
+  if (error.status === 400 || error.code === "invalid_credentials")
+    return "Current password is incorrect.";
+  return "Couldn't confirm your current password. Try again.";
+}
+
+/**
+ * Changes the signed-in admin's password. The current password is verified
+ * first by signing in again with it, so an unattended session alone cannot
+ * change the password from this screen.
+ */
 const ChangePassword = () => {
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const { user } = useAuth();
+  const email = user?.email ?? "";
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  const passwordsMatch =
-    newPass.length > 0 && confirmPass.length > 0 && newPass === confirmPass;
-  const passwordsMismatch = confirmPass.length > 0 && newPass !== confirmPass;
+  const fail = (...messages: string[]) =>
+    setOutcome({ kind: "error", messages });
+
+  const validate = (): string[] => {
+    if (!email) return ["Your session expired. Sign in again."];
+    if (!current) return ["Enter your current password."];
+    const problems = passwordProblems(next, { email, current });
+    if (next !== confirm) problems.push("New passwords don't match.");
+    return problems;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPass.length < 8) {
-      toast({
-        title: "Password must be at least 8 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (newPass !== confirmPass) {
-      toast({ title: "Passwords do not match", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-
+    setOutcome(null);
+    const problems = validate();
+    if (problems.length) return fail(...problems);
+    setPending(true);
     try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (sessionError || !accessToken) {
-        toast({
-          title: "Your session expired. Please sign in again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,
-        {
-          method: "PUT",
-          headers: {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ password: newPass }),
-        },
-      );
-
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const backendMessage =
-          payload?.msg ||
-          payload?.error_description ||
-          payload?.error ||
-          "Unable to update password";
-
-        toast({
-          title:
-            backendMessage ===
-            "New password should be different from the old password."
-              ? "Please choose a different password from your current one"
-              : backendMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({ title: "Password updated successfully" });
-      setNewPass("");
-      setConfirmPass("");
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email,
+        password: current,
+      });
+      if (reauthError) return fail(describeReauthError(reauthError));
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: next,
+      });
+      if (updateError) return fail(describePasswordUpdateError(updateError));
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setOutcome({ kind: "success" });
+      toast({ title: "Password updated" });
     } catch (err) {
       console.error("Password update error:", err);
-      toast({ title: "An unexpected error occurred", variant: "destructive" });
+      fail("Couldn't reach the server. Check your connection and try again.");
     } finally {
-      setLoading(false);
+      setPending(false);
     }
   };
 
   return (
-    <div>
-      <h2
-        className="font-heading"
-        style={{
-          fontSize: 22,
-          fontWeight: 600,
-          color: "hsl(var(--admin-text))",
-          marginBottom: 24,
-        }}
-      >
-        Change Password
-      </h2>
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          maxWidth: 400,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            className="font-body"
-            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-          >
-            New Password
-          </label>
-          <div style={{ position: "relative" }}>
-            <input
-              type={showNew ? "text" : "password"}
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-              required
-              minLength={8}
-              className="font-body"
-              style={{
-                width: "100%",
-                padding: "10px 40px 10px 12px",
-                fontSize: 14,
-                borderRadius: 6,
-                border: "1px solid hsl(var(--admin-border))",
-                backgroundColor: "hsl(var(--admin-surface))",
-                color: "hsl(var(--admin-text))",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowNew(!showNew)}
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "hsl(var(--admin-text-soft))",
-                padding: 0,
-                display: "flex",
-              }}
-            >
-              {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            className="font-body"
-            style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-          >
-            Confirm Password
-          </label>
-          <div style={{ position: "relative" }}>
-            <input
-              type={showConfirm ? "text" : "password"}
-              value={confirmPass}
-              onChange={(e) => setConfirmPass(e.target.value)}
-              required
-              minLength={8}
-              className="font-body"
-              style={{
-                width: "100%",
-                padding: "10px 40px 10px 12px",
-                fontSize: 14,
-                borderRadius: 6,
-                border: `1px solid ${passwordsMismatch ? "hsl(0 70% 50%)" : passwordsMatch ? "hsl(140 60% 40%)" : "hsl(var(--admin-border))"}`,
-                backgroundColor: "hsl(var(--admin-surface))",
-                color: "hsl(var(--admin-text))",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(!showConfirm)}
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "hsl(var(--admin-text-soft))",
-                padding: 0,
-                display: "flex",
-              }}
-            >
-              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-          {confirmPass.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 12,
-                marginTop: 2,
-              }}
-            >
-              {passwordsMatch ? (
-                <>
-                  <Check size={14} style={{ color: "hsl(140 60% 40%)" }} />
-                  <span
-                    className="font-body"
-                    style={{ color: "hsl(140 60% 40%)" }}
-                  >
-                    Passwords match
-                  </span>
-                </>
-              ) : (
-                <>
-                  <X size={14} style={{ color: "hsl(0 70% 50%)" }} />
-                  <span
-                    className="font-body"
-                    style={{ color: "hsl(0 70% 50%)" }}
-                  >
-                    Passwords do not match
-                  </span>
-                </>
-              )}
-            </div>
+    <form
+      onSubmit={handleSubmit}
+      aria-labelledby="change-password-title"
+      className="flex flex-col"
+      style={{ gap: 16, maxWidth: 420 }}
+      noValidate
+    >
+      <h2 id="change-password-title">Change password</h2>
+      {/* Lets password managers attach the new password to this account. */}
+      <input
+        type="email"
+        name="username"
+        autoComplete="username"
+        value={email}
+        readOnly
+        hidden
+      />
+      <PasswordField
+        id="current-password"
+        label="Current password"
+        value={current}
+        onChange={setCurrent}
+        autoComplete="current-password"
+      />
+      <NewPasswordFields
+        idPrefix="change-password"
+        password={next}
+        confirm={confirm}
+        onPasswordChange={setNext}
+        onConfirmChange={setConfirm}
+      />
+      {outcome?.kind === "error" && (
+        <div role="alert" className="admin-notice admin-notice-error">
+          {outcome.messages.length === 1 ? (
+            <p>{outcome.messages[0]}</p>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: 18, listStyle: "disc" }}>
+              {outcome.messages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
           )}
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="font-body"
-          style={{
-            padding: "10px 20px",
-            fontSize: 13,
-            fontWeight: 500,
-            borderRadius: 6,
-            border: "none",
-            backgroundColor: "hsl(var(--admin-accent))",
-            color: "#fff",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-            transition: "opacity 0.2s",
-          }}
-        >
-          {loading ? "Updating…" : "Update Password"}
-        </button>
-      </form>
-    </div>
+      )}
+      {outcome?.kind === "success" && (
+        <p role="status" className="admin-notice">
+          Password updated.
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={pending}
+        className="admin-btn-primary justify-center"
+        style={{ alignSelf: "flex-start" }}
+      >
+        {pending ? "Updating…" : "Update password"}
+      </button>
+    </form>
   );
 };
 

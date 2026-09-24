@@ -320,7 +320,7 @@ export default function PseoDashboard() {
             ) : (
               <p>
                 No Search Console data has been imported.{" "}
-                <Link className="underline" to="/admin/settings">
+                <Link className="underline" to="/admin/site-settings">
                   Configure the integration
                 </Link>
                 .

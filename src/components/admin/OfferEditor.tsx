@@ -1,28 +1,31 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
-  FileText,
-  History,
   Loader2,
   Monitor,
   Smartphone,
-  Upload,
 } from "lucide-react";
 import { Link, useNavigate } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  clearOfferHandoff,
+  draftPayload,
   empty,
-  toForm,
-  slugify,
+  formIssues,
   payload,
-  type Offer,
+  readOfferHandoff,
+  saveOfferHandoff,
+  slugify,
+  toForm,
   type Form,
+  type Offer,
+  type OfferHandoff,
 } from "./offerEditorState";
-import { errorMessage } from "@/lib/errorMessage";
+import { errorMessage, isErrorCode } from "@/lib/errorMessage";
 import {
   invokeOfferApi,
   type OfferHealth,
@@ -38,12 +41,20 @@ import {
   type OfferProof,
 } from "@/lib/offerBuilder";
 import {
+  builderIssues,
+  type OfferIssue,
+  type OfferStep,
+} from "@/lib/offerBuilderValidation";
+import { offerChanges, sameOfferContent } from "@/lib/offerBuilderDiff";
+import {
   loadOfferBuilder,
   saveOfferBuilder,
   type OfferBuilderLoadResult,
   type OfferBuilderDocument,
   type OfferBuilderSaveInput,
 } from "@/lib/offerBuilderClient";
+import type { OfferStatusChange, OfferStatusRow } from "@/lib/offersStatus";
+import { statusChangeCopy } from "@/lib/offersStatus";
 import QueryNotice from "./QueryNotice";
 import OfferShopSettings from "./OfferShopSettings";
 import OfferBuilderShare from "./offers/OfferBuilderShare";
@@ -53,40 +64,43 @@ import OfferPageFields from "./offers/OfferPageFields";
 import OfferCopyAssistant from "./offers/OfferCopyAssistant";
 import OfferProofLibrary from "./offers/OfferProofLibrary";
 import OfferBuilderPreview from "@/components/offers/OfferBuilderPreview";
+import OfferNextStep from "./OfferNextStep";
+import OfferDeliveryStep from "./OfferDeliveryStep";
+import OfferIssueList from "./OfferIssueList";
+import OfferConfirmDialog from "./OfferConfirmDialog";
+import OfferRevisionHistory from "./OfferRevisionHistory";
+import OfferReviewStatus from "./OfferReviewStatus";
 
-const workflow = [
+const workflow: { id: OfferStep; title: string; detail: string }[] = [
   { id: "strategy", title: "Strategy", detail: "Buyer, promise & proof" },
   { id: "pages", title: "Pages", detail: "Copy & presentation" },
   { id: "next", title: "Next step", detail: "A relevant follow-up" },
   { id: "delivery", title: "Delivery", detail: "Price, checkout & access" },
   { id: "review", title: "Review", detail: "Check, publish & share" },
-] as const;
-type WorkflowStep = (typeof workflow)[number]["id"];
+];
 type PageStage = "landing" | "upsell" | "thank-you";
 const serialize = (form: Form, builder: OfferBuilder) =>
   JSON.stringify({ form, builder });
-function offerDocument(form: Form, publish: boolean) {
-  if (publish) return payload({ ...form, status: "published" });
-  const untitled = !form.title.trim();
-  const noSlug = !form.slug.trim();
-  const noPrice = form.kind === "paid" && !form.price.trim();
-  const values = payload({
-    ...form,
-    status: "draft",
-    title: untitled ? "Untitled offer" : form.title,
-    slug: noSlug ? "untitled-offer" : form.slug,
-    price: noPrice ? "0.50" : form.price,
-  });
-  return {
-    ...values,
-    ...(untitled ? { title: "" } : {}),
-    ...(noSlug ? { slug: "" } : {}),
-    ...(noPrice ? { amount_minor: 0 } : {}),
-  };
+const PUBLISHED_NOTICE =
+  "Offer published. Your new copy and settings are now live. Existing orders keep their original price and download.";
+const DRAFT_NOTICE =
+  "Draft saved privately. Your public offer has not changed.";
+
+/** A draft is stale only when the live content changed after it was saved. */
+function draftIsStale(initial: Offer | null, saved: OfferBuilderLoadResult) {
+  const draft = saved.draft;
+  if (!initial || !draft) return false;
+  if (draft.base_offer_updated_at === initial.updated_at) return false;
+  return !(draft.base_offer && sameOfferContent(initial, draft.base_offer));
 }
 
 export default function OfferEditor({ id }: { id?: string }) {
   const [reset, setReset] = useState(0);
+  // Context carried from the new-offer route (notice, step, unsaved copy).
+  const [handoff] = useState(() => (id ? readOfferHandoff(id) : null));
+  useEffect(() => {
+    if (id) clearOfferHandoff(id);
+  }, [id]);
   const offer = useQuery({
     queryKey: ["admin-offer", id],
     enabled: !!id,
@@ -132,6 +146,7 @@ export default function OfferEditor({ id }: { id?: string }) {
       key={`${id || "new"}-${reset}`}
       initial={offer.data?.offer || null}
       savedBuilder={offer.data?.builderState || { draft: null, history: [] }}
+      handoff={reset === 0 ? handoff : null}
       reload={async () => {
         const result = await offer.refetch();
         if (result.error) throw result.error;
@@ -144,24 +159,30 @@ export default function OfferEditor({ id }: { id?: string }) {
 function OfferForm({
   initial,
   savedBuilder,
+  handoff,
   reload,
 }: {
   initial: Offer | null;
   savedBuilder: OfferBuilderLoadResult;
+  handoff: OfferHandoff | null;
   reload: () => Promise<void>;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [form, setForm] = useState<Form>(() =>
+  const [savedForm] = useState<Form>(() =>
     initial
       ? toForm({ ...initial, ...savedBuilder.draft?.document.offer })
       : { ...empty },
   );
-  const [builder, setBuilder] = useState<OfferBuilder>(
+  const [savedPages] = useState<OfferBuilder>(
     () => savedBuilder.draft?.document.builder || builderFromOffer(initial),
   );
-  const [step, setStep] = useState<WorkflowStep>(
-    initial ? "pages" : "strategy",
+  const [form, setForm] = useState<Form>(() => handoff?.form || savedForm);
+  const [builder, setBuilder] = useState<OfferBuilder>(
+    () => handoff?.builder || savedPages,
+  );
+  const [step, setStep] = useState<OfferStep>(
+    handoff?.step || (initial ? "pages" : "strategy"),
   );
   const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -171,11 +192,7 @@ function OfferForm({
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [history, setHistory] = useState(savedBuilder.history);
   const [staleDraft, setStaleDraft] = useState(
-    !!(
-      initial &&
-      savedBuilder.draft &&
-      savedBuilder.draft.base_offer_updated_at !== initial.updated_at
-    ),
+    () => !handoff?.form && draftIsStale(initial, savedBuilder),
   );
   const draftVersion = useRef(savedBuilder.draft?.version ?? null);
   const liveOffer = useRef(initial);
@@ -187,7 +204,7 @@ function OfferForm({
   currentBuilder.current = builder;
   const current = useRef(form);
   current.current = form;
-  const baseline = useRef(serialize(form, builder));
+  const baseline = useRef(serialize(savedForm, savedPages));
   const version = useRef(initial?.updated_at || null);
   const stableId = useRef(initial?.id || "");
   const [savedId, setSavedId] = useState(initial?.id || "");
@@ -198,10 +215,13 @@ function OfferForm({
   );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [confirmPublish, setConfirmPublish] = useState(false);
   const busy = useRef(false);
+  const leaving = useRef(false);
   const mounted = useRef(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [issues, setIssues] = useState<OfferIssue[]>([]);
+  const [notice, setNotice] = useState(handoff?.notice || "");
   const [manualSlug, setManualSlug] = useState(!!initial && !!form.slug);
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -209,6 +229,8 @@ function OfferForm({
   const external = form.checkoutMode === "external";
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
+  const patchForm = (changes: Partial<Form>) =>
+    setForm((old) => ({ ...old, ...changes }));
   const ensureId = () =>
     stableId.current || (stableId.current = crypto.randomUUID());
   useEffect(() => {
@@ -219,6 +241,7 @@ function OfferForm({
   }, []);
   useBlocker({
     shouldBlockFn: () => {
+      if (leaving.current) return false;
       if (busy.current) {
         window.alert(
           "Wait for the current save or upload to finish before leaving.",
@@ -232,8 +255,10 @@ function OfferForm({
       );
     },
     enableBeforeUnload: () =>
-      busy.current ||
-      serialize(current.current, currentBuilder.current) !== baseline.current,
+      !leaving.current &&
+      (busy.current ||
+        serialize(current.current, currentBuilder.current) !==
+          baseline.current),
   });
   const choices = useQuery({
     queryKey: ["admin-offer-choices"],
@@ -251,7 +276,7 @@ function OfferForm({
   });
   const health = useQuery({
     queryKey: ["admin-offer-health"],
-    enabled: !external && form.kind === "paid",
+    enabled: !external,
     queryFn: () => invokeOfferApi<OfferHealth>({ action: "health" }),
     staleTime: 30000,
     retry: false,
@@ -277,12 +302,98 @@ function OfferForm({
       (offer) =>
         offer.next_offer_id === savedId && offer.status === "published",
     ) || [];
+  const offerTitle = (offerId: string) =>
+    choices.data?.find((item) => item.id === offerId)?.title || "";
+  const pagesIssues = builderIssues(builder);
+  const draftIssues = [...draftPayload(form).issues, ...pagesIssues];
+  const publishIssues = [
+    ...formIssues({ ...form, status: "published" }),
+    ...pagesIssues,
+  ];
 
-  async function save(event?: FormEvent, publish = false) {
-    event?.preventDefault();
+  function showIssues(list: OfferIssue[], summary: string) {
+    setIssues(list);
+    setError(summary);
+  }
+
+  function buildDocument(publish: boolean): OfferBuilderDocument | null {
+    const list = publish ? publishIssues : draftIssues;
+    if (list.length) {
+      showIssues(
+        list,
+        publish
+          ? "Fix these before publishing. Your working copy is unchanged."
+          : "Fix these before saving your draft. Your working copy is unchanged.",
+      );
+      return null;
+    }
+    try {
+      return {
+        offer: publish
+          ? payload({ ...current.current, status: "published" })
+          : draftPayload(current.current).values,
+        builder: offerBuilderSchema.parse(currentBuilder.current),
+      };
+    } catch (failure) {
+      setError(errorMessage(failure));
+      return null;
+    }
+  }
+
+  // A lost response to the first save leaves a created row this editor does
+  // not know about. Open that row and carry the local copy across.
+  async function recoverCreatedOffer(): Promise<boolean> {
+    const offerId = stableId.current;
+    if (initial || !offerId) return false;
+    const { data, error } = await supabase
+      .from("offers")
+      .select("id")
+      .eq("id", offerId)
+      .abortSignal(AbortSignal.timeout(20000))
+      .maybeSingle();
+    if (!mounted.current) return true;
+    if (error) {
+      setError(
+        `We couldn't check whether your first save created this offer (${errorMessage(error)}). Your edits are still here. Check All offers before saving again.`,
+      );
+      return true;
+    }
+    if (!data) return false;
+    saveOfferHandoff(data.id, {
+      form: current.current,
+      builder: currentBuilder.current,
+      step,
+      notice:
+        "Your first save reached the server, but its confirmation was lost. We opened the saved offer and kept your latest edits here. Review them, then save again.",
+    });
+    leaving.current = true;
+    navigate(`/admin/offers/${data.id}/edit`, { replace: true });
+    return true;
+  }
+
+  function saveFailed(failure: unknown) {
+    if (isErrorCode(failure, "23505"))
+      showIssues(
+        [
+          {
+            step: "pages",
+            field: "Page URL slug",
+            message: errorMessage(failure),
+          },
+        ],
+        "This offer could not be published.",
+      );
+    else if (isErrorCode(failure, "22023") && draftIssues.length)
+      showIssues(draftIssues, "The server could not store these details.");
+    else setError(errorMessage(failure));
+  }
+
+  async function save(publish = false) {
     if (busy.current) return;
     setError("");
+    setIssues([]);
     setNotice("");
+    setConfirmPublish(false);
     if (staleDraft) {
       setError(
         "Choose whether to keep this draft or use the current published content before saving.",
@@ -290,16 +401,8 @@ function OfferForm({
       setStep("review");
       return;
     }
-    let document: OfferBuilderDocument;
-    try {
-      document = {
-        offer: offerDocument(current.current, publish),
-        builder: offerBuilderSchema.parse(currentBuilder.current),
-      };
-    } catch (failure) {
-      setError(errorMessage(failure));
-      return;
-    }
+    const document = buildDocument(publish);
+    if (!document) return;
     const fingerprint = JSON.stringify({
       document,
       publish,
@@ -345,51 +448,70 @@ function OfferForm({
         published: result.published,
         created_at: result.draft.updated_at,
       };
-      setHistory((old) =>
-        [revision, ...old.filter((item) => item.id !== revision.id)].slice(
-          0,
-          30,
-        ),
-      );
-      setNotice(
-        publish
-          ? "Offer published. Your new copy and settings are now live. Existing orders keep their original price and download."
-          : "Draft saved privately. Your public offer has not changed.",
-      );
+      const nextHistory = [
+        revision,
+        ...history.filter((item) => item.id !== revision.id),
+      ].slice(0, 30);
+      setHistory(nextHistory);
+      const savedNotice = publish ? PUBLISHED_NOTICE : DRAFT_NOTICE;
+      setNotice(savedNotice);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["admin-offers"] }),
         qc.invalidateQueries({ queryKey: ["admin-offer-choices"] }),
+        qc.invalidateQueries({ queryKey: ["admin-offer-drafts"] }),
       ]);
       qc.setQueryData(["admin-offer", result.offer.id], {
         offer: result.offer,
-        builderState: {
-          draft: result.draft,
-          history: [
-            revision,
-            ...history.filter((item) => item.id !== revision.id),
-          ].slice(0, 30),
-        },
+        builderState: { draft: result.draft, history: nextHistory },
       });
       if (!initial) {
         busy.current = false;
+        saveOfferHandoff(result.offer.id, { notice: savedNotice, step });
         navigate(`/admin/offers/${result.offer.id}/edit`, { replace: true });
       }
     } catch (failure) {
-      if (mounted.current) setError(errorMessage(failure));
+      if (!mounted.current) return;
+      busy.current = false;
+      if (isErrorCode(failure, "40001") && (await recoverCreatedOffer()))
+        return;
+      if (mounted.current) saveFailed(failure);
     } finally {
       busy.current = false;
       if (mounted.current) setSaving(false);
     }
   }
 
+  function requestPublish() {
+    setError("");
+    setIssues([]);
+    setNotice("");
+    if (staleDraft) return void save(true);
+    if (publishIssues.length)
+      return showIssues(
+        publishIssues,
+        "Fix these before publishing. Your working copy is unchanged.",
+      );
+    setConfirmPublish(true);
+  }
+
+  function statusChanged(row: OfferStatusRow, change: OfferStatusChange) {
+    version.current = row.updated_at;
+    if (liveOffer.current)
+      liveOffer.current = {
+        ...liveOffer.current,
+        status: row.status,
+        updated_at: row.updated_at,
+      };
+    pendingSave.current = null;
+    setSavedStatus(row.status);
+    setError("");
+    setNotice(statusChangeCopy[change].done);
+    void qc.invalidateQueries({ queryKey: ["admin-offer", row.id] });
+    void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+    void qc.invalidateQueries({ queryKey: ["admin-offer-choices"] });
+  }
+
   function restoreDocument(document: OfferBuilderDocument) {
-    if (
-      dirty &&
-      !window.confirm(
-        "Replace your unsaved working copy with this revision? The public page will not change.",
-      )
-    )
-      return;
     if (!liveOffer.current) return;
     const restored = toForm({ ...liveOffer.current, ...document.offer });
     setForm(restored);
@@ -399,6 +521,18 @@ function OfferForm({
     );
     setStep("pages");
   }
+  const revisionChanges = (document: OfferBuilderDocument) =>
+    liveOffer.current
+      ? offerChanges(
+          { ...draftPayload(form).values, status: undefined },
+          {
+            ...draftPayload(toForm({ ...liveOffer.current, ...document.offer }))
+              .values,
+            status: undefined,
+          },
+          { offerTitle },
+        )
+      : [];
 
   function updatePage(page: OfferPage, pageStage: "landing" | "upsell") {
     setBuilder((old) => ({
@@ -438,6 +572,7 @@ function OfferForm({
   async function upload(file?: File) {
     if (!file || busy.current) return;
     setError("");
+    setIssues([]);
     setNotice("");
     const extension = file.name.split(".").pop()?.toLowerCase() || "";
     const types: Record<string, string> = {
@@ -539,22 +674,21 @@ function OfferForm({
     updated_at: initial?.updated_at || "",
   };
   const advice = reviewOffer(builder);
-  let publishProblem = "";
-  try {
-    payload({ ...form, status: "published" });
-    offerBuilderSchema.parse(builder);
-  } catch (failure) {
-    publishProblem = errorMessage(failure);
-  }
   const stepIndex = workflow.findIndex((item) => item.id === step);
   const nextChoice = choices.data?.find((item) => item.id === form.nextOffer);
+  const latest = history[0];
+  const unpublishedDraft =
+    savedStatus === "published" && !!latest && !latest.published;
+  const publishChanges = confirmPublish
+    ? offerChanges(
+        liveOffer.current,
+        payload({ ...form, status: "published" }),
+        { offerTitle },
+      )
+    : [];
 
   return (
-    <form
-      onSubmit={(event) => void save(event)}
-      noValidate
-      className="admin-page-stack"
-    >
+    <div className="admin-page-stack">
       <header ref={headerRef} className="admin-page-header">
         <div>
           <Link className="admin-btn-ghost -ml-3 mb-2" to="/admin/offers">
@@ -572,13 +706,19 @@ function OfferForm({
               : savedId
                 ? "Your working copy is saved."
                 : "Start with the buyer. Build the page. Make the next step clear."}
+            {unpublishedDraft && (
+              <span className="admin-badge ml-2 align-middle">
+                Draft changes not published
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            type="submit"
+            type="button"
             className="admin-btn-secondary"
             disabled={saving || uploading}
+            onClick={() => void save()}
           >
             {saving ? <Loader2 className="animate-spin" size={16} /> : null}{" "}
             Save draft
@@ -588,7 +728,7 @@ function OfferForm({
               type="button"
               className="admin-btn-primary"
               disabled={saving || uploading || staleDraft}
-              onClick={() => void save(undefined, true)}
+              onClick={requestPublish}
             >
               Publish changes
             </button>
@@ -610,7 +750,8 @@ function OfferForm({
           className="admin-notice border-red-500/40 text-red-600 dark:text-red-300"
         >
           {error}
-          {initial && (
+          <OfferIssueList issues={issues} onGo={setStep} />
+          {initial && !issues.length && (
             <button
               type="button"
               className="admin-btn-ghost ml-3"
@@ -945,470 +1086,32 @@ function OfferForm({
                 </label>
               </section>
             </div>
-            <div hidden={step !== "next"} className="space-y-6">
-              {selectedNextOffer.isError && !external && form.nextOffer && (
-                <p className="admin-notice">
-                  The selected follow-up preview could not be loaded.{" "}
-                  <button
-                    type="button"
-                    className="admin-btn-ghost"
-                    onClick={() => void selectedNextOffer.refetch()}
-                  >
-                    Retry follow-up preview
-                  </button>
-                </p>
-              )}
-              <section className="admin-card p-5 space-y-4">
-                <p className="admin-eyebrow">03 · Next step</p>
-                <h2 className="text-xl font-semibold">
-                  One useful result leads to the next
-                </h2>
-                <p className="admin-help">
-                  Offer the extra speed, implementation help or capability your
-                  buyer needs next.
-                </p>
-                <ol className="space-y-2 text-sm">
-                  <li className="rounded-lg bg-violet-500/10 p-3">
-                    1. {form.title || "Your offer"}
-                  </li>
-                  <li className="rounded-lg border border-current/10 p-3">
-                    2. Confirmation and access to the original purchase
-                  </li>
-                  <li className="rounded-lg border border-current/10 p-3">
-                    3.{" "}
-                    {nextChoice
-                      ? `${nextChoice.title} (${nextChoice.status})`
-                      : "Optional follow-up offer"}
-                  </li>
-                </ol>
-                <p className="admin-help">
-                  Accept opens the follow-up checkout. Decline keeps the
-                  original download available.
-                </p>
-              </section>
-              {external ? (
-                <p className="admin-notice">
-                  The destination website handles the next step for external
-                  offers.
-                </p>
-              ) : (
-                <>
-                  <section className="admin-card p-5 md:p-6 space-y-5">
-                    <h2 className="text-lg font-semibold">
-                      Offer a relevant next step
-                    </h2>
-                    <p className="admin-help">
-                      After successful fulfillment, show an optional follow-up.
-                      Visitors can decline and keep their original download. A
-                      paid follow-up always requires a separate checkout.
-                    </p>
-                    {choices.isError && (
-                      <div
-                        role="alert"
-                        className="admin-notice admin-notice-error"
-                      >
-                        Follow-up offers could not be loaded.{" "}
-                        <button
-                          type="button"
-                          className="admin-btn-ghost"
-                          onClick={() => {
-                            void choices.refetch();
-                          }}
-                        >
-                          Try again
-                        </button>
-                      </div>
-                    )}
-                    <label className="block text-sm font-medium">
-                      Follow-up offer
-                      <select
-                        className="admin-input mt-2 w-full"
-                        value={form.nextOffer}
-                        disabled={choices.isPending || choices.isError}
-                        onChange={(event) =>
-                          update("nextOffer", event.target.value)
-                        }
-                      >
-                        <option value="">No follow-up</option>
-                        {choices.data
-                          ?.filter(
-                            (offer) =>
-                              offer.id !== savedId &&
-                              (offer.status !== "archived" ||
-                                offer.id === form.nextOffer),
-                          )
-                          .map((offer) => (
-                            <option key={offer.id} value={offer.id}>
-                              {offer.title} ({offer.status})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    {form.nextOffer && (
-                      <>
-                        <label className="block text-sm font-medium">
-                          Time available after fulfillment, in minutes
-                          <input
-                            type="number"
-                            min={0}
-                            max={10080}
-                            step={1}
-                            className="admin-input mt-2 w-full"
-                            value={form.window}
-                            onChange={(event) =>
-                              update("window", event.target.value)
-                            }
-                          />
-                          <span className="admin-help block mt-2">
-                            0 means no timer. Otherwise use 30–10,080 minutes
-                            (up to seven days). The deadline starts after the
-                            original order is fulfilled and does not reset on a
-                            refresh.
-                          </span>
-                        </label>
-                        <p className="admin-help">
-                          The follow-up must be published to appear. Existing
-                          orders keep the follow-up and time window in place
-                          when they were created.
-                        </p>
-                      </>
-                    )}
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={form.funnelOnly}
-                        onChange={(event) =>
-                          setForm((old) => ({
-                            ...old,
-                            funnelOnly: event.target.checked,
-                            ...(event.target.checked
-                              ? { showInShop: false, shopFeatured: false }
-                              : {}),
-                          }))
-                        }
-                      />
-                      <span>
-                        <strong>
-                          Make this offer available only as a follow-up
-                        </strong>
-                        <span className="admin-help block mt-1">
-                          Its page may be viewed, but a qualifying original
-                          claim is required. Link to this offer from another
-                          published offer before sharing your flow.
-                        </span>
-                      </span>
-                    </label>
-                    {form.funnelOnly && (
-                      <p className="admin-help">
-                        {qualifyingParents.length
-                          ? `Linked from: ${qualifyingParents.map((offer) => offer.title).join(", ")}.`
-                          : "No published parent offer is linked yet. Save this offer, then edit its parent and choose it as the follow-up."}
-                      </p>
-                    )}
-                  </section>
-                  {nextChoice && (
-                    <Link
-                      to={`/admin/offers/${nextChoice.id}/edit`}
-                      className="admin-btn-secondary"
-                    >
-                      Edit the selected follow-up <ArrowRight size={15} />
-                    </Link>
-                  )}
-                </>
-              )}
-            </div>
-            <div hidden={step !== "delivery"} className="space-y-6">
-              <section className="admin-card p-5 md:p-6 space-y-4">
-                <h2 className="text-lg font-semibold">
-                  How visitors get this offer
-                </h2>
-                <label className="block text-sm font-medium">
-                  Checkout or delivery method
-                  <select
-                    className="admin-input mt-2 w-full"
-                    value={form.checkoutMode}
-                    onChange={(event) => {
-                      const checkoutMode = event.target
-                        .value as Form["checkoutMode"];
-                      setForm((old) => ({
-                        ...old,
-                        checkoutMode,
-                        ...(checkoutMode === "external"
-                          ? { funnelOnly: false }
-                          : { priceDisplayMode: "fixed" }),
-                      }));
-                    }}
-                  >
-                    <option value="native">Website checkout / download</option>
-                    <option value="external">External / affiliate link</option>
-                  </select>
-                </label>
-                <p className="admin-help">
-                  {external
-                    ? "Send visitors to your sales page, a Stripe Payment Link, or another provider's product. No Stripe keys or uploaded file are needed here."
-                    : "Collect an opt-in for a free download, or use your site's Stripe Checkout for a paid download. You can add a follow-up offer after delivery."}
-                </p>
-              </section>
-
-              {external ? (
-                <>
-                  <section className="admin-card p-5 md:p-6 space-y-5">
-                    <h2 className="text-lg font-semibold">
-                      External destination
-                    </h2>
-                    <label className="block text-sm font-medium">
-                      Destination URL
-                      <input
-                        type="url"
-
-                        maxLength={2048}
-                        className="admin-input mt-2 w-full"
-                        placeholder="https://…"
-                        value={form.externalUrl}
-                        onChange={(event) =>
-                          update("externalUrl", event.target.value)
-                        }
-                      />
-                      <span className="admin-help block mt-2">
-                        Paste the full HTTPS link, including any affiliate or
-                        tracking parameters.
-                      </span>
-                    </label>
-                    <label className="block text-sm font-medium">
-                      Button label{" "}
-                      <span className="admin-help">(optional)</span>
-                      <input
-                        maxLength={80}
-                        className="admin-input mt-2 w-full"
-                        placeholder="View offer"
-                        value={form.externalButtonText}
-                        onChange={(event) =>
-                          update("externalButtonText", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={form.isAffiliate}
-                        onChange={(event) =>
-                          update("isAffiliate", event.target.checked)
-                        }
-                      />
-                      <span>
-                        <strong>This is an affiliate link</strong>
-                        <span className="admin-help block mt-1">
-                          Show an affiliate disclosure beside the button when
-                          you may earn a commission.
-                        </span>
-                      </span>
-                    </label>
-                    {form.isAffiliate && (
-                      <label className="block text-sm font-medium">
-                        Affiliate disclosure{" "}
-                        <span className="admin-help">(optional)</span>
-                        <textarea
-                          rows={3}
-                          maxLength={1000}
-                          className="admin-input mt-2 w-full"
-                          value={form.affiliateDisclosure}
-                          onChange={(event) =>
-                            update("affiliateDisclosure", event.target.value)
-                          }
-                          placeholder="Leave blank to use the standard affiliate disclosure."
-                        />
-                        <span className="admin-help block mt-2">
-                          Your disclosure appears beside the button. Leave this
-                          blank to use the standard affiliate disclosure.
-                        </span>
-                      </label>
-                    )}
-                    <p className="admin-help">
-                      Checkout, opt-ins, delivery, and any upsells happen on the
-                      destination site. This listing does not create orders or
-                      leads here and cannot be part of a website download
-                      funnel. If an existing offer is used as a follow-up,
-                      create a new external listing instead.
-                    </p>
-                  </section>
-                </>
-              ) : (
-                <>
-                  <section className="admin-card p-5 md:p-6 space-y-4">
-                    <h2 className="text-lg font-semibold">Private download</h2>
-                    <p className="admin-help">
-                      Customers receive a download button on their confirmation
-                      page. Files are private and download links are temporary.
-                      Delivery email availability is checked in Offers setup.
-                    </p>
-                    {form.assetName && (
-                      <div className="admin-notice flex items-start gap-3">
-                        <FileText size={20} className="shrink-0 mt-1" />
-                        <div className="min-w-0">
-                          <p className="font-medium break-all">
-                            {form.assetName}
-                          </p>
-                          <p className="admin-help mt-1">
-                            {dirty
-                              ? "Save to apply any file changes."
-                              : "Current file for new claims."}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    <label className="block text-sm font-medium">
-                      <span className="flex items-center gap-2">
-                        <Upload size={16} />{" "}
-                        {form.assetName
-                          ? "Upload a replacement"
-                          : "Upload the resource"}
-                      </span>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept=".pdf,.zip,.epub,.txt,.md"
-                        className="admin-input mt-3 w-full"
-                        onChange={(event) => {
-                          void upload(event.target.files?.[0]);
-                        }}
-                      />
-                      <span className="admin-help block mt-2">
-                        PDF, ZIP, EPUB, TXT, or Markdown · maximum 25 MB.
-                        Replacements are saved as new versions; files already
-                        purchased are preserved.
-                      </span>
-                    </label>
-                    {uploading && (
-                      <p role="status" className="admin-help flex gap-2">
-                        <Loader2 size={16} className="animate-spin" /> Uploading
-                        privately…
-                      </p>
-                    )}
-                    <label className="block text-sm font-medium">
-                      Confirmation message
-                      <textarea
-                        className="admin-input mt-2 w-full"
-                        rows={3}
-                        maxLength={2000}
-                        value={form.thankYou}
-                        onChange={(event) =>
-                          update("thankYou", event.target.value)
-                        }
-                      />
-                    </label>
-                  </section>
-                </>
-              )}
-              <section className="admin-card p-5 space-y-5">
-                <h2 className="text-lg font-semibold">Price & availability</h2>
-                <label className="block text-sm font-medium">
-                  Offer type
-                  <select
-                    className="admin-input mt-2 w-full"
-                    value={form.kind}
-                    onChange={(event) =>
-                      update("kind", event.target.value as Form["kind"])
-                    }
-                  >
-                    <option value="free">
-                      {external ? "Free offer" : "Free download"}
-                    </option>
-                    <option value="paid">
-                      {external ? "Paid offer" : "Paid digital product"}
-                    </option>
-                  </select>
-                </label>
-                {form.kind === "paid" && (
-                  <>
-                    {external && (
-                      <label className="block text-sm font-medium">
-                        Price shown in Shop
-                        <select
-                          className="admin-input mt-2 w-full"
-                          value={form.priceDisplayMode}
-                          onChange={(event) =>
-                            update(
-                              "priceDisplayMode",
-                              event.target.value as Form["priceDisplayMode"],
-                            )
-                          }
-                        >
-                          <option value="fixed">Show a specific price</option>
-                          <option value="provider">
-                            View current pricing on destination
-                          </option>
-                        </select>
-                        <span className="admin-help block mt-2">
-                          Use current pricing for subscriptions, changing
-                          promotions, or products with several plans.
-                        </span>
-                      </label>
-                    )}
-                    {(!external || form.priceDisplayMode === "fixed") && (
-                      <div className="grid grid-cols-[1fr_100px] gap-3">
-                        <label className="block text-sm font-medium">
-                          Price
-                          <input
-                            required
-                            inputMode="decimal"
-                            className="admin-input mt-2 w-full"
-                            placeholder="19.00"
-                            value={form.price}
-                            onChange={(event) =>
-                              update("price", event.target.value)
-                            }
-                          />
-                        </label>
-                        <label className="block text-sm font-medium">
-                          Currency
-                          <select
-                            className="admin-input mt-2 w-full"
-                            value={form.currency}
-                            onChange={(event) =>
-                              update("currency", event.target.value)
-                            }
-                          >
-                            {["usd", "cad", "eur", "gbp", "aud"].map(
-                              (currency) => (
-                                <option key={currency} value={currency}>
-                                  {currency.toUpperCase()}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-                      </div>
-                    )}
-                    <p className="admin-help">
-                      {external
-                        ? form.priceDisplayMode === "provider"
-                          ? "The Shop shows “View current pricing”. Visitors confirm the price and terms on the destination site."
-                          : "This is a display price. Keep it in sync with the destination; checkout and final terms are handled there."
-                        : "One-time payment through Stripe Checkout. Price is stored exactly to the cent; no recurring or automatic charges."}
-                    </p>
-                    {!external && (
-                      <div className="admin-notice text-sm">
-                        {health.isPending
-                          ? "Checking payment and download-email setup…"
-                          : health.isError
-                            ? "Checkout readiness is unknown. Check payment and download-email setup before sharing a paid offer."
-                            : health.data?.payments_ready
-                              ? `Stripe ${health.data.mode} and download-email configuration are present. A real checkout or email delivery has not been verified by this check.`
-                              : "You can save or publish this page now. Checkout stays unavailable until Stripe and download-email setup are complete."}
-                        <Link
-                          to="/admin/offers?tab=setup"
-                          className="underline block mt-2"
-                        >
-                          Offers setup
-                        </Link>
-                      </div>
-                    )}
-                  </>
-                )}
-              </section>
-            </div>
+            <OfferNextStep
+              active={step === "next"}
+              form={form}
+              external={external}
+              savedId={savedId}
+              choices={choices.data}
+              choicesPending={choices.isPending}
+              choicesError={choices.isError}
+              previewError={selectedNextOffer.isError}
+              nextChoice={nextChoice}
+              qualifyingParents={qualifyingParents}
+              onChange={patchForm}
+              onRetryChoices={() => void choices.refetch()}
+              onRetryPreview={() => void selectedNextOffer.refetch()}
+            />
+            <OfferDeliveryStep
+              active={step === "delivery"}
+              form={form}
+              external={external}
+              dirty={dirty}
+              uploading={uploading}
+              fileRef={fileRef}
+              health={health}
+              onChange={patchForm}
+              onUpload={(file) => void upload(file)}
+            />
             <div hidden={step !== "review"} className="space-y-6">
               <section className="admin-card p-5 space-y-5">
                 <div>
@@ -1423,10 +1126,10 @@ function OfferForm({
                 </div>
                 <div className="rounded-xl border border-current/10 p-4">
                   <p className="font-semibold text-sm">Publication checks</p>
-                  {publishProblem ? (
-                    <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
-                      {publishProblem}
-                    </p>
+                  {publishIssues.length ? (
+                    <div className="text-amber-700 dark:text-amber-300">
+                      <OfferIssueList issues={publishIssues} onGo={setStep} />
+                    </div>
                   ) : (
                     <p className="mt-2 flex items-center gap-2 text-sm">
                       <Check size={16} /> Required offer details are complete.
@@ -1446,10 +1149,21 @@ function OfferForm({
                       appear for visitors.
                     </p>
                   )}
-                  <p className="admin-help mt-2">
-                    Public status: {savedStatus}. Archiving is available from
-                    All offers.
-                  </p>
+                  <OfferReviewStatus
+                    offer={
+                      savedId && version.current
+                        ? {
+                            id: savedId,
+                            status: savedStatus,
+                            updated_at: version.current,
+                            title: liveOffer.current?.title || form.title,
+                          }
+                        : null
+                    }
+                    disabled={saving || uploading}
+                    onChanged={statusChanged}
+                    onError={setError}
+                  />
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">
@@ -1479,12 +1193,7 @@ function OfferForm({
                   )}
                 </div>
               </section>
-              <OfferShopSettings
-                form={form}
-                onChange={(changes) =>
-                  setForm((old) => ({ ...old, ...changes }))
-                }
-              />
+              <OfferShopSettings form={form} onChange={patchForm} />
               <OfferBuilderShare
                 savedId={savedId}
                 savedSlug={savedSlug}
@@ -1494,49 +1203,12 @@ function OfferForm({
                 funnelOnly={!external && form.funnelOnly}
                 onNotice={setNotice}
               />
-              <section className="admin-card p-5 space-y-4">
-                <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <History size={18} /> Saved revisions
-                </h2>
-                <p className="admin-help">
-                  Restore a revision into your working copy. The public page
-                  changes only when you publish.
-                </p>
-                {history.length ? (
-                  <ul className="space-y-3">
-                    {history.map((item) => (
-                      <li
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-current/10 p-3"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">
-                            Revision {item.version} ·{" "}
-                            {item.published ? "Published" : "Draft"}
-                          </p>
-                          <time
-                            className="admin-help"
-                            dateTime={item.created_at}
-                          >
-                            {new Date(item.created_at).toLocaleString()}
-                          </time>
-                        </div>
-                        <button
-                          type="button"
-                          className="admin-btn-secondary"
-                          onClick={() => restoreDocument(item.document)}
-                        >
-                          Restore revision {item.version}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="admin-help">
-                    Your first saved draft starts the revision history.
-                  </p>
-                )}
-              </section>
+              <OfferRevisionHistory
+                history={history}
+                dirty={dirty}
+                compare={revisionChanges}
+                onRestore={restoreDocument}
+              />
             </div>
             <div className="flex items-center justify-between gap-3">
               <button
@@ -1561,6 +1233,25 @@ function OfferForm({
           </div>
         </div>
       </fieldset>
-    </form>
+      <OfferConfirmDialog
+        open={confirmPublish}
+        title="Publish these changes?"
+        description="Visitors see the new pages, price, delivery and follow-up as soon as you publish. Existing orders keep their original price and download."
+        warning={
+          liveOffer.current?.status === "archived"
+            ? "This offer is archived. Publishing makes it public again and returns it to the Shop if Shop visibility is on."
+            : undefined
+        }
+        changes={publishChanges}
+        noChanges="Price, page URL, download file, checkout and follow-up stay the same. Your page copy and other settings will be updated."
+        confirmLabel={
+          liveOffer.current?.status === "archived"
+            ? "Publish archived offer"
+            : "Publish now"
+        }
+        onConfirm={() => void save(true)}
+        onCancel={() => setConfirmPublish(false)}
+      />
+    </div>
   );
 }

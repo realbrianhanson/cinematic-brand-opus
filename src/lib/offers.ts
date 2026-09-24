@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { OfferPresentation } from "./offerBuilder";
+import { validOfferUrl, type OfferPresentation } from "./offerBuilder";
 
 export type OfferKind = "free" | "paid";
 export type OfferCheckoutMode = "native" | "external";
@@ -120,24 +120,11 @@ export function offerPrice(
 
 /** Outbound destinations are public links; never fetch them or create access tokens. */
 export function safeExternalOfferUrl(raw: unknown): string | null {
-  if (
-    typeof raw !== "string" ||
-    !raw ||
-    raw.length > 2048 ||
-    !/^https:\/\/[^/?#]+/i.test(raw) ||
-    /[\s\p{Cc}\\]/u.test(raw)
-  )
-    return null;
+  if (typeof raw !== "string" || !validOfferUrl(raw)) return null;
   try {
-    const url = new URL(raw);
-    if (
-      url.protocol !== "https:" ||
-      !url.hostname ||
-      url.username ||
-      url.password
-    )
-      return null;
-    return url.href;
+    const href = new URL(raw).href;
+    // Normalisation must not produce a value the database would reject.
+    return validOfferUrl(href) ? href : null;
   } catch {
     return null;
   }

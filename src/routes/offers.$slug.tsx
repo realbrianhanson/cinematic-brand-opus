@@ -6,6 +6,7 @@ import { getRelatedShopOffers } from "@/lib/shop.functions";
 import { buildPageHead } from "@/lib/seoHead";
 import OfferLanding from "@/pages/OfferLanding";
 import { readPresentation } from "@/lib/offerBuilder";
+import { offerSeoText } from "@/lib/offersSeo";
 import OfferShell from "@/components/OfferShell";
 import PublicRouteError from "@/components/PublicRouteError";
 
@@ -30,11 +31,7 @@ export const Route = createFileRoute("/offers/$slug")({
       };
     const { offer } = loaderData;
     return buildPageHead({
-      title:
-        readPresentation(offer.presentation)?.landing.headline || offer.title,
-      description:
-        readPresentation(offer.presentation)?.landing.subheadline ||
-        offer.summary,
+      ...offerSeoText(offer),
       url: absoluteUrl(`/offers/${offer.slug}`, configFromMatches(matches)),
       image: offer.cover_url,
       type: "website",

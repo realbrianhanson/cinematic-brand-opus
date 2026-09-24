@@ -4,9 +4,27 @@
  * Reads the public catalog with the publishable key (RLS), exactly like the shop
  * pages do, so the assistant can only describe products visitors can already see.
  */
+import { createOpenAI } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText } from "ai";
+import {
+  createLovableAiGatewayRunIdFetch,
+  getLovableAiGatewayResponseHeaders,
+  getLovableAiGatewayRunId,
+  withLovableAiGatewayRunIdHeader,
+} from "./ai-gateway.server";
 import { createPublicServerClient } from "./publicData.server";
 import { offerPrice } from "./offers";
+import type { SiteChatMessage } from "./siteChat";
+import {
+  createSiteChatHandler,
+  siteChatAllowedOrigins,
+} from "./siteChatGuard.server";
 import { siteConfig } from "@/config/site";
+
+const SITE_CHAT_MODEL = "openai/gpt-6-astra";
+/** Answers are two or three sentences; this caps the cost of any one reply. */
+const SITE_CHAT_MAX_OUTPUT_TOKENS = 600;
+const SITE_CHAT_TIMEOUT_MS = 60_000;
 
 const CATALOG_COLUMNS =
   "slug,title,summary,kind,checkout_mode,price_display_mode,amount_minor,currency,shop_category";
@@ -75,3 +93,81 @@ export function buildSystemPrompt(productContext: string): string {
       : "No product catalog is available right now, so do not describe specific products. Point visitors to /shop and invite them to email with questions.",
   ].join("\n");
 }
+
+/** Durable limiter: the shared service-role-only `newsletter_rate_limit_hit` RPC. */
+async function rateLimitSiteChat(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { supabaseAdmin } =
+    await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .rpc("newsletter_rate_limit_hit", {
+      _key: key,
+      _limit: limit,
+      _window_seconds: windowSeconds,
+    })
+    .abortSignal(AbortSignal.timeout(5000));
+  if (error) throw new Error(`rate limit RPC failed: ${error.message}`);
+  return data === true;
+}
+
+async function streamSiteChatReply(
+  messages: SiteChatMessage[],
+  request: Request,
+): Promise<Response> {
+  const key = process.env["LOVABLE_API_KEY"] as string;
+  const system = buildSystemPrompt(await loadProductContext());
+  const initialRunId = getLovableAiGatewayRunId(request);
+  const runIdFetch = createLovableAiGatewayRunIdFetch(initialRunId);
+  const lovable = createOpenAI({
+    baseURL: "https://ai.gateway.lovable.dev/v1",
+    apiKey: key,
+    headers: {
+      "Lovable-API-Key": key,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+    },
+    fetch: runIdFetch.fetch,
+  });
+
+  const result = streamText({
+    model: lovable.responses(SITE_CHAT_MODEL),
+    system,
+    // Visitors can never supply or override the instructions.
+    allowSystemInMessages: false,
+    messages: await convertToModelMessages(messages),
+    maxOutputTokens: SITE_CHAT_MAX_OUTPUT_TOKENS,
+    abortSignal: AbortSignal.any([
+      request.signal,
+      AbortSignal.timeout(SITE_CHAT_TIMEOUT_MS),
+    ]),
+    providerOptions: {
+      openai: {
+        forceReasoning: true,
+        reasoningEffort: "low",
+        store: false,
+      },
+    },
+  });
+
+  return withLovableAiGatewayRunIdHeader(
+    result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      sendReasoning: false,
+      headers: getLovableAiGatewayResponseHeaders(
+        { "Cache-Control": "no-store" },
+        { ...(initialRunId ? { "X-Lovable-AIG-Run-ID": initialRunId } : {}) },
+      ),
+    }),
+    runIdFetch,
+  );
+}
+
+/** POST /api/chat: every guard runs before any model call (see siteChatGuard). */
+export const handleSiteChatRequest = createSiteChatHandler({
+  allowedOrigins: siteChatAllowedOrigins(siteConfig.identity.siteUrl),
+  isConfigured: () => Boolean(process.env["LOVABLE_API_KEY"]),
+  rateLimit: rateLimitSiteChat,
+  stream: streamSiteChatReply,
+});

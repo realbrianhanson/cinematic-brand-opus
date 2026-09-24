@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { OfferProof } from "@/lib/offerBuilder";
+import { useEffect, useRef, useState } from "react";
+import { validOfferUrl, type OfferProof } from "@/lib/offerBuilder";
 import {
   deleteOfferProof,
   listOfferProof,
@@ -35,6 +35,14 @@ export default function OfferProofLibrary({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const editorKey = editing ? editing.id || "new" : "";
+  // Open the editor where the admin is looking and put focus in it.
+  useEffect(() => {
+    if (!editorKey) return;
+    titleRef.current?.scrollIntoView?.({ block: "center" });
+    titleRef.current?.focus();
+  }, [editorKey]);
   useEffect(() => {
     let active = true;
     void listOfferProof()
@@ -65,22 +73,11 @@ export default function OfferProofLibrary({
       );
       return;
     }
-    if (editing.source_url) {
-      try {
-        const url = new URL(editing.source_url);
-        if (
-          url.protocol !== "https:" ||
-          url.username ||
-          url.password ||
-          /[\s\\]/.test(editing.source_url)
-        )
-          throw new Error();
-      } catch {
-        setError(
-          "Use a complete HTTPS source URL without credentials or spaces.",
-        );
-        return;
-      }
+    if (editing.source_url && !validOfferUrl(editing.source_url)) {
+      setError(
+        "Source URL: use a complete HTTPS address with a valid domain and no spaces, username or password.",
+      );
+      return;
     }
     setBusy(true);
     setError("");
@@ -131,6 +128,126 @@ export default function OfferProofLibrary({
       setBusy(false);
     }
   }
+  const editor = editing ? (
+    <div
+      className="space-y-4 rounded border border-current/20 p-4"
+      role="group"
+      aria-label="Evidence editor"
+      onKeyDown={(event) => {
+        // Enter in a single-line field saves this evidence, never the offer.
+        if (
+          event.key === "Enter" &&
+          event.target instanceof HTMLInputElement &&
+          event.target.type !== "checkbox"
+        ) {
+          event.preventDefault();
+          void save();
+        }
+      }}
+    >
+      <h4 className="font-semibold">
+        {editing.id ? "Edit evidence" : "New evidence"}
+      </h4>
+      <label className="block text-sm">
+        Evidence title
+        <input
+          ref={titleRef}
+          className="admin-input mt-2 w-full"
+          maxLength={200}
+          value={editing.title}
+          onChange={(event) => update("title", event.target.value)}
+          disabled={busy}
+        />
+      </label>
+      <label className="block text-sm">
+        Evidence type
+        <select
+          className="admin-input mt-2 w-full"
+          value={editing.kind}
+          onChange={(event) =>
+            update("kind", event.target.value as OfferProof["kind"])
+          }
+          disabled={busy}
+        >
+          <option value="testimonial">Testimonial</option>
+          <option value="demonstration">Demonstration</option>
+          <option value="fact">Documented fact</option>
+        </select>
+      </label>
+      <label className="block text-sm">
+        Exact quote or documented description
+        <textarea
+          className="admin-input mt-2 w-full"
+          rows={5}
+          maxLength={6000}
+          value={editing.content}
+          onChange={(event) => update("content", event.target.value)}
+          disabled={busy}
+        />
+      </label>
+      <label className="block text-sm">
+        Public attribution
+        <input
+          className="admin-input mt-2 w-full"
+          maxLength={500}
+          value={editing.attribution}
+          onChange={(event) => update("attribution", event.target.value)}
+          disabled={busy}
+        />
+      </label>
+      <label className="block text-sm">
+        Source URL <span className="opacity-60">(private reference)</span>
+        <input
+          type="url"
+          className="admin-input mt-2 w-full"
+          maxLength={2048}
+          value={editing.source_url}
+          onChange={(event) => update("source_url", event.target.value)}
+          disabled={busy}
+        />
+      </label>
+      <label className="block text-sm">
+        Context and permissions{" "}
+        <span className="opacity-60">(private notes)</span>
+        <textarea
+          className="admin-input mt-2 w-full"
+          rows={3}
+          maxLength={3000}
+          value={editing.notes}
+          onChange={(event) => update("notes", event.target.value)}
+          disabled={busy}
+        />
+      </label>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={editing.approved}
+          onChange={(event) => update("approved", event.target.checked)}
+          disabled={busy}
+        />
+        I have checked this evidence and approved its wording and attribution
+        for use.
+      </label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="admin-btn-primary"
+          disabled={busy}
+          onClick={() => void save()}
+        >
+          {busy ? "Saving…" : "Save evidence"}
+        </button>
+        <button
+          type="button"
+          className="admin-btn-ghost"
+          disabled={busy}
+          onClick={() => setEditing(null)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  ) : null;
   return (
     <section className="admin-card space-y-4 p-5" aria-label="Proof library">
       <div className="flex items-center justify-between gap-3">
@@ -168,193 +285,91 @@ export default function OfferProofLibrary({
           {notice}
         </p>
       )}
+      {editing && !editing.id && editor}
       {!loading && !items.length && (
         <p className="text-sm opacity-70">
           No saved evidence yet. A product demonstration can be useful proof
           even before you have testimonials.
         </p>
       )}
-      {items.map((item) => (
-        <article
-          key={item.id}
-          className="space-y-3 rounded border border-current/15 p-4"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h4 className="font-semibold">{item.title}</h4>
-            <span className="text-xs">
-              {item.approved ? "Approved" : "Needs review"}
-            </span>
-          </div>
-          <p className="whitespace-pre-line text-sm">{item.content}</p>
-          {item.attribution && (
-            <p className="text-xs opacity-75">{item.attribution}</p>
-          )}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(item.id)}
-              disabled={
-                busy ||
-                !item.approved ||
-                (!selectedIds.includes(item.id) && selectedIds.length >= 30)
-              }
-              onChange={(event) =>
-                onChange(
-                  event.target.checked
-                    ? [...selectedIds, item.id]
-                    : selectedIds.filter((id) => id !== item.id),
-                )
-              }
-            />
-            Use as evidence for this offer
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="admin-btn-secondary"
-              disabled={busy || !item.approved}
-              onClick={() => {
-                onInsert({ ...item, source_url: "", notes: "" });
-                setNotice(
-                  "Approved evidence inserted into the working page. Source notes stay in the private library.",
-                );
-              }}
-            >
-              Insert into page
-            </button>
-            <button
-              type="button"
-              className="admin-btn-ghost"
-              disabled={busy}
-              onClick={() => {
-                const {
-                  created_at: _created,
-                  updated_at: _updated,
-                  ...input
-                } = item;
-                setEditing(input);
-                setError("");
-              }}
-            >
-              Edit evidence
-            </button>
-            <button
-              type="button"
-              className="admin-btn-ghost"
-              disabled={busy}
-              onClick={() => void remove(item)}
-            >
-              Remove
-            </button>
-          </div>
-        </article>
-      ))}
-      {editing && (
-        <div
-          className="space-y-4 rounded border border-current/20 p-4"
-          aria-label="Evidence editor"
-        >
-          <h4 className="font-semibold">
-            {editing.id ? "Edit evidence" : "New evidence"}
-          </h4>
-          <label className="block text-sm">
-            Evidence title
-            <input
-              className="admin-input mt-2 w-full"
-              maxLength={200}
-              value={editing.title}
-              onChange={(event) => update("title", event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <label className="block text-sm">
-            Evidence type
-            <select
-              className="admin-input mt-2 w-full"
-              value={editing.kind}
-              onChange={(event) =>
-                update("kind", event.target.value as OfferProof["kind"])
-              }
-              disabled={busy}
-            >
-              <option value="testimonial">Testimonial</option>
-              <option value="demonstration">Demonstration</option>
-              <option value="fact">Documented fact</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            Exact quote or documented description
-            <textarea
-              className="admin-input mt-2 w-full"
-              rows={5}
-              maxLength={6000}
-              value={editing.content}
-              onChange={(event) => update("content", event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <label className="block text-sm">
-            Public attribution
-            <input
-              className="admin-input mt-2 w-full"
-              maxLength={500}
-              value={editing.attribution}
-              onChange={(event) => update("attribution", event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <label className="block text-sm">
-            Source URL <span className="opacity-60">(private reference)</span>
-            <input
-              type="url"
-              className="admin-input mt-2 w-full"
-              maxLength={2048}
-              value={editing.source_url}
-              onChange={(event) => update("source_url", event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <label className="block text-sm">
-            Context and permissions{" "}
-            <span className="opacity-60">(private notes)</span>
-            <textarea
-              className="admin-input mt-2 w-full"
-              rows={3}
-              maxLength={3000}
-              value={editing.notes}
-              onChange={(event) => update("notes", event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={editing.approved}
-              onChange={(event) => update("approved", event.target.checked)}
-              disabled={busy}
-            />
-            I have checked this evidence and approved its wording and
-            attribution for use.
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="admin-btn-primary"
-              disabled={busy}
-              onClick={() => void save()}
-            >
-              {busy ? "Saving…" : "Save evidence"}
-            </button>
-            <button
-              type="button"
-              className="admin-btn-ghost"
-              disabled={busy}
-              onClick={() => setEditing(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      {items.map((item) =>
+        editing?.id === item.id ? (
+          <div key={item.id}>{editor}</div>
+        ) : (
+          <article
+            key={item.id}
+            className="space-y-3 rounded border border-current/15 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h4 className="font-semibold">{item.title}</h4>
+              <span className="text-xs">
+                {item.approved ? "Approved" : "Needs review"}
+              </span>
+            </div>
+            <p className="whitespace-pre-line text-sm">{item.content}</p>
+            {item.attribution && (
+              <p className="text-xs opacity-75">{item.attribution}</p>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(item.id)}
+                disabled={
+                  busy ||
+                  !item.approved ||
+                  (!selectedIds.includes(item.id) && selectedIds.length >= 30)
+                }
+                onChange={(event) =>
+                  onChange(
+                    event.target.checked
+                      ? [...selectedIds, item.id]
+                      : selectedIds.filter((id) => id !== item.id),
+                  )
+                }
+              />
+              Use as evidence for this offer
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                disabled={busy || !item.approved}
+                onClick={() => {
+                  onInsert({ ...item, source_url: "", notes: "" });
+                  setNotice(
+                    "Approved evidence inserted into the working page. Source notes stay in the private library.",
+                  );
+                }}
+              >
+                Insert into page
+              </button>
+              <button
+                type="button"
+                className="admin-btn-ghost"
+                disabled={busy}
+                onClick={() => {
+                  const {
+                    created_at: _created,
+                    updated_at: _updated,
+                    ...input
+                  } = item;
+                  setEditing(input);
+                  setError("");
+                }}
+              >
+                Edit evidence
+              </button>
+              <button
+                type="button"
+                className="admin-btn-ghost"
+                disabled={busy}
+                onClick={() => void remove(item)}
+              >
+                Remove
+              </button>
+            </div>
+          </article>
+        ),
       )}
     </section>
   );
