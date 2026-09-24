@@ -395,7 +395,7 @@ describe("offer visitor journey", () => {
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     });
-    expect(screen.getByRole("heading", { name: /USD.*7\.00/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "$7" })).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
   });
   it("renders custom affiliate text safely and disables outbound navigation in previews", () => {
@@ -461,9 +461,24 @@ describe("offer visitor journey", () => {
         price_display_mode: "provider",
       }),
     ).toBe("View current pricing");
-    expect(offerPrice({ ...offer, kind: "paid", amount_minor: 700 })).toMatch(
-      /USD.*7\.00/,
+    expect(offerPrice({ ...offer, kind: "paid", amount_minor: 700 })).toBe(
+      "$7",
     );
+    expect(offerPrice({ ...offer, kind: "paid", amount_minor: 750 })).toBe(
+      "$7.50",
+    );
+    expect(offerPrice({ ...offer, kind: "paid", amount_minor: 1234567 })).toBe(
+      "$12,345.67",
+    );
+    // Other currencies keep the unambiguous ISO code.
+    expect(
+      offerPrice({
+        ...offer,
+        kind: "paid",
+        amount_minor: 700,
+        currency: "cad",
+      }),
+    ).toMatch(/CAD.*7\.00/);
     expect(offerPrice(access.order)).toBe("Free");
   });
   it("creates unpredictable access tokens and rejects unsafe redirects", () => {

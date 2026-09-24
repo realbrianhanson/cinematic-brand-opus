@@ -103,6 +103,19 @@ describe("ContentTypesManager delete", () => {
       return { data: [], error: null };
     };
 
+  it("uses the sidebar label as its heading and lets the table scroll on phones", async () => {
+    h.state.respond = listRespond(0);
+    wrap(<ContentTypesManager />);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Content formats" }),
+    ).toBeTruthy();
+    const table = await screen.findByRole("table");
+    const card = table.parentElement as HTMLElement;
+    expect(card.className).toContain("overflow-x-auto");
+    expect(card.style.overflow).toBe("");
+    expect(table.style.minWidth).toBe("760px");
+  });
+
   it("refuses to delete a format that pages use and offers Deactivate instead", async () => {
     h.state.respond = listRespond(6);
     wrap(<ContentTypesManager />);

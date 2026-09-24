@@ -70,7 +70,7 @@ export default function AdminLayout() {
                 <item.icon size={18} />
                 <span>
                   <strong className="block">{item.label}</strong>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground in-data-highlighted:text-accent-foreground">
                     {item.description}
                   </span>
                 </span>
@@ -96,13 +96,13 @@ export default function AdminLayout() {
             setOpen(false);
             setSearchOpen(true);
           }}
-          aria-label="Search workspace"
-          title="Search workspace (⌘ / Ctrl + K)"
+          aria-label="Go to page"
+          title="Go to page (⌘ / Ctrl + K)"
         >
-          <Search size={17} />
+          <Search size={17} aria-hidden="true" />
           {!compact && (
             <>
-              <span>Find anything</span>
+              <span aria-hidden="true">Go to page</span>
               <kbd>⌘ K</kbd>
             </>
           )}
@@ -176,6 +176,9 @@ export default function AdminLayout() {
       data-admin-shell
       className={`admin-shell min-h-screen ${prefs.theme === "light" ? "admin-light" : ""}`}
     >
+      <a href="#admin-main" className="skip-to-content">
+        Skip to content
+      </a>
       <aside
         className="hidden lg:block admin-sidebar"
         style={{ width: collapsed ? 88 : 244 }}
@@ -204,7 +207,8 @@ export default function AdminLayout() {
         <button
           className="admin-btn-ghost"
           onClick={() => setSearchOpen(true)}
-          aria-label="Search workspace"
+          aria-label="Go to page"
+          title="Go to page (⌘ / Ctrl + K)"
         >
           <Search size={20} />
         </button>
@@ -220,6 +224,8 @@ export default function AdminLayout() {
         </SheetContent>
       </Sheet>
       <main
+        id="admin-main"
+        tabIndex={-1}
         className="admin-main"
         style={
           {

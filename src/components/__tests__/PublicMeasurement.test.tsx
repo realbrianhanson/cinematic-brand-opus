@@ -67,6 +67,19 @@ afterEach(() => {
 const payloads = () =>
   send.mock.calls.map(([, options]) => JSON.parse(options.body));
 describe("optional public measurement", () => {
+  it("first appears as a small bottom-left pill that keeps its explanation for screen readers", async () => {
+    render(<PublicMeasurement />);
+    const banner = await screen.findByRole("region", {
+      name: "Website measurement preferences",
+    });
+    expect(banner.className).toMatch(/\bbottom-3\b/);
+    expect(banner.className).toMatch(/\bleft-3\b/);
+    expect(banner.className).not.toMatch(/\bright-3\b|\bmx-auto\b/);
+    expect(banner.className).toMatch(/\brounded-3xl\b/);
+    expect(screen.getByText(/Optional measurement helps us/).className).toBe(
+      "sr-only",
+    );
+  });
   it("sends nothing before consent and never stores contact details or URL tokens", async () => {
     history.replaceState(
       null,

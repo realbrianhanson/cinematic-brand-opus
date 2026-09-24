@@ -157,27 +157,40 @@ export default function PublicMeasurement() {
     setOpened(false);
   };
   return (
+    // First visit: a small bottom-left pill that stays clear of the hero
+    // buttons (the explanation stays available to screen readers and on the
+    // Privacy details page). Reopened from the footer: the full card.
     <section
       aria-label="Website measurement preferences"
-      className="fixed bottom-3 left-3 right-3 z-[90] mx-auto max-h-[calc(100dvh-1.5rem)] overflow-y-auto max-w-xl rounded-xl border border-white/20 bg-[#121318] p-5 text-white shadow-2xl font-body"
+      className={`fixed bottom-3 left-3 z-[90] max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-white/20 bg-[#121318] text-white shadow-2xl font-body ${
+        opened
+          ? "w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl p-4"
+          : "flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-3xl px-4 py-2"
+      }`}
     >
-      <h2 className="text-base font-semibold">Help improve this website?</h2>
-      <p className="mt-2 text-sm leading-relaxed text-white/80">
+      <h2 className="text-xs font-semibold">Help improve this website?</h2>
+      <p
+        className={
+          opened ? "mt-1.5 text-xs leading-relaxed text-white/80" : "sr-only"
+        }
+      >
         Optional measurement helps us understand which pages and offers are
         useful. It uses a short-lived browser session and excludes names and
         emails.
       </p>
       {privacySignal && (
-        <p className="mt-2 text-sm text-white/80">
+        <p className="mt-1.5 text-xs text-white/80">
           Your browser’s privacy signal keeps optional measurement off.
         </p>
       )}
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div
+        className={`flex flex-wrap items-center gap-2 ${opened ? "mt-3" : ""}`}
+      >
         {!privacySignal && (
           <button
             type="button"
             onClick={() => choose("allow")}
-            className="min-h-11 rounded border border-white/40 px-5 py-2 text-sm font-semibold hover:bg-white/10"
+            className="min-h-10 rounded-full border border-white/40 px-3 py-1.5 text-xs font-semibold hover:bg-white/10"
           >
             Allow measurement
           </button>
@@ -185,7 +198,7 @@ export default function PublicMeasurement() {
         <button
           type="button"
           onClick={() => choose("decline")}
-          className="min-h-11 rounded border border-white/40 px-5 py-2 text-sm font-semibold hover:bg-white/10"
+          className="min-h-10 rounded-full border border-white/40 px-3 py-1.5 text-xs font-semibold hover:bg-white/10"
         >
           {choice === "allow" ? "Turn measurement off" : "No thanks"}
         </button>
@@ -193,14 +206,14 @@ export default function PublicMeasurement() {
           <button
             type="button"
             onClick={() => setOpened(false)}
-            className="min-h-11 px-2 text-sm underline underline-offset-4"
+            className="min-h-10 px-2 text-xs underline underline-offset-4"
           >
             Close
           </button>
         )}
         <a
           href="/privacy"
-          className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+          className="inline-flex min-h-10 items-center px-1 text-xs underline underline-offset-4"
         >
           Privacy details
         </a>

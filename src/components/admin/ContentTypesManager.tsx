@@ -212,7 +212,7 @@ const ContentTypesManager = () => {
   return (
     <div>
       <div
-        className="flex items-center justify-between"
+        className="flex flex-wrap items-center justify-between gap-3"
         style={{ marginBottom: 24 }}
       >
         <h1
@@ -223,9 +223,9 @@ const ContentTypesManager = () => {
             color: "hsl(var(--admin-text))",
           }}
         >
-          Content Types
+          Content formats
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(!schemas?.length || schemas.length < 6) && (
             <button
               className="admin-btn-primary font-body"
@@ -293,8 +293,10 @@ const ContentTypesManager = () => {
           No content types yet. Create one to start generating pages.
         </div>
       ) : (
-        <div className="admin-card" style={{ overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="admin-card overflow-x-auto">
+          <table
+            style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}
+          >
             <thead>
               <tr>
                 {[
@@ -419,7 +421,7 @@ const ContentTypesManager = () => {
                   >
                     {pageCounts ? (pageCounts[s.id] ?? 0) : "—"}
                   </td>
-                  <td style={{ padding: "12px 14px" }}>
+                  <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
