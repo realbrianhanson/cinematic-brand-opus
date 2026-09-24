@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const database = vi.hoisted(() => ({ failure: "", requests: [] as string[] }));
+const database = vi.hoisted(() => ({
+  failure: "",
+  requests: [] as string[],
+  columns: {} as Record<string, string>,
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => {
       database.requests.push(table);
       const query = {
-        select: () => query,
+        select: (columns: string) => {
+          database.columns[table] = columns;
+          return query;
+        },
         order: () => query,
         limit: () => query,
         eq: () => query,
@@ -57,5 +64,10 @@ describe("queue snapshot loading", () => {
       auto_publish_daily_cap: 2,
       auto_publish_min_quality: 87,
     });
+  });
+  it("loads each held draft's plain-English hold reason", async () => {
+    await loadContentQueue();
+    expect(database.columns.posts).toMatch(/\bheld_reason\b/);
+    expect(database.columns.posts).toMatch(/\bheld_at\b/);
   });
 });

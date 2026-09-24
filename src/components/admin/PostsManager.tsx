@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import QueryNotice from "./QueryNotice";
+import { heldReasonSentences } from "./manualPublishClient";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,18 +21,48 @@ type Status = (typeof statuses)[number];
 const DELETE_WORD = "DELETE";
 const LIST_KEYS = [
   ["admin-posts"],
+  ["admin-post-review-counts"],
   ["admin-post-stats"],
   ["admin-recent-posts"],
   ["admin-content-queue"],
 ] as const;
-type RowPost = { id: string; title: string; slug: string; status: string };
+type RowPost = {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  contradicted_count?: number | null;
+};
 type RowAction = { kind: "unpublish" | "delete"; post: RowPost };
-type Confirmation = "publish" | RowAction | null;
 type DbError = { code?: string; message?: string };
 class StaleRowError extends Error {}
 
-function isRowAction(value: Confirmation): value is RowAction {
-  return value !== null && value !== "publish";
+/**
+ * Review filters. "Ready to publish" means a draft with no recorded hold; the
+ * full publishing check runs per article in the editor.
+ */
+const VIEWS = {
+  facts: {
+    label: "Needs fact review",
+    help: "Live articles with claims the fact-checker marked as contradicted. Move each one back to draft or correct it",
+  },
+  held: {
+    label: "Held",
+    help: "Articles the publishing checks held back, with the reason",
+  },
+  ready: {
+    label: "Ready to publish",
+    help: "Drafts with no hold recorded. Open one to run the publishing check, then publish it on its own",
+  },
+} as const;
+type View = keyof typeof VIEWS;
+const VIEW_KEYS = Object.keys(VIEWS) as View[];
+
+function contradicted(post: RowPost) {
+  return post.contradicted_count ?? 0;
+}
+function claimsText(n: number) {
+  return `${n} claim${n === 1 ? "" : "s"} the fact-checker marked as contradicted`;
 }
 
 function isPermissionError(error: DbError) {
@@ -94,22 +125,25 @@ function rowSuccessMessage({ kind, post }: RowAction) {
 export default function PostsManager() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const status: Status = statuses.includes(params.get("status") as Status)
-    ? (params.get("status") as Status)
-    : "all";
+  const view: View | null = VIEW_KEYS.includes(params.get("view") as View)
+    ? (params.get("view") as View)
+    : null;
+  const status: Status =
+    !view && statuses.includes(params.get("status") as Status)
+      ? (params.get("status") as Status)
+      : "all";
   const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [from, setFrom] = useState("");
   const [sort, setSort] = useState("updated_at");
   const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   // The last confirmation stays in state while the dialog animates closed so
   // its content does not flash to a different variant.
-  const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [confirmation, setConfirmation] = useState<RowAction | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [typed, setTyped] = useState("");
-  const confirm = (next: Confirmation) => {
+  const confirm = (next: RowAction) => {
     setTyped("");
     setConfirmation(next);
     setDialogOpen(true);
@@ -123,18 +157,23 @@ export default function PostsManager() {
   }, [search]);
   useEffect(() => {
     setPage(0);
-    setSelected(new Set());
-  }, [status, category, from, sort, term]);
+  }, [status, view, category, from, sort, term]);
   const posts = useQuery({
-    queryKey: ["admin-posts", status, category, from, sort, term, page],
+    queryKey: ["admin-posts", status, view, category, from, sort, term, page],
     refetchOnWindowFocus: true,
     queryFn: async () => {
       let query = supabase
         .from("posts")
-        .select("id,title,slug,status,created_at,updated_at,categories(name)", {
-          count: "exact",
-        });
-      if (status !== "all") query = query.eq("status", status);
+        .select(
+          "id,title,slug,status,created_at,updated_at,scheduled_at,contradicted_count,held_reason,held_at,categories(name)",
+          { count: "exact" },
+        );
+      if (view === "facts")
+        query = query.eq("status", "published").gt("contradicted_count", 0);
+      else if (view === "held") query = query.not("held_reason", "is", null);
+      else if (view === "ready")
+        query = query.eq("status", "draft").is("held_reason", null);
+      else if (status !== "all") query = query.eq("status", status);
       if (category) query = query.eq("category_id", category);
       if (from) query = query.gte("created_at", `${from}T00:00:00Z`);
       if (term)
@@ -145,6 +184,26 @@ export default function PostsManager() {
         .range(page * SIZE, (page + 1) * SIZE - 1);
       if (error) throw error;
       return { items: data ?? [], total: count ?? 0 };
+    },
+  });
+  const reviewCounts = useQuery({
+    queryKey: ["admin-post-review-counts"],
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const count = () =>
+        supabase.from("posts").select("id", { count: "exact", head: true });
+      const [facts, held, ready] = await Promise.all([
+        count().eq("status", "published").gt("contradicted_count", 0),
+        count().not("held_reason", "is", null),
+        count().eq("status", "draft").is("held_reason", null),
+      ]);
+      for (const result of [facts, held, ready])
+        if (result.error) throw result.error;
+      return {
+        facts: facts.count ?? 0,
+        held: held.count ?? 0,
+        ready: ready.count ?? 0,
+      } satisfies Record<View, number>;
     },
   });
   const categories = useQuery({
@@ -162,46 +221,13 @@ export default function PostsManager() {
     Promise.all(
       LIST_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey })),
     );
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const candidates =
-        posts.data?.items.filter(
-          (p) => selected.has(p.id) && p.status === "draft",
-        ) ?? [];
-      if (!candidates.length)
-        throw new Error("Select drafts from the current page.");
-      let published = 0,
-        blocked = 0;
-      for (const post of candidates) {
-        const { data, error } = await supabase.functions.invoke(
-          "manual-publish",
-          { body: { post_id: post.id } },
-        );
-        if (error || data?.ok !== true || data?.decision === "blocked")
-          blocked++;
-        else published++;
-      }
-      return `${published} published. ${blocked} need review; open the editor for details. Publishing checks were preserved.`;
-    },
-    onSuccess: (message) => {
-      toast.success(message);
-      setDialogOpen(false);
-      setSelected(new Set());
-      qc.invalidateQueries({ queryKey: ["admin-posts"] });
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  // One article per action. There is deliberately no bulk publish here:
+  // publishing runs per article from the editor, through the publish checks.
   const rowMutation = useMutation({
     mutationFn: runRowAction,
     onSuccess: (_data, action) => {
       toast.success(rowSuccessMessage(action));
       setDialogOpen(false);
-      setSelected((previous) => {
-        if (!previous.has(action.post.id)) return previous;
-        const next = new Set(previous);
-        next.delete(action.post.id);
-        return next;
-      });
       if (action.kind === "delete") {
         qc.removeQueries({ queryKey: ["admin-post", action.post.id] });
       } else {
@@ -215,11 +241,8 @@ export default function PostsManager() {
       if (error instanceof StaleRowError) void refreshLists();
     },
   });
-  const busy = mutation.isPending || rowMutation.isPending;
+  const busy = rowMutation.isPending;
   const items = posts.data?.items ?? [];
-  const drafts = items.filter(
-    (p) => p.status === "draft" && selected.has(p.id),
-  );
   const pages = Math.max(1, Math.ceil((posts.data?.total ?? 0) / SIZE));
   useEffect(() => {
     if (posts.data && page >= pages) setPage(pages - 1);
@@ -230,7 +253,7 @@ export default function PostsManager() {
         <div>
           <p className="admin-eyebrow">Content library</p>
           <h1>Articles</h1>
-          <p>Find, review, and publish your work.</p>
+          <p>Find, review, and publish your work, one article at a time.</p>
         </div>
         <Link className="admin-btn-primary" to="/admin/posts/new">
           <Plus size={16} /> New Post
@@ -241,13 +264,44 @@ export default function PostsManager() {
           <button
             key={s}
             className="admin-btn-ghost capitalize"
-            aria-pressed={status === s}
+            aria-pressed={!view && status === s}
             onClick={() => setParams(s === "all" ? {} : { status: s })}
           >
             {s}
           </button>
         ))}
       </div>
+      <div
+        className="admin-tabs"
+        role="group"
+        aria-label="Review filters"
+        style={{ flexWrap: "wrap" }}
+      >
+        {VIEW_KEYS.map((key) => (
+          <button
+            key={key}
+            className="admin-btn-ghost"
+            aria-pressed={view === key}
+            title={VIEWS[key].help}
+            style={
+              key === "facts" && (reviewCounts.data?.facts ?? 0) > 0
+                ? { color: "#f87171" }
+                : undefined
+            }
+            onClick={() => setParams(view === key ? {} : { view: key })}
+          >
+            {VIEWS[key].label}{" "}
+            <span className="admin-badge">
+              {reviewCounts.data ? reviewCounts.data[key] : "…"}
+            </span>
+          </button>
+        ))}
+      </div>
+      {view && <p className="admin-help">{VIEWS[view].help}</p>}
+      <QueryNotice
+        error={reviewCounts.error}
+        retry={() => reviewCounts.refetch()}
+      />
       <div className="admin-filters">
         <label className="flex-1">
           <span className="sr-only">Search articles</span>
@@ -304,93 +358,15 @@ export default function PostsManager() {
         error={posts.error}
         retry={() => posts.refetch()}
       />
-      {drafts.length > 0 && (
-        <div className="admin-notice">
-          <span>{drafts.length} drafts selected on this page.</span>
-          <button
-            className="admin-btn-primary"
-            disabled={busy}
-            onClick={() => confirm("publish")}
-          >
-            Review publishing
-          </button>
-          <button
-            className="admin-btn-ghost"
-            onClick={() => setSelected(new Set())}
-          >
-            Clear selection
-          </button>
-        </div>
-      )}
       {!posts.error && (
         <section className="admin-card admin-section">
           {items.map((post) => (
-            <div key={post.id} className="admin-recent-row">
-              {post.status === "draft" && (
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${post.title}`}
-                  checked={selected.has(post.id)}
-                  onChange={(e) =>
-                    setSelected((previous) => {
-                      const next = new Set(previous);
-                      if (e.target.checked) next.add(post.id);
-                      else next.delete(post.id);
-                      return next;
-                    })
-                  }
-                />
-              )}
-              <div className="flex-1">
-                <Link
-                  to={`/admin/posts/${post.id}/edit`}
-                  className="font-medium"
-                >
-                  {post.title}
-                </Link>
-                <span>
-                  {post.categories?.name ?? "Uncategorized"} · Updated{" "}
-                  {new Date(post.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-              <span className="admin-badge">{post.status}</span>
-              <div className="flex gap-3">
-                <Link
-                  to={`/admin/posts/${post.id}/edit`}
-                  aria-label={`Edit ${post.title}`}
-                >
-                  Edit
-                </Link>
-                {post.status === "published" && (
-                  <a
-                    href={`/blog/${post.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`View ${post.title}`}
-                  >
-                    View
-                  </a>
-                )}
-                {post.status === "draft" ? (
-                  <button
-                    className="text-red-400"
-                    aria-label={`Delete ${post.title}`}
-                    disabled={busy}
-                    onClick={() => confirm({ kind: "delete", post })}
-                  >
-                    Delete
-                  </button>
-                ) : (
-                  <button
-                    aria-label={`${post.status === "scheduled" ? "Unschedule" : "Unpublish"} ${post.title}`}
-                    disabled={busy}
-                    onClick={() => confirm({ kind: "unpublish", post })}
-                  >
-                    {post.status === "scheduled" ? "Unschedule" : "Unpublish"}
-                  </button>
-                )}
-              </div>
-            </div>
+            <PostRow
+              key={post.id}
+              post={post}
+              busy={busy}
+              onAction={(kind) => confirm({ kind, post })}
+            />
           ))}
           {!posts.isPending && !items.length && (
             <p>No articles match these filters.</p>
@@ -403,20 +379,14 @@ export default function PostsManager() {
               <button
                 className="admin-btn-ghost"
                 disabled={page === 0 || posts.isFetching}
-                onClick={() => {
-                  setPage((p) => p - 1);
-                  setSelected(new Set());
-                }}
+                onClick={() => setPage((p) => p - 1)}
               >
                 Previous
               </button>
               <button
                 className="admin-btn-ghost"
                 disabled={page + 1 >= pages || posts.isFetching}
-                onClick={() => {
-                  setPage((p) => p + 1);
-                  setSelected(new Set());
-                }}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Next
               </button>
@@ -431,7 +401,7 @@ export default function PostsManager() {
         }}
       >
         <AlertDialogContent className="admin-shell">
-          {isRowAction(confirmation) ? (
+          {confirmation && (
             <RowActionConfirmation
               action={confirmation}
               typed={typed}
@@ -439,36 +409,116 @@ export default function PostsManager() {
               pending={rowMutation.isPending}
               onConfirm={() => rowMutation.mutate(confirmation)}
             />
-          ) : (
-            <>
-              <AlertDialogTitle>
-                Publish {drafts.length} selected drafts?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Each article will go through the normal publishing checks.
-                Articles that fail remain unpublished.
-              </AlertDialogDescription>
-              <ul className="max-h-48 overflow-auto text-sm">
-                {drafts.map((p) => (
-                  <li key={p.id}>{p.title}</li>
-                ))}
-              </ul>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={busy}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    mutation.mutate();
-                  }}
-                >
-                  {mutation.isPending ? "Working…" : "Publish selected"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </>
           )}
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+type ListPost = RowPost & {
+  updated_at: string;
+  scheduled_at: string | null;
+  held_reason: string | null;
+  categories: { name: string } | null;
+};
+
+function PostRow({
+  post,
+  busy,
+  onAction,
+}: {
+  post: ListPost;
+  busy: boolean;
+  onAction: (kind: RowAction["kind"]) => void;
+}) {
+  const flagged = contradicted(post);
+  const reasons = heldReasonSentences(post.held_reason);
+  const live = post.status === "published";
+  return (
+    <div className="admin-recent-row">
+      <div className="flex-1">
+        <Link to={`/admin/posts/${post.id}/edit`} className="font-medium">
+          {post.title}
+        </Link>
+        <span>
+          {post.categories?.name ?? "Uncategorized"} · Updated{" "}
+          {new Date(post.updated_at).toLocaleDateString()}
+          {post.status === "scheduled" && post.scheduled_at
+            ? ` · Goes live ${new Date(post.scheduled_at).toLocaleString()}`
+            : ""}
+        </span>
+        {reasons.length > 0 && (
+          <span
+            className="block text-sm text-amber-400"
+            title={reasons.join("\n")}
+          >
+            Held: {reasons[0]}
+            {reasons.length > 1 ? ` (+${reasons.length - 1} more)` : ""}
+          </span>
+        )}
+      </div>
+      {flagged > 0 && (
+        <>
+          <span
+            data-flag="fact-review"
+            className="admin-badge"
+            title={claimsText(flagged)}
+            style={{
+              background: "rgba(220,38,38,0.15)",
+              color: "#f87171",
+              border: "1px solid rgba(248,113,113,0.5)",
+            }}
+          >
+            Needs fact review
+          </span>
+          <span className="sr-only">{claimsText(flagged)}</span>
+        </>
+      )}
+      <span className="admin-badge">{post.status}</span>
+      <div className="flex gap-3">
+        <Link
+          to={`/admin/posts/${post.id}/edit`}
+          aria-label={`Edit ${post.title}`}
+        >
+          Edit
+        </Link>
+        <a
+          href={`/blog/${post.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${live ? "View" : "Preview"} ${post.title}`}
+        >
+          {live ? "View" : "Preview"}
+        </a>
+        {post.status === "draft" ? (
+          <button
+            className="text-red-400"
+            aria-label={`Delete ${post.title}`}
+            disabled={busy}
+            onClick={() => onAction("delete")}
+          >
+            Delete
+          </button>
+        ) : live && flagged > 0 ? (
+          <button
+            className="text-red-400"
+            aria-label={`Move ${post.title} back to draft`}
+            disabled={busy}
+            onClick={() => onAction("unpublish")}
+          >
+            Move back to draft
+          </button>
+        ) : (
+          <button
+            aria-label={`${post.status === "scheduled" ? "Unschedule" : "Unpublish"} ${post.title}`}
+            disabled={busy}
+            onClick={() => onAction("unpublish")}
+          >
+            {post.status === "scheduled" ? "Unschedule" : "Unpublish"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -516,6 +566,12 @@ function RowActionConfirmation({
           </>
         ) : (
           <>
+            {contradicted(post) > 0 && (
+              <>
+                It has {claimsText(contradicted(post))}. Moving it back to draft
+                takes it offline while you correct them.{" "}
+              </>
+            )}
             It moves back to Drafts. The page at <code>/blog/{post.slug}</code>{" "}
             will stop working until you publish it again, so visitors and search
             engines following that link will see a “page not found” error.

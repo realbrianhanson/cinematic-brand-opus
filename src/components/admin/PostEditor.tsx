@@ -2,9 +2,22 @@ import { useEditorRecovery } from "@/hooks/useEditorRecovery";
 import EditorialBrief from "./EditorialBrief";
 import EditorialChecklist from "./EditorialChecklist";
 import EditorPreview from "./EditorPreview";
+import PublishReadinessCard from "./PublishReadinessCard";
+import PublishOverrideDialog, {
+  type OverrideRequest,
+} from "./PublishOverrideDialog";
+import {
+  callManualPublish,
+  isOverride,
+  type PublishMode,
+  type PublishOutcome,
+} from "./manualPublishClient";
 import { z } from "zod";
-import { FunctionsHttpError } from "@supabase/supabase-js";
-import type { Json, TablesInsert } from "@/integrations/supabase/types";
+import type {
+  Json,
+  TablesInsert,
+  TablesUpdate,
+} from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { scheduledInstant, zonedInput } from "@/lib/scheduleTime";
@@ -49,16 +62,76 @@ const faqSchema = z
   .array(z.object({ question: z.string(), answer: z.string() }))
   .catch([]);
 type FaqItem = z.infer<typeof faqSchema>[number];
-const publishResponseSchema = z
-  .object({
-    decision: z.string().optional(),
-    error: z.string().optional(),
-    failures: z.array(z.string()).optional(),
-    ok: z.boolean().optional(),
-  })
-  .catch({});
+type PublishDone = Extract<PublishOutcome, { kind: "done" }>;
+type SaveResult =
+  | { postId: string; kind: "saved" }
+  | { postId: string; kind: "published"; outcome: PublishDone }
+  | { postId: string; kind: "blocked"; request: OverrideRequest }
+  | {
+      postId: string;
+      kind: "publish_failed";
+      mode: PublishMode;
+      message: string;
+    };
 
-const PostEditor = () => {
+/**
+ * Going live (now or on a schedule) always runs through manual-publish, so the
+ * row's status and schedule are never written directly for those changes.
+ */
+function publishIntent(
+  status: string,
+  initialStatus: string,
+  scheduledAt: string,
+  savedScheduleInput: string,
+): PublishMode | null {
+  if (status === "published" && initialStatus !== "published") return "publish";
+  if (
+    status === "scheduled" &&
+    (initialStatus !== "scheduled" || scheduledAt !== savedScheduleInput)
+  )
+    return "schedule";
+  return null;
+}
+
+function savedStateLabel(status: string, scheduledAt: string | null) {
+  if (status === "published") return "live";
+  if (status === "scheduled")
+    return scheduledAt
+      ? `scheduled for ${new Date(scheduledAt).toLocaleString()}`
+      : "scheduled";
+  return "a draft";
+}
+
+function publishedTitle(outcome: PublishDone) {
+  const when =
+    outcome.decision.startsWith("scheduled") && outcome.scheduledAt
+      ? `Scheduled for ${new Date(outcome.scheduledAt).toLocaleString()}`
+      : outcome.decision.startsWith("scheduled")
+        ? "Scheduled"
+        : "Published";
+  return isOverride(outcome.decision) ? `${when} with override` : when;
+}
+
+/**
+ * Remounts the editor after a server-side rewrite (Fix facts, fact check) so
+ * it never keeps a stale copy or version of the article.
+ */
+export default function PostEditor() {
+  const { id } = useParams();
+  const qc = useQueryClient();
+  const [generation, setGeneration] = useState(0);
+  const reload = useCallback(async () => {
+    await qc.refetchQueries({ queryKey: ["admin-post", id] });
+    setGeneration((g) => g + 1);
+  }, [qc, id]);
+  return <PostEditorBody key={generation} onServerChange={reload} />;
+}
+
+function PostEditorBody({
+  onServerChange,
+}: {
+  onServerChange: () => Promise<void>;
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -74,11 +147,9 @@ const PostEditor = () => {
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("draft");
   const [initialStatus, setInitialStatus] = useState("draft");
-  const [publishBlock, setPublishBlock] = useState<{
-    postId: string;
-    failures: string[];
-  } | null>(null);
-  const [publishOverrideReason, setPublishOverrideReason] = useState("");
+  const [publishBlock, setPublishBlock] = useState<OverrideRequest | null>(
+    null,
+  );
   const [scheduledAt, setScheduledAt] = useState("");
   const { prefs, updatePref } = useAdminPreferences();
   const [timezone, setTimezone] = useState(prefs.timezone);
@@ -214,7 +285,12 @@ const PostEditor = () => {
     keyTakeaways,
     faqItems,
   };
-  const recovery = useEditorRecovery(id || "new", snapshot, hydrated);
+  const recovery = useEditorRecovery(
+    id || "new",
+    snapshot,
+    hydrated,
+    post?.updated_at,
+  );
   function restoreSnapshot(value: Record<string, unknown>) {
     const result = z
       .object({
@@ -660,53 +736,44 @@ const PostEditor = () => {
     }
   }, [aiTopic, aiContext, toast, loadBody]);
 
-  const runManualPublish = useCallback(
-    async (postId: string, overrideReason?: string) => {
-      const body: { post_id: string; override_reason?: string } = {
-        post_id: postId,
-      };
-      if (overrideReason && overrideReason.trim().length >= 10)
-        body.override_reason = overrideReason.trim();
-      const { data, error } = await supabase.functions.invoke(
-        "manual-publish",
-        { body },
-      );
-      if (error) {
-        let parsed = publishResponseSchema.parse(null);
-        if (
-          error instanceof FunctionsHttpError &&
-          error.context instanceof Response
-        ) {
-          try {
-            parsed = publishResponseSchema.parse(await error.context.json());
-          } catch {
-            /* Preserve the original error below. */
-          }
-        }
-        if (parsed?.decision === "blocked" && Array.isArray(parsed.failures)) {
-          return {
-            blocked: true as const,
-            failures: parsed.failures as string[],
-          };
-        }
-        throw new Error(parsed?.error || error.message);
-      }
-      const response = publishResponseSchema.parse(data);
-      if (response.ok === false && response.failures) {
-        return { blocked: true as const, failures: response.failures };
-      }
-      return { blocked: false as const };
-    },
-    [],
+  const savedScheduleInput = post?.scheduled_at
+    ? zonedInput(post.scheduled_at, timezone)
+    : "";
+  const intent = publishIntent(
+    status,
+    initialStatus,
+    scheduledAt,
+    savedScheduleInput,
   );
+  const savedState = savedStateLabel(initialStatus, post?.scheduled_at ?? null);
 
   const submittedSnapshot = useRef<string | undefined>(undefined);
+
+  /** Reconcile local state after manual-publish changed the article. */
+  async function finishPublish(outcome: PublishDone) {
+    if (outcome.updatedAt) persistedVersion.current = outcome.updatedAt;
+    const next = outcome.decision.startsWith("scheduled")
+      ? "scheduled"
+      : "published";
+    setInitialStatus(next);
+    setStatus(next);
+    qc.invalidateQueries({ queryKey: ["admin-posts"] });
+    qc.invalidateQueries({ queryKey: ["admin-post", id] });
+    const title = publishedTitle(outcome);
+    if (!(await recovery.clear(submittedSnapshot.current))) {
+      toast({ title, description: "Newer edits remain in the editor" });
+      return;
+    }
+    toast({ title });
+    navigate("/admin/posts");
+  }
+
   const saveMutation = useMutation({
     onMutate: () => {
       submittedSnapshot.current = JSON.stringify(snapshot);
     },
-    mutationFn: (opts: { overrideReason?: string } = {}) =>
-      safeMutation(async () => {
+    mutationFn: () =>
+      safeMutation(async (): Promise<SaveResult> => {
         // A locked body is only ever saved verbatim, and not at all when it is
         // still the stored body.
         const body = bodyLock
@@ -719,25 +786,22 @@ const PostEditor = () => {
         );
         const cleanTakeaways = keyTakeaways.filter((t) => t.trim());
 
-        // If moving to published (from anything else), route status change through manual-publish.
-        const wantsPublish =
-          status === "published" && initialStatus !== "published";
-        const persistStatus = wantsPublish ? "draft" : status;
-
         const scheduledISO =
-          persistStatus === "scheduled"
+          status === "scheduled"
             ? scheduledInstant(scheduledAt, timezone)
             : null;
-        if (scheduledISO && Date.parse(scheduledISO) <= Date.now())
+        if (
+          intent === "schedule" &&
+          scheduledISO &&
+          Date.parse(scheduledISO) <= Date.now()
+        )
           throw new Error("Choose a future publish time.");
-        const postData: TablesInsert<"posts"> = {
+        const content = {
           title,
           slug,
           ...body,
           excerpt: excerpt || null,
           category_id: categoryId || null,
-          status: persistStatus,
-          scheduled_at: scheduledISO,
           featured_image: featuredImage || null,
           featured_image_alt: featuredImageAlt || null,
           editorial_metadata: editorialMetadata,
@@ -747,12 +811,24 @@ const PostEditor = () => {
           key_takeaways: cleanTakeaways.length ? cleanTakeaways : [],
           tldr: tldr || null,
         };
+        // Publishing or scheduling leaves status and schedule untouched here:
+        // a failed or blocked attempt must not unschedule or unpublish.
+        const statusFields: TablesUpdate<"posts"> = intent
+          ? {}
+          : status === "scheduled"
+            ? { status }
+            : { status, scheduled_at: null };
 
         let postId = savedPostId.current ?? id;
         if (!postId) {
+          const insert: TablesInsert<"posts"> = {
+            ...content,
+            status: intent ? "draft" : status,
+            scheduled_at: null,
+          };
           const { data, error } = await supabase
             .from("posts")
-            .insert(postData)
+            .insert(insert)
             .select("id,updated_at")
             .single();
           if (error) throw error;
@@ -762,7 +838,7 @@ const PostEditor = () => {
         } else {
           let update = supabase
             .from("posts")
-            .update(postData)
+            .update({ ...content, ...statusFields })
             .eq("id", postId!);
           if (persistedVersion.current)
             update = update.eq("updated_at", persistedVersion.current);
@@ -799,37 +875,72 @@ const PostEditor = () => {
             `Post saved, but SEO settings failed: ${seoResult.error.message}. Retry to finish saving this same post.`,
           );
 
-        // Now handle the publish transition through the gated edge function
-        if (wantsPublish && postId) {
-          const result = await runManualPublish(postId, opts.overrideReason);
-          if (result.blocked) {
-            return { postId, publishBlocked: result.failures };
-          }
+        if (!intent) return { postId, kind: "saved" };
+        // The gated status change, for this one article only.
+        try {
+          const outcome = await callManualPublish({
+            postId,
+            mode: intent,
+            scheduledAt: scheduledISO,
+          });
+          if (outcome.kind === "blocked")
+            return {
+              postId,
+              kind: "blocked",
+              request: {
+                postId,
+                title,
+                mode: intent,
+                scheduledAt: scheduledISO,
+                failures: outcome.failures,
+                reasonError: outcome.reasonError,
+              },
+            };
+          return { postId, kind: "published", outcome };
+        } catch (e) {
+          return {
+            postId,
+            kind: "publish_failed",
+            mode: intent,
+            message: errorMessage(e),
+          };
         }
-        return { postId };
-      }),
+      }, 30000),
     onSuccess: async (result) => {
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
-      if (result?.publishBlocked) {
-        setPublishBlock({
-          postId: result.postId,
-          failures: result.publishBlocked,
-        });
-        setPublishOverrideReason("");
+      if (result.kind === "published") {
+        await finishPublish(result.outcome);
+        return;
+      }
+      if (result.kind === "saved") {
+        if (!(await recovery.clear(submittedSnapshot.current))) {
+          toast({ title: "Saved. Newer edits remain in the editor." });
+          return;
+        }
+        toast({ title: "Saved" });
+        navigate("/admin/posts");
+        return;
+      }
+      // Saved, but not live: keep editing with autosave on.
+      qc.invalidateQueries({ queryKey: ["admin-post", id] });
+      await recovery.markSaved(submittedSnapshot.current);
+      if (result.kind === "blocked") {
+        setPublishBlock(result.request);
         toast({
-          title: "Saved as draft — publish gate blocked",
-          description:
-            "Review failures and either fix them or supply an override reason.",
+          title: "Saved, but not live yet",
+          description: `Your changes were saved. The article is still ${savedState}. See what needs fixing`,
           variant: "destructive",
         });
         return;
       }
-      if (!(await recovery.clear(submittedSnapshot.current))) {
-        toast({ title: "Saved. Newer edits remain in the editor." });
-        return;
-      }
-      toast({ title: "Saved" });
-      navigate("/admin/posts");
+      toast({
+        title:
+          result.mode === "schedule"
+            ? "Changes saved, but scheduling failed"
+            : "Changes saved, but publishing failed",
+        description: `${result.message}. The article is still ${savedState}. Try again when you're ready`,
+        variant: "destructive",
+      });
     },
     onError: (err) => {
       toast({
@@ -839,6 +950,53 @@ const PostEditor = () => {
       });
     },
   });
+
+  // Override for this one article, with the reason Brian typed.
+  const overrideMutation = useMutation({
+    mutationFn: ({
+      request,
+      reason,
+    }: {
+      request: OverrideRequest;
+      reason: string;
+    }) =>
+      callManualPublish({
+        postId: request.postId,
+        mode: request.mode,
+        scheduledAt: request.scheduledAt,
+        overrideReason: reason,
+      }),
+    onSuccess: async (outcome, { request }) => {
+      if (outcome.kind === "blocked") {
+        setPublishBlock({
+          ...request,
+          failures: outcome.failures.length
+            ? outcome.failures
+            : request.failures,
+          reasonError:
+            outcome.reasonError ??
+            "The checks still failed. Review the issues, then try again",
+        });
+        return;
+      }
+      setPublishBlock(null);
+      await finishPublish(outcome);
+    },
+    onError: (error, { request }) => {
+      toast({
+        title:
+          request.mode === "schedule" ? "Scheduling failed" : "Publish failed",
+        description: `${errorMessage(error)}. Your changes are saved; the article is still ${savedState}`,
+        variant: "destructive",
+      });
+    },
+  });
+  const focusArticleBody = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor || editor.isDestroyed) return;
+    editor.commands.focus();
+    editor.view.dom.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, []);
 
   const handleEditorReady = useCallback(
     (editor: Editor | null) => {
@@ -892,8 +1050,15 @@ const PostEditor = () => {
         <div className="flex flex-wrap gap-3">
           <EditorPreview
             title={title}
-            content={editorContent}
+            content={bodyLock ? bodyLock.source : editorContent}
             excerpt={excerpt}
+            tldr={tldr}
+            featuredImage={featuredImage}
+            featuredImageAlt={featuredImageAlt}
+            keyTakeaways={keyTakeaways}
+            faqItems={faqItems}
+            savedSlug={!isNew ? post?.slug : undefined}
+            published={initialStatus === "published"}
           />
           {isNew && (
             <button
@@ -922,11 +1087,26 @@ const PostEditor = () => {
             Cancel
           </button>
           <button
-            onClick={() => saveMutation.mutate({})}
-            disabled={saveMutation.isPending || !title || !slug}
+            onClick={() => saveMutation.mutate()}
+            disabled={
+              saveMutation.isPending ||
+              overrideMutation.isPending ||
+              !title ||
+              !slug
+            }
             className="admin-btn-primary"
           >
-            {saveMutation.isPending ? "Saving..." : "Save"}
+            {saveMutation.isPending
+              ? intent === "publish"
+                ? "Publishing…"
+                : intent === "schedule"
+                  ? "Scheduling…"
+                  : "Saving..."
+              : intent === "publish"
+                ? "Save & publish"
+                : intent === "schedule"
+                  ? "Save & schedule"
+                  : "Save"}
           </button>
         </div>
       </div>
@@ -1056,6 +1236,19 @@ const PostEditor = () => {
             onFeaturedUpload={handleFeaturedUpload}
             excerpt={excerpt}
             setExcerpt={setExcerpt}
+            readiness={
+              <PublishReadinessCard
+                postId={id ?? savedPostId.current ?? null}
+                status={initialStatus}
+                updatedAt={post?.updated_at ?? null}
+                heldReason={post?.held_reason ?? null}
+                heldAt={post?.held_at ?? null}
+                contradictedCount={post?.contradicted_count ?? 0}
+                dirty={recovery.dirty}
+                onServerChange={onServerChange}
+                onEditArticle={focusArticleBody}
+              />
+            }
           />
 
           <EditorialBrief value={editorialMetadata} />
@@ -1252,127 +1445,16 @@ const PostEditor = () => {
         </div>
       )}
 
-      {publishBlock && (
-        <div
-          onClick={() => setPublishBlock(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "hsl(var(--admin-surface))",
-              border: "1px solid hsl(var(--admin-border))",
-              borderRadius: 8,
-              padding: 24,
-              maxWidth: 520,
-              width: "90%",
-            }}
-          >
-            <h3
-              className="font-heading italic"
-              style={{
-                fontSize: 20,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 8,
-              }}
-            >
-              Publish gate blocked this post
-            </h3>
-            <p
-              style={{
-                fontSize: 13,
-                color: "hsl(var(--admin-text-ghost))",
-                marginBottom: 12,
-              }}
-            >
-              The post was saved as a draft. Fix the issues below, or supply an
-              override reason (min 10 characters) to publish anyway. The reason
-              is recorded on the post.
-            </p>
-            <ul
-              style={{
-                fontSize: 13,
-                color: "hsl(var(--admin-danger))",
-                marginBottom: 16,
-                paddingLeft: 18,
-              }}
-            >
-              {publishBlock.failures.map((f, i) => (
-                <li key={i} style={{ marginBottom: 4 }}>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <label className="admin-label">Override reason</label>
-            <textarea
-              value={publishOverrideReason}
-              onChange={(e) => setPublishOverrideReason(e.target.value)}
-              rows={3}
-              placeholder="Why is it OK to publish this despite the failures?"
-              className="admin-input font-body w-full"
-              style={{ marginBottom: 12, resize: "vertical" as const }}
-            />
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
-            >
-              <button
-                onClick={() => setPublishBlock(null)}
-                className="admin-btn-ghost"
-              >
-                Close
-              </button>
-              <button
-                disabled={
-                  publishOverrideReason.trim().length < 10 ||
-                  saveMutation.isPending
-                }
-                onClick={async () => {
-                  const target = publishBlock;
-                  const reason = publishOverrideReason;
-                  if (!target) return;
-                  const result = await runManualPublish(target.postId, reason);
-                  if (result.blocked) {
-                    setPublishBlock({
-                      postId: target.postId,
-                      failures: result.failures,
-                    });
-                    toast({
-                      title: "Still blocked",
-                      description:
-                        "Provide a stronger override reason or fix the issues.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setPublishBlock(null);
-                  toast({ title: "Published with override" });
-                  qc.invalidateQueries({ queryKey: ["admin-posts"] });
-                  navigate("/admin/posts");
-                }}
-                className="admin-btn-primary"
-                style={{
-                  background:
-                    publishOverrideReason.trim().length >= 10
-                      ? "hsl(var(--admin-danger))"
-                      : undefined,
-                }}
-              >
-                Publish anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PublishOverrideDialog
+        request={publishBlock}
+        pending={overrideMutation.isPending}
+        stateNote={`Your changes were saved. The article is still ${savedState}.`}
+        onCancel={() => setPublishBlock(null)}
+        onConfirm={(reason) =>
+          publishBlock &&
+          overrideMutation.mutate({ request: publishBlock, reason })
+        }
+      />
     </div>
   );
-};
-
-export default PostEditor;
+}

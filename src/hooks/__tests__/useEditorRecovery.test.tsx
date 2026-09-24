@@ -155,4 +155,149 @@ describe("working-copy safety", () => {
       ).snapshot.body,
     ).toBe("offline edit");
   });
+  it("skips the restore banner when the stored copy only differs in key order", async () => {
+    reads = {
+      data: {
+        // jsonb returns keys in its own order
+        snapshot: { title: "Same", body: "same body", nested: { b: 2, a: 1 } },
+        updated_at: "2026-09-19T09:00:00Z",
+      },
+      error: null,
+    };
+    const h = renderHook(() =>
+      useEditorRecovery(
+        "post-one",
+        { body: "same body", nested: { a: 1, b: 2 }, title: "Same" },
+        true,
+      ),
+    );
+    await flush();
+    expect(h.result.current.recovery).toBeNull();
+    expect(h.result.current.message).toBe("Draft protection ready");
+    expect(h.result.current.dirty).toBe(false);
+  });
+  it("discards a working copy older than the last saved article", async () => {
+    reads = {
+      data: {
+        snapshot: { body: "old unsaved text" },
+        updated_at: "2026-09-21T17:36:00Z",
+      },
+      error: null,
+    };
+    localStorage.setItem(
+      "editor-working-copy:admin-one:post-one",
+      JSON.stringify({
+        savedAt: Date.parse("2026-09-21T17:30:00Z"),
+        snapshot: { body: "old local text" },
+      }),
+    );
+    const h = renderHook(() =>
+      useEditorRecovery(
+        "post-one",
+        { body: "published body" },
+        true,
+        "2026-09-21T17:45:03Z",
+      ),
+    );
+    await flush();
+    await flush();
+    expect(h.result.current.recovery).toBeNull();
+    expect(h.result.current.message).toBe("Draft protection ready");
+    const removal = calls.find((c) => c.op === "delete");
+    expect(removal?.filters).toContainEqual([
+      "updated_at",
+      "2026-09-21T17:36:00Z",
+    ]);
+    expect(
+      localStorage.getItem("editor-working-copy:admin-one:post-one"),
+    ).toBeNull();
+  });
+  it("still offers a working copy saved after the article", async () => {
+    reads = {
+      data: {
+        snapshot: { body: "newer unsaved text" },
+        updated_at: "2026-09-21T18:00:00Z",
+      },
+      error: null,
+    };
+    const h = renderHook(() =>
+      useEditorRecovery(
+        "post-one",
+        { body: "published body" },
+        true,
+        "2026-09-21T17:45:03Z",
+      ),
+    );
+    await flush();
+    expect(h.result.current.recovery).toEqual({ body: "newer unsaved text" });
+    expect(h.result.current.message).toMatch(/working copy found/i);
+  });
+  it("keeps a device backup while the restore banner is open", async () => {
+    reads = {
+      data: {
+        snapshot: { body: "recovered" },
+        updated_at: "2026-09-19T09:00:00Z",
+      },
+      error: null,
+    };
+    const h = renderHook(
+      ({ body }) => useEditorRecovery("post-one", { body }, true),
+      { initialProps: { body: "original" } },
+    );
+    await flush();
+    expect(h.result.current.recovery).not.toBeNull();
+    h.rerender({ body: "typed while deciding" });
+    await flush();
+    expect(
+      JSON.parse(
+        localStorage.getItem("editor-working-copy:admin-one:post-one")!,
+      ).snapshot.body,
+    ).toBe("typed while deciding");
+  });
+  it("resumes autosave after the recovery copy is dismissed", async () => {
+    reads = {
+      data: {
+        snapshot: { body: "recovered" },
+        updated_at: "2026-09-19T09:00:00Z",
+      },
+      error: null,
+    };
+    const h = renderHook(
+      ({ body }) => useEditorRecovery("post-one", { body }, true),
+      { initialProps: { body: "original" } },
+    );
+    await flush();
+    await act(async () => {
+      await h.result.current.discardRecovery();
+    });
+    expect(h.result.current.recovery).toBeNull();
+    h.rerender({ body: "new edit after dismissing" });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1300);
+    });
+    expect(calls.filter((c) => c.op === "insert")).toHaveLength(1);
+    expect(h.result.current.message).toMatch(/not published/);
+  });
+  it("markSaved keeps autosave on after a save that stays in the editor", async () => {
+    const h = renderHook(
+      ({ body }) => useEditorRecovery("post-one", { body }, true),
+      { initialProps: { body: "original" } },
+    );
+    await flush();
+    h.rerender({ body: "saved text" });
+    let saved;
+    await act(async () => {
+      saved = await h.result.current.markSaved(
+        JSON.stringify({ body: "saved text" }),
+      );
+    });
+    expect(saved).toBe(true);
+    expect(h.result.current.dirty).toBe(false);
+    h.rerender({ body: "more typing" });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1300);
+    });
+    expect(h.result.current.dirty).toBe(true);
+    expect(calls.some((c) => c.op === "insert")).toBe(true);
+  });
 });

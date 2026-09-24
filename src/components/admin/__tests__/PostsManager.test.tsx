@@ -26,6 +26,8 @@ const mock = vi.hoisted(() => ({
   respond: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  params: new URLSearchParams(),
+  setParams: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -44,7 +46,7 @@ vi.mock("@/lib/router-compat", () => ({
       {children}
     </a>
   ),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [mock.params, mock.setParams],
 }));
 vi.mock("@/integrations/supabase/client", () => {
   const builder = (operation: Operation) => {
@@ -57,6 +59,9 @@ vi.mock("@/integrations/supabase/client", () => {
       "range",
       "select",
       "in",
+      "gt",
+      "is",
+      "not",
     ]) {
       chain[method] = (...args: unknown[]) => {
         operation.calls.push({ method, args });
@@ -127,12 +132,61 @@ const scheduled = {
   categories: null,
 };
 
+const flagged = {
+  id: "10000000-0000-4000-8000-000000000004",
+  title: "Live article with wrong facts",
+  slug: "live-article-with-wrong-facts",
+  status: "published",
+  created_at: "2026-09-01T00:00:00Z",
+  updated_at: "2026-09-02T00:00:00Z",
+  categories: null,
+  contradicted_count: 2,
+  held_reason: null,
+  held_at: null,
+};
+const held = {
+  id: "10000000-0000-4000-8000-000000000005",
+  title: "Held pipeline draft",
+  slug: "held-pipeline-draft",
+  status: "draft",
+  created_at: "2026-09-01T00:00:00Z",
+  updated_at: "2026-09-02T00:00:00Z",
+  categories: null,
+  contradicted_count: 0,
+  held_reason: "Quality score 62, needs 85; Not fact-checked yet",
+  held_at: "2026-09-20T10:00:00Z",
+};
+
+function isCountQuery(operation: Operation) {
+  return operation.calls.some(
+    (c) =>
+      c.method === "select" &&
+      (c.args[1] as { head?: boolean } | undefined)?.head === true,
+  );
+}
+function has(operation: Operation, method: string, ...args: unknown[]) {
+  return operation.calls.some(
+    (c) =>
+      c.method === method && JSON.stringify(c.args) === JSON.stringify(args),
+  );
+}
+function countFor(operation: Operation): Result {
+  if (has(operation, "gt", "contradicted_count", 0))
+    return { data: null, error: null, count: 2 };
+  if (has(operation, "not", "held_reason", "is", null))
+    return { data: null, error: null, count: 1 };
+  return { data: null, error: null, count: 3 };
+}
+function listQueries() {
+  return mock.operations.filter(
+    (o) => o.table === "posts" && o.kind === "select" && !isCountQuery(o),
+  );
+}
+
 let mutationResult: (operation: Operation) => Result | Promise<Result>;
 
 function listSelects() {
-  return mock.operations.filter(
-    (o) => o.table === "posts" && o.kind === "select",
-  ).length;
+  return listQueries().length;
 }
 
 function mutations(kind: "update" | "delete") {
@@ -157,6 +211,8 @@ function renderManager() {
 }
 
 beforeEach(() => {
+  mock.params = new URLSearchParams();
+  mock.setParams.mockReset();
   mock.operations.length = 0;
   mock.respond.mockReset();
   mock.toastSuccess.mockReset();
@@ -164,6 +220,7 @@ beforeEach(() => {
   mutationResult = () => ({ data: [{ id: "x" }], error: null });
   mock.respond.mockImplementation((operation: Operation) => {
     if (operation.table === "categories") return { data: [], error: null };
+    if (isCountQuery(operation)) return countFor(operation);
     if (operation.kind === "select")
       return { data: [published, draft, scheduled], error: null, count: 3 };
     return mutationResult(operation);
@@ -405,5 +462,124 @@ describe("articles list row actions", () => {
     expect(mutations("update")).toHaveLength(1);
     finish({ data: [{ id: published.id }], error: null });
     await waitFor(() => expect(mock.toastSuccess).toHaveBeenCalled());
+  });
+});
+
+describe("fact review, holds and one-at-a-time publishing", () => {
+  beforeEach(() => {
+    mock.respond.mockImplementation((operation: Operation) => {
+      if (operation.table === "categories") return { data: [], error: null };
+      if (isCountQuery(operation)) return countFor(operation);
+      if (operation.kind === "select")
+        return { data: [flagged, held, published], error: null, count: 3 };
+      return mutationResult(operation);
+    });
+  });
+
+  it("flags live articles with contradicted claims in red, with the count", async () => {
+    renderManager();
+    await screen.findByText(flagged.title);
+    const badge = screen.getByText("Needs fact review", {
+      selector: "[data-flag='fact-review']",
+    });
+    expect(badge).toHaveAttribute(
+      "title",
+      "2 claims the fact-checker marked as contradicted",
+    );
+    expect(
+      screen.queryAllByText("Needs fact review", {
+        selector: "[data-flag='fact-review']",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("shows why a held article isn't live, in plain English", async () => {
+    renderManager();
+    await screen.findByText(held.title);
+    expect(
+      screen.getByText(/Held: Quality score 62, needs 85/),
+    ).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(
+      /held_reason|contradicted_count/,
+    );
+  });
+
+  it("moves a flagged live article back to draft through the unpublish flow", async () => {
+    renderManager();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: `Move ${flagged.title} back to draft`,
+      }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(/2 claims/);
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Move back to draft" }),
+    );
+    await waitFor(() => expect(mock.toastSuccess).toHaveBeenCalled());
+    const [update] = mutations("update");
+    expect(update.payload).toEqual({ status: "draft" });
+    expect(update.calls).toEqual(
+      expect.arrayContaining([
+        { method: "eq", args: ["id", flagged.id] },
+        { method: "eq", args: ["status", "published"] },
+      ]),
+    );
+  });
+
+  it("shows review filter chips with counts", async () => {
+    renderManager();
+    expect(
+      await screen.findByRole("button", { name: /Needs fact review\s*2/ }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Held\s*1/ }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Ready to publish\s*3/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Needs fact review/ }));
+    expect(mock.setParams).toHaveBeenCalledWith({ view: "facts" });
+  });
+
+  it("filters the list to live articles with contradicted claims", async () => {
+    mock.params = new URLSearchParams("view=facts");
+    renderManager();
+    await screen.findByText(flagged.title);
+    const query = listQueries().at(-1)!;
+    expect(query.calls).toEqual(
+      expect.arrayContaining([
+        { method: "eq", args: ["status", "published"] },
+        { method: "gt", args: ["contradicted_count", 0] },
+      ]),
+    );
+  });
+
+  it("filters Held and Ready to publish without a server-side gate check", async () => {
+    mock.params = new URLSearchParams("view=held");
+    renderManager();
+    await screen.findByText(held.title);
+    expect(listQueries().at(-1)!.calls).toContainEqual({
+      method: "not",
+      args: ["held_reason", "is", null],
+    });
+    cleanup();
+    mock.params = new URLSearchParams("view=ready");
+    renderManager();
+    await screen.findByText(held.title);
+    expect(listQueries().at(-1)!.calls).toEqual(
+      expect.arrayContaining([
+        { method: "eq", args: ["status", "draft"] },
+        { method: "is", args: ["held_reason", null] },
+      ]),
+    );
+  });
+
+  it("offers no bulk publish or bulk override", async () => {
+    renderManager();
+    await screen.findByText(held.title);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText(/review publishing/i)).toBeNull();
+    expect(screen.queryByText(/publish selected/i)).toBeNull();
   });
 });

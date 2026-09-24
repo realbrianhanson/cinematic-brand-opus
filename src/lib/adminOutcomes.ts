@@ -60,9 +60,36 @@ function stepFailed(value: unknown): boolean {
       (step.status < 200 || step.status >= 300))
   );
 }
+const AUTO_SCHEDULED = new Set(["scheduled", "published"]);
+const AI_CREDITS_EXHAUSTED = "ai_credits_exhausted";
+
+function count(value: unknown): number {
+  return Number.isInteger(value) && Number(value) > 0 ? Number(value) : 0;
+}
+
+/** Up to two distinct hold reasons, so the toast says why drafts wait. */
+function heldSummary(reasons: string[]): string {
+  const distinct = [...new Set(reasons)].slice(0, 2);
+  return distinct.length ? ` Held: ${distinct.join("; ")}.` : "";
+}
+
+function creditsStopped(data: Record<string, unknown>) {
+  const message =
+    typeof data.message === "string" && data.message
+      ? data.message
+      : "AI credits ran out. Add credits in Lovable, then run again";
+  return {
+    title: "Run stopped: AI credits ran out",
+    description: `${message} · ${count(data.drafted)} created before it stopped.`,
+    failed: true,
+    stoppedReason: AI_CREDITS_EXHAUSTED,
+  };
+}
+
 /** The orchestrator can return HTTP 200 while individual stages fail. */
 export function pipelineOutcome(value: unknown) {
   const data = record(value);
+  if (data.stopped_reason === AI_CREDITS_EXHAUSTED) return creditsStopped(data);
   if (data.error || data.ok !== true)
     throw new Error(
       typeof data.error === "string"
@@ -80,7 +107,8 @@ export function pipelineOutcome(value: unknown) {
   const drafts = Array.isArray(steps.drafts) ? steps.drafts : [];
   let failures = [steps.poll, steps.cluster].filter(stepFailed).length;
   let held = 0;
-  let published = 0;
+  let scheduled = 0;
+  const heldReasons: string[] = [];
   for (const value of drafts) {
     const draft = record(value);
     if (stepFailed(draft)) failures++;
@@ -92,18 +120,29 @@ export function pipelineOutcome(value: unknown) {
     if (stepFailed(draft.remediation)) failures++;
     const gate = record(draft.auto_publish);
     if (stepFailed(gate)) failures++;
-    else if (gate.decision === "published") published++;
-    else if (draft.post_id) held++;
+    // The gate schedules (decision 'scheduled'); the cron publishes later.
+    else if (AUTO_SCHEDULED.has(String(gate.decision))) scheduled++;
+    else if (draft.post_id) {
+      held++;
+      if (typeof gate.held_reason === "string" && gate.held_reason)
+        heldReasons.push(gate.held_reason);
+    }
   }
+  const regated = record(data.regated);
+  if (typeof regated.error === "string" && regated.error) failures++;
+  const regatedScheduled = count(regated.scheduled);
+  const regatedText = regatedScheduled
+    ? ` ${regatedScheduled} earlier draft${regatedScheduled === 1 ? "" : "s"} now scheduled.`
+    : "";
   const skipReason =
     typeof log.skipped_reason === "string" ? ` ${log.skipped_reason}.` : "";
   return {
     title: failures
       ? "Run finished with issues"
-      : data.drafted === 0
+      : data.drafted === 0 && !regatedScheduled
         ? "No new drafts"
         : "Run finished",
-    description: `${data.drafted} created · ${published} auto-published · ${held} held for review · ${failures} stage issue(s).${skipReason}`,
+    description: `${data.drafted} created · ${scheduled} scheduled to auto-publish · ${held} held for review · ${failures} stage issue(s).${regatedText}${heldSummary(heldReasons)}${skipReason}`,
     failed: failures > 0,
   };
 }
@@ -133,9 +172,15 @@ export function confirmedPublish(value: unknown) {
         ? data.error
         : "Publishing was not confirmed. Check the post before retrying.",
     );
-  return data.already_published === true
-    ? "Already published"
-    : data.decision === "published_with_override"
-      ? "Published with override"
-      : "Published";
+  if (data.already_published === true) return "Already published";
+  switch (data.decision) {
+    case "published_with_override":
+      return "Published with override";
+    case "scheduled":
+      return "Scheduled";
+    case "scheduled_with_override":
+      return "Scheduled with override";
+    default:
+      return "Published";
+  }
 }
