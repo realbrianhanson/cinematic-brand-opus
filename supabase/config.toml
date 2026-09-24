@@ -115,3 +115,6 @@ verify_jwt = false
 
 [functions.conversion-events]
 verify_jwt = false
+
+[functions.jev-shadow-score]
+verify_jwt = false
