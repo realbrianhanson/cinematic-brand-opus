@@ -4,8 +4,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, X, Globe, FileText, AlertTriangle, Send } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Field, FieldError, SectionCard } from "./site-settings/Field";
+import { ChipList } from "./site-settings/ChipList";
+import { CtaPreview } from "./site-settings/CtaPreview";
+import { SitemapInfoCard } from "./site-settings/SitemapInfoCard";
+import { IndexNowCard } from "./site-settings/IndexNowCard";
+import {
+  checkViolationMessage,
+  normalizeOrigin,
+  validateSiteSettings,
+  type FieldErrors,
+} from "./site-settings/validation";
 
 const defaultSettings = {
   site_name: "My Website",
@@ -63,10 +74,32 @@ const socialPlatforms = [
   },
 ];
 
+/** Stable DOM id per field so a failed save can focus the first error. */
+const fid = (key: string) => `site-settings-${key.replace(/\W/g, "-")}`;
+
+const monoInput = {
+  resize: "vertical",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  fontSize: 12,
+} as const;
+
+const toggleText = {
+  fontSize: 13,
+  color: "hsl(var(--admin-text-soft))",
+} as const;
+
+const trimLinks = (links: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(links)
+      .map(([k, v]) => [k, (v ?? "").trim()])
+      .filter(([, v]) => v),
+  );
+
 const SiteSettingsManager = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [form, setForm] = useState<Settings>(defaultSettings);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [credentialInput, setCredentialInput] = useState("");
 
   const {
@@ -143,15 +176,15 @@ const SiteSettingsManager = () => {
           throw new Error("Settings are not loaded. Reload before saving.");
         const payload = {
           site_name: form.site_name,
-          site_url: form.site_url,
+          site_url: normalizeOrigin(form.site_url),
           publisher_name: form.publisher_name,
-          publisher_url: form.publisher_url,
+          publisher_url: (form.publisher_url ?? "").trim(),
           author_name: form.author_name,
           author_title: form.author_title,
           author_bio: form.author_bio,
           author_credentials: form.author_credentials,
-          author_social_links: form.author_social_links,
-          cta_url: form.cta_url,
+          author_social_links: trimLinks(form.author_social_links),
+          cta_url: (form.cta_url ?? "").trim(),
           cta_headline: form.cta_headline,
           cta_subtext: form.cta_subtext,
           cta_button_text: form.cta_button_text,
@@ -181,7 +214,7 @@ const SiteSettingsManager = () => {
         // admin-only table. RLS on site_settings_private already restricts this
         // to admins; edge functions read via service role.
         const privatePayload = {
-          report_email: form.report_email || "",
+          report_email: (form.report_email || "").trim(),
           report_enabled: form.report_enabled || false,
           voice_profile: form.voice_profile || null,
           banned_phrases: form.banned_phrases,
@@ -204,22 +237,48 @@ const SiteSettingsManager = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
       qc.invalidateQueries({ queryKey: ["admin-site-settings-private"] });
+      qc.invalidateQueries({ queryKey: ["admin-indexnow-keyfile"] });
       toast({
         title: "Settings saved",
         description: "Your site settings have been updated.",
       });
     },
-    onError: (err: Error) => {
+    onError: (err: unknown) => {
       toast({
         title: "Save failed",
-        description: err.message,
+        description: checkViolationMessage(err) ?? errorMessage(err),
         variant: "destructive",
       });
     },
   });
 
+  const save = () => {
+    const found = validateSiteSettings(form);
+    setErrors(found);
+    const first = Object.keys(found)[0];
+    if (first) {
+      document.getElementById(fid(first))?.focus();
+      toast({
+        title: "Fix the highlighted fields",
+        description: `${Object.keys(found).length} field(s) need a valid format before saving.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    saveMutation.mutate();
+  };
+
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const { [key]: _removed, ...rest } = prev;
+      return rest;
+    });
+
   const updateField = (key: keyof Settings, value: unknown) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    clearError(key);
+    if (key === "report_enabled") clearError("report_email");
   };
 
   const updateSocial = (key: string, value: string) => {
@@ -227,6 +286,7 @@ const SiteSettingsManager = () => {
       ...prev,
       author_social_links: { ...prev.author_social_links, [key]: value },
     }));
+    clearError(`social.${key}`);
   };
 
   const addCredential = () => {
@@ -237,26 +297,23 @@ const SiteSettingsManager = () => {
     }
   };
 
-  const removeCredential = (idx: number) => {
-    updateField(
-      "author_credentials",
-      form.author_credentials.filter((_, i) => i !== idx),
-    );
-  };
-
-  const addBannedPhrase = (raw: string) => {
-    const trimmed = raw.trim().toLowerCase();
-    if (trimmed && !form.banned_phrases.includes(trimmed)) {
-      updateField("banned_phrases", [...form.banned_phrases, trimmed]);
+  const addBannedPhrases = (raw: string) => {
+    const next = [...form.banned_phrases];
+    for (const part of raw.split(/[\n,]/)) {
+      const trimmed = part.trim().toLowerCase();
+      if (trimmed && !next.includes(trimmed)) next.push(trimmed);
     }
+    updateField("banned_phrases", next);
   };
 
-  const removeBannedPhrase = (idx: number) => {
-    updateField(
-      "banned_phrases",
-      form.banned_phrases.filter((_, i) => i !== idx),
-    );
-  };
+  // Shared props for a text control bound to a form key.
+  const bind = (key: keyof Settings) => ({
+    id: fid(key),
+    className: "admin-input font-body",
+    value: (form[key] as string | null) ?? "",
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      updateField(key, e.target.value),
+  });
 
   if (settingsError || privateError)
     return (
@@ -274,20 +331,23 @@ const SiteSettingsManager = () => {
         <Loader2
           size={24}
           className="animate-spin"
+          aria-label="Loading settings"
           style={{ color: "hsl(var(--admin-text-ghost))" }}
         />
       </div>
     );
   }
 
+  const reportEmailMissing = !form.report_email.trim();
+
   return (
-    <div>
+    <div className="min-w-0">
       {/* Header */}
       <div
-        className="flex items-center justify-between"
+        className="flex flex-wrap items-center justify-between gap-3"
         style={{ marginBottom: 28 }}
       >
-        <div>
+        <div className="min-w-0">
           <h1
             className="font-body"
             style={{
@@ -311,14 +371,16 @@ const SiteSettingsManager = () => {
           </p>
         </div>
         <button
+          type="button"
           className="admin-btn-primary font-body"
-          onClick={() => saveMutation.mutate()}
+          onClick={save}
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending && (
             <Loader2
               size={14}
               className="animate-spin"
+              aria-hidden
               style={{ marginRight: 6 }}
             />
           )}
@@ -326,151 +388,149 @@ const SiteSettingsManager = () => {
         </button>
       </div>
 
-      {/* Two-column layout */}
+      {/* One column on phones; form + sticky sidebar from lg up. */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 380px",
-          gap: 24,
-          alignItems: "start",
-        }}
+        data-testid="settings-layout"
+        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start"
       >
-        {/* Left column - Forms */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Section 1: Site Identity */}
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 20,
-              }}
+        <div className="flex flex-col gap-5 min-w-0">
+          <SectionCard title="Site Identity">
+            <Field label="Site Name">
+              <input {...bind("site_name")} />
+            </Field>
+            <Field
+              label="Site URL"
+              error={errors.site_url}
+              hint="Your public address. Canonical links, the sitemap, newsletters and IndexNow all use it."
             >
-              Site Identity
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Site Name">
-                <input
-                  className="admin-input font-body"
-                  value={form.site_name}
-                  onChange={(e) => updateField("site_name", e.target.value)}
-                />
-              </Field>
-              <Field label="Site URL">
-                <input
-                  className="admin-input font-body"
-                  value={form.site_url}
-                  onChange={(e) => updateField("site_url", e.target.value)}
-                  placeholder="https://yoursite.com"
-                />
-              </Field>
-              <Field label="Publisher Name">
-                <input
-                  className="admin-input font-body"
-                  value={form.publisher_name ?? ""}
-                  onChange={(e) =>
-                    updateField("publisher_name", e.target.value)
-                  }
-                />
-              </Field>
-              <Field label="Publisher URL">
-                <input
-                  className="admin-input font-body"
-                  value={form.publisher_url ?? ""}
-                  onChange={(e) => updateField("publisher_url", e.target.value)}
-                  placeholder="https://yoursite.com"
-                />
-              </Field>
-            </div>
-          </div>
+              <input
+                {...bind("site_url")}
+                type="url"
+                inputMode="url"
+                autoComplete="url"
+                placeholder="https://yoursite.com"
+              />
+            </Field>
+            <Field label="Publisher Name">
+              <input {...bind("publisher_name")} />
+            </Field>
+            <Field label="Publisher URL" error={errors.publisher_url}>
+              <input
+                {...bind("publisher_url")}
+                type="url"
+                inputMode="url"
+                placeholder="https://yoursite.com"
+              />
+            </Field>
+          </SectionCard>
 
-          {/* Section 2: Author / Owner */}
-          <div className="admin-card" style={{ padding: 24 }}>
+          <section
+            className="admin-card min-w-0"
+            style={{
+              padding: 24,
+              border: "1px solid hsl(var(--admin-accent) / 0.45)",
+            }}
+          >
             <h2
               className="font-body"
               style={{
                 fontSize: 14,
                 fontWeight: 600,
                 color: "hsl(var(--admin-text))",
-                marginBottom: 20,
+                marginBottom: 16,
               }}
             >
-              Author / Owner
+              Admin email &amp; weekly reports
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Author Name">
+            <div className="flex flex-col gap-4">
+              <Field
+                label="Report email"
+                error={errors.report_email}
+                hint="The Monday newsletter preview is sent to this address so you can check it before Tuesday's send. Weekly reports also go here when they are switched on below."
+              >
                 <input
-                  className="admin-input font-body"
-                  value={form.author_name}
-                  onChange={(e) => updateField("author_name", e.target.value)}
+                  {...bind("report_email")}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@yourdomain.com"
+                  style={{ fontSize: 15, padding: "10px 12px" }}
                 />
               </Field>
-              <Field label="Author Title">
-                <input
-                  className="admin-input font-body"
-                  value={form.author_title ?? ""}
-                  onChange={(e) => updateField("author_title", e.target.value)}
-                  placeholder="Entrepreneur, Educator, Speaker"
-                />
-              </Field>
-              <Field label="Author Bio">
-                <textarea
-                  className="admin-input font-body"
-                  rows={4}
-                  value={form.author_bio ?? ""}
-                  onChange={(e) => updateField("author_bio", e.target.value)}
-                  style={{ resize: "vertical" }}
-                />
-              </Field>
-              <Field label="Author Credentials">
-                <div
+              {reportEmailMissing && !errors.report_email && (
+                <p
+                  role="status"
+                  className="font-body flex items-start gap-2"
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    marginBottom: 8,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    backgroundColor: "hsl(40 90% 55% / 0.08)",
+                    border: "1px solid hsl(40 90% 55% / 0.25)",
                   }}
                 >
-                  {form.author_credentials.map((cred, i) => (
-                    <span
-                      key={i}
-                      className="font-body"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 12,
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        backgroundColor: "hsl(var(--admin-surface-2))",
-                        color: "hsl(var(--admin-text-soft))",
-                        border: "1px solid hsl(var(--admin-border))",
-                      }}
-                    >
-                      {cred}
-                      <button
-                        onClick={() => removeCredential(i)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                        }}
-                      >
-                        <X
-                          size={12}
-                          style={{ color: "hsl(var(--admin-text-ghost))" }}
-                        />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                  <AlertTriangle
+                    size={14}
+                    aria-hidden
+                    style={{ color: "hsl(40 90% 45%)", flexShrink: 0 }}
+                  />
+                  No address set, so no Monday newsletter preview is sent.
+                </p>
+              )}
+              <div className="flex items-center gap-3">
+                <Switch
+                  id={fid("report_enabled")}
+                  aria-labelledby={`${fid("report_enabled")}-label`}
+                  checked={form.report_enabled ?? false}
+                  onCheckedChange={(v) => updateField("report_enabled", v)}
+                />
+                <span
+                  id={`${fid("report_enabled")}-label`}
+                  className="font-body"
+                  style={toggleText}
+                >
+                  Enable weekly email reports
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <SectionCard title="Author / Owner">
+            <Field label="Author Name">
+              <input {...bind("author_name")} />
+            </Field>
+            <Field label="Author Title">
+              <input
+                {...bind("author_title")}
+                placeholder="Entrepreneur, Educator, Speaker"
+              />
+            </Field>
+            <Field label="Author Bio">
+              <textarea
+                {...bind("author_bio")}
+                rows={4}
+                style={{ resize: "vertical" }}
+              />
+            </Field>
+            <div role="group" aria-labelledby={fid("credentials-heading")}>
+              <span id={fid("credentials-heading")} className="admin-label">
+                Author Credentials
+              </span>
+              <div style={{ marginTop: 6 }}>
+                <ChipList
+                  items={form.author_credentials}
+                  onRemove={(idx) =>
+                    updateField(
+                      "author_credentials",
+                      form.author_credentials.filter((_, i) => i !== idx),
+                    )
+                  }
+                  removeLabel={(c) => `Remove credential ${c}`}
+                />
+                <div className="flex gap-2 min-w-0">
                   <input
-                    className="admin-input font-body"
+                    className="admin-input font-body min-w-0"
+                    aria-label="Add a credential"
                     value={credentialInput}
                     onChange={(e) => setCredentialInput(e.target.value)}
                     onKeyDown={(e) =>
@@ -480,6 +540,7 @@ const SiteSettingsManager = () => {
                     style={{ flex: 1 }}
                   />
                   <button
+                    type="button"
                     className="admin-btn-ghost font-body"
                     onClick={addCredential}
                     style={{
@@ -495,225 +556,146 @@ const SiteSettingsManager = () => {
                     Add
                   </button>
                 </div>
-              </Field>
-
-              {/* Social Links */}
-              <div style={{ marginTop: 4 }}>
-                <span className="admin-label">Social Links</span>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    marginTop: 8,
-                  }}
-                >
-                  {socialPlatforms.map((p) => (
-                    <div
-                      key={p.key}
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
-                    >
-                      <span
-                        className="font-body"
-                        style={{
-                          fontSize: 12,
-                          color: "hsl(var(--admin-text-ghost))",
-                          width: 80,
-                          flexShrink: 0,
-                          textAlign: "right",
-                        }}
-                      >
-                        {p.label}
-                      </span>
-                      <input
-                        className="admin-input font-body"
-                        value={form.author_social_links[p.key] ?? ""}
-                        onChange={(e) => updateSocial(p.key, e.target.value)}
-                        placeholder={p.placeholder}
-                        style={{ flex: 1 }}
-                      />
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
-          </div>
 
-          {/* Section 3: CTA */}
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 20,
-              }}
-            >
-              Call-to-Action (CTA)
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="CTA URL">
-                <input
-                  className="admin-input font-body"
-                  value={form.cta_url ?? ""}
-                  onChange={(e) => updateField("cta_url", e.target.value)}
-                  placeholder="https://yourfreetraining.com"
-                />
-              </Field>
-              <Field label="CTA Headline">
-                <input
-                  className="admin-input font-body"
-                  value={form.cta_headline ?? ""}
-                  onChange={(e) => updateField("cta_headline", e.target.value)}
-                  placeholder="Free 3-Day Training"
-                />
-              </Field>
-              <Field label="CTA Subtext">
-                <textarea
-                  className="admin-input font-body"
-                  rows={2}
-                  value={form.cta_subtext ?? ""}
-                  onChange={(e) => updateField("cta_subtext", e.target.value)}
-                  style={{ resize: "vertical" }}
-                />
-              </Field>
-              <Field label="CTA Button Text">
-                <input
-                  className="admin-input font-body"
-                  value={form.cta_button_text ?? ""}
-                  onChange={(e) =>
-                    updateField("cta_button_text", e.target.value)
-                  }
-                  placeholder="Get Free Access"
-                />
-              </Field>
-              <Field label="CTA Social Proof Line">
-                <input
-                  className="admin-input font-body"
-                  value={form.cta_social_proof ?? ""}
-                  onChange={(e) =>
-                    updateField("cta_social_proof", e.target.value)
-                  }
-                  placeholder="Rated 4.9/5 by attendees"
-                />
-              </Field>
-            </div>
-          </div>
+            <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+              <legend className="admin-label">Social Links</legend>
+              <div className="flex flex-col gap-2.5" style={{ marginTop: 8 }}>
+                {socialPlatforms.map((p) => {
+                  const key = `social.${p.key}`;
+                  const error = errors[key];
+                  return (
+                    <div key={p.key} className="min-w-0">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2.5">
+                        <label
+                          htmlFor={fid(key)}
+                          className="font-body sm:w-20 sm:shrink-0 sm:text-right"
+                          style={{
+                            fontSize: 12,
+                            color: "hsl(var(--admin-text-ghost))",
+                          }}
+                        >
+                          {p.label}
+                        </label>
+                        <input
+                          id={fid(key)}
+                          className="admin-input font-body min-w-0 flex-1"
+                          type="url"
+                          inputMode="url"
+                          value={form.author_social_links[p.key] ?? ""}
+                          onChange={(e) => updateSocial(p.key, e.target.value)}
+                          placeholder={p.placeholder}
+                          aria-invalid={error ? true : undefined}
+                          aria-describedby={
+                            error ? `${fid(key)}-error` : undefined
+                          }
+                        />
+                      </div>
+                      {error && (
+                        <FieldError id={`${fid(key)}-error`}>
+                          {error}
+                        </FieldError>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+          </SectionCard>
 
-          {/* Section 4: Content Voice */}
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 6,
-              }}
-            >
-              Content Voice
-            </h2>
-            <p
-              className="font-body"
-              style={{
-                fontSize: 12,
-                color: "hsl(var(--admin-text-ghost))",
-                marginBottom: 20,
-                lineHeight: 1.5,
-              }}
-            >
-              Applied to every AI generation and revision pass. Voice profile
-              shapes tone; banned phrases are hard failures that trigger a
-              rewrite.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Voice Profile">
-                <textarea
-                  className="admin-input font-body"
-                  rows={10}
-                  value={form.voice_profile ?? ""}
-                  onChange={(e) => updateField("voice_profile", e.target.value)}
-                  placeholder="Describe the voice: tone, sentence rhythm, vocabulary rules, structural quirks…"
-                  style={{
-                    resize: "vertical",
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, monospace",
-                    fontSize: 12,
-                    lineHeight: 1.6,
+          <SectionCard title="Call-to-Action (CTA)">
+            <Field label="CTA URL" error={errors.cta_url}>
+              <input
+                {...bind("cta_url")}
+                inputMode="url"
+                placeholder="https://yourfreetraining.com or /offers/your-offer"
+              />
+            </Field>
+            <Field label="CTA Headline">
+              <input
+                {...bind("cta_headline")}
+                placeholder="Free 3-Day Training"
+              />
+            </Field>
+            <Field label="CTA Subtext">
+              <textarea
+                {...bind("cta_subtext")}
+                rows={2}
+                style={{ resize: "vertical" }}
+              />
+            </Field>
+            <Field label="CTA Button Text">
+              <input
+                {...bind("cta_button_text")}
+                placeholder="Get Free Access"
+              />
+            </Field>
+            <Field label="CTA Social Proof Line">
+              <input
+                {...bind("cta_social_proof")}
+                placeholder="Rated 4.9/5 by attendees"
+              />
+            </Field>
+          </SectionCard>
+
+          <SectionCard
+            title="Content Voice"
+            intro="Applied to every AI generation and revision pass. Voice profile shapes tone; banned phrases are hard failures that trigger a rewrite."
+          >
+            <Field label="Voice Profile">
+              <textarea
+                {...bind("voice_profile")}
+                rows={10}
+                placeholder="Describe the voice: tone, sentence rhythm, vocabulary rules, structural quirks…"
+                style={{ ...monoInput, lineHeight: 1.6 }}
+              />
+            </Field>
+            <div role="group" aria-labelledby={fid("banned-heading")}>
+              <span id={fid("banned-heading")} className="admin-label">
+                Banned Phrases ({form.banned_phrases.length})
+              </span>
+              <div style={{ marginTop: 6 }}>
+                <ChipList
+                  items={form.banned_phrases}
+                  onRemove={(idx) =>
+                    updateField(
+                      "banned_phrases",
+                      form.banned_phrases.filter((_, i) => i !== idx),
+                    )
+                  }
+                  removeLabel={(p) => `Remove banned phrase ${p}`}
+                  chipStyle={{
+                    fontSize: 11,
+                    backgroundColor: "hsl(0 70% 50% / 0.1)",
+                    color: "hsl(0 70% 45%)",
+                    border: "1px solid hsl(0 70% 50% / 0.25)",
+                    fontFamily: monoInput.fontFamily,
                   }}
                 />
-              </Field>
-              <Field label={`Banned Phrases (${form.banned_phrases.length})`}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    marginBottom: 8,
-                  }}
-                >
-                  {form.banned_phrases.map((phrase, i) => (
-                    <span
-                      key={i}
-                      className="font-body"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 11,
-                        padding: "3px 8px",
-                        borderRadius: 999,
-                        backgroundColor: "hsl(0 70% 50% / 0.1)",
-                        color: "hsl(0 70% 45%)",
-                        border: "1px solid hsl(0 70% 50% / 0.25)",
-                        fontFamily:
-                          "ui-monospace, SFMono-Regular, Menlo, monospace",
-                      }}
-                    >
-                      {phrase}
-                      <button
-                        onClick={() => removeBannedPhrase(i)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                        }}
-                      >
-                        <X size={11} style={{ color: "hsl(0 70% 45%)" }} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
                 <textarea
                   className="admin-input font-body"
+                  aria-label="Add banned phrases"
+                  aria-describedby={fid("banned-hint")}
                   rows={4}
                   placeholder="One phrase per line. Paste a whole list — it will be split and deduplicated on save."
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      const v = (e.target as HTMLTextAreaElement).value;
-                      v.split(/[\n,]/).forEach(addBannedPhrase);
-                      (e.target as HTMLTextAreaElement).value = "";
+                      addBannedPhrases(e.currentTarget.value);
+                      e.currentTarget.value = "";
                     }
                   }}
                   onBlur={(e) => {
-                    const v = e.target.value;
-                    if (v.trim()) {
-                      v.split(/[\n,]/).forEach(addBannedPhrase);
+                    if (e.target.value.trim()) {
+                      addBannedPhrases(e.target.value);
                       e.target.value = "";
                     }
                   }}
-                  style={{
-                    resize: "vertical",
-                    fontSize: 12,
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, monospace",
-                  }}
+                  style={monoInput}
                 />
                 <p
+                  id={fid("banned-hint")}
                   className="font-body"
                   style={{
                     fontSize: 11,
@@ -724,498 +706,77 @@ const SiteSettingsManager = () => {
                   Case-insensitive substring match. Press Enter or click away to
                   add. Matched phrases block publishing until fixed.
                 </p>
-              </Field>
-              <Field label="Default Expert POV (site-wide fallback for 'From the trenches' callouts)">
-                <textarea
-                  className="admin-input font-body"
-                  rows={5}
-                  value={form.default_expert_pov ?? ""}
-                  onChange={(e) =>
-                    updateField("default_expert_pov", e.target.value)
-                  }
-                  placeholder="First-person background used when a niche has no expert_pov of its own. Only claims from this text will appear in callouts."
-                  style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6 }}
-                />
-              </Field>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={form.image_generation_enabled}
-                  onCheckedChange={(v) =>
-                    updateField("image_generation_enabled", v)
-                  }
-                />
-                <span
-                  className="font-body"
-                  style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-                >
-                  Generate one editorial image per resource page (uses provider
-                  credits)
-                </span>
               </div>
             </div>
-          </div>
-
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2 className="font-body" style={{ marginBottom: 16 }}>
-              Newsletter delivery
-            </h2>
-            <p style={{ marginBottom: 16 }}>
-              Use a sender verified with your email provider. Weekly digests
-              require your business mailing address.
-            </p>
-            <div className="flex flex-col gap-4">
-              <Field label="Verified sender (Name <email@example.com>)">
-                <input
-                  className="admin-input"
-                  value={form.newsletter_from_address}
-                  onChange={(e) =>
-                    updateField("newsletter_from_address", e.target.value)
-                  }
-                />
-              </Field>
-              <Field label="Reply-to email">
-                <input
-                  className="admin-input"
-                  type="email"
-                  value={form.newsletter_reply_to}
-                  onChange={(e) =>
-                    updateField("newsletter_reply_to", e.target.value)
-                  }
-                />
-              </Field>
-              <Field label="Business mailing address">
-                <textarea
-                  className="admin-input"
-                  value={form.newsletter_postal_address}
-                  onChange={(e) =>
-                    updateField("newsletter_postal_address", e.target.value)
-                  }
-                />
-              </Field>
+            <Field label="Default Expert POV (site-wide fallback for 'From the trenches' callouts)">
+              <textarea
+                {...bind("default_expert_pov")}
+                rows={5}
+                placeholder="First-person background used when a niche has no expert_pov of its own. Only claims from this text will appear in callouts."
+                style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6 }}
+              />
+            </Field>
+            <div className="flex items-center gap-3">
+              <Switch
+                id={fid("image_generation_enabled")}
+                aria-labelledby={`${fid("image_generation_enabled")}-label`}
+                checked={form.image_generation_enabled}
+                onCheckedChange={(v) =>
+                  updateField("image_generation_enabled", v)
+                }
+              />
+              <span
+                id={`${fid("image_generation_enabled")}-label`}
+                className="font-body"
+                style={toggleText}
+              >
+                Generate one editorial image per resource page (uses provider
+                credits)
+              </span>
             </div>
-          </div>
+          </SectionCard>
 
-          {/* Section 5: Weekly Reports */}
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 20,
-              }}
+          <SectionCard
+            title="Newsletter delivery"
+            intro="Use a sender verified with your email provider. Weekly digests require your business mailing address."
+          >
+            <Field
+              label="Verified sender"
+              error={errors.newsletter_from_address}
+              hint="Format: Name <email@yourdomain.com>"
             >
-              Weekly Reports
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Report Email">
-                <input
-                  className="admin-input font-body"
-                  value={form.report_email ?? ""}
-                  onChange={(e) => updateField("report_email", e.target.value)}
-                  placeholder="admin@yoursite.com"
-                  type="email"
-                />
-              </Field>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={form.report_enabled ?? false}
-                  onCheckedChange={(v) => updateField("report_enabled", v)}
-                />
-                <span
-                  className="font-body"
-                  style={{ fontSize: 13, color: "hsl(var(--admin-text-soft))" }}
-                >
-                  Enable weekly email reports
-                </span>
-              </div>
-            </div>
-          </div>
+              <input
+                {...bind("newsletter_from_address")}
+                placeholder="Your Name <you@yourdomain.com>"
+              />
+            </Field>
+            <Field label="Reply-to email" error={errors.newsletter_reply_to}>
+              <input
+                {...bind("newsletter_reply_to")}
+                type="email"
+                autoComplete="email"
+              />
+            </Field>
+            <Field label="Business mailing address">
+              <textarea {...bind("newsletter_postal_address")} />
+            </Field>
+          </SectionCard>
         </div>
 
-        {/* Right column - Live CTA Preview + Sitemap Card */}
-        <div
-          style={{
-            position: "sticky",
-            top: 32,
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-          }}
-        >
-          <div className="admin-card" style={{ padding: 24 }}>
-            <h2
-              className="font-body"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--admin-text))",
-                marginBottom: 16,
-              }}
-            >
-              CTA Preview
-            </h2>
-            <div
-              style={{
-                padding: 28,
-                borderRadius: 10,
-                background: `linear-gradient(135deg, hsl(var(--admin-accent) / 0.12), hsl(var(--admin-surface-2)))`,
-                border: "1px solid hsl(var(--admin-accent) / 0.2)",
-                textAlign: "center",
-              }}
-            >
-              <p
-                className="font-body"
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "hsl(var(--admin-text))",
-                  marginBottom: 8,
-                  lineHeight: 1.3,
-                }}
-              >
-                {form.cta_headline || "Your Headline"}
-              </p>
-              <p
-                className="font-body"
-                style={{
-                  fontSize: 13,
-                  color: "hsl(var(--admin-text-soft))",
-                  marginBottom: 16,
-                  lineHeight: 1.5,
-                }}
-              >
-                {form.cta_subtext || "Your subtext goes here."}
-              </p>
-              <div
-                style={{
-                  display: "inline-block",
-                  padding: "10px 28px",
-                  borderRadius: 6,
-                  backgroundColor: "hsl(var(--admin-accent))",
-                  color: "hsl(var(--admin-accent-fg))",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-                className="font-body"
-              >
-                {form.cta_button_text || "Button Text"}
-              </div>
-              {form.cta_social_proof && (
-                <p
-                  className="font-body"
-                  style={{
-                    fontSize: 11,
-                    color: "hsl(var(--admin-text-ghost))",
-                    marginTop: 12,
-                    fontStyle: "italic",
-                  }}
-                >
-                  {form.cta_social_proof}
-                </p>
-              )}
-            </div>
-            <p
-              className="font-body"
-              style={{
-                fontSize: 11,
-                color: "hsl(var(--admin-text-ghost))",
-                marginTop: 12,
-                textAlign: "center",
-              }}
-            >
-              Live preview — updates as you type
-            </p>
-          </div>
-
-          <SitemapInfoCard />
-          <IndexNowCard siteUrl={form.site_url} />
+        {/* Sidebar: CTA preview + crawler status. Sticky on large screens only. */}
+        <div className="flex flex-col gap-5 min-w-0 lg:sticky lg:top-8">
+          <CtaPreview
+            headline={form.cta_headline}
+            subtext={form.cta_subtext}
+            buttonText={form.cta_button_text}
+            socialProof={form.cta_social_proof}
+          />
+          <SitemapInfoCard siteUrl={form.site_url} />
+          <IndexNowCard />
         </div>
       </div>
     </div>
   );
 };
-
-const SitemapInfoCard = () => {
-  const { data: publishedCount } = useQuery({
-    queryKey: ["sitemap-page-count"],
-    queryFn: async () => {
-      const [gen, pillar] = await Promise.all([
-        supabase
-          .from("generated_pages")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "published"),
-        supabase
-          .from("pillar_pages")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "published"),
-      ]);
-      return (gen.count || 0) + (pillar.count || 0);
-    },
-  });
-
-  return (
-    <div className="admin-card" style={{ padding: 24 }}>
-      <h2
-        className="font-body"
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: "hsl(var(--admin-text))",
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Globe size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-        Sitemap &amp; Crawlers
-      </h2>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: 6,
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            border: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          <FileText
-            size={14}
-            style={{ color: "hsl(var(--admin-text-ghost))" }}
-          />
-          <span
-            className="font-body"
-            style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-          >
-            robots.txt:{" "}
-            <span style={{ color: "hsl(120 60% 45%)" }}>Active</span>
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: 6,
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            border: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          <FileText
-            size={14}
-            style={{ color: "hsl(var(--admin-text-ghost))" }}
-          />
-          <span
-            className="font-body"
-            style={{ fontSize: 12, color: "hsl(var(--admin-text-soft))" }}
-          >
-            {publishedCount ?? "…"} published pages in sitemap
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            padding: "10px 12px",
-            borderRadius: 6,
-            backgroundColor: "hsl(40 90% 55% / 0.08)",
-            border: "1px solid hsl(40 90% 55% / 0.2)",
-          }}
-        >
-          <AlertTriangle
-            size={14}
-            style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }}
-          />
-          <span
-            className="font-body"
-            style={{
-              fontSize: 11,
-              color: "hsl(var(--admin-text-soft))",
-              lineHeight: 1.5,
-            }}
-          >
-            Update the Sitemap URL in{" "}
-            <code
-              style={{
-                fontSize: 10,
-                padding: "1px 4px",
-                borderRadius: 3,
-                backgroundColor: "hsl(var(--admin-surface-2))",
-              }}
-            >
-              public/robots.txt
-            </code>{" "}
-            to your actual domain before going live.
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const IndexNowCard = ({ siteUrl }: { siteUrl: string }) => {
-  const { toast } = useToast();
-  const [testing, setTesting] = useState(false);
-  const indexNowKey = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"; // Display-only placeholder
-
-  const handleTest = async () => {
-    setTesting(true);
-    try {
-      const cleanUrl = (siteUrl || "https://example.com").replace(/\/$/, "");
-      const { data, error } = await supabase.functions.invoke(
-        "submit-indexnow",
-        {
-          body: { urls: [cleanUrl] },
-        },
-      );
-      if (error) throw error;
-      toast({
-        title: "Test submitted",
-        description: `IndexNow: ${data?.indexnow_status || "unknown"} · ${data?.submitted_count ?? 0} URLs submitted`,
-      });
-    } catch (e) {
-      toast({
-        title: "Test failed",
-        description: errorMessage(e),
-        variant: "destructive",
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  return (
-    <div className="admin-card" style={{ padding: 24 }}>
-      <h2
-        className="font-body"
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: "hsl(var(--admin-text))",
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Send size={16} style={{ color: "hsl(var(--admin-accent))" }} />
-        IndexNow
-      </h2>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: 6,
-            backgroundColor: "hsl(var(--admin-surface-2))",
-            border: "1px solid hsl(var(--admin-border))",
-          }}
-        >
-          <span className="admin-label" style={{ marginBottom: 4 }}>
-            API Key
-          </span>
-          <code
-            className="font-body block"
-            style={{
-              fontSize: 11,
-              color: "hsl(var(--admin-text-soft))",
-              wordBreak: "break-all",
-              userSelect: "all",
-            }}
-          >
-            {indexNowKey}
-          </code>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            padding: "10px 12px",
-            borderRadius: 6,
-            backgroundColor: "hsl(40 90% 55% / 0.08)",
-            border: "1px solid hsl(40 90% 55% / 0.2)",
-          }}
-        >
-          <AlertTriangle
-            size={14}
-            style={{ color: "hsl(40 90% 45%)", flexShrink: 0, marginTop: 1 }}
-          />
-          <span
-            className="font-body"
-            style={{
-              fontSize: 11,
-              color: "hsl(var(--admin-text-soft))",
-              lineHeight: 1.5,
-            }}
-          >
-            Host a file named{" "}
-            <code
-              style={{
-                fontSize: 10,
-                padding: "1px 4px",
-                borderRadius: 3,
-                backgroundColor: "hsl(var(--admin-surface-2))",
-              }}
-            >
-              {indexNowKey}.txt
-            </code>{" "}
-            at your site root containing just the key string.
-          </span>
-        </div>
-
-        <p
-          className="font-body"
-          style={{
-            fontSize: 11,
-            color: "hsl(var(--admin-text-ghost))",
-            lineHeight: 1.5,
-          }}
-        >
-          IndexNow instantly notifies Bing, Yandex, DuckDuckGo, Naver &amp;
-          Seznam when pages are published. Google is pinged via sitemap.
-        </p>
-
-        <button
-          onClick={handleTest}
-          disabled={testing}
-          className="admin-btn-ghost font-body flex items-center justify-center gap-2 w-full"
-          style={{ fontSize: 12, padding: "8px 14px" }}
-        >
-          {testing ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Send size={14} />
-          )}
-          {testing ? "Testing..." : "Test IndexNow"}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const Field = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <div>
-    <span className="admin-label">{label}</span>
-    <div style={{ marginTop: 6 }}>{children}</div>
-  </div>
-);
 
 export default SiteSettingsManager;

@@ -24,12 +24,36 @@ vi.mock("@/lib/router-compat", () => ({
     </a>
   ),
 }));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({
+    to,
+    search,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    to: string;
+    search?: { days?: unknown };
+  }) => (
+    <a
+      href={to}
+      data-days={JSON.stringify(search?.days)}
+      data-testid="range-link"
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}));
+import { createMemoryHistory, createRouter } from "@tanstack/react-router";
+import { routeTree } from "@/routeTree.gen";
 import ConversionDashboard, {
   ConversionOverview,
 } from "../ConversionDashboard";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { memberPreset } from "@/config/presets/member";
 import {
+  campaignLabel,
   conversionMoney,
   conversionRate,
   conversionSearch,
@@ -222,10 +246,12 @@ describe("conversion reporting", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Last 7 days" })).toHaveAttribute(
-      "href",
-      "/admin/conversions?days=7",
-    );
+    // Numeric search values: TanStack writes ?days=7, never ?days=%227%22.
+    expect(
+      screen
+        .getAllByTestId("range-link")
+        .map((link) => link.getAttribute("data-days")),
+    ).toEqual(["7", "30", "90"]);
     expect(
       screen.getByText(/earlier traffic is not reconstructed/),
     ).toBeInTheDocument();
@@ -334,5 +360,54 @@ describe("conversion reporting", () => {
       within(destinations).getByText("Featured event"),
     ).toBeInTheDocument();
     expect(within(destinations).queryByText("Summit")).not.toBeInTheDocument();
+  });
+  it("builds canonical range URLs without JSON-quoted values", () => {
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory(),
+      context: { queryClient: new QueryClient() },
+    });
+    const href = (days: number) =>
+      router.buildLocation({
+        to: "/admin/conversions",
+        search: { days } as never,
+      }).href;
+    expect(href(7)).toBe("/admin/conversions?days=7");
+    expect(href(90)).toBe("/admin/conversions?days=90");
+    expect(href(30)).toBe("/admin/conversions");
+  });
+  it("labels untagged traffic instead of printing the stored placeholder", () => {
+    expect(campaignLabel("none")).toBe("(no campaign)");
+    expect(campaignLabel(null)).toBe("(no campaign)");
+    expect(campaignLabel("")).toBe("(no campaign)");
+    expect(campaignLabel("spring_launch")).toBe("spring_launch");
+    const data = populated();
+    data.sources = [{ ...data.sources[0], campaign: "none" }];
+    const { wrapper } = setup(data);
+    render(<ConversionDashboard days={30} />, { wrapper });
+    const sources = screen.getByRole("table", {
+      name: "Source and campaign performance",
+    });
+    expect(within(sources).getByText(/\(no campaign\)/)).toBeInTheDocument();
+    expect(within(sources).queryByText(/· none/)).not.toBeInTheDocument();
+  });
+  it("does not claim unlinked orders had no measured visit", () => {
+    const { wrapper } = setup(populated());
+    render(<ConversionDashboard days={30} />, { wrapper });
+    const native = screen.getByRole("region", {
+      name: "Confirmed native outcomes",
+    });
+    expect(native).toHaveTextContent("could not be linked to a measured visit");
+    expect(native).not.toHaveTextContent("have no qualifying measured");
+  });
+  it("reserves the overview counts with skeletons while loading", () => {
+    rpc.mockReturnValueOnce(new Promise(() => {}));
+    const { wrapper } = setup();
+    render(<ConversionOverview />, { wrapper });
+    const counts = screen.getByTestId("conversion-overview-counts");
+    expect(counts).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.queryByText("Loading current information…"),
+    ).not.toBeInTheDocument();
   });
 });

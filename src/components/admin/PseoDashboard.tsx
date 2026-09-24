@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@/lib/router-compat";
@@ -19,6 +19,9 @@ const schema = z.object({
   generated_at: z.string(),
   published_resources: number,
   resource_views_all_time: number,
+  // Added by migration 20260923150000; optional so an older database still
+  // renders the rest of the report.
+  published_articles: number.optional(),
   review_needed: number,
   top_pages: z.array(
     z.object({
@@ -37,7 +40,29 @@ const schema = z.object({
     rows: number,
     clicks: number,
     impressions: number,
+    sections: z
+      .array(
+        z.object({
+          section: z.string(),
+          pages: number,
+          clicks: number,
+          impressions: number,
+        }),
+      )
+      .default([]),
   }),
+  top_articles: z
+    .array(
+      z.object({
+        path: z.string(),
+        title: z.string(),
+        post_id: z.string().nullable(),
+        clicks: number,
+        impressions: number,
+        position: number.nullable(),
+      }),
+    )
+    .default([]),
   queries: z.array(
     z.object({
       page_url: z.string(),
@@ -62,6 +87,13 @@ const schema = z.object({
     }),
   ),
 });
+const sectionLabels: Record<string, string> = {
+  articles: "Articles",
+  resources: "Resources",
+  guides: "Guides",
+  other: "Home and other pages",
+};
+
 export default function PseoDashboard() {
   const [days, setDays] = useState(30);
   const [sendingReport, setSendingReport] = useState(false);
@@ -115,8 +147,10 @@ export default function PseoDashboard() {
 
   const report = useQuery({
     queryKey: ["admin-performance", days],
-    refetchOnWindowFocus: true,
-    refetchInterval: 60000,
+    // Keep the current report (and the focused range control) on screen
+    // while another range loads.
+    placeholderData: keepPreviousData,
+    refetchInterval: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_performance_snapshot", {
         days,
@@ -147,41 +181,64 @@ export default function PseoDashboard() {
           Refresh
         </button>
       </header>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-3">
+          Activity window
+          <select
+            className="admin-input w-auto"
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+          >
+            {[7, 30, 90].map((n) => (
+              <option key={n} value={n}>
+                Last {n} days
+              </option>
+            ))}
+          </select>
+        </label>
+        <span role="status" className="admin-help">
+          {report.isPlaceholderData ? "Updating the report…" : ""}
+        </span>
+      </div>
       <QueryNotice
         loading={report.isPending}
-        error={report.error}
+        error={data ? null : report.error}
         retry={() => report.refetch()}
       />
-      {data && !report.error && (
+      {data && report.error && (
+        <p role="status" className="admin-notice">
+          Showing the last successful report. Refresh to confirm the latest
+          activity.
+        </p>
+      )}
+      {data && (
         <>
-          <label className="flex items-center gap-3">
-            Activity window
-            <select
-              className="admin-input w-auto"
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
-            >
-              {[7, 30, 90].map((n) => (
-                <option key={n} value={n}>
-                  Last {n} days
-                </option>
+          <section
+            aria-label="Headline numbers"
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            {(
+              [
+                [data.published_articles, "Published articles"],
+                [data.published_resources, "Published resources"],
+                [data.resource_views_all_time, "Resource views · all time"],
+                [data.review_needed, "Resources flagged for review"],
+              ] as const
+            )
+              .filter(([value]) => value !== undefined)
+              .map(([value, label]) => (
+                <div className="admin-card p-5" key={label}>
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                  <p className="text-3xl font-semibold mt-3">
+                    {Number(value).toLocaleString()}
+                  </p>
+                </div>
               ))}
-            </select>
-          </label>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {[
-              [data.published_resources, "Published resources"],
-              [data.resource_views_all_time, "Resource views · all time"],
-              [data.review_needed, "Resources flagged for review"],
-            ].map(([value, label]) => (
-              <div className="admin-card p-5" key={String(label)}>
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="text-3xl font-semibold mt-3">
-                  {Number(value).toLocaleString()}
-                </p>
-              </div>
-            ))}
-          </div>
+          </section>
+          <p className="admin-help">
+            Resource views are recorded page-view events, not unique visitors.
+            Article reach comes from Search Console below.
+          </p>
           <div className="admin-card p-5">
             <h2 className="font-semibold">
               Offer activity moved to Conversions
@@ -271,6 +328,65 @@ export default function PseoDashboard() {
                   {data.search.impressions.toLocaleString()} impressions across{" "}
                   {data.search.rows.toLocaleString()} imported page/query rows.
                 </p>
+                {data.search.sections.length > 0 && (
+                  <div className="overflow-x-auto mb-4">
+                    <table className="admin-table w-full">
+                      <caption className="sr-only">
+                        Search Console totals by section
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Section</th>
+                          <th>Pages</th>
+                          <th>Impressions</th>
+                          <th>Clicks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.search.sections.map((row) => (
+                          <tr key={row.section}>
+                            <td>{sectionLabels[row.section] ?? row.section}</td>
+                            <td>{row.pages.toLocaleString()}</td>
+                            <td>{row.impressions.toLocaleString()}</td>
+                            <td>{row.clicks.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {data.top_articles.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold mb-2">
+                      Articles with the most search impressions
+                    </h3>
+                    <ul className="divide-y divide-border">
+                      {data.top_articles.map((row) => (
+                        <li
+                          className="py-2 flex flex-wrap justify-between gap-3"
+                          key={row.path}
+                        >
+                          {row.post_id ? (
+                            <Link
+                              className="underline"
+                              to={`/admin/posts/${row.post_id}/edit`}
+                            >
+                              {row.title}
+                            </Link>
+                          ) : (
+                            <span className="break-all">{row.title}</span>
+                          )}
+                          <span className="text-sm text-muted-foreground">
+                            {row.impressions.toLocaleString()} impressions ·{" "}
+                            {row.clicks.toLocaleString()} clicks
+                            {row.position !== null &&
+                              ` · avg. position ${row.position.toFixed(1)}`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground mb-4">
                   Query totals may differ from Search Console totals because
                   anonymized or unimported queries are excluded. Low-volume

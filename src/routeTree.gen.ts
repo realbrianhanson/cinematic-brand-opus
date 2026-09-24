@@ -26,6 +26,7 @@ import { Route as SpeakingRouteImport } from './routes/speaking'
 import { Route as StartHereRouteImport } from './routes/start-here'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as Char123indexnowKeyChar125DottxtRouteImport } from './routes/{$indexnowKey}[.]txt'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAudienceRouteImport } from './routes/admin.audience'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
@@ -160,6 +161,12 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char123indexnowKeyChar125DottxtRoute =
+  Char123indexnowKeyChar125DottxtRouteImport.update({
+    id: '/{$indexnowKey}.txt',
+    path: '/{$indexnowKey}.txt',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -423,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
@@ -486,6 +494,7 @@ export interface FileRoutesByTo {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
@@ -553,6 +562,7 @@ export interface FileRoutesById {
   '/start-here': typeof StartHereRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
@@ -622,6 +632,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/{$indexnowKey}.txt'
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
@@ -685,6 +696,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/{$indexnowKey}.txt'
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
@@ -751,6 +763,7 @@ export interface FileRouteTypes {
     | '/start-here'
     | '/support'
     | '/terms'
+    | '/{$indexnowKey}.txt'
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
@@ -819,6 +832,7 @@ export interface RootRouteChildren {
   StartHereRoute: typeof StartHereRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
+  Char123indexnowKeyChar125DottxtRoute: typeof Char123indexnowKeyChar125DottxtRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -952,6 +966,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/{$indexnowKey}.txt': {
+      id: '/{$indexnowKey}.txt'
+      path: '/{$indexnowKey}.txt'
+      fullPath: '/{$indexnowKey}.txt'
+      preLoaderRoute: typeof Char123indexnowKeyChar125DottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -1426,6 +1447,7 @@ const rootRouteChildren: RootRouteChildren = {
   StartHereRoute: StartHereRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
+  Char123indexnowKeyChar125DottxtRoute: Char123indexnowKeyChar125DottxtRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminResetPasswordRoute: AdminResetPasswordRoute,
   ApiChatRoute: ApiChatRoute,
