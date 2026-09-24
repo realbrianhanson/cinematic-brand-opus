@@ -1989,6 +1989,8 @@ export type Database = {
           report_email: string | null;
           report_enabled: boolean | null;
           speaking_inquiries_enabled: boolean;
+          speaking_notifications_enabled: boolean;
+          speaking_notification_email: string;
           updated_at: string;
           voice_profile: string | null;
         };
@@ -2003,6 +2005,8 @@ export type Database = {
           report_email?: string | null;
           report_enabled?: boolean | null;
           speaking_inquiries_enabled?: boolean;
+          speaking_notifications_enabled?: boolean;
+          speaking_notification_email?: string;
           updated_at?: string;
           voice_profile?: string | null;
         };
@@ -2017,6 +2021,8 @@ export type Database = {
           report_email?: string | null;
           report_enabled?: boolean | null;
           speaking_inquiries_enabled?: boolean;
+          speaking_notifications_enabled?: boolean;
+          speaking_notification_email?: string;
           updated_at?: string;
           voice_profile?: string | null;
         };
@@ -2147,6 +2153,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      speaking_notification_deliveries: {
+        Row: {
+          attempts: number;
+          created_at: string;
+          first_attempt_at: string | null;
+          id: string;
+          inquiry_id: string;
+          kind: string;
+          last_attempt_at: string | null;
+          last_error: string | null;
+          lease_id: string | null;
+          lease_until: string | null;
+          next_attempt_at: string;
+          payload: Json | null;
+          provider_id: string | null;
+          sent_at: string | null;
+          status: string;
+        };
+        Insert: {
+          attempts?: number;
+          created_at?: string;
+          first_attempt_at?: string | null;
+          id?: string;
+          inquiry_id: string;
+          kind: string;
+          last_attempt_at?: string | null;
+          last_error?: string | null;
+          lease_id?: string | null;
+          lease_until?: string | null;
+          next_attempt_at?: string;
+          payload?: Json | null;
+          provider_id?: string | null;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Update: {
+          attempts?: number;
+          created_at?: string;
+          first_attempt_at?: string | null;
+          id?: string;
+          inquiry_id?: string;
+          kind?: string;
+          last_attempt_at?: string | null;
+          last_error?: string | null;
+          lease_id?: string | null;
+          lease_until?: string | null;
+          next_attempt_at?: string;
+          payload?: Json | null;
+          provider_id?: string | null;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Relationships: [{ foreignKeyName: "speaking_notification_deliveries_inquiry_id_fkey"; columns: ["inquiry_id"]; isOneToOne: false; referencedRelation: "speaking_inquiries"; referencedColumns: ["id"]; }];
+      };
+      transactional_email_suppressions: {
+        Row: { email: string; reason: string; created_at: string; updated_at: string; };
+        Insert: { email: string; reason: string; created_at?: string; updated_at?: string; };
+        Update: { email?: string; reason?: string; created_at?: string; updated_at?: string; };
+        Relationships: [];
+      };
       topic_performance: {
         Row: {
           avg_clicks: number;
@@ -2245,6 +2311,11 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      record_transactional_email_suppression: { Args: { _email: string; _reason: string }; Returns: boolean };
+      transactional_email_is_suppressed: { Args: { _email: string }; Returns: boolean };
+      claim_speaking_notification: { Args: { _id: string }; Returns: Json };
+      freeze_speaking_notification: { Args: { _id: string; _lease_id: string; _payload: Json }; Returns: boolean };
+      record_speaking_notification: { Args: { _id: string; _lease_id: string; _outcome: string; _provider_id: string | null; _error: string | null }; Returns: boolean };
       admin_content_breakdown: { Args: never; Returns: Json };
       admin_conversion_snapshot: { Args: { _days?: number }; Returns: Json };
       admin_offer_copy_allow: { Args: never; Returns: boolean };

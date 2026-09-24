@@ -9,6 +9,9 @@ import {
   type InquiryStatus,
 } from "@/lib/speakingInquiries";
 import QueryNotice from "./QueryNotice";
+import SpeakingNotifications, {
+  SpeakingDeliveryStatus,
+} from "./SpeakingNotifications";
 
 type Inquiry = Omit<
   Tables<"speaking_inquiries">,
@@ -315,7 +318,7 @@ export default function SpeakingInquiries() {
           </h2>
           <p className="admin-help mt-1">
             {enabled
-              ? "New submissions appear here. Check this inbox regularly; automatic email notifications are not enabled."
+              ? "New submissions appear here. Configure email notifications below and mark each inquiry Contacted after replying."
               : "Enable when you’re ready to receive event inquiries. Existing conversations remain available."}
           </p>
         </div>
@@ -348,15 +351,19 @@ export default function SpeakingInquiries() {
           {toggle.error.message}
         </p>
       )}
+      <SpeakingNotifications />
       {selected ? (
-        <InquiryDetail
-          key={selected.id}
-          inquiry={selected}
-          back={() => {
-            setSelected(null);
-            void inquiries.refetch();
-          }}
-        />
+        <>
+          <InquiryDetail
+            key={selected.id}
+            inquiry={selected}
+            back={() => {
+              setSelected(null);
+              void inquiries.refetch();
+            }}
+          />
+          <SpeakingDeliveryStatus inquiryId={selected.id} />
+        </>
       ) : (
         <>
           <div className="admin-card p-4 flex flex-wrap gap-4">
@@ -447,6 +454,14 @@ export default function SpeakingInquiries() {
                             <span>Event: {inquiry.event_date}</span>
                           )}
                           <span>{formatLabels[inquiry.event_format]}</span>
+                          {inquiry.status === "new" &&
+                            Date.now() -
+                              new Date(inquiry.created_at).getTime() >=
+                              48 * 60 * 60 * 1000 && (
+                              <span className="font-medium text-amber-700 dark:text-amber-300">
+                                Follow-up needed · no reply recorded
+                              </span>
+                            )}
                         </div>
                       </button>
                     </li>

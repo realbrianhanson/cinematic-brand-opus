@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { safeHref } from "@/lib/newsMarkdown";
 import { X, ArrowRight } from "lucide-react";
+import {
+  contentOfferCopy,
+  resolveContentOffer,
+} from "@/lib/contentOfferRouting";
 import {
   isSummitUrl,
   summitHref,
@@ -29,6 +33,8 @@ const PublicCTA = ({
   nicheSlug,
   contentTypeSlug,
   nicheName,
+  pageId,
+  pageType,
   summitPlacement,
 }: PublicCTAProps) => {
   const siteConfig = useSiteConfig();
@@ -47,6 +53,20 @@ const PublicCTA = ({
     staleTime: 60000,
   });
 
+  const { data: matchedOffer, isPending: routingPending } = useQuery({
+    queryKey: [
+      "public-content-offer",
+      pageType,
+      pageId,
+      contentTypeSlug,
+      nicheSlug,
+    ],
+    queryFn: () =>
+      resolveContentOffer({ pageId, pageType, contentTypeSlug, nicheSlug }),
+    staleTime: 30_000,
+    retry: false,
+  });
+
   const [stickyVisible, setStickyVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -62,38 +82,50 @@ const PublicCTA = ({
     return () => window.removeEventListener("scroll", onScroll);
   }, [variant]);
 
-  const buildUrl = useCallback(() => {
-    if (!safeHref(settings?.cta_url)) return "";
-    try {
-      if (summitPlacement && isSummitUrl(settings!.cta_url))
-        return summitHref(settings!.cta_url!, summitPlacement);
-      const url = new URL(settings!.cta_url!, siteConfig.identity.siteUrl);
-      url.searchParams.set(
-        "utm_source",
-        new URL(siteConfig.identity.siteUrl).hostname,
-      );
-      url.searchParams.set("utm_medium", "pseo");
-      if (contentTypeSlug)
-        url.searchParams.set("utm_campaign", contentTypeSlug);
-      if (nicheSlug) url.searchParams.set("utm_content", nicheSlug);
-      return url.toString();
-    } catch {
-      return "";
-    }
-  }, [settings?.cta_url, nicheSlug, contentTypeSlug, summitPlacement]);
-
-  if (!settings?.cta_url) return null;
-
-  const subtext =
-    nicheName && settings.cta_subtext
+  const offerCopy = matchedOffer ? contentOfferCopy(matchedOffer) : null;
+  const headline =
+    offerCopy?.headline || settings?.cta_headline || "Get Started";
+  const buttonText =
+    offerCopy?.buttonText || settings?.cta_button_text || "Learn More";
+  const subtext = offerCopy
+    ? offerCopy.subtext
+    : nicheName && settings?.cta_subtext
       ? settings.cta_subtext.replace(
           /your business/gi,
           `your ${nicheName} business`,
         )
-      : settings.cta_subtext;
+      : settings?.cta_subtext;
 
-  const href = buildUrl();
-  if (!href) return null;
+  let href = offerCopy?.href || "";
+  if (!offerCopy && safeHref(settings?.cta_url)) {
+    try {
+      if (summitPlacement && isSummitUrl(settings!.cta_url)) {
+        href = summitHref(settings!.cta_url!, summitPlacement);
+      } else {
+        const url = new URL(settings!.cta_url!, siteConfig.identity.siteUrl);
+        url.searchParams.set(
+          "utm_source",
+          new URL(siteConfig.identity.siteUrl).hostname,
+        );
+        url.searchParams.set("utm_medium", "pseo");
+        if (contentTypeSlug)
+          url.searchParams.set("utm_campaign", contentTypeSlug);
+        if (nicheSlug) url.searchParams.set("utm_content", nicheSlug);
+        href = url.toString();
+      }
+    } catch {
+      // Invalid global settings produce no link; a configured offer stays usable.
+    }
+  }
+  if (routingPending || !href) return null;
+  const linkProps = {
+    href,
+    // Native offer links stay in this tab and preserve acquisition attribution.
+    target: offerCopy ? undefined : "_blank",
+    rel: offerCopy ? undefined : "noopener noreferrer",
+    "data-conversion-destination": offerCopy ? undefined : "external_resource",
+    "data-conversion-placement": "resource",
+  };
 
   // === INLINE ===
   if (variant === "inline") {
@@ -110,7 +142,7 @@ const PublicCTA = ({
             className="font-body font-bold mb-1"
             style={{ fontSize: 18, color: "rgba(255,255,255,0.9)" }}
           >
-            {settings.cta_headline || "Get Started"}
+            {headline}
           </p>
           {subtext && (
             <p
@@ -126,11 +158,7 @@ const PublicCTA = ({
           )}
         </div>
         <a
-          href={href}
-          data-conversion-destination="external_resource"
-          data-conversion-placement="resource"
-          target="_blank"
-          rel="noopener noreferrer"
+          {...linkProps}
           className="font-body uppercase shrink-0 inline-flex items-center gap-2 px-6 py-3 transition-all duration-200"
           style={{
             fontSize: 12,
@@ -148,7 +176,7 @@ const PublicCTA = ({
             (e.currentTarget.style.background = "var(--brand-accent)")
           }
         >
-          {settings.cta_button_text || "Learn More"} <ArrowRight size={14} />
+          {buttonText} <ArrowRight size={14} />
         </a>
       </div>
     );
@@ -173,15 +201,11 @@ const PublicCTA = ({
           className="font-body truncate mr-4"
           style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}
         >
-          {settings.cta_headline || "Get Started"} →
+          {headline} →
         </p>
         <div className="flex items-center gap-3 shrink-0">
           <a
-            href={href}
-            data-conversion-destination="external_resource"
-            data-conversion-placement="resource"
-            target="_blank"
-            rel="noopener noreferrer"
+            {...linkProps}
             className="font-body uppercase px-4 py-1.5 transition-all"
             style={{
               fontSize: 12,
@@ -198,7 +222,7 @@ const PublicCTA = ({
               (e.currentTarget.style.background = "var(--brand-accent)")
             }
           >
-            {settings.cta_button_text || "Learn More"}
+            {buttonText}
           </a>
           <button
             onClick={() => setDismissed(true)}
@@ -228,9 +252,7 @@ const PublicCTA = ({
         border: "1px solid rgba(var(--brand-accent-rgb),0.15)",
       }}
     >
-      <h3 className="font-display text-title mb-4 text-white">
-        {settings.cta_headline || "Get Started"}
-      </h3>
+      <h3 className="font-display text-title mb-4 text-white">{headline}</h3>
       {subtext && (
         <p
           className="font-body mb-6 mx-auto"
@@ -245,11 +267,7 @@ const PublicCTA = ({
         </p>
       )}
       <a
-        href={href}
-        data-conversion-destination="external_resource"
-        data-conversion-placement="resource"
-        target="_blank"
-        rel="noopener noreferrer"
+        {...linkProps}
         className="font-body uppercase inline-flex items-center gap-2 px-8 py-4 transition-all duration-200"
         style={{
           fontSize: 12,
@@ -266,9 +284,9 @@ const PublicCTA = ({
           (e.currentTarget.style.background = "var(--brand-accent)")
         }
       >
-        {settings.cta_button_text || "Learn More"} <ArrowRight size={14} />
+        {buttonText} <ArrowRight size={14} />
       </a>
-      {settings.cta_social_proof && (
+      {!offerCopy && settings?.cta_social_proof && (
         <p
           className="font-body mt-5"
           style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}

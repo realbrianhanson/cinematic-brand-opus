@@ -11,6 +11,7 @@ import { ChipList } from "./site-settings/ChipList";
 import { CtaPreview } from "./site-settings/CtaPreview";
 import { SitemapInfoCard } from "./site-settings/SitemapInfoCard";
 import { IndexNowCard } from "./site-settings/IndexNowCard";
+import ContentOfferRoutesManager from "./ContentOfferRoutesManager";
 import {
   checkViolationMessage,
   normalizeOrigin,
@@ -638,6 +639,8 @@ const SiteSettingsManager = () => {
               />
             </Field>
           </SectionCard>
+
+          <ContentOfferRoutesManager />
 
           <SectionCard
             title="Content Voice"

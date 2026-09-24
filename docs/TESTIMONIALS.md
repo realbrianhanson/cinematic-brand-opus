@@ -1,5 +1,29 @@
 # Testimonials
 
+## Source verification note — September 24, 2026
+
+The grouped selection below is preserved from the merged testimonial update.
+Brian's private Obsidian proof library retains 22 curated entries, the complete
+master compilation, exact original links, and verification boundaries for future
+offer-specific selections. No private source links are copied into this repo.
+
+Direct source checks confirmed Susie Satram's confidence excerpt and Cindy Trump's
+March 17 workshop comment, “Amazing training. I didn't get lost in the weeds once!”
+(chat timestamp 07:11:20). Susie's full quote is already included in the grouped
+selection; Cindy remains an additional verified option in the private library.
+
+Three master-list screenshot references were mismatched. The checked originals
+show Kathy's value/workshop recommendation in 031239, Heiko's incomplete earnings
+comment in 023720, and Kathy's client-result comment in 031620. Use the corrected
+source references in the private library for future excerpts.
+
+A screenshot verifies the statement's wording and attribution, not underlying
+earnings or typical performance. Randi describes an offer to pay, Alim describes
+built assets, and Jayme describes business-model clarity; these are not confirmed
+paid outcomes. Heiko's earnings comment lacks product, currency, timeframe and
+cost context. The existing income disclosure does not by itself establish claim
+substantiation or compliance; see the FTC's [endorsement guidance](https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking).
+
 ## September 23, 2026 selection
 
 Brian approved a four-group selection from two sources:

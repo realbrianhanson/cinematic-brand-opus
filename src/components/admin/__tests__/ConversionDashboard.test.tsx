@@ -47,6 +47,8 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 }));
 import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "@/routeTree.gen";
+// External reconciliation has its own provider/RPC tests.
+vi.mock("../ExternalConversionPanel", () => ({ default: () => null }));
 import ConversionDashboard, {
   ConversionOverview,
 } from "../ConversionDashboard";
