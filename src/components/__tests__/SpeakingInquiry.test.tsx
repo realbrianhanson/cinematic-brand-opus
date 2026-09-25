@@ -94,7 +94,8 @@ describe("speaking inquiry capture", () => {
     ).toBeDisabled();
     finish();
     expect(await screen.findByText("Your inquiry is in")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveFocus();
+    // Focus moves in an effect after the confirmation renders.
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
     expect(send.mock.calls[0][0]).toMatchObject({
       request_id: id,
       email: "alex@example.com",
