@@ -99,17 +99,15 @@ export default function SpeakingNotifications() {
           .order("id")
           .limit(1)
           .maybeSingle(),
-        supabase
-          .from("site_settings")
-          .select("newsletter_reply_to")
-          .limit(1)
-          .maybeSingle(),
+        // Email configuration is excluded from authenticated column grants.
+        // The checked RPC exposes it only after verifying the admin role.
+        supabase.rpc("admin_read_site_settings"),
       ]);
       if (settings.error || brand.error || !settings.data)
         throw new Error("Email settings could not be loaded.");
       return {
         ...settings.data,
-        fallback: brand.data?.newsletter_reply_to ?? "",
+        fallback: brand.data?.[0]?.newsletter_reply_to ?? "",
       };
     },
   });

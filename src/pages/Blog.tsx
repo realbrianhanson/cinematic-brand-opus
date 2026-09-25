@@ -143,6 +143,8 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
     data,
     isLoading,
     isError,
+    refetch,
+    isFetchNextPageError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -173,7 +175,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage)
@@ -261,10 +263,22 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
       >
         {isError && (
           <p
+            role="alert"
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            Posts didn’t load. Refresh the page to try again
+            {posts.length
+              ? "More articles could not be loaded."
+              : "Articles could not be loaded."}{" "}
+            <button
+              type="button"
+              className="underline underline-offset-4"
+              onClick={() =>
+                void (isFetchNextPageError ? fetchNextPage() : refetch())
+              }
+            >
+              Try again
+            </button>
           </p>
         )}
         {!isLoading && !isError && posts.length === 0 && (
@@ -391,6 +405,18 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
             ))}
         </div>
 
+        {hasNextPage && !isLoading && (
+          <div className="mt-8 text-center">
+            <button
+              type="button"
+              className="public-secondary-action"
+              disabled={isFetchingNextPage}
+              onClick={() => void fetchNextPage()}
+            >
+              {isFetchingNextPage ? "Loading more…" : "Load more articles"}
+            </button>
+          </div>
+        )}
         <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
 
         {!hasNextPage && !isLoading && posts.length > 0 && (

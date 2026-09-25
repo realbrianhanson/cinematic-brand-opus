@@ -16,6 +16,30 @@ const renderers = [
   ToolRoundupRenderer,
 ];
 describe("resource renderer input boundaries", () => {
+  it("includes FAQ answers before hydration and exposes disclosure state", () => {
+    const html = renderToStaticMarkup(
+      <FAQRenderer
+        pageId="faq-page"
+        nicheName="Care"
+        contentJson={{
+          sections: [
+            {
+              items: [
+                {
+                  question: "How do I start?",
+                  answer: "Choose one useful task",
+                },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain("Choose one useful task");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-controls="faq-faq-page-0"');
+    expect(html).toContain('aria-label="Search questions"');
+  });
   it.each(renderers)(
     "renders malformed custom JSON without throwing (%#)",
     (Renderer) => {

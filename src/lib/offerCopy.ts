@@ -28,6 +28,8 @@ export const offerCopyRequestSchema = z
         summary: z.string().max(1000),
         body: z.string().max(12000),
         kind: z.enum(["free", "paid"]),
+        checkout_mode: z.enum(["native", "external"]).optional(),
+        price_display_mode: z.enum(["fixed", "provider"]).optional(),
         amount_minor: z.number().int().min(0).max(99999999),
         currency: z.string().regex(/^[a-zA-Z]{3}$/),
       })

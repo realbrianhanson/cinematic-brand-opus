@@ -4,14 +4,35 @@ import { normalizeArticleBody } from "../../supabase/functions/_shared/articleBo
 /** Build stable heading links from sanitized HTML, identically in SSR and browser. */
 export function articleReading(content: string, pageTitle = "") {
   const headings: { id: string; title: string; level: number }[] = [];
-  const html = normalizeArticleBody(
+  const normalized = normalizeArticleBody(
     safeHtml(content),
     pageTitle,
     decodeHTML,
-  ).replace(
+  );
+  const idPattern = /\s+id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+  const reservedIds = new Set(
+    Array.from(normalized.matchAll(idPattern), (match) =>
+      decodeHTML(match[1] ?? match[2] ?? match[3]),
+    ),
+  );
+  const assignedIds = new Set<string>();
+  const html = normalized.replace(
     /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi,
     (_full, tag: string, attrs: string, inner: string) => {
-      const id = `article-section-${headings.length + 1}`;
+      const authoredMatch = attrs.match(
+        /\s+id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+      );
+      const authoredId = authoredMatch
+        ? decodeHTML(authoredMatch[1] ?? authoredMatch[2] ?? authoredMatch[3])
+        : "";
+      let id = authoredId;
+      if (!/^[A-Za-z][\w:.-]*$/.test(id) || assignedIds.has(id)) {
+        let number = headings.length + 1;
+        do {
+          id = `article-section-${number++}`;
+        } while (reservedIds.has(id) || assignedIds.has(id));
+      }
+      assignedIds.add(id);
       const title = decodeHTML(inner.replace(/<[^>]+>/g, ""))
         .replace(/\s+/g, " ")
         .trim();

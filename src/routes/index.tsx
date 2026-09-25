@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
   head: ({ matches }) => {
     const config = configFromMatches(matches);
     const { identity, metadata } = config;
-    return buildPageHead({
+    const head = buildPageHead({
       title: metadata.defaultTitle,
       description: metadata.defaultDescription,
       url: absoluteUrl("/", config),
@@ -39,6 +39,22 @@ export const Route = createFileRoute("/")({
         },
       ]),
     });
+    return {
+      ...head,
+      links: [
+        ...head.links,
+        ...(config.hero.posterSrc
+          ? [
+              {
+                rel: "preload",
+                as: "image",
+                href: config.hero.posterSrc,
+                fetchPriority: "high" as const,
+              },
+            ]
+          : []),
+      ],
+    };
   },
   component: HomeRoute,
 });

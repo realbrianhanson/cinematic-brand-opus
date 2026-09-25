@@ -35,7 +35,7 @@ interface MediaDeleteDialogProps {
 }
 
 const pageCount = (usage: MediaUsage) =>
-  `${usage.total}${usage.truncated ? "+" : ""} ${usage.total === 1 && !usage.truncated ? "page" : "pages"}`;
+  `${usage.total}${usage.truncated ? "+" : ""} ${usage.total === 1 && !usage.truncated ? "place" : "places"}`;
 
 function UsageSummary({
   state,
@@ -66,7 +66,8 @@ function UsageSummary({
   if (usage.total === 0) {
     return (
       <p className="text-sm">
-        Not used on any post, topic guide, page, offer or news item
+        Not used in any post, guide, resource, offer, saved offer version, news
+        item or site branding
       </p>
     );
   }
@@ -75,10 +76,10 @@ function UsageSummary({
   return (
     <div className="space-y-2 text-sm" role="alert">
       <p className="font-semibold">
-        Used on {pageCount(usage)}: {shown.join(", ")}
+        Used in {pageCount(usage)}: {shown.join(", ")}
         {more > 0 ? ` and ${more}${usage.truncated ? "+" : ""} more` : ""}
       </p>
-      <p>Those pages will show a broken image after you delete it</p>
+      <p>Deleting it can break these pages, site images or saved versions</p>
     </div>
   );
 }
@@ -173,7 +174,7 @@ const MediaDeleteDialog = ({
             />
             {usageState.status === "error"
               ? "Delete anyway. I understand pages using this file may break"
-              : "I understand these pages will show a broken image"}
+              : "I understand these images or saved versions may break"}
           </label>
         )}
         <AlertDialogFooter>

@@ -95,7 +95,7 @@ describe("MediaLibrary delete", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText(/Delete “hero.png”\?/)).toBeInTheDocument();
     expect(
-      await within(dialog).findByText(/Not used on any post/),
+      await within(dialog).findByText(/Not used in any post/),
     ).toBeInTheDocument();
     expect(mocks.findMediaUsage).toHaveBeenCalledWith(
       expect.objectContaining({ id: "m1" }),
@@ -147,7 +147,7 @@ describe("MediaLibrary delete", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(
       await within(dialog).findByText(
-        /Used on 2 pages: AI agents, Hiring guide/,
+        /Used in 2 places: AI agents, Hiring guide/,
       ),
     ).toBeInTheDocument();
 
@@ -182,7 +182,7 @@ describe("MediaLibrary delete", () => {
       await screen.findByRole("button", { name: "Delete hero.png" }),
     );
     const dialog = await screen.findByRole("alertdialog");
-    await within(dialog).findByText(/Not used on any post/);
+    await within(dialog).findByText(/Not used in any post/);
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Delete file" }),
     );

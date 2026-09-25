@@ -93,5 +93,11 @@ export const Route = createFileRoute("/resources/$contentType/$pageSlug")({
 
 function GeneratedPageRoute() {
   const { page, settings } = Route.useLoaderData();
-  return <GeneratedPage initialPage={page} initialSettings={settings} />;
+  return (
+    <GeneratedPage
+      key={page.id}
+      initialPage={page}
+      initialSettings={settings}
+    />
+  );
 }

@@ -1,5 +1,5 @@
 import { seoDocumentSchema } from "@/lib/contentDocument";
-import type { Json } from "@/integrations/supabase/types";
+import type { Json, Tables } from "@/integrations/supabase/types";
 import { z } from "zod";
 import { errorMessage, isErrorCode } from "@/lib/errorMessage";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -79,6 +79,35 @@ type SaveOutcome =
   | { kind: "published" }
   | { kind: "needs_override"; score: number; issues: string[] };
 
+type SavedBaseline = Pick<
+  Tables<"generated_pages">,
+  | "id"
+  | "updated_at"
+  | "title"
+  | "slug"
+  | "status"
+  | "content_json"
+  | "seo_meta"
+>;
+const BASELINE_COLUMNS =
+  "id,updated_at,title,slug,status,content_json,seo_meta";
+const SAVE_CONFLICT =
+  "This resource was not saved because its saved version changed, it was deleted, or your access changed. Your edits are still here. Copy any edits you want to keep before loading the latest saved version.";
+
+/** JSONB does not preserve object-key order; compare values, not serialization order. */
+function comparableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(comparableJson).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.keys(value)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${comparableJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
+  return JSON.stringify(value) ?? "null";
+}
+
 function parseJson(text: string): { value: unknown; error: string | null } {
   try {
     return { value: JSON.parse(text), error: null };
@@ -113,7 +142,9 @@ const GeneratedPageEditor = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const hydratedVersion = useRef<string | null>(null);
+  const hydratedId = useRef<string | null>(null);
+  const baseline = useRef<SavedBaseline | null>(null);
+  const [hydrationEpoch, setHydrationEpoch] = useState(0);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["admin-generated-page", id],
@@ -131,13 +162,14 @@ const GeneratedPageEditor = () => {
     enabled: !!id,
   });
 
-  // Hydrate once per stored version, so a background refetch never clobbers
-  // edits but a refresh (new updated_at) loads the rewritten content.
+  // Background refetches can include another editor's newer stored version.
+  // Only initial navigation or our explicitly confirmed regeneration may
+  // replace the fields the administrator is currently editing.
   useEffect(() => {
     if (!page) return;
-    const version = `${page.id}:${page.updated_at ?? ""}`;
-    if (hydratedVersion.current === version) return;
-    hydratedVersion.current = version;
+    if (hydratedId.current === page.id) return;
+    hydratedId.current = page.id;
+    baseline.current = page;
     setTitle(page.title);
     setSlug(page.slug);
     setContentStr(JSON.stringify(page.content_json, null, 2));
@@ -151,9 +183,14 @@ const GeneratedPageEditor = () => {
     setOgImage(seo.og_image || "");
     if (seo.title || seo.description || seo.keywords.length > 0)
       setHasGenerated(true);
-  }, [page]);
+  }, [page, hydrationEpoch]);
 
-  const isPublished = page?.status === "published";
+  const isPublished = baseline.current?.status === "published";
+  const storedVersionChanged = !!(
+    page &&
+    baseline.current &&
+    page.updated_at !== baseline.current.updated_at
+  );
   const schemaSlug = page?.content_schemas?.slug ?? "";
   const contentDirty =
     !!page && contentStr !== JSON.stringify(page.content_json, null, 2);
@@ -271,12 +308,77 @@ const GeneratedPageEditor = () => {
     return errors.length ? null : (value as Record<string, unknown>);
   };
 
+  const assertCurrentBaseline = () => {
+    const saved = baseline.current;
+    const latest = qc.getQueryData<SavedBaseline>(["admin-generated-page", id]);
+    if (
+      !saved?.updated_at ||
+      saved.id !== id ||
+      (latest && latest.updated_at !== saved.updated_at)
+    )
+      throw new Error(SAVE_CONFLICT);
+    return saved;
+  };
+
+  const adoptBaseline = (saved: SavedBaseline) => {
+    baseline.current = saved;
+    qc.setQueryData(["admin-generated-page", id], (previous: unknown) => ({
+      ...(previous && typeof previous === "object" ? previous : {}),
+      ...saved,
+    }));
+  };
+
+  // Scoring and image generation write on the server and bump updated_at.
+  // Only adopt their new version when all other editable fields still match;
+  // otherwise a remote edit must never become our new save baseline.
+  const syncServerWrite = async (allowOgImage = false) => {
+    const expected = baseline.current;
+    if (!expected) throw new Error(SAVE_CONFLICT);
+    const { data: saved, error } = await supabase
+      .from("generated_pages")
+      .select(BASELINE_COLUMNS)
+      .eq("id", id!)
+      .maybeSingle();
+    if (error) throw error;
+    if (!saved?.updated_at) throw new Error(SAVE_CONFLICT);
+    const comparableSeo = (value: Json | null) => {
+      if (
+        !allowOgImage ||
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+      )
+        return comparableJson(value);
+      const { og_image: ignored, ...rest } = value;
+      return comparableJson(rest);
+    };
+    if (
+      saved.title !== expected.title ||
+      saved.slug !== expected.slug ||
+      saved.status !== expected.status ||
+      comparableJson(saved.content_json) !==
+        comparableJson(expected.content_json) ||
+      comparableSeo(saved.seo_meta) !== comparableSeo(expected.seo_meta)
+    )
+      throw new Error(SAVE_CONFLICT);
+    adoptBaseline(saved);
+    return saved;
+  };
+
   const updatePage = async (fields: Record<string, unknown>) => {
-    const { error } = await supabase
+    const expected = assertCurrentBaseline();
+    const { data: saved, error } = await supabase
       .from("generated_pages")
       .update(fields as never)
-      .eq("id", id!);
-    if (!error) return;
+      .eq("id", id!)
+      .eq("updated_at", expected.updated_at!)
+      .select(BASELINE_COLUMNS)
+      .maybeSingle();
+    if (!error) {
+      if (!saved?.updated_at) throw new Error(SAVE_CONFLICT);
+      adoptBaseline(saved);
+      return;
+    }
     if (isErrorCode(error, "23505"))
       throw new Error("That URL slug is already used by another resource.");
     throw new Error(friendlyPublishError(errorMessage(error)));
@@ -343,12 +445,14 @@ const GeneratedPageEditor = () => {
     if (!publishing) {
       try {
         await scoreOnServer(id!);
+        await syncServerWrite();
         return { kind: "saved", scoreWarning: null };
       } catch (e) {
         return { kind: "saved", scoreWarning: errorMessage(e) };
       }
     }
     const scored = await scoreOnServer(id!);
+    await syncServerWrite();
     if (scored.score < PUBLISH_SCORE_THRESHOLD)
       return { kind: "needs_override", ...scored };
     await updatePage({
@@ -457,6 +561,7 @@ const GeneratedPageEditor = () => {
   const regenerateMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
+        assertCurrentBaseline();
         const { status: code, body } = await invokeAdminFunction(
           "refresh-stale-content",
           { page_id: id },
@@ -472,6 +577,7 @@ const GeneratedPageEditor = () => {
       }, REFRESH_TIMEOUT_MS),
     onSuccess: async () => {
       setConfirmRegenerate(false);
+      hydratedId.current = null;
       await qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       toast({
@@ -493,16 +599,13 @@ const GeneratedPageEditor = () => {
   const handleGenerateOg = async () => {
     setGeneratingOg(true);
     try {
+      assertCurrentBaseline();
       const { data, error } = await supabase.functions.invoke(
         "generate-og-image",
         { body: { page_id: id } },
       );
       if (error || data?.error) throw new Error(error?.message || data?.error);
-      const { data: updated } = await supabase
-        .from("generated_pages")
-        .select("seo_meta")
-        .eq("id", id!)
-        .maybeSingle();
+      const updated = await syncServerWrite(true);
       setOgImage(seoDocumentSchema.parse(updated?.seo_meta).og_image || "");
       toast({ title: "OG image generated!" });
     } catch (e) {
@@ -551,6 +654,31 @@ const GeneratedPageEditor = () => {
 
   return (
     <div>
+      {storedVersionChanged && (
+        <div role="alert" className="admin-card mb-5 p-4">
+          <p>
+            This resource changed in another window. Your edits are still here,
+            but saving is blocked to protect the newer saved version.
+          </p>
+          <button
+            type="button"
+            className="admin-btn-secondary mt-3"
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Load the latest saved version? Your unsaved edits will be discarded. Copy anything you want to keep first.",
+                )
+              )
+                return;
+              hydratedId.current = null;
+              setQualityWarning(null);
+              setHydrationEpoch((value) => value + 1);
+            }}
+          >
+            Load latest saved version
+          </button>
+        </div>
+      )}
       {qualityWarning && (
         <QualityWarningDialog
           score={qualityWarning.score}

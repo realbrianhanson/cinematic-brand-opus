@@ -131,6 +131,79 @@ afterEach(() => {
 });
 
 describe("NewsletterPreviewCard delivery truth", () => {
+  it("explains missing newsletter columns without composing, sending, cancelling or falling back", async () => {
+    h.respond = () => ({
+      data: null,
+      error: {
+        code: "42703",
+        message: "column newsletter_sends.last_error does not exist",
+      },
+    });
+    renderCard();
+    expect(
+      (await screen.findAllByText("Backend update pending")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", {
+        name: /Compose preview|Regenerate|Retry failed|Resume delivery|Cancel this week's send/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(h.invoke).not.toHaveBeenCalled();
+    expect(h.rpcCalls).toEqual([]);
+    expect(
+      h.ops.every(
+        (op) =>
+          op.action === "select" &&
+          op.table === "newsletter_sends" &&
+          op.columns?.includes("last_error"),
+      ),
+    ).toBe(true);
+  });
+
+  it("locks retry after discovering the missing retry function and never invokes email delivery", async () => {
+    h.rpcResult = {
+      data: null,
+      error: {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.newsletter_retry_failed_delivery in the schema cache",
+      },
+    };
+    renderCard();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Retry failed recipients/ }),
+    );
+    expect(
+      await screen.findByText("Backend update pending"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Retry failed recipients/ }),
+    ).toBeDisabled();
+    expect(h.invoke).not.toHaveBeenCalled();
+  });
+
+  it("does not resume an expired send while delivery receipts are unavailable", async () => {
+    h.current = {
+      ...failedW39,
+      status: "sending",
+      last_error: null,
+      last_error_status: null,
+      delivery_lease_until: "2020-01-01T00:00:00Z",
+    };
+    const respond = h.respond;
+    h.respond = (op) =>
+      op.table === "newsletter_deliveries"
+        ? { data: null, error: { message: "Receipt read failed" } }
+        : respond(op);
+    renderCard();
+    expect(
+      await screen.findByText(/Delivery receipts could not be loaded/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Resume delivery/ }),
+    ).toBeDisabled();
+    expect(h.invoke).not.toHaveBeenCalled();
+  });
   it("shows counts, the provider error in plain English and what to do", async () => {
     renderCard();
     expect(

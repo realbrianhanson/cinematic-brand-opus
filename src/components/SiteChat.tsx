@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
 // Loaded on first open so the marketing pages carry none of the chat bundle.
@@ -7,8 +7,14 @@ const SiteChatPanel = lazy(() => import("./SiteChatPanel"));
 export default function SiteChat() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (wasOpen.current && !open) trigger.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,9 +45,11 @@ export default function SiteChat() {
         </Suspense>
       )}
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
+        aria-controls={open ? "site-chat-panel" : undefined}
         className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--brand-accent)] px-5 py-3 font-body text-sm font-bold text-[var(--brand-backdrop)] shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
       >
         <MessageCircle size={18} aria-hidden="true" />

@@ -1,306 +1,136 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import { readBoundedJson } from "../_shared/boundedJson.ts";
+import {
+  readAllSiloRows,
+  rebuildSiloLinks,
+  SiloPageNotFound,
+  type SiloPage,
+  type SiloPillar,
+  type StoredSiloLink,
+} from "./links.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+const pageColumns =
+  "id, niche_id, content_schema_id, title, status, published_at, created_at, content_schemas(name), niches!generated_pages_niche_id_fkey(name)";
+const json = (body: unknown, status = 200) =>
+  Response.json(body, {
+    status,
+    headers: { ...corsHeaders, "Cache-Control": "no-store" },
+  });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
-  }
-
-  // Auth: verify caller is admin
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const anonClient = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    {
-      global: { headers: { Authorization: authHeader } },
-    },
-  );
-  const {
-    data: { user },
-    error: userErr,
-  } = await anonClient.auth.getUser();
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  const { data: roleRow } = await anonClient
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  // This includes the service-role calls made by generate-pillar; an arbitrary
+  // bearer is still verified against auth and the administrator role.
+  const auth = await authorizeCronOrAdmin(req, corsHeaders);
+  if (auth instanceof Response) return auth;
 
   try {
-    const supabase = createClient(
+    const body = await readBoundedJson(req, 2048);
+    const pageId = body?.page_id;
+    if (
+      !body ||
+      (body.rebuild_all !== true &&
+        (typeof pageId !== "string" ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            pageId,
+          )))
+    )
+      return json(
+        { error: "Provide a valid page_id or rebuild_all: true" },
+        400,
+      );
+
+    const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-
-    const body = await req.json();
-    const { page_id, rebuild_all } = body;
-
-    if (rebuild_all) {
-      await supabase
-        .from("internal_links")
-        .delete()
-        .in("link_type", ["silo_up", "silo_sibling"]);
-
-      const { data: publishedPages } = await supabase
-        .from("generated_pages")
-        .select(
-          "id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)",
-        )
-        .eq("status", "published");
-
-      const { data: pillarPages } = await supabase
-        .from("pillar_pages")
-        .select("id, niche_id, slug, title")
-        .eq("status", "published");
-
-      let linksCreated = 0;
-
-      for (const page of publishedPages ?? []) {
-        const created = await buildSiloLinks(
-          supabase,
-          page,
-          publishedPages ?? [],
-          pillarPages ?? [],
-        );
-        linksCreated += created;
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, links_created: linksCreated }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (!page_id) {
-      return new Response(
-        JSON.stringify({ error: "Provide page_id or rebuild_all: true" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const result = await rebuildSiloLinks(
+      {
+        pages: () =>
+          readAllSiloRows<SiloPage>((from, to) =>
+            admin
+              .from("generated_pages")
+              .select(pageColumns)
+              .eq("status", "published")
+              .order("id")
+              .range(from, to)
+              .returns<SiloPage[]>(),
+          ),
+        pillars: () =>
+          readAllSiloRows<SiloPillar>((from, to) =>
+            admin
+              .from("pillar_pages")
+              .select("id, niche_id, title")
+              .eq("status", "published")
+              .order("id")
+              .range(from, to),
+          ),
+        links: () =>
+          readAllSiloRows<StoredSiloLink>((from, to) =>
+            admin
+              .from("internal_links")
+              .select("*")
+              .eq("source_page_type", "generated")
+              .in("link_type", ["silo_up", "silo_sibling"])
+              .order("id")
+              .range(from, to),
+          ),
+        async page(id) {
+          const { data, error } = await admin
+            .from("generated_pages")
+            .select(pageColumns)
+            .eq("id", id)
+            .returns<SiloPage[]>()
+            .maybeSingle();
+          if (error) throw new Error(error.message);
+          return data;
         },
-      );
-    }
-
-    await supabase
-      .from("internal_links")
-      .delete()
-      .eq("source_page_id", page_id)
-      .in("link_type", ["silo_up", "silo_sibling"]);
-
-    await supabase
-      .from("internal_links")
-      .delete()
-      .eq("target_page_id", page_id)
-      .eq("link_type", "silo_sibling");
-
-    const { data: currentPage } = await supabase
-      .from("generated_pages")
-      .select(
-        "id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)",
-      )
-      .eq("id", page_id)
-      .maybeSingle();
-
-    if (!currentPage) {
-      return new Response(JSON.stringify({ error: "Page not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: siblingPages } = await supabase
-      .from("generated_pages")
-      .select(
-        "id, niche_id, content_schema_id, slug, title, published_at, created_at, content_schemas(slug, name), niches!generated_pages_niche_id_fkey(slug, name)",
-      )
-      .eq("niche_id", currentPage.niche_id!)
-      .eq("status", "published")
-      .neq("id", page_id);
-
-    const { data: pillarPages } = await supabase
-      .from("pillar_pages")
-      .select("id, niche_id, slug, title")
-      .eq("status", "published");
-
-    const allPublished = [currentPage, ...(siblingPages ?? [])];
-    const linksCreated = await buildSiloLinks(
-      supabase,
-      currentPage,
-      allPublished,
-      pillarPages ?? [],
+        async insert(links) {
+          const { error } = await admin.from("internal_links").insert(links);
+          if (error) throw new Error(error.message);
+        },
+        async update(id, link) {
+          const { data, error } = await admin
+            .from("internal_links")
+            .update(link)
+            .eq("id", id)
+            .select("id");
+          if (error) throw new Error(error.message);
+          if (!data?.length)
+            throw new Error(
+              "An internal link changed during the rebuild. Retry the operation.",
+            );
+        },
+        async remove(ids) {
+          const { error } = await admin
+            .from("internal_links")
+            .delete()
+            .in("id", ids);
+          if (error) throw new Error(error.message);
+        },
+      },
+      body.rebuild_all === true ? undefined : (pageId as string),
     );
-
-    for (const sibling of siblingPages ?? []) {
-      const { data: existing } = await supabase
-        .from("internal_links")
-        .select("id")
-        .eq("source_page_id", sibling.id)
-        .eq("target_page_id", page_id)
-        .eq("link_type", "silo_sibling")
-        .maybeSingle();
-
-      if (!existing) {
-        const nicheName = (currentPage as any).niches?.name || "";
-        const contentName = (currentPage as any).content_schemas?.name || "";
-        const anchorText = pickAnchor(
-          contentName,
-          nicheName,
-          currentPage.title,
-          sibling.id,
-          page_id,
-        );
-        await supabase.from("internal_links").insert({
-          source_page_id: sibling.id,
-          source_page_type: "generated",
-          target_page_id: page_id,
-          target_page_type: "generated",
-          link_type: "silo_sibling",
-          anchor_text: anchorText,
-          position: "related",
-        });
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, links_created: linksCreated }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    return json(result);
+  } catch (error) {
+    if (error instanceof SiloPageNotFound)
+      return json({ error: "Page not found" }, 404);
+    console.error("Build silo links failed:", error);
+    return json(
+      {
+        error:
+          "Links could not be fully rebuilt. Existing links were kept until replacements were saved. Retry the rebuild.",
+      },
+      500,
     );
-  } catch (error: any) {
-    console.error("Build silo links error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
 });
-
-function pickAnchor(
-  contentName: string,
-  nicheName: string,
-  title: string,
-  sourceId: string,
-  targetId: string,
-): string {
-  const variants = [
-    `${contentName} for ${nicheName}`,
-    `${nicheName} ${contentName.toLowerCase()}`,
-    `Explore ${contentName.toLowerCase()}`,
-    title.length <= 60 ? title : title.slice(0, 57) + "...",
-  ];
-  const hash = (sourceId + targetId)
-    .split("")
-    .reduce((a, c) => a + c.charCodeAt(0), 0);
-  return variants[hash % variants.length];
-}
-
-async function buildSiloLinks(
-  supabase: any,
-  page: any,
-  allPublished: any[],
-  pillarPages: any[],
-): Promise<number> {
-  let count = 0;
-  const nicheId = page.niche_id;
-  const nicheName = (page as any).niches?.name || "";
-
-  // 1. Link UP to pillar (silo_up)
-  const pillar = pillarPages.find((p: any) => p.niche_id === nicheId);
-  if (pillar) {
-    const { data: existing } = await supabase
-      .from("internal_links")
-      .select("id")
-      .eq("source_page_id", page.id)
-      .eq("target_page_id", pillar.id)
-      .eq("link_type", "silo_up")
-      .maybeSingle();
-
-    if (!existing) {
-      await supabase.from("internal_links").insert({
-        source_page_id: page.id,
-        source_page_type: "generated",
-        target_page_id: pillar.id,
-        target_page_type: "pillar",
-        link_type: "silo_up",
-        anchor_text: pillar.title,
-        position: "pillar_banner",
-      });
-      count++;
-    }
-  }
-
-  // 2. Link to SIBLINGS (same niche, different content type) — silo_sibling
-  // Cap at 10 most recent siblings so early pages don't accumulate hundreds
-  // of outbound sibling links as the silo grows.
-  const siblings = allPublished
-    .filter(
-      (p: any) =>
-        p.id !== page.id &&
-        p.niche_id === nicheId &&
-        p.content_schema_id !== page.content_schema_id,
-    )
-    .sort((a: any, b: any) => {
-      const ta = new Date(a.published_at || a.created_at || 0).getTime();
-      const tb = new Date(b.published_at || b.created_at || 0).getTime();
-      return tb - ta;
-    })
-    .slice(0, 10);
-
-  for (const sibling of siblings) {
-    const { data: existing } = await supabase
-      .from("internal_links")
-      .select("id")
-      .eq("source_page_id", page.id)
-      .eq("target_page_id", sibling.id)
-      .eq("link_type", "silo_sibling")
-      .maybeSingle();
-
-    if (!existing) {
-      const contentName = (sibling as any).content_schemas?.name || "";
-      const anchorText = pickAnchor(
-        contentName,
-        nicheName,
-        sibling.title,
-        page.id,
-        sibling.id,
-      );
-      await supabase.from("internal_links").insert({
-        source_page_id: page.id,
-        source_page_type: "generated",
-        target_page_id: sibling.id,
-        target_page_type: "generated",
-        link_type: "silo_sibling",
-        anchor_text: anchorText,
-        position: "related",
-      });
-      count++;
-    }
-  }
-
-  // NOTE: We do NOT create cross-silo links. This is intentional.
-  // Link juice stays within the silo and flows up to the pillar.
-
-  return count;
-}

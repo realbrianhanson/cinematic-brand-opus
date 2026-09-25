@@ -30,7 +30,7 @@ const product = {
   id: "real-editor-preview",
   slug: "guide",
   status: "draft",
-  checkout_mode: "native",
+  checkout_mode: "native" as const,
   title: "Guide",
   summary: "Useful templates",
   body: "",
@@ -102,7 +102,16 @@ describe("copy assistant user control", () => {
       vi.mocked(fetch).mock.calls[0][1]!.body as string,
     );
     expect(Object.keys(request.offer).sort()).toEqual(
-      ["title", "summary", "body", "kind", "amount_minor", "currency"].sort(),
+      [
+        "title",
+        "summary",
+        "body",
+        "kind",
+        "amount_minor",
+        "currency",
+        "checkout_mode",
+        "price_display_mode",
+      ].sort(),
     );
     expect(apply).not.toHaveBeenCalled();
     fireEvent.click(

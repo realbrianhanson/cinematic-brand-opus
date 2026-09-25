@@ -93,6 +93,8 @@ const TemplateRenderer = ({
             active={!catFilter}
             onClick={() => {
               setCatFilter("");
+              setExpanded(new Set());
+              setCopiedIdx(null);
               logEvent("filter_use", { filter: "category", value: "all" });
             }}
           >
@@ -104,6 +106,8 @@ const TemplateRenderer = ({
               active={catFilter === c}
               onClick={() => {
                 setCatFilter(c);
+                setExpanded(new Set());
+                setCopiedIdx(null);
                 logEvent("filter_use", { filter: "category", value: c });
               }}
             >
@@ -275,6 +279,7 @@ const FilterBtn = ({
   children: React.ReactNode;
 }) => (
   <button
+    aria-pressed={active}
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all"
     style={{

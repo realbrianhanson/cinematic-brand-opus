@@ -1,7 +1,6 @@
 import PublicMeasurement from "@/components/PublicMeasurement";
-import SiteChat from "@/components/SiteChat";
+import PublicSiteChat from "@/components/PublicSiteChat";
 import NotFoundRedirect from "@/components/NotFoundRedirect";
-import { readPresentation } from "@/lib/offerBuilder";
 import { brandStyles } from "@/config/brandStyles";
 import {
   createRootRouteWithContext,
@@ -52,22 +51,6 @@ const maybeReload = (msg: string) => {
   sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
   window.location.reload();
 };
-
-// Visitor assistant: public pages only, never over the admin workspace.
-function PublicSiteChat() {
-  const router = useRouter();
-  const pathname = router.state.location.pathname;
-  if (pathname.startsWith("/admin") || pathname.startsWith("/offers/preview/"))
-    return null;
-  const offerMatch = router.state.matches.find(
-    (match) => match.routeId === "/offers/$slug",
-  );
-  const offerData = offerMatch?.loaderData as
-    { offer?: { presentation?: unknown } } | undefined;
-  if (readPresentation(offerData?.offer?.presentation)?.landing.focusMode)
-    return null;
-  return <SiteChat />;
-}
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
@@ -148,7 +131,7 @@ function RootComponent() {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onUnhandled);
     };
-  }, []);
+  }, [siteConfig.identity.siteUrl]);
 
   return (
     <SiteConfigContext.Provider value={siteConfig}>
@@ -256,16 +239,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             title: siteConfig.metadata.rssTitle,
             href: "/rss.xml",
           },
-          ...(siteConfig.hero.posterSrc
-            ? [
-                {
-                  rel: "preload",
-                  as: "image",
-                  href: siteConfig.hero.posterSrc,
-                  fetchPriority: "high" as const,
-                },
-              ]
-            : []),
           ...(import.meta.env.VITE_SUPABASE_URL
             ? [
                 {

@@ -77,9 +77,11 @@ const FAQRenderer = ({
           style={{ color: "rgba(255,255,255,0.7)" }}
         />
         <input
+          aria-label="Search questions"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
+            setOpenIdx(null);
             logEvent("filter_use", { filter: "search", value: e.target.value });
           }}
           placeholder="Search questions..."
@@ -101,6 +103,7 @@ const FAQRenderer = ({
             active={!catFilter}
             onClick={() => {
               setCatFilter("");
+              setOpenIdx(null);
               logEvent("filter_use", { filter: "category", value: "all" });
             }}
           >
@@ -112,6 +115,7 @@ const FAQRenderer = ({
               active={catFilter === c}
               onClick={() => {
                 setCatFilter(c);
+                setOpenIdx(null);
                 logEvent("filter_use", { filter: "category", value: c });
               }}
             >
@@ -131,6 +135,8 @@ const FAQRenderer = ({
               style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
             >
               <button
+                aria-expanded={isOpen}
+                aria-controls={`faq-${pageId}-${i}`}
                 onClick={() => {
                   setOpenIdx(isOpen ? null : i);
                   logEvent("faq_click", { question: faq.question });
@@ -152,58 +158,56 @@ const FAQRenderer = ({
                   {isOpen ? "−" : "+"}
                 </span>
               </button>
-              {isOpen && (
-                <div className="pb-5">
-                  <p
-                    className="font-body"
-                    style={{
-                      fontSize: 14,
-                      color: "rgba(255,255,255,0.7)",
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    {faq.answer}
-                  </p>
-                  {faq.related_questions &&
-                    Array.isArray(faq.related_questions) && (
-                      <div className="mt-3">
-                        <p
-                          className="font-body uppercase mb-1"
+              <div id={`faq-${pageId}-${i}`} hidden={!isOpen} className="pb-5">
+                <p
+                  className="font-body"
+                  style={{
+                    fontSize: 14,
+                    color: "rgba(255,255,255,0.7)",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {faq.answer}
+                </p>
+                {faq.related_questions &&
+                  Array.isArray(faq.related_questions) && (
+                    <div className="mt-3">
+                      <p
+                        className="font-body uppercase mb-1"
+                        style={{
+                          fontSize: 12,
+                          letterSpacing: "0.12em",
+                          color: "rgba(255,255,255,0.7)",
+                        }}
+                      >
+                        Related
+                      </p>
+                      {faq.related_questions.map((rq: string, ri: number) => (
+                        <button
+                          key={ri}
+                          onClick={() => {
+                            const idx = filtered.findIndex(
+                              (f) => f.question === rq,
+                            );
+                            if (idx >= 0) setOpenIdx(idx);
+                          }}
+                          className="block font-body transition-colors hover:text-[var(--brand-accent)]"
                           style={{
                             fontSize: 12,
-                            letterSpacing: "0.12em",
                             color: "rgba(255,255,255,0.7)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            padding: "2px 0",
                           }}
                         >
-                          Related
-                        </p>
-                        {faq.related_questions.map((rq: string, ri: number) => (
-                          <button
-                            key={ri}
-                            onClick={() => {
-                              const idx = filtered.findIndex(
-                                (f) => f.question === rq,
-                              );
-                              if (idx >= 0) setOpenIdx(idx);
-                            }}
-                            className="block font-body transition-colors hover:text-[var(--brand-accent)]"
-                            style={{
-                              fontSize: 12,
-                              color: "rgba(255,255,255,0.7)",
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              padding: "2px 0",
-                            }}
-                          >
-                            → {rq}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                </div>
-              )}
+                          → {rq}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+              </div>
             </div>
           );
         })}
@@ -233,6 +237,7 @@ const FilterBtn = ({
   children: React.ReactNode;
 }) => (
   <button
+    aria-pressed={active}
     onClick={onClick}
     className="font-body uppercase px-3 py-1.5 transition-all"
     style={{

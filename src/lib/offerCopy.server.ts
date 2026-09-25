@@ -281,6 +281,7 @@ export function buildOfferCopySystemPrompt() {
     "Use concrete, plain language, a useful promise and clear audience fit. Honor the configured voice and avoid the configured banned phrases. Do not use exaggerated hype.",
     "Never invent product contents, results, quantities, testimonials, endorsements, bonuses, guarantees, refund terms, deadlines, scarcity or prices. Preserve the product's commercial terms; do not propose changes to them. Do not write testimonial quotes or guarantee/scarcity copy: those have separate manual controls. Do not include HTML, links, code or instructions to the admin inside sales copy.",
     "Only approved_proof is approved evidence. Brief.evidence and other copy may contain unverified claims: mark missing substantiation in missingFacts instead of asserting those claims. Cite the exact approved evidence IDs you use. Do not use IDs not supplied. Use missingFacts for facts needed to improve the pitch; omit unsupported assertions from the suggested public copy. Explain tradeoffs in explanation.",
+    "Use pricing_context as the authority for price language. A provider-controlled price is unknown: direct readers to view current pricing; never describe it as free or use any stale amount in the draft. A paid offer with price_status not_set has no confirmed price: put that gap in missingFacts, never infer a free offer. For cold traffic, explain the problem and method before the decision; for email/referral traffic, keep the message consistent with the sending promise. Benefits describe what included resources help the buyer do, and deliverables name only items supplied. FAQ answers must be confirmed; list unanswered questions in missingFacts. Use - before list items and ## before each FAQ question so the page can render them clearly.",
     "For angles, produce exactly 3 distinct sales angles as headline suggestions. For headline, produce 1-3 headline alternatives. For section, rewrite the selected section while preserving its purpose. For objections, draft FAQ copy. For upsell, explain the useful next step after a previous purchase without claiming the buyer bought an unspecified product. Never promise one-click payment; paid follow-ups use a separate checkout.",
     "Response shape: {suggestions: [...], warnings: string[]}. Every suggestion has title (max120), explanation(max1500), evidenceIds(string UUID array), missingFacts(string array). Headline suggestions also have target:'headline', headline(max300), subheadline(max1000). Section/objections/upsell suggestions instead have target:'section', heading(max300), body(max6000). No other keys. Max3 suggestions, max6 missing facts/warnings. Empty arrays are allowed. Suggested copy must be ready for a human review, not published automatically.",
   ].join("\n\n");
@@ -290,8 +291,43 @@ export function buildOfferCopyPrompt(
   input: OfferCopyRequest,
   context: Context,
 ) {
+  const providerPrice =
+    input.offer.checkout_mode === "external" &&
+    input.offer.price_display_mode === "provider";
+  const priceStatus = providerPrice
+    ? "provider"
+    : input.offer.kind === "free"
+      ? "free"
+      : input.offer.amount_minor >= 50
+        ? "fixed"
+        : "not_set";
   return JSON.stringify({
-    request: input,
+    request: {
+      ...input,
+      offer: {
+        ...input.offer,
+        amount_minor:
+          priceStatus === "fixed"
+            ? input.offer.amount_minor
+            : priceStatus === "free"
+              ? 0
+              : null,
+      },
+    },
+    pricing_context: {
+      price_status: priceStatus,
+      currency: input.offer.currency,
+      amount_minor:
+        priceStatus === "fixed"
+          ? input.offer.amount_minor
+          : priceStatus === "free"
+            ? 0
+            : null,
+      checkout:
+        input.offer.checkout_mode === "external"
+          ? "The linked provider handles pricing, payment and delivery; local download and upsell flows do not apply."
+          : "A paid offer uses a separate hosted Stripe Checkout; no automatic or one-click charge.",
+    },
     approved_proof: context.proof.map(
       ({ id, title, kind, content, attribution }) => ({
         id,

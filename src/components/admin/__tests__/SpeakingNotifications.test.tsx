@@ -12,14 +12,22 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { update, deliveries, saved } = vi.hoisted(() => ({
+const { update, deliveries, saved, readSettings } = vi.hoisted(() => ({
   update: vi.fn(),
   deliveries: vi.fn(),
   saved: vi.fn(),
+  readSettings: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: (name: string) => {
+      if (name !== "admin_read_site_settings")
+        throw new Error("Unexpected RPC");
+      return readSettings();
+    },
     from: (table: string) => {
+      if (table === "site_settings")
+        throw new Error("Private email columns require the admin RPC");
       let mutation = false;
       const query = {
         select: () => query,
@@ -37,14 +45,11 @@ vi.mock("@/integrations/supabase/client", () => ({
             mutation
               ? saved()
               : {
-                  data:
-                    table === "site_settings"
-                      ? { newsletter_reply_to: "owner@example.com" }
-                      : {
-                          id: "settings",
-                          speaking_notifications_enabled: false,
-                          speaking_notification_email: "",
-                        },
+                  data: {
+                    id: "settings",
+                    speaking_notifications_enabled: false,
+                    speaking_notification_email: "",
+                  },
                   error: null,
                 },
           ),
@@ -68,12 +73,37 @@ function mount(element: React.ReactNode) {
 }
 beforeEach(() => {
   update.mockReset();
+  readSettings.mockReset();
+  readSettings.mockResolvedValue({
+    data: [{ newsletter_reply_to: "owner@example.com" }],
+    error: null,
+  });
   saved.mockReturnValue({ data: { id: "settings" }, error: null });
   deliveries.mockReturnValue([]);
 });
 afterEach(cleanup);
 
 describe("speaking email configuration and status", () => {
+  it("loads private sender configuration through the administrator-checked RPC", async () => {
+    mount(<SpeakingNotifications />);
+    const input = await screen.findByLabelText("Owner notification address");
+    expect(input).toHaveAttribute("placeholder", "owner@example.com");
+    expect(readSettings).toHaveBeenCalledOnce();
+  });
+  it("fails closed when the private-settings RPC refuses access", async () => {
+    readSettings.mockResolvedValue({
+      data: null,
+      error: { message: "Administrator access required" },
+    });
+    mount(<SpeakingNotifications />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not be loaded",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Save email settings" }),
+    ).not.toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
+  });
   it("preserves an unsaved recipient and original baseline across a background refresh", async () => {
     const client = mount(<SpeakingNotifications />);
     const field = await screen.findByLabelText("Owner notification address");

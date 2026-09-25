@@ -127,11 +127,22 @@ export default function AudienceManager() {
     queryKey: ["newsletter-audience", filter, term, page],
     queryFn: () => loadAudience({ search: term, status: filter, page }),
   });
-  const counts = audience.data?.counts;
+  const counts = audience.isError ? undefined : audience.data?.counts;
   const pendingCount = counts?.pending ?? 0;
 
   const resend = useMutation({
-    mutationFn: resendPendingConfirmations,
+    mutationFn: () => {
+      if (
+        audience.isPending ||
+        audience.isFetching ||
+        audience.error ||
+        !counts
+      )
+        throw new Error(
+          "Audience details must be available before sending confirmations.",
+        );
+      return resendPendingConfirmations();
+    },
     onSuccess: (result) => setOutcome(resendOutcome(result)),
     onError: (error: Error) =>
       setOutcome({
@@ -172,7 +183,12 @@ export default function AudienceManager() {
           <button
             type="button"
             className="admin-btn"
-            disabled={resend.isPending || !counts || pendingCount === 0}
+            disabled={
+              resend.isPending ||
+              audience.isFetching ||
+              !counts ||
+              pendingCount === 0
+            }
             onClick={() => setConfirmOpen(true)}
           >
             <Send size={15} />{" "}
@@ -266,6 +282,7 @@ export default function AudienceManager() {
       </div>
 
       <QueryNotice
+        backendScope="newsletter"
         loading={audience.isPending}
         error={audience.error}
         retry={() => void audience.refetch()}
@@ -388,6 +405,12 @@ export default function AudienceManager() {
             <AlertDialogCancel className="font-body">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="font-body"
+              disabled={
+                resend.isPending ||
+                audience.isFetching ||
+                !counts ||
+                pendingCount === 0
+              }
               onClick={() => {
                 setOutcome(null);
                 resend.mutate();

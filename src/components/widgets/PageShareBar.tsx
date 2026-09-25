@@ -1,6 +1,9 @@
 import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useState, useEffect } from "react";
 import { Linkedin, Twitter, Facebook, Link2, Mail } from "lucide-react";
+import { useLocation } from "@/lib/router-compat";
+import { useSiteConfig } from "@/config/SiteConfigContext";
+import { absoluteUrl } from "@/config/site";
 
 const ICONS: Record<string, typeof Linkedin> = {
   linkedin: Linkedin,
@@ -11,6 +14,8 @@ const ICONS: Record<string, typeof Linkedin> = {
 };
 
 const PageShareBar = ({ config }: { config: WidgetConfig }) => {
+  const { pathname } = useLocation();
+  const siteConfig = useSiteConfig();
   const [copied, setCopied] = useState(false);
   const platforms: string[] = config.platforms || [
     "linkedin",
@@ -21,9 +26,10 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   useEffect(() => {
-    setUrl(window.location.href);
+    setUrl(absoluteUrl(pathname, siteConfig));
     setTitle(document.title);
-  }, []);
+    setCopied(false);
+  }, [pathname, siteConfig]);
 
   const shareUrls: Record<string, string> = {
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,

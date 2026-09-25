@@ -32,6 +32,7 @@ import Footer from "@/components/Footer";
 import { absoluteUrl, pageTitle } from "@/config/site";
 import PageHead from "@/components/PageHead";
 import { toast } from "@/hooks/use-toast";
+import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const laneLabel = (lane?: string | null) => {
   switch (lane) {
@@ -56,6 +57,7 @@ interface NewsDetailProps {
 }
 
 const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
+  const siteConfig = useSiteConfig();
   const { id } = useParams<{ id: string }>();
 
   const { data: item, isLoading } = useQuery({
@@ -139,7 +141,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
 
   const { title, summary } = newsDisplay(item);
   const src = sourceName(item);
-  const shareUrl = absoluteUrl(`/news/${item.id}`);
+  const shareUrl = absoluteUrl(`/news/${item.id}`, siteConfig);
   const shareTitle = encodeURIComponent(title || "");
 
   const copyLink = async () => {
@@ -147,7 +149,11 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
       await navigator.clipboard.writeText(shareUrl);
       toast({ title: "Link copied" });
     } catch {
-      /* noop */
+      toast({
+        title: "Could not copy link",
+        description: "Copy this page’s address from your browser",
+        variant: "destructive",
+      });
     }
   };
 

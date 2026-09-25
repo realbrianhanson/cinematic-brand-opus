@@ -10,6 +10,12 @@ import { absoluteUrl, pageTitle } from "@/config/site";
 
 export const Route = createFileRoute("/news/$id")({
   loader: async ({ params }) => {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        params.id,
+      )
+    )
+      throw notFound();
     const item = await getPublicNewsItem({ data: { id: params.id } });
     if (!item) throw notFound();
     return item;

@@ -193,3 +193,37 @@ describe("admin offer copy HTTP handler", () => {
     );
   });
 });
+
+describe("commercial truth in copy generation", () => {
+  it("removes stale draft prices from provider-controlled offers", () => {
+    const prompt = JSON.parse(
+      buildOfferCopyPrompt(
+        {
+          ...valid,
+          offer: {
+            ...valid.offer,
+            checkout_mode: "external",
+            price_display_mode: "provider",
+            amount_minor: 99700,
+          },
+        },
+        context,
+      ),
+    );
+    expect(prompt.pricing_context.price_status).toBe("provider");
+    expect(prompt.pricing_context.amount_minor).toBeNull();
+    expect(prompt.request.offer.amount_minor).toBeNull();
+    expect(prompt.pricing_context.checkout).toContain("linked provider");
+  });
+  it("does not describe an unfinished paid offer as free", () => {
+    const prompt = JSON.parse(
+      buildOfferCopyPrompt(
+        { ...valid, offer: { ...valid.offer, amount_minor: 0 } },
+        context,
+      ),
+    );
+    expect(prompt.pricing_context.price_status).toBe("not_set");
+    expect(prompt.request.offer.amount_minor).toBeNull();
+    expect(buildOfferCopySystemPrompt()).toContain("never infer a free offer");
+  });
+});

@@ -82,6 +82,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("AudienceManager", () => {
+  it("keeps missing-backend counts unknown and confirmation sends disabled", async () => {
+    h.loadAudience.mockRejectedValue(
+      new Error(
+        "Could not find the function public.admin_newsletter_audience in the schema cache",
+      ),
+    );
+    renderPage();
+    expect(
+      await screen.findByText("Backend update pending"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(4);
+    expect(
+      screen.getByRole("button", { name: /Resend confirmation to pending/ }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByText("No subscribers here yet"),
+    ).not.toBeInTheDocument();
+    expect(h.resendPendingConfirmations).not.toHaveBeenCalled();
+  });
   it("shows status counts and the subscriber list", async () => {
     renderPage();
     expect(await screen.findByText("reader@example.com")).toBeInTheDocument();

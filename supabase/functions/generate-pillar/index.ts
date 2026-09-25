@@ -535,14 +535,27 @@ Return ONLY the JSON object.`;
 
   // Post-publish: silo links + og image
   if (shouldPublish) {
-    fetch(`${supabaseUrl}/functions/v1/build-silo-links`, {
+    const rebuild = fetch(`${supabaseUrl}/functions/v1/build-silo-links`, {
       method: "POST",
+      signal: AbortSignal.timeout(60_000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({ rebuild_all: true }),
-    }).catch((e) => console.warn("silo build fail:", e.message));
+    })
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(`Link rebuild returned HTTP ${response.status}`);
+      })
+      .catch((e) => console.warn("silo build fail:", e.message));
+    const runtime = (
+      globalThis as unknown as {
+        EdgeRuntime?: { waitUntil(task: Promise<unknown>): void };
+      }
+    ).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(rebuild);
+    else await rebuild;
 
     // OG image (pillar_pages og_image is stored inside seo_meta; the generate-og-image
     // function handles generated_pages/posts, so we generate a PNG ourselves via

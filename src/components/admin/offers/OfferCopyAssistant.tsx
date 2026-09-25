@@ -60,6 +60,8 @@ export default function OfferCopyAssistant({
         summary: offer.summary,
         body: offer.body.slice(0, 12000),
         kind: offer.kind,
+        checkout_mode: offer.checkout_mode || "native",
+        price_display_mode: offer.price_display_mode || "fixed",
         amount_minor: offer.amount_minor,
         currency: offer.currency,
       },

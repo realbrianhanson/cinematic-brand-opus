@@ -2,6 +2,7 @@
 // failed-delivery retries. Every provider/database failure becomes a string.
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { pendingBackendUpdate } from "@/lib/adminBackendUpdate";
 
 type RpcResult = Promise<{
   data: unknown;
@@ -86,6 +87,11 @@ async function runDelivery(sendId: string): Promise<DeliveryRunResult> {
     { body: { send_id: sendId } },
   );
   const { payload } = await functionPayload(data, error);
+  const prerequisiteError = new Error(
+    text(payload.error) ?? text(payload.last_error) ?? "",
+  );
+  if (pendingBackendUpdate(prerequisiteError, "newsletter"))
+    throw prerequisiteError;
   return {
     state: text(payload.state) ?? "unknown",
     sent: num(payload.sent),
