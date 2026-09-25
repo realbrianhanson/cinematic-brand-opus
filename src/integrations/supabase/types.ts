@@ -574,10 +574,39 @@ export type Database = {
         Relationships: []
       }
       generated_page_revisions: {
-        Row: { id: string; page_id: string; snapshot: Json; actor_id: string | null; change_source: string; created_at: string }
-        Insert: { id?: string; page_id: string; snapshot: Json; actor_id?: string | null; change_source: string; created_at?: string }
-        Update: { id?: string; page_id?: string; snapshot?: Json; actor_id?: string | null; change_source?: string; created_at?: string }
-        Relationships: [{ foreignKeyName: "generated_page_revisions_page_id_fkey"; columns: ["page_id"]; isOneToOne: false; referencedRelation: "generated_pages"; referencedColumns: ["id"] }]
+        Row: {
+          actor_id: string | null
+          change_source: string
+          created_at: string
+          id: string
+          page_id: string
+          snapshot: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          change_source: string
+          created_at?: string
+          id?: string
+          page_id: string
+          snapshot: Json
+        }
+        Update: {
+          actor_id?: string | null
+          change_source?: string
+          created_at?: string
+          id?: string
+          page_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_page_revisions_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_pages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       generated_pages: {
         Row: {
@@ -710,6 +739,7 @@ export type Database = {
           success_count: number
           total_combinations: number
           updated_at: string
+          work_queue: Json | null
         }
         Insert: {
           batch_id: string
@@ -726,6 +756,7 @@ export type Database = {
           success_count?: number
           total_combinations?: number
           updated_at?: string
+          work_queue?: Json | null
         }
         Update: {
           batch_id?: string
@@ -742,6 +773,7 @@ export type Database = {
           success_count?: number
           total_combinations?: number
           updated_at?: string
+          work_queue?: Json | null
         }
         Relationships: []
       }
@@ -1136,6 +1168,7 @@ export type Database = {
           email: string
           id: string
           provider_id: string | null
+          provider_status: number | null
           send_id: string
           status: string
           subscriber_id: string
@@ -1148,6 +1181,7 @@ export type Database = {
           email: string
           id?: string
           provider_id?: string | null
+          provider_status?: number | null
           send_id: string
           status?: string
           subscriber_id: string
@@ -1160,6 +1194,7 @@ export type Database = {
           email?: string
           id?: string
           provider_id?: string | null
+          provider_status?: number | null
           send_id?: string
           status?: string
           subscriber_id?: string
@@ -1212,6 +1247,9 @@ export type Database = {
           id: string
           idempotency_key: string | null
           intro: string | null
+          last_error: string | null
+          last_error_at: string | null
+          last_error_status: number | null
           post_blurbs: Json | null
           post_ids: string[]
           recipient_count: number
@@ -1230,6 +1268,9 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           intro?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_error_status?: number | null
           post_blurbs?: Json | null
           post_ids?: string[]
           recipient_count?: number
@@ -1248,6 +1289,9 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           intro?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_error_status?: number | null
           post_blurbs?: Json | null
           post_ids?: string[]
           recipient_count?: number
@@ -1897,10 +1941,39 @@ export type Database = {
         ]
       }
       pillar_page_revisions: {
-        Row: { id: string; page_id: string; snapshot: Json; actor_id: string | null; change_source: string; created_at: string }
-        Insert: { id?: string; page_id: string; snapshot: Json; actor_id?: string | null; change_source: string; created_at?: string }
-        Update: { id?: string; page_id?: string; snapshot?: Json; actor_id?: string | null; change_source?: string; created_at?: string }
-        Relationships: [{ foreignKeyName: "pillar_page_revisions_page_id_fkey"; columns: ["page_id"]; isOneToOne: false; referencedRelation: "pillar_pages"; referencedColumns: ["id"] }]
+        Row: {
+          actor_id: string | null
+          change_source: string
+          created_at: string
+          id: string
+          page_id: string
+          snapshot: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          change_source: string
+          created_at?: string
+          id?: string
+          page_id: string
+          snapshot: Json
+        }
+        Update: {
+          actor_id?: string | null
+          change_source?: string
+          created_at?: string
+          id?: string
+          page_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pillar_page_revisions_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pillar_pages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pillar_pages: {
         Row: {
@@ -1945,6 +2018,41 @@ export type Database = {
             columns: ["niche_id"]
             isOneToOne: false
             referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pillar_publish_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          issues: string[]
+          overridden_by: string | null
+          pillar_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issues?: string[]
+          overridden_by?: string | null
+          pillar_id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issues?: string[]
+          overridden_by?: string | null
+          pillar_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pillar_publish_overrides_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "pillar_pages"
             referencedColumns: ["id"]
           },
         ]
@@ -2735,14 +2843,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      publish_pillar_page_with_override: {
-        Args: { p_pillar_id: string; p_reason: string; p_issues?: string[] }
-        Returns: Database["public"]["Tables"]["pillar_pages"]["Row"][]
-      }
-      publish_pillar_page_with_override_v2: {
-        Args: { p_pillar_id: string; p_reason: string; p_issues: string[]; p_expected_updated_at: string }
-        Returns: Database["public"]["Tables"]["pillar_pages"]["Row"][]
-      }
       _offer_apply_stripe_event_v1: {
         Args: {
           _amount_minor: number
@@ -2775,7 +2875,35 @@ export type Database = {
         Returns: Json
       }
       admin_indexnow_status: { Args: never; Returns: Json }
+      admin_newsletter_audience: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _search?: string
+          _status?: string
+        }
+        Returns: Json
+      }
       admin_offer_copy_allow: { Args: never; Returns: boolean }
+      admin_overview_attention_item: {
+        Args: {
+          _count: number
+          _detail: string
+          _key: string
+          _link: string
+          _message: string
+          _severity: string
+        }
+        Returns: Json
+      }
+      admin_overview_snapshot: { Args: never; Returns: Json }
+      admin_page_view_counts: {
+        Args: never
+        Returns: {
+          page_id: string
+          views: number
+        }[]
+      }
       admin_performance_snapshot: { Args: { days?: number }; Returns: Json }
       admin_read_niches: {
         Args: never
@@ -2831,12 +2959,12 @@ export type Database = {
       }
       admin_save_site_settings: {
         Args: {
-          _private_id: string | null
+          _private_id: string
           _private_patch: Json
-          _private_updated_at: string | null
-          _public_id: string | null
+          _private_updated_at: string
+          _public_id: string
           _public_patch: Json
-          _public_updated_at: string | null
+          _public_updated_at: string
         }
         Returns: Json
       }
@@ -2922,6 +3050,10 @@ export type Database = {
       }
       indexnow_key_file: { Args: { candidate: string }; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      mark_stalled_generation_jobs: {
+        Args: { p_stall_minutes?: number }
+        Returns: number
+      }
       match_posts: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {
@@ -2978,10 +3110,16 @@ export type Database = {
           _lease: string
           _outcome: string
           _provider_ids?: Json
+          _provider_status?: number
           _send_id: string
         }
         Returns: undefined
       }
+      newsletter_retry_failed_delivery: {
+        Args: { _send_id: string }
+        Returns: Json
+      }
+      newsletter_settle_send: { Args: { _send_id: string }; Returns: string }
       normalize_redirect_path: { Args: { p_path: string }; Returns: string }
       offer_apply_stripe_event: {
         Args: {
@@ -3093,6 +3231,53 @@ export type Database = {
           content_schema_id: string
           page_count: number
         }[]
+      }
+      publish_pillar_page_with_override: {
+        Args: { p_issues?: string[]; p_pillar_id: string; p_reason: string }
+        Returns: {
+          content: string
+          created_at: string | null
+          id: string
+          niche_id: string | null
+          published_at: string | null
+          seo_meta: Json | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pillar_pages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      publish_pillar_page_with_override_v2: {
+        Args: {
+          p_expected_updated_at: string
+          p_issues: string[]
+          p_pillar_id: string
+          p_reason: string
+        }
+        Returns: {
+          content: string
+          created_at: string | null
+          id: string
+          niche_id: string | null
+          published_at: string | null
+          seo_meta: Json | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pillar_pages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       record_not_found: {
         Args: { p_path: string; p_referrer?: string; p_ua_class?: string }
