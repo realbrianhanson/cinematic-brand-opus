@@ -82,7 +82,7 @@ export const Route = createFileRoute("/blog/$slug")({
   errorComponent: () => (
     <PublicRouteError message="This article could not be loaded" />
   ),
-  // Anonymous visitors move on to a saved redirect or the home page. Signed-in
+  // Anonymous visitors follow saved redirects or keep the 404. Signed-in
   // admins fall through to the component's own authenticated read so drafts
   // stay previewable.
   notFoundComponent: MissingPost,

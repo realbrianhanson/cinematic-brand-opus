@@ -38,8 +38,8 @@ export default function RedirectsManager() {
         </h1>
         <div className="mt-3 max-w-2xl space-y-2 text-sm text-muted-foreground">
           <p>
-            When someone opens a link to a page that doesn't exist, they go to
-            your home page automatically
+            When someone opens a link to a page that doesn't exist, they go to a
+            helpful Page not found screen unless a redirect rule is saved
           </p>
           <p>
             Add a rule when a better page exists so old links land in the right
@@ -60,8 +60,8 @@ export default function RedirectsManager() {
             Missing pages
           </h2>
           <p className="admin-help mt-1">
-            Each of these sent visitors home, busiest first, so pick a better
-            page for the ones that matter
+            These addresses were not found, busiest first. Choose a relevant
+            replacement for the ones that matter
           </p>
         </div>
         <QueryNotice
@@ -86,8 +86,8 @@ export default function RedirectsManager() {
             Redirect rules
           </h2>
           <p className="admin-help mt-1">
-            A rule sends one old address to a page you choose, and search
-            engines prefer that over the home page
+            A rule sends an old address to its relevant replacement. Leave
+            unrelated missing addresses as Page not found
           </p>
         </div>
         <QueryNotice

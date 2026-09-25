@@ -709,6 +709,75 @@ describe("private drafts, revisions and page building", () => {
     expect(presentation.upsell.headline).toBe("Implement it faster");
     expect(presentation.thankYou.headline).toBe("Your next action is ready");
   });
+  it("edits the effective external CTA from Delivery and preserves it in the saved page", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.ctaText = "Original page action";
+    existing({
+      ...row,
+      checkout_mode: "external",
+      external_url: "https://provider.example/offer",
+      external_button_text: "Old fallback",
+      presentation: builder.presentation,
+    });
+    await loaded();
+    navigateStep("Delivery");
+    expect(
+      (screen.getByLabelText(/Button label/) as HTMLInputElement).value,
+    ).toBe("Original page action");
+    edit(/Button label/, "See the program");
+    navigateStep("Pages");
+    expect(
+      (screen.getByLabelText("Primary button text") as HTMLTextAreaElement)
+        .value,
+    ).toBe("See the program");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const saved = mock.save.mock.calls[0][0].document;
+    expect(saved.builder.presentation.landing.ctaText).toBe("See the program");
+    expect(saved.offer.external_button_text).toBe("See the program");
+  });
+  it("does not revive a stale fallback after the page button is explicitly cleared", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.ctaText = "Original page action";
+    existing({
+      ...row,
+      checkout_mode: "external",
+      external_url: "https://provider.example/offer",
+      external_button_text: "Stale fallback",
+      presentation: builder.presentation,
+    });
+    await loaded();
+    navigateStep("Pages");
+    edit("Primary button text", "");
+    navigateStep("Delivery");
+    expect(
+      (screen.getByLabelText(/Button label/) as HTMLInputElement).value,
+    ).toBe("");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const saved = mock.save.mock.calls[0][0].document;
+    expect(saved.builder.presentation.landing.ctaText).toBe("");
+    expect(saved.offer.external_button_text).toBe("");
+  });
+  it("edits the landing presentation after switching an old thank-you page to external delivery", async () => {
+    existing();
+    await loaded();
+    edit("Presentation", "thank-you");
+    edit("Thank-you headline", "Old native confirmation");
+    navigateStep("Delivery");
+    edit("Checkout or delivery method", "external");
+    navigateStep("Pages");
+    expect(
+      screen.queryByRole("option", { name: "Thank-you & first step" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Thank-you headline")).toBeNull();
+    edit("Page headline", "The external offer");
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const pages = mock.save.mock.calls[0][0].document.builder.presentation;
+    expect(pages.landing.headline).toBe("The external offer");
+    expect(pages.thankYou.headline).toBe("Old native confirmation");
+  });
   it("reorders structured sections without changing their copy", async () => {
     const builder = emptyBuilder();
     builder.presentation.landing.sections = [

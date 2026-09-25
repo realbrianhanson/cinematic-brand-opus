@@ -5,7 +5,6 @@ import { decodeHTML } from "npm:entities@7.0.1";
 import { normalizeArticleBody } from "../_shared/articleBody.ts";
 import {
   buildRedirectLocation,
-  HOME_PATH,
   isRedirectEligiblePath,
   normalizeRedirectPath,
   validateRedirectTarget,
@@ -311,14 +310,6 @@ ${social ? `<p>${social}</p>` : ""}
 </aside>`;
 }
 
-// One-line editorial note under the byline.
-function editorialNote(verifiedAt?: string | Date | null): string {
-  const d = verifiedAt ? new Date(verifiedAt) : new Date();
-  const month = d.toLocaleString("en-US", { month: "long" });
-  const year = d.getFullYear();
-  return `<p class="editorial-note" style="color:#555;font-size:.85rem;margin:-.5rem 0 1.5rem">Researched with live web data, reviewed against ${esc(month)} ${year} sources.</p>`;
-}
-
 function websiteLd(s: Settings, base: string) {
   return {
     "@context": "https://schema.org",
@@ -443,8 +434,7 @@ function notFound(settings: Settings, path: string): Response {
 
 // ---------- missing pages ----------
 // Mirrors the site's automatic 404 handling (src/lib/notFoundRedirect.server.ts):
-// a saved rule wins, otherwise the missing path is recorded and the crawler is
-// sent home. Files and app internals keep the 404 above.
+// a saved rule wins, otherwise the missing path is recorded and keeps its 404.
 
 const REDIRECT_LOOKUP_TIMEOUT_MS = 1500;
 
@@ -524,7 +514,7 @@ async function missingPage(
   } catch (err) {
     console.error("render-page redirect lookup failed", path, err);
   }
-  return redirectTo(HOME_PATH, 302);
+  return notFound(settings, rawPath);
 }
 
 // ---------- route handlers ----------
@@ -1025,7 +1015,7 @@ async function renderGeneratedPage(
 
   const pubDate = page.published_at || page.created_at;
 
-  const lastVerified = (page as any).last_refreshed || pubDate;
+  const lastRefreshed = page.last_refreshed;
   const heroImage =
     typeof content.hero_image === "string" ? content.hero_image : "";
   const heroAlt =
@@ -1039,8 +1029,7 @@ async function renderGeneratedPage(
   const body = `
 <article>
   <h1>${esc(page.title)}</h1>
-  <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastVerified ? ` · Last verified ${esc(new Date(lastVerified).toISOString().slice(0, 10))}` : ""}</p>
-  ${editorialNote(lastVerified)}
+  <p class="byline">${settings.author_name ? `By ${esc(settings.author_name)}` : ""}${pubDate ? ` · Published ${esc(new Date(pubDate).toISOString().slice(0, 10))}` : ""}${page.updated_at ? ` · Updated ${esc(new Date(page.updated_at).toISOString().slice(0, 10))}` : ""}${lastRefreshed ? ` · Last refreshed ${esc(new Date(lastRefreshed).toISOString().slice(0, 10))}` : ""}</p>
   ${content.intro ? `<p>${escWithLinks(String(content.intro))}</p>` : ""}
   ${heroImage ? `<figure><img src="${esc(heroImage)}" alt="${esc(heroAlt)}" loading="lazy" style="max-width:100%;height:auto;display:block"></figure>` : ""}
   ${expertQuote ? `<aside class="expert-callout" style="border-left:3px solid #D4AF55;background:#fbf6e8;padding:1rem 1.25rem;margin:1.5rem 0"><p style="font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:#8a6a1a;margin:0 0 .5rem">From the trenches</p><p style="font-style:italic;margin:0">${esc(expertQuote)}</p>${settings.author_name ? `<p style="font-size:.8rem;color:#555;margin:.5rem 0 0">— ${esc(settings.author_name)}</p>` : ""}</aside>` : ""}

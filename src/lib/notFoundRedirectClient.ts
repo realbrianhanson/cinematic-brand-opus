@@ -1,7 +1,7 @@
 /**
  * In-app side of the automatic 404 handling: a visitor who navigates inside
  * the site to a page that does not exist goes to a saved rule's destination
- * or the home page, the same as a direct load handled by src/server.ts.
+ * only when a saved rule exists, matching direct loads in src/server.ts.
  */
 import {
   classifyUserAgent,
@@ -54,6 +54,7 @@ export async function missingPageClientDestination(
     lookup,
     timeoutMs,
   );
+  if (!destination) return { kind: "stay" };
   return destination.location.startsWith("/")
     ? { kind: "navigate", href: destination.location }
     : { kind: "external", href: destination.location };

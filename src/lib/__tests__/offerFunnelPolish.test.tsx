@@ -11,6 +11,7 @@ import {
   reviewOffer,
   sectionFromProof,
   type OfferProof,
+  offerBuilderSchema,
 } from "../offerBuilder";
 import { offerFaqLayout, offerListLayout } from "../offerSectionLayout";
 import OfferSections from "@/components/offers/OfferSections";
@@ -103,10 +104,11 @@ describe("guided direct-response pages", () => {
     const section = { ...newSection("proof"), body: evidence.content };
     builder.presentation.upsell.sections = [section];
     builder.presentation.landing = pageRecipe("sales");
+    builder.presentation.thankYou.firstStep = "Open the guide.";
     const advice = reviewOffer(builder, {
       title: "Kit",
       body: "Legacy copy",
-      checkout_mode: "external",
+      checkout_mode: "native",
     });
     expect(advice).toContainEqual(
       expect.objectContaining({
@@ -124,6 +126,141 @@ describe("guided direct-response pages", () => {
     ).toBe(true);
     expect(advice.some((item) => item.stage === "thank-you")).toBe(false);
     expect(JSON.stringify(advice)).not.toMatch(/\d+%/);
+  });
+  it("changes argument order for buyer awareness without changing schema or inventing facts", () => {
+    const context = {
+      strategy: {
+        ...emptyBuilder().strategy,
+        problem: "A real obstacle",
+        outcome: "A useful outcome",
+        mechanism: "A real method",
+        deliverables: "- Included PDF",
+        adMessage: "PRIVATE SOURCE MESSAGE",
+        evidence: "PRIVATE EVIDENCE",
+        objections: "PRIVATE QUESTION",
+      },
+      offer: {
+        title: "Guide",
+        summary: "A practical guide",
+        kind: "paid" as const,
+      },
+    };
+    const contextPage = pageRecipe("sales", context, "context");
+    const comparingPage = pageRecipe("sales", context, "comparing");
+    const readyPage = pageRecipe("sales", context, "ready");
+    expect(
+      contextPage.sections.slice(0, 2).map((section) => section.type),
+    ).toEqual(["problem", "method"]);
+    expect(
+      comparingPage.sections.slice(0, 3).map((section) => section.type),
+    ).toEqual(["benefits", "method", "proof"]);
+    expect(readyPage.sections[0].type).toBe("deliverables");
+    expect(
+      readyPage.sections.some((section) => section.type === "problem"),
+    ).toBe(false);
+    for (const page of [contextPage, comparingPage, readyPage]) {
+      const builder = emptyBuilder();
+      builder.presentation.landing = page;
+      expect(offerBuilderSchema.safeParse(builder).success).toBe(true);
+      expect(JSON.stringify(page)).not.toContain("PRIVATE");
+      expect(
+        page.sections.find((section) => section.type === "deliverables")?.body,
+      ).toBe("- Included PDF");
+    }
+  });
+  it("recommends a lead magnet for free offers and compares the sending promise privately", () => {
+    const change = vi.fn();
+    render(
+      <OfferPageFields
+        value={emptyPage()}
+        stage="landing"
+        onChange={change}
+        recipeContext={{
+          strategy: {
+            ...emptyBuilder().strategy,
+            adMessage: "A private sending promise",
+          },
+          offer: { title: "Kit", summary: "A useful kit", kind: "free" },
+        }}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Start with a page recipe") as HTMLSelectElement)
+        .value,
+    ).toBe("lead-magnet");
+    expect(screen.getByText("A private sending promise")).toBeTruthy();
+    fireEvent.change(
+      screen.getByLabelText("Build this layout for a buyer who is…"),
+      { target: { value: "ready" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Use this layout" }));
+    const page = change.mock.calls[0][0];
+    expect(page.sections[0].type).toBe("deliverables");
+    expect(
+      page.sections.some(
+        (section: { type: string }) => section.type === "image",
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(page)).not.toContain("A private sending promise");
+  });
+  it("reviews public buying questions even when the private brief is complete", () => {
+    const builder = emptyBuilder();
+    builder.strategy = {
+      audience: "Consultants",
+      traffic: "customer",
+      problem: "A problem",
+      outcome: "A result",
+      mechanism: "A method",
+      deliverables: "A guide",
+      objections: "Time and effort",
+      evidence: "Real demonstration",
+      adMessage: "Email invitation",
+    };
+    builder.presentation.landing.headline = "A concrete result";
+    builder.presentation.landing.ctaText = "Get the guide";
+    builder.presentation.landing.sections = [
+      {
+        ...newSection("proof"),
+        body: "An exact quote",
+        caption: "Approved person",
+      },
+      newSection("cta"),
+    ];
+    builder.presentation.thankYou.firstStep = "Open the guide";
+    const advice = reviewOffer(builder, { title: "Guide", body: "" });
+    expect(advice).toHaveLength(3);
+    expect(
+      advice.every((item) => item.fieldId === "offer-section-type-landing"),
+    ).toBe(true);
+    for (const type of ["deliverables", "method", "faq"] as const)
+      builder.presentation.landing.sections.push({
+        ...newSection(type),
+        body: "Confirmed public explanation",
+      });
+    expect(reviewOffer(builder, { title: "Guide", body: "" })).toEqual([]);
+  });
+  it("treats legacy prose as a human review and ignores native-only presentations for external offers", () => {
+    const builder = emptyBuilder();
+    builder.presentation.upsell.sections = [
+      { ...newSection("proof"), body: "Old quote" },
+    ];
+    const advice = reviewOffer(builder, {
+      title: "Offer",
+      body: "A complete original description",
+      checkout_mode: "external",
+    });
+    expect(
+      advice.some(
+        (item) =>
+          item.title === "Review the original description on the landing page",
+      ),
+    ).toBe(true);
+    expect(
+      advice.some(
+        (item) => item.stage === "upsell" || item.stage === "thank-you",
+      ),
+    ).toBe(false);
+    expect(advice.some((item) => item.fieldId)).toBe(false);
   });
   it("does not demand copy for an unused upsell", () => {
     expect(

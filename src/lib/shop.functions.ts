@@ -35,6 +35,26 @@ export const getShopShowcase = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/** Goal recommendations are independent of the homepage's three featured slots. */
+export const getStartHereOffers = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ShopOffer[]> => {
+    try {
+      const { data, error } = await createPublicServerClient()
+        .from("offers")
+        .select(SHOP_COLUMNS)
+        .eq("status", "published")
+        .eq("show_in_shop", true)
+        .eq("funnel_only", false)
+        .in("slug", ["ai-follow-up-starter-kit", "app-building-workshop"])
+        .limit(2)
+        .abortSignal(AbortSignal.timeout(5000));
+      return error ? [] : ((data || []) as ShopOffer[]);
+    } catch {
+      return [];
+    }
+  },
+);
+
 export const getRelatedShopOffers = createServerFn({ method: "GET" })
   .inputValidator((input: { excludeId: string }) => ({
     excludeId:

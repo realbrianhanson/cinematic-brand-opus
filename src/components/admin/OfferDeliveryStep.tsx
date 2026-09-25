@@ -15,6 +15,8 @@ export default function OfferDeliveryStep({
   health,
   onChange,
   onUpload,
+  actionLabel,
+  onActionLabelChange,
 }: {
   active: boolean;
   form: Form;
@@ -25,6 +27,8 @@ export default function OfferDeliveryStep({
   health: { isPending: boolean; isError: boolean; data?: OfferHealth };
   onChange: (changes: Partial<Form>) => void;
   onUpload: (file?: File) => void;
+  actionLabel: string;
+  onActionLabelChange: (label: string) => void;
 }) {
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     onChange({ [key]: value } as Partial<Form>);
@@ -84,11 +88,13 @@ export default function OfferDeliveryStep({
                 maxLength={80}
                 className="admin-input mt-2 w-full"
                 placeholder="View offer"
-                value={form.externalButtonText}
-                onChange={(event) =>
-                  update("externalButtonText", event.target.value)
-                }
+                value={actionLabel}
+                onChange={(event) => onActionLabelChange(event.target.value)}
               />
+              <span className="admin-help block mt-2">
+                This is the same primary button text shown in Pages and on your
+                landing page.
+              </span>
             </label>
             <label className="flex items-start gap-3 text-sm">
               <input

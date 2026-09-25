@@ -588,6 +588,91 @@ describe("offer visitor journey", () => {
     expect(
       invoke.mock.calls.every((call) => call[1].body.action === "get"),
     ).toBe(true);
+    expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+  });
+  it("lets a buyer retry a failed availability read without losing details or starting checkout", async () => {
+    invoke.mockRejectedValueOnce(new Error("offline"));
+    let finishCheck: (value: ReturnType<typeof respond>) => void = () => {};
+    invoke.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishCheck = resolve;
+        }),
+    );
+    render(
+      <OfferLanding offer={{ ...offer, kind: "paid", amount_minor: 2700 }} />,
+    );
+    fireEvent.change(screen.getByLabelText("Your name (optional)"), {
+      target: { value: "Buyer Name" },
+    });
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "buyer@example.com" },
+    });
+    await screen.findByText(/couldn’t check checkout availability/);
+    const retry = screen.getByRole("button", { name: "Check again" });
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: /Continue to checkout/,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    await act(async () =>
+      finishCheck(respond({ offer, payments_ready: true })),
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: /Continue to checkout/,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByLabelText("Email address") as HTMLInputElement).value,
+    ).toBe("buyer@example.com");
+    expect(
+      (screen.getByLabelText("Your name (optional)") as HTMLInputElement).value,
+    ).toBe("Buyer Name");
+    expect(
+      invoke.mock.calls.every((call) => call[1].body.action === "get"),
+    ).toBe(true);
+    expect(assign).not.toHaveBeenCalled();
+  });
+  it("keeps an unreadable readiness response retryable rather than asserting checkout is unconfigured", async () => {
+    invoke.mockResolvedValue(respond({}));
+    render(
+      <OfferLanding offer={{ ...offer, kind: "paid", amount_minor: 2700 }} />,
+    );
+    await screen.findByRole("button", { name: "Check again" });
+    expect(screen.queryByText(/Purchases are not available yet/)).toBeNull();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: /Continue to checkout/,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+  it("times out a stalled availability read without creating an order", async () => {
+    vi.useFakeTimers();
+    try {
+      invoke.mockImplementation(() => new Promise(() => {}));
+      render(
+        <OfferLanding offer={{ ...offer, kind: "paid", amount_minor: 2700 }} />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15001);
+      });
+      expect(screen.getByRole("button", { name: "Check again" })).toBeTruthy();
+      expect(invoke).toHaveBeenCalledOnce();
+      expect(invoke.mock.calls[0][1].body.action).toBe("get");
+      expect(assign).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("allows an explicit fresh checkout after a verified terminal attempt", async () => {
     invoke

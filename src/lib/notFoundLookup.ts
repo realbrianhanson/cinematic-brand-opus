@@ -2,11 +2,10 @@
  * Where a missing page should send the visitor. Shared by the server entry
  * (direct loads and crawlers) and the in-app not-found screen (navigation
  * inside the site). A saved rule wins; otherwise the path is recorded for the
- * admin Redirects page and the visitor goes home. Failures always go home.
+ * admin Redirects page and the original not-found response stays visible.
  */
 import {
   buildRedirectLocation,
-  HOME_PATH,
   validateRedirectTarget,
   type RedirectStatus,
   type UserAgentClass,
@@ -98,12 +97,7 @@ export async function findMissingPageDestination(
   visit: MissingPageVisit,
   lookup: NotFoundLookup,
   timeoutMs: number,
-): Promise<MissingPageDestination> {
-  const home: MissingPageDestination = {
-    location: buildRedirectLocation(HOME_PATH, visit.search),
-    status: 302,
-    fromRule: false,
-  };
+): Promise<MissingPageDestination | null> {
   const deadline = Date.now() + timeoutMs;
   try {
     const rule = fromRule(
@@ -118,5 +112,5 @@ export async function findMissingPageDestination(
   } catch (error) {
     console.error("[not-found] redirect lookup failed", visit.path, error);
   }
-  return home;
+  return null;
 }

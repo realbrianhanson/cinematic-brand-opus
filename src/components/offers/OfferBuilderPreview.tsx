@@ -1,7 +1,8 @@
 import { useState } from "react";
 import OfferLanding from "@/pages/OfferLanding";
 import OfferSections from "./OfferSections";
-import { offerPrice, type PublicOffer } from "@/lib/offers";
+import { safeExternalOfferUrl, type PublicOffer } from "@/lib/offers";
+import { offerPreviewPrice } from "@/lib/offerCta";
 import { readPresentation, type OfferBuilder } from "@/lib/offerBuilder";
 
 export type OfferPreviewStage = "landing" | "upsell" | "thank-you";
@@ -30,11 +31,12 @@ export function UpsellPreview({ offer }: { offer: PublicOffer }) {
         <OfferSections
           sections={page?.sections || []}
           fallback={offer.body}
+          actionLabel={page?.ctaText || "See this offer"}
           preview
         />
       </div>
       <p className="text-xl font-semibold">
-        {offerPrice(offer)}
+        {offerPreviewPrice(offer)}
         {offer.kind === "paid" ? " · one payment" : ""}
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
@@ -47,7 +49,7 @@ export function UpsellPreview({ offer }: { offer: PublicOffer }) {
             (offer.kind === "paid"
               ? "Continue to checkout"
               : "Get this free resource")}
-          {offer.kind === "paid" ? ` · ${offerPrice(offer)}` : ""}
+          {offer.kind === "paid" ? ` · ${offerPreviewPrice(offer)}` : ""}
         </button>
         <button
           type="button"
@@ -108,38 +110,70 @@ export default function OfferBuilderPreview({
   stage = "landing",
   device = "desktop",
   nextOffer = null,
+  followUpWindowMinutes = 0,
 }: {
   offer: PublicOffer;
   builder: OfferBuilder;
   stage?: OfferPreviewStage;
   device?: "desktop" | "phone";
   nextOffer?: PublicOffer | null;
+  followUpWindowMinutes?: number;
 }) {
-  const [simulation, setSimulation] = useState<
-    "page" | "purchase" | "next" | "declined" | "expired" | "pending"
-  >("page");
+  type Simulation =
+    | "page"
+    | "purchase"
+    | "next"
+    | "declined"
+    | "expired"
+    | "pending"
+    | "provider";
+  const external = offer.checkout_mode === "external";
+  const followUp =
+    !external && nextOffer?.checkout_mode !== "external" ? nextOffer : null;
+  const previewKey = `${offer.id}:${offer.checkout_mode}:${offer.kind}:${stage}:${followUp?.id || ""}:${followUpWindowMinutes > 0}`;
+  const [selected, setSelected] = useState<{ key: string; value: Simulation }>({
+    key: previewKey,
+    value: "page",
+  });
+  const simulation = selected.key === previewKey ? selected.value : "page";
+  const choices: [Simulation, string][] = external
+    ? [
+        ["page", "Landing page"],
+        ["provider", "Provider handoff"],
+      ]
+    : [
+        ["page", "Selected page"],
+        [
+          "purchase",
+          offer.kind === "free" ? "After download" : "After purchase",
+        ],
+        ...(followUp
+          ? ([
+              ["next", "Follow-up"],
+              ["declined", "Declined"],
+            ] as [Simulation, string][])
+          : []),
+        ...(followUp && followUpWindowMinutes > 0
+          ? ([["expired", "Expired"]] as [Simulation, string][])
+          : []),
+        ...(offer.kind === "paid"
+          ? ([["pending", "Pending payment"]] as [Simulation, string][])
+          : []),
+      ];
   const draft = { ...offer, presentation: builder.presentation };
+  const destination = safeExternalOfferUrl(offer.external_url);
   return (
     <div className="space-y-3" data-testid="offer-builder-preview">
       <div
         className="flex flex-wrap items-center gap-2 text-xs"
         aria-label="Simulate the customer journey"
       >
-        {(
-          [
-            ["page", "Selected page"],
-            ["purchase", "After purchase"],
-            ["next", "Follow-up"],
-            ["declined", "Declined"],
-            ["expired", "Expired"],
-            ["pending", "Pending payment"],
-          ] as const
-        ).map(([value, label]) => (
+        {choices.map(([value, label]) => (
           <button
             key={value}
             type="button"
             aria-pressed={simulation === value}
-            onClick={() => setSimulation(value)}
+            onClick={() => setSelected({ key: previewKey, value })}
             className={
               simulation === value
                 ? "admin-btn-primary !px-3 !py-2 !text-xs"
@@ -157,8 +191,27 @@ export default function OfferBuilderPreview({
         className={`mx-auto overflow-hidden rounded-xl border border-white/15 bg-[#101011] ${device === "phone" ? "max-w-[390px]" : "w-full"}`}
       >
         <div className="public-site max-h-[75vh] overflow-y-auto [overflow-wrap:anywhere]">
-          {simulation === "page" ? (
-            stage === "landing" ? (
+          {simulation === "provider" ? (
+            <section className="p-6 text-white md:p-10">
+              <h2 className="font-display text-3xl">
+                Continue on the provider’s website
+              </h2>
+              <p className="mt-4 text-white/75">
+                {destination
+                  ? `The offer button opens ${new URL(destination).hostname} in a new tab.`
+                  : "Add a valid HTTPS destination in Delivery to complete this handoff."}
+              </p>
+              <p className="mt-4 text-white/75">
+                The provider handles access, payment, confirmation and any
+                follow-up offers. This website does not create a local order or
+                download for this offer.
+              </p>
+              <p className="mt-4 text-sm text-white/65">
+                This preview does not load or verify the destination checkout.
+              </p>
+            </section>
+          ) : simulation === "page" ? (
+            external || stage === "landing" ? (
               <OfferLanding
                 offer={draft}
                 preview
@@ -170,8 +223,16 @@ export default function OfferBuilderPreview({
               <ThanksPreview offer={draft} />
             )
           ) : simulation === "next" ? (
-            nextOffer ? (
-              <UpsellPreview offer={nextOffer} />
+            followUp ? (
+              <>
+                {followUp.status !== "published" && (
+                  <p className="p-6 pb-0 text-amber-200">
+                    This follow-up is not published. Visitors will not see it
+                    until it is published.
+                  </p>
+                )}
+                <UpsellPreview offer={followUp} />
+              </>
             ) : (
               <p className="p-8 text-white/75">
                 Choose a follow-up offer to preview its pitch.
@@ -202,8 +263,16 @@ export default function OfferBuilderPreview({
                   stays available.
                 </p>
               )}
-              {simulation === "purchase" && nextOffer && (
-                <UpsellPreview offer={nextOffer} />
+              {simulation === "purchase" && followUp && (
+                <>
+                  {followUp.status !== "published" && (
+                    <p className="px-6 text-amber-200">
+                      This follow-up is not published. Visitors will not see it
+                      until it is published.
+                    </p>
+                  )}
+                  <UpsellPreview offer={followUp} />
+                </>
               )}
             </>
           )}

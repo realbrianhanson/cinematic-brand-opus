@@ -127,6 +127,27 @@ describe("consistent landing and follow-up rendering", () => {
     expect(html).toContain("· $29<");
     expect(html).not.toContain("Browse the Shop");
   });
+  it("uses the same legacy external action for section buttons without claiming a local download", () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.sections = [newSection("cta")];
+    const html = renderToStaticMarkup(
+      <OfferLanding
+        offer={{
+          ...offer,
+          kind: "free",
+          amount_minor: 0,
+          checkout_mode: "external",
+          external_url: "https://provider.example/offer",
+          external_button_text: "Read the offer",
+          presentation: builder.presentation,
+        }}
+        preview
+      />,
+    );
+    expect(html.match(/Read the offer/g)).toHaveLength(3);
+    expect(html).not.toContain("Send Me the Free Download");
+    expect(html).not.toContain("Send Me the Kit");
+  });
   it("puts a mobile route to the offer controls before a large cover image without starting a purchase", () => {
     const html = renderToStaticMarkup(
       <OfferLanding
@@ -199,6 +220,7 @@ describe("consistent landing and follow-up rendering", () => {
         builder={emptyBuilder()}
         device="phone"
         nextOffer={{ ...offer, id: "next", title: "Actual next product" }}
+        followUpWindowMinutes={60}
       />,
     );
     expect(
@@ -213,5 +235,89 @@ describe("consistent landing and follow-up rendering", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Expired$/ }));
     expect(screen.getByText(/window has ended/)).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
+  });
+  it("only previews a provider handoff for external offers, even when old native presentations exist", () => {
+    render(
+      <OfferBuilderPreview
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          price_display_mode: "provider",
+          amount_minor: 0,
+          external_url: "https://provider.example/checkout",
+        }}
+        builder={emptyBuilder()}
+        stage="thank-you"
+        nextOffer={offer}
+      />,
+    );
+    expect(screen.queryByText("Download file · preview")).toBeNull();
+    expect(screen.queryByRole("button", { name: "After purchase" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Pending payment" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Follow-up" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Provider handoff" }));
+    expect(screen.getByText(/provider.example/)).toBeTruthy();
+    expect(screen.getByText(/does not create a local order/)).toBeTruthy();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(document.querySelector('a[href*="provider.example"]')).toBeNull();
+  });
+  it("does not simulate payment or nonexistent follow-ups for a native free offer", () => {
+    render(
+      <OfferBuilderPreview
+        offer={{ ...offer, kind: "free", amount_minor: 0 }}
+        builder={emptyBuilder()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "After download" })).toBeTruthy();
+    for (const name of ["Pending payment", "Follow-up", "Declined", "Expired"])
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("returns to the selected presentation when its stage or offer mode changes", () => {
+    const builder = emptyBuilder();
+    builder.presentation.upsell.headline = "The upgrade pitch";
+    const view = render(
+      <OfferBuilderPreview offer={offer} builder={builder} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pending payment" }));
+    expect(screen.getByText("Waiting for payment confirmation")).toBeTruthy();
+    view.rerender(
+      <OfferBuilderPreview offer={offer} builder={builder} stage="upsell" />,
+    );
+    expect(screen.getByText("The upgrade pitch")).toBeTruthy();
+    expect(screen.queryByText("Waiting for payment confirmation")).toBeNull();
+    view.rerender(
+      <OfferBuilderPreview
+        offer={{ ...offer, checkout_mode: "external" }}
+        builder={builder}
+        stage="upsell"
+      />,
+    );
+    expect(screen.queryByText("The upgrade pitch")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Pending payment" }),
+    ).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("marks missing draft prices as unset without changing provider-controlled pricing", () => {
+    const html = renderToStaticMarkup(
+      <OfferBuilderPreview
+        offer={{ ...offer, amount_minor: 0 }}
+        builder={emptyBuilder()}
+      />,
+    );
+    expect(html).toContain("Price not set");
+    expect(html).not.toContain("$0");
+    const upsell = renderToStaticMarkup(
+      <OfferBuilderPreview
+        offer={{ ...offer, amount_minor: 0 }}
+        builder={emptyBuilder()}
+        stage="upsell"
+      />,
+    );
+    expect(upsell).toContain("Price not set");
+    expect(upsell).not.toContain("$0");
   });
 });

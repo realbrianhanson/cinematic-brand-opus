@@ -2,14 +2,21 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { StrictMode } from "react";
 
 const mock = vi.hoisted(() => ({
   navigate: vi.fn(),
   rpc: vi.fn(),
   rules: {} as Record<string, { to_path: string; status_code: number }>,
+  router: {} as { navigate: (...args: unknown[]) => unknown },
 }));
 vi.mock("@tanstack/react-router", () => ({
-  useRouter: () => ({ navigate: mock.navigate }),
+  useRouter: () => mock.router,
+  useLocation: () => ({
+    pathname: window.location.pathname,
+    searchStr: window.location.search,
+  }),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: mock.rpc },
@@ -35,6 +42,7 @@ function visit(path: string) {
 }
 
 beforeEach(() => {
+  mock.router = { navigate: mock.navigate };
   mock.navigate.mockReset();
   mock.rpc.mockReset();
   mock.rpc.mockImplementation(rpcResult);
@@ -43,6 +51,60 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("NotFoundRedirect", () => {
+  it("does not double-count server-rendered missing pages, but records later client navigation", async () => {
+    visit("/missing-document");
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(
+      <StrictMode>
+        <NotFoundRedirect />
+      </StrictMode>,
+    );
+    document.body.appendChild(container);
+    const view = render(
+      <StrictMode>
+        <NotFoundRedirect />
+      </StrictMode>,
+      { container, hydrate: true },
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "This page doesn't exist or has moved",
+      ),
+    );
+    expect(
+      mock.rpc.mock.calls.filter(([name]) => name === "record_not_found"),
+    ).toHaveLength(0);
+    expect(mock.rpc).toHaveBeenCalledWith("resolve_redirect", {
+      p_path: "/missing-document",
+    });
+    visit("/another-missing-page");
+    view.rerender(
+      <StrictMode>
+        <NotFoundRedirect />
+      </StrictMode>,
+    );
+    await waitFor(() =>
+      expect(mock.rpc).toHaveBeenCalledWith(
+        "record_not_found",
+        expect.objectContaining({ p_path: "/another-missing-page" }),
+      ),
+    );
+    visit("/missing-document");
+    view.rerender(
+      <StrictMode>
+        <NotFoundRedirect />
+      </StrictMode>,
+    );
+    await waitFor(() =>
+      expect(mock.rpc).toHaveBeenCalledWith(
+        "record_not_found",
+        expect.objectContaining({ p_path: "/missing-document" }),
+      ),
+    );
+    expect(
+      mock.rpc.mock.calls.filter(([name]) => name === "record_not_found"),
+    ).toHaveLength(2);
+  });
   it("follows a saved rule and keeps the visitor's query string", async () => {
     visit("/My-Story?utm_source=fb");
     render(<NotFoundRedirect />);
@@ -55,17 +117,20 @@ describe("NotFoundRedirect", () => {
     expect(mock.rpc).toHaveBeenCalledTimes(1);
   });
 
-  it("records an unknown page and goes home", async () => {
+  it("records an unknown page and offers useful links without navigating", async () => {
     visit("/case-studies");
     render(<NotFoundRedirect />);
     await waitFor(() =>
-      expect(mock.navigate).toHaveBeenCalledWith({ href: "/", replace: true }),
+      expect(mock.rpc).toHaveBeenCalledWith("record_not_found", {
+        p_path: "/case-studies",
+        p_referrer: null,
+        p_ua_class: expect.stringMatching(/^(bot|human|unknown)$/),
+      }),
     );
-    expect(mock.rpc).toHaveBeenCalledWith("record_not_found", {
-      p_path: "/case-studies",
-      p_referrer: null,
-      p_ua_class: expect.stringMatching(/^(bot|human|unknown)$/),
-    });
+    expect(mock.navigate).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("link", { name: "Browse resources" }),
+    ).toHaveAttribute("href", "/resources");
   });
 
   it("sends unknown admin pages to the admin overview without logging", async () => {
@@ -80,7 +145,7 @@ describe("NotFoundRedirect", () => {
     expect(mock.rpc).not.toHaveBeenCalled();
   });
 
-  it("still goes home when the lookup fails", async () => {
+  it("stays on the missing page when the lookup fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     mock.rpc.mockImplementation(() => ({
       abortSignal: () => Promise.reject(new Error("offline")),
@@ -88,19 +153,21 @@ describe("NotFoundRedirect", () => {
     visit("/social-media");
     render(<NotFoundRedirect />);
     await waitFor(() =>
-      expect(mock.navigate).toHaveBeenCalledWith({ href: "/", replace: true }),
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "This page doesn't exist or has moved",
+      ),
     );
+    expect(mock.navigate).not.toHaveBeenCalled();
   });
 
-  it("tells the visitor where they are going, in Brian's style", () => {
+  it("explains the missing page and gives the visitor control", () => {
     visit("/revven");
     render(<NotFoundRedirect />);
     expect(
       screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("Taking you to the home page");
-    expect(status.textContent?.trim().endsWith(".")).toBe(false);
+    expect(status).not.toHaveTextContent("Taking you to the home page");
     expect(screen.getByRole("link", { name: "Go home" })).toHaveAttribute(
       "href",
       "/",

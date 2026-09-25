@@ -37,6 +37,7 @@ vi.mock("../publicData.server", () => ({
       "from",
       "select",
       "eq",
+      "in",
       "neq",
       "ilike",
       "order",
@@ -75,6 +76,7 @@ vi.mock("../publicData.server", () => ({
 import {
   getShopCatalog,
   getShopShowcase,
+  getStartHereOffers,
   getRelatedShopOffers,
 } from "../shop.functions";
 beforeEach(() => {
@@ -85,6 +87,25 @@ beforeEach(() => {
   mocks.response = { data: [], count: 0, error: null };
 });
 describe("shop catalog boundaries", () => {
+  it("loads named goal offers regardless of featured placement while respecting publication and funnel privacy", async () => {
+    mocks.response.data = [{ id: "public-unfeatured-workshop" }];
+    expect(await getStartHereOffers()).toEqual(mocks.response.data);
+    for (const [field, value] of [
+      ["status", "published"],
+      ["show_in_shop", true],
+      ["funnel_only", false],
+    ])
+      expect(mocks.calls).toContainEqual(["eq", field, value]);
+    expect(mocks.calls).not.toContainEqual(["eq", "shop_featured", true]);
+    expect(mocks.calls).toContainEqual([
+      "in",
+      "slug",
+      ["ai-follow-up-starter-kit", "app-building-workshop"],
+    ]);
+    expect(mocks.calls).toContainEqual(["limit", 2]);
+    mocks.response.error = { message: "Unavailable" };
+    expect(await getStartHereOffers()).toEqual([]);
+  });
   it("derives facets without extra calls when the complete public catalog fits on the first page", async () => {
     mocks.response = {
       data: [

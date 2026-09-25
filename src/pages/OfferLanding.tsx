@@ -20,11 +20,9 @@ import {
   affiliateDisclosure,
   type PublicOffer,
 } from "@/lib/offers";
-import {
-  freeOfferButtonLabel,
-  optInAfterClaim,
-  requestOfferAccess,
-} from "@/lib/offerClaim";
+import { optInAfterClaim, requestOfferAccess } from "@/lib/offerClaim";
+import { offerPrimaryCta, offerPreviewPrice } from "@/lib/offerCta";
+import { withTimeout } from "@/lib/withTimeout";
 
 const fieldClass =
   "w-full mt-2 rounded border border-white/25 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]";
@@ -129,12 +127,7 @@ function OfferDetails({
         sections={page?.sections || []}
         fallback={offer.body}
         preview={preview}
-        actionLabel={
-          page?.ctaText ||
-          (offer.kind === "free"
-            ? freeOfferButtonLabel(offer)
-            : "See purchase options")
-        }
+        actionLabel={offerPrimaryCta(offer)}
         onAction={() => {
           document
             .getElementById("offer-action")
@@ -175,10 +168,7 @@ function ExternalOfferAction({
   destination: string | null;
   preview: boolean;
 }) {
-  const buttonText =
-    readPresentation(offer.presentation)?.landing.ctaText ||
-    offer.external_button_text.trim() ||
-    "Visit website";
+  const buttonText = offerPrimaryCta(offer);
   return (
     <>
       {preview ? (
@@ -272,7 +262,9 @@ function ExternalOfferLanding({
             aria-hidden="true"
             style={{ color: "var(--brand-accent)" }}
           />
-          <h2 className="font-display text-3xl mt-4">{offerPrice(offer)}</h2>
+          <h2 className="font-display text-3xl mt-4">
+            {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
+          </h2>
           <p className="text-sm leading-relaxed mt-3 text-white/80">
             {offer.kind === "free"
               ? "Continue to the provider’s website for access and availability"
@@ -320,9 +312,11 @@ function NativeOfferLanding({
 }: OfferLandingProps) {
   const { footer, identity } = useSiteConfig();
   const [hydrated, setHydrated] = useState(false);
-  const [ready, setReady] = useState<boolean | null>(
-    offer.kind === "free" ? true : null,
-  );
+  const [readiness, setReadiness] = useState<
+    "checking" | "ready" | "unavailable" | "error"
+  >(offer.kind === "free" ? "ready" : "checking");
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
+  const checkingAvailability = useRef(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const tokenRef = useRef<{ identity: string; token: string } | null>(null);
@@ -330,25 +324,47 @@ function NativeOfferLanding({
     setHydrated(true);
   }, []);
   useEffect(() => {
-    if (preview || offer.kind === "free") return;
+    if (preview) return;
+    if (offer.kind === "free") {
+      setReadiness("ready");
+      return;
+    }
     let active = true;
-    invokeOfferApi<{ offer: PublicOffer | null; payments_ready: boolean }>({
-      action: "get",
-      slug: offer.slug,
-    })
+    checkingAvailability.current = true;
+    setReadiness("checking");
+    withTimeout(
+      invokeOfferApi<{ offer: PublicOffer | null; payments_ready: boolean }>({
+        action: "get",
+        slug: offer.slug,
+      }),
+      15000,
+    )
       .then((result) => {
-        if (active) setReady(result.payments_ready);
+        if (typeof result?.payments_ready !== "boolean")
+          throw new Error("Availability could not be checked.");
+        if (active)
+          setReadiness(result.payments_ready ? "ready" : "unavailable");
       })
       .catch(() => {
-        if (active) setReady(false);
+        if (active) setReadiness("error");
+      })
+      .finally(() => {
+        if (active) checkingAvailability.current = false;
       });
     return () => {
       active = false;
     };
-  }, [offer.kind, offer.slug, preview]);
+  }, [offer.kind, offer.slug, preview, availabilityAttempt]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!hydrated || busy || preview || !ready || offer.funnel_only) return;
+    if (
+      !hydrated ||
+      busy ||
+      preview ||
+      readiness !== "ready" ||
+      offer.funnel_only
+    )
+      return;
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "")
       .trim()
@@ -417,7 +433,9 @@ function NativeOfferLanding({
             aria-hidden="true"
             style={{ color: "var(--brand-accent)" }}
           />
-          <h2 className="font-display text-3xl mt-4">{offerPrice(offer)}</h2>
+          <h2 className="font-display text-3xl mt-4">
+            {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
+          </h2>
           <p className="text-sm leading-relaxed mt-3 text-white/75">
             {offer.kind === "free"
               ? "Enter your email and your download opens on the next page"
@@ -461,7 +479,7 @@ function NativeOfferLanding({
               <button
                 type="submit"
                 aria-label={preview ? "Preview only" : undefined}
-                disabled={!hydrated || busy || preview || ready !== true}
+                disabled={!hydrated || busy || preview || readiness !== "ready"}
                 className="w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 font-bold text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                 style={{
                   background: "var(--brand-accent)",
@@ -471,9 +489,8 @@ function NativeOfferLanding({
                 {busy
                   ? "Opening…"
                   : offer.kind === "free"
-                    ? readPresentation(offer.presentation)?.landing.ctaText ||
-                      freeOfferButtonLabel(offer)
-                    : `${readPresentation(offer.presentation)?.landing.ctaText || "Continue to checkout"} · ${offerPrice(offer)}`}
+                    ? offerPrimaryCta(offer)
+                    : `${offerPrimaryCta(offer)} · ${preview ? offerPreviewPrice(offer) : offerPrice(offer)}`}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
               {readPresentation(offer.presentation)?.landing.ctaMicrocopy && (
@@ -486,12 +503,30 @@ function NativeOfferLanding({
                   Enable JavaScript to request this resource or start checkout
                 </p>
               </noscript>
-              {offer.kind === "paid" && !preview && ready !== true && (
-                <p role="status" className="text-sm text-white/75">
-                  {ready === null
-                    ? "Checking availability…"
-                    : "Purchases are not available yet. Check back soon"}
-                </p>
+              {offer.kind === "paid" && !preview && readiness !== "ready" && (
+                <div className="text-sm text-white/75">
+                  <p role="status">
+                    {readiness === "checking"
+                      ? "Checking availability…"
+                      : readiness === "error"
+                        ? "We couldn’t check checkout availability. Your details are still here."
+                        : "Purchases are not available yet. Check back soon"}
+                  </p>
+                  {readiness === "error" && (
+                    <button
+                      type="button"
+                      className="mt-3 rounded border border-white/30 px-4 py-3 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                      onClick={() => {
+                        if (checkingAvailability.current) return;
+                        checkingAvailability.current = true;
+                        setReadiness("checking");
+                        setAvailabilityAttempt((attempt) => attempt + 1);
+                      }}
+                    >
+                      Check again
+                    </button>
+                  )}
+                </div>
               )}
               {error && (
                 <p role="alert" className="text-sm text-red-300">
@@ -536,7 +571,7 @@ function NativeOfferLanding({
         {!offer.funnel_only && (
           <div className="min-w-0 border-t border-white/15 pt-6 @3xl:col-start-1 @3xl:row-start-3">
             <p className="text-lg font-semibold">
-              {offerPrice(offer)}
+              {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
               {offer.kind === "paid" ? " · one payment" : ""}
             </p>
             <button
