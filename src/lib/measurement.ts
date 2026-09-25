@@ -1,3 +1,5 @@
+import { parseConversionRequest } from "../../supabase/functions/_shared/conversion";
+
 /** Optional first-party conversion measurement. No customer details or full URLs. */
 export const MEASUREMENT_CHOICE_KEY = "site-measurement-choice-v1";
 export const MEASUREMENT_SESSION_KEY = "site-measurement-session-v1";
@@ -15,7 +17,16 @@ export interface Attribution {
 }
 export interface MeasurementEvent {
   id: string;
-  type: "page_view" | "shop_view" | "offer_view" | "outbound_click";
+  type:
+    | "page_view"
+    | "shop_view"
+    | "offer_view"
+    | "outbound_click"
+    | "build_plan_created"
+    | "build_prompt_copied"
+    | "build_plan_downloaded"
+    | "build_training_clicked";
+  project?: "follow-up" | "inquiries" | "onboarding";
   path: string;
   offer_id?: string;
   placement?:
@@ -47,7 +58,7 @@ const UUID =
 export function measurementPath(path: string): string | null {
   if (path.length > 200 || /[?#%@\\]/.test(path)) return null;
   if (
-    /^\/(?:shop|start-here|about|support|privacy|terms|speaking|resources|blog|news|sitemap)?\/?$/.test(
+    /^\/(?:shop|start-here|first-ai-build|about|support|privacy|terms|speaking|resources|blog|news|sitemap)?\/?$/.test(
       path,
     )
   )
@@ -244,10 +255,20 @@ export function recordMeasurement(
 ): void {
   const session = getSession();
   if (!session || !events.length) return;
-  const normalized = events
-    .slice(0, 10)
-    .filter((e) => measurementPath(e.path))
-    .map((e) => ({ ...e, id: crypto.randomUUID() }));
+  const normalized =
+    parseConversionRequest({
+      action: "record",
+      consent: true,
+      ...session,
+      events: events
+        .slice(0, 10)
+        .filter((e) => measurementPath(e.path))
+        .map((e) => ({
+          ...e,
+          path: measurementPath(e.path),
+          id: crypto.randomUUID(),
+        })),
+    })?.events ?? [];
   if (!normalized.length) return;
   if (normalized.length === 1 && normalized[0].type === "outbound_click") {
     const key = JSON.stringify(events[0]);

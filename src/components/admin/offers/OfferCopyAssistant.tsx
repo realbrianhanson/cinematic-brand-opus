@@ -5,6 +5,7 @@ import type { OfferBuilder, OfferPage } from "@/lib/offerBuilder";
 import { withTimeout } from "@/lib/withTimeout";
 import {
   applyOfferCopy,
+  buildOfferPageCopyContext,
   canEditOfferSection,
   offerCopyModes,
   offerCopyRequestSchema,
@@ -17,6 +18,7 @@ import {
 export type OfferCopyAssistantProps = {
   builder: OfferBuilder;
   offer: OfferCopyProduct;
+  savedOfferId?: string;
   stage: "landing" | "upsell";
   onApply: (page: OfferPage, stage: "landing" | "upsell") => void;
 };
@@ -29,6 +31,7 @@ type Result = {
 export default function OfferCopyAssistant({
   builder,
   offer,
+  savedOfferId,
   stage,
   onApply,
 }: OfferCopyAssistantProps) {
@@ -43,7 +46,7 @@ export default function OfferCopyAssistant({
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const page = builder.presentation[stage];
-  const source = JSON.stringify({ builder, offer, stage });
+  const source = JSON.stringify({ builder, offer, stage, savedOfferId });
   const stale = !!result && result.source !== source;
   const editableSections = page.sections.filter((section) =>
     canEditOfferSection(section.type),
@@ -56,6 +59,7 @@ export default function OfferCopyAssistant({
     const parsed = offerCopyRequestSchema.safeParse({
       mode,
       stage,
+      savedOfferId,
       strategy: builder.strategy,
       offer: {
         title: offer.title,
@@ -70,6 +74,7 @@ export default function OfferCopyAssistant({
       currentCopy: {
         headline: page.headline,
         subheadline: page.subheadline,
+        page: buildOfferPageCopyContext(page),
         ...(mode === "section" && section
           ? {
               section: {
@@ -157,10 +162,18 @@ export default function OfferCopyAssistant({
         <h3 className="font-semibold">Copy assistant</h3>
       </div>
       <p className="text-sm opacity-75">
-        Use your strategy, approved evidence and configured voice to draft{" "}
+        Use your full page, strategy, approved evidence and configured voice to
+        draft{" "}
         {stage === "upsell" ? "the next-step pitch" : "your sales argument"}.
         Choose a suggestion to apply to the working draft.
       </p>
+      {stage === "upsell" && (
+        <p className="text-xs opacity-70">
+          {savedOfferId
+            ? "The assistant checks published offers connected to this follow-up before describing the customer's previous step."
+            : "Save this offer and connect it as another offer's next step to add verified purchase context. You can still draft a general next-step pitch."}
+        </p>
+      )}
       <label className="block text-sm">
         What should we improve?
         <select

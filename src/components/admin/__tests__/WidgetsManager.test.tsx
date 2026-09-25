@@ -21,6 +21,7 @@ import {
 
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
+  rpc: vi.fn(),
   state: {
     ops: [] as FakeOp[],
     respond: (_op: FakeOp): FakeResult => ({ data: [], error: null }),
@@ -33,10 +34,18 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 vi.mock("@/integrations/supabase/client", async () => {
   const { createFakeSupabase } = await import("./fakeSupabaseQuery");
-  return { supabase: createFakeSupabase(h.state) };
+  return {
+    supabase: {
+      ...createFakeSupabase(h.state),
+      rpc: (name: string, args: unknown) => ({
+        abortSignal: () => h.rpc(name, args),
+      }),
+    },
+  };
 });
 
 beforeAll(() => {
+  h.rpc.mockResolvedValue({ data: { saved: true }, error: null });
   globalThis.ResizeObserver ??= class {
     observe() {}
     unobserve() {}
@@ -48,6 +57,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
   h.state.ops = [];
+  h.rpc.mockReset().mockResolvedValue({ data: { saved: true }, error: null });
 });
 
 const widget = (over: Record<string, unknown>) => ({
@@ -119,7 +129,14 @@ describe("WidgetsManager", () => {
     vi.useFakeTimers();
     fireEvent.click(move);
     await act(async () => vi.advanceTimersByTimeAsync(1));
-    expect(updates()).toHaveLength(2);
+    expect(h.rpc).toHaveBeenCalledWith("admin_swap_widget_order", {
+      _first_id: "w1",
+      _second_id: "w2",
+      _first_order: 1,
+      _second_order: 2,
+      _direction: "down",
+    });
+    expect(updates()).toHaveLength(0);
     expect((move as HTMLButtonElement).disabled).toBe(true);
     await act(async () =>
       vi.advanceTimersByTimeAsync(WIDGET_REQUEST_TIMEOUT_MS + 1),
@@ -401,9 +418,11 @@ describe("WidgetsManager", () => {
 
   it("reports a reorder that the database did not apply", async () => {
     server = rows;
-    h.state.respond = respond((op) =>
-      op.action === "update" ? { data: [], error: null } : undefined,
-    );
+    h.state.respond = respond();
+    h.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "The widget order changed" },
+    });
     wrap();
     fireEvent.click(
       await screen.findByRole("button", { name: "Move Share Bar down" }),

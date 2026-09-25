@@ -19,6 +19,7 @@ import PublicCTA from "@/components/PublicCTA";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StructuredData from "@/components/StructuredData";
 import PageHead from "@/components/PageHead";
+import type { GuideResource } from "@/lib/publicLists";
 import SiloNavigation from "@/components/SiloNavigation";
 import { findRelatedNicheForPage } from "@/lib/crossLinkMatcher";
 import Nav from "@/components/Nav";
@@ -36,11 +37,13 @@ interface PillarPageProps {
   /** Server-rendered guide so the body is in the initial HTML. */
   initialPillar?: PublicPillar | null;
   initialSettings?: PublicSiteSettings | null;
+  initialResources?: GuideResource[] | null;
 }
 
 const PillarPage = ({
   initialPillar,
   initialSettings,
+  initialResources,
 }: PillarPageProps = {}) => {
   const { slug } = useParams<{ slug: string }>();
 
@@ -248,7 +251,15 @@ const PillarPage = ({
         />
 
         {nicheId && (
-          <SiloNavigation nicheId={nicheId} pillarTitle={pillar.title} />
+          <SiloNavigation
+            nicheId={nicheId}
+            pillarTitle={pillar.title}
+            initialPages={
+              pillar.niche_id === initialPillar?.niche_id
+                ? initialResources
+                : undefined
+            }
+          />
         )}
 
         <ArticleDetails settings={siteSettings} />

@@ -1079,3 +1079,115 @@ describe("offer visitor journey", () => {
     expect(invoke).toHaveBeenCalledTimes(3);
   });
 });
+
+describe("explicit follow-up checkout restart", () => {
+  function recovering(
+    status: "expired" | "failed" | "refunded" = "expired",
+    available = true,
+  ): OfferAccess {
+    return {
+      ...access,
+      order: { ...access.order, status, kind: "paid", amount_minor: 2700 },
+      payments_ready: true,
+      checkout_recovery: {
+        available,
+        reason: available
+          ? "We will verify the previous checkout is closed and unpaid."
+          : "This checkout needs support review.",
+      },
+    };
+  }
+  it("does not restart automatically and makes the separate payment and original price explicit", async () => {
+    openAccess();
+    invoke.mockImplementation((_name, { body }) =>
+      Promise.resolve(
+        respond(
+          body.action === "retry_checkout"
+            ? {
+                status: "pending",
+                checkout_url: "https://checkout.stripe.com/retry",
+                access_url: access.access_url,
+              }
+            : recovering(),
+        ),
+      ),
+    );
+    render(<OfferAccessPage />);
+    const restart = await screen.findByRole("button", {
+      name: "Restart checkout · $27",
+    });
+    expect(
+      screen.getByText(/review and confirm a separate payment/),
+    ).toBeTruthy();
+    expect(invoke.mock.calls.map((call) => call[1].body.action)).toEqual([
+      "status",
+    ]);
+    fireEvent.click(restart);
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/retry"),
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      "offers-api",
+      expect.objectContaining({ body: { action: "retry_checkout", token } }),
+    );
+  });
+  it("locks a pending retry and preserves private access when provider verification fails", async () => {
+    openAccess();
+    let fail!: (value: unknown) => void;
+    invoke.mockImplementation((_name, { body }) =>
+      body.action === "retry_checkout"
+        ? new Promise((resolve) => {
+            fail = resolve;
+          })
+        : Promise.resolve(respond(recovering())),
+    );
+    render(<OfferAccessPage />);
+    const restart = await screen.findByRole("button", {
+      name: /Restart checkout/,
+    });
+    fireEvent.click(restart);
+    fireEvent.click(restart);
+    expect(
+      screen
+        .getByRole("button", { name: "Checking previous checkout…" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      invoke.mock.calls.filter(
+        (call) => call[1].body.action === "retry_checkout",
+      ),
+    ).toHaveLength(1);
+    await act(async () =>
+      fail({
+        data: {
+          error: "The previous payment is not confirmed closed and unpaid.",
+          code: "checkout_not_safe_to_retry",
+        },
+        error: null,
+      }),
+    );
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "not confirmed closed and unpaid",
+    );
+    expect(assign).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("offer-access-token")).toBe(token);
+  });
+  it.each(["expired", "failed", "refunded"] as const)(
+    "does not offer retry for blocked %s orders",
+    async (status) => {
+      openAccess();
+      invoke.mockResolvedValue(respond(recovering(status, false)));
+      render(<OfferAccessPage />);
+      await screen.findByRole("button", { name: "Refresh status" });
+      expect(
+        screen.queryByRole("button", { name: /Restart checkout/ }),
+      ).toBeNull();
+      if (status !== "refunded")
+        expect(
+          screen
+            .getByRole("link", { name: "Contact support about this checkout" })
+            .getAttribute("href"),
+        ).toBe("/support");
+    },
+  );
+});

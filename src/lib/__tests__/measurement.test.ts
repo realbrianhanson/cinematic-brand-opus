@@ -11,6 +11,8 @@ describe("optional first-party measurement boundaries", () => {
   it("only permits known public paths and never records query strings or private access routes", () => {
     expect(measurementPath("/shop")).toBe("/shop");
     expect(measurementPath("/about")).toBe("/about");
+    expect(measurementPath("/first-ai-build")).toBe("/first-ai-build");
+    expect(measurementPath("/first-ai-build?business=private")).toBeNull();
     expect(measurementPath("/offers/free-guide")).toBe("/offers/free-guide");
     for (const path of [
       "/admin",

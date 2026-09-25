@@ -11,7 +11,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OfferCopyAssistant from "@/components/admin/offers/OfferCopyAssistant";
 import OfferProofLibrary from "@/components/admin/offers/OfferProofLibrary";
-import { emptyBuilder, type OfferProof } from "../offerBuilder";
+import { emptyBuilder, newSection, type OfferProof } from "../offerBuilder";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -84,6 +84,44 @@ afterEach(() => {
 });
 
 describe("copy assistant user control", () => {
+  it("sends the working page and saved offer identity without trusting preview-only parent facts", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.upsell.ctaText = "Add the implementation guide";
+    builder.presentation.upsell.sections = [
+      { ...newSection("faq"), body: "Your previous download is still yours." },
+      { ...newSection("guarantee"), body: "Our exact existing terms." },
+    ];
+    const savedOfferId = "11111111-1111-4111-8111-111111111111";
+    render(
+      <OfferCopyAssistant
+        builder={builder}
+        offer={product}
+        savedOfferId={savedOfferId}
+        stage="upsell"
+        onApply={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Generate suggestions" }),
+    );
+    await screen.findByText(output.suggestions[0].headline);
+    const request = JSON.parse(
+      vi.mocked(fetch).mock.calls[0][1]!.body as string,
+    );
+    expect(request.savedOfferId).toBe(savedOfferId);
+    expect(request.currentCopy.page.ctaText).toBe(
+      "Add the implementation guide",
+    );
+    expect(
+      request.currentCopy.page.sections.map(
+        (section: { body: string }) => section.body,
+      ),
+    ).toEqual([
+      "Your previous download is still yours.",
+      "Our exact existing terms.",
+    ]);
+    expect(request.parents).toBeUndefined();
+  });
   it("makes no generation call on mount and requires an explicit apply after generation", async () => {
     const apply = vi.fn();
     render(

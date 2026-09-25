@@ -39,6 +39,15 @@ export const conversionReportSchema = z.object({
     attributed_free_claim_sessions: count,
     attributed_paid_order_sessions: count,
   }),
+  first_ai_build: z
+    .object({
+      visit_sessions: count,
+      plan_sessions: count,
+      copy_sessions: count,
+      download_sessions: count,
+      training_sessions: count,
+    })
+    .optional(),
   native_totals: z.object({
     free_claims: count,
     paid_orders: count,

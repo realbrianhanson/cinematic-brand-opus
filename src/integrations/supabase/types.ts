@@ -267,6 +267,7 @@ export type Database = {
           offer_id: string | null
           path: string
           placement: string | null
+          project: string | null
           session_id: string
           type: string
         }
@@ -277,6 +278,7 @@ export type Database = {
           offer_id?: string | null
           path: string
           placement?: string | null
+          project?: string | null
           session_id: string
           type: string
         }
@@ -287,6 +289,7 @@ export type Database = {
           offer_id?: string | null
           path?: string
           placement?: string | null
+          project?: string | null
           session_id?: string
           type?: string
         }
@@ -779,6 +782,83 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gsc_import_rows: {
+        Row: {
+          clicks: number
+          ctr: number
+          import_id: string
+          impressions: number
+          page_url: string
+          position: number
+          query: string
+          row_number: number
+        }
+        Insert: {
+          clicks: number
+          ctr: number
+          import_id: string
+          impressions: number
+          page_url: string
+          position: number
+          query: string
+          row_number: number
+        }
+        Update: {
+          clicks?: number
+          ctr?: number
+          import_id?: string
+          impressions?: number
+          page_url?: string
+          position?: number
+          query?: string
+          row_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gsc_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "gsc_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gsc_imports: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          period_end: string
+          period_start: string
+          property: string
+          row_count: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          property: string
+          row_count?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          property?: string
+          row_count?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
       }
       gsc_performance: {
         Row: {
@@ -1458,6 +1538,47 @@ export type Database = {
           },
         ]
       }
+      offer_checkout_attempts: {
+        Row: {
+          attempt: number
+          checkout_expires_at: string
+          order_id: string
+          recorded_at: string
+          retired_at: string | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          unpaid_verified_at: string | null
+        }
+        Insert: {
+          attempt: number
+          checkout_expires_at: string
+          order_id: string
+          recorded_at?: string
+          retired_at?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          unpaid_verified_at?: string | null
+        }
+        Update: {
+          attempt?: number
+          checkout_expires_at?: string
+          order_id?: string
+          recorded_at?: string
+          retired_at?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          unpaid_verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_checkout_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "offer_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offer_copy_usage: {
         Row: {
           admin_id: string
@@ -1478,7 +1599,10 @@ export type Database = {
           amount_minor: number
           asset_name_snapshot: string
           asset_path_snapshot: string
+          checkout_attempt: number
           checkout_expires_at: string
+          checkout_retry_origin: string | null
+          checkout_retry_token_hash: string | null
           created_at: string
           currency: string
           declined_at: string | null
@@ -1502,7 +1626,10 @@ export type Database = {
           amount_minor: number
           asset_name_snapshot: string
           asset_path_snapshot: string
+          checkout_attempt?: number
           checkout_expires_at: string
+          checkout_retry_origin?: string | null
+          checkout_retry_token_hash?: string | null
           created_at?: string
           currency: string
           declined_at?: string | null
@@ -1526,7 +1653,10 @@ export type Database = {
           amount_minor?: number
           asset_name_snapshot?: string
           asset_path_snapshot?: string
+          checkout_attempt?: number
           checkout_expires_at?: string
+          checkout_retry_origin?: string | null
+          checkout_retry_token_hash?: string | null
           created_at?: string
           currency?: string
           declined_at?: string | null
@@ -2214,6 +2344,7 @@ export type Database = {
           banned_phrases: string[]
           created_at: string
           default_expert_pov: string | null
+          gsc_property: string | null
           id: string
           report_email: string | null
           report_enabled: boolean | null
@@ -2230,6 +2361,7 @@ export type Database = {
           banned_phrases?: string[]
           created_at?: string
           default_expert_pov?: string | null
+          gsc_property?: string | null
           id?: string
           report_email?: string | null
           report_enabled?: boolean | null
@@ -2246,6 +2378,7 @@ export type Database = {
           banned_phrases?: string[]
           created_at?: string
           default_expert_pov?: string | null
+          gsc_property?: string | null
           id?: string
           report_email?: string | null
           report_enabled?: boolean | null
@@ -2590,6 +2723,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _offer_apply_stripe_event_v1: {
+        Args: {
+          _amount_minor: number
+          _currency: string
+          _event_id: string
+          _event_type: string
+          _order_id: string
+          _payment_intent_id: string
+          _session_id: string
+        }
+        Returns: Json
+      }
+      _offer_record_checkout_v1: {
+        Args: {
+          _checkout_url: string
+          _order_id: string
+          _payment_intent_id?: string
+          _session_id: string
+        }
+        Returns: Json
+      }
       admin_content_breakdown: { Args: never; Returns: Json }
       admin_conversion_snapshot: { Args: { _days?: number }; Returns: Json }
       admin_external_conversion_snapshot: {
@@ -2654,6 +2808,27 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      admin_save_site_settings: {
+        Args: {
+          _private_id: string | null
+          _private_patch: Json
+          _private_updated_at: string | null
+          _public_id: string | null
+          _public_patch: Json
+          _public_updated_at: string | null
+        }
+        Returns: Json
+      }
+      admin_swap_widget_order: {
+        Args: {
+          _direction: string
+          _first_id: string
+          _first_order: number
+          _second_id: string
+          _second_order: number
+        }
+        Returns: Json
       }
       claim_speaking_notification: { Args: { _id: string }; Returns: Json }
       content_claim_opportunities: {
@@ -2721,6 +2896,10 @@ export type Database = {
         Returns: boolean
       }
       get_cron_invocation_secret: { Args: never; Returns: string }
+      gsc_finish_import: {
+        Args: { _expected_rows: number; _import_id: string }
+        Returns: Json
+      }
       indexnow_key_file: { Args: { candidate: string }; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       match_posts: {
@@ -2787,6 +2966,7 @@ export type Database = {
       offer_apply_stripe_event: {
         Args: {
           _amount_minor: number
+          _checkout_attempt?: number
           _currency: string
           _event_id: string
           _event_type: string
@@ -2851,8 +3031,20 @@ export type Database = {
         Args: { _email?: string; _order_id?: string }
         Returns: string
       }
+      offer_prepare_checkout_retry: {
+        Args: {
+          _checkout_attempt: number
+          _order_id: string
+          _origin: string
+          _payment_intent_id: string
+          _session_id: string
+          _token_hash: string
+        }
+        Returns: Json
+      }
       offer_record_checkout: {
         Args: {
+          _checkout_attempt?: number
           _checkout_url: string
           _order_id: string
           _payment_intent_id?: string

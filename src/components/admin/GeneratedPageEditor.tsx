@@ -4,6 +4,8 @@ import { z } from "zod";
 import { errorMessage, isErrorCode } from "@/lib/errorMessage";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAdminDraftGuard } from "./useAdminDraftGuard";
+import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
+import LocalDraftRecoveryBanner from "./LocalDraftRecoveryBanner";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +55,18 @@ const seoFormSchema = z
 
 const bodyError = (body: Record<string, unknown>, fallback: string) =>
   typeof body.error === "string" && body.error.trim() ? body.error : fallback;
+const resourceRecoverySchema = z
+  .object({
+    title: z.string(),
+    slug: z.string(),
+    contentStr: z.string(),
+    ogImage: z.string(),
+    status: z.string(),
+    metaTitle: z.string(),
+    metaDesc: z.string(),
+    metaKeywords: z.string(),
+  })
+  .strict();
 
 type ScoreResult = { score: number; issues: string[] };
 
@@ -212,6 +226,31 @@ const GeneratedPageEditor = () => {
     if (seo.title || seo.description || seo.keywords.length > 0)
       setHasGenerated(true);
   }, [page, hydrationEpoch, markSaved]);
+
+  const recovery = useLocalEditorRecovery({
+    documentKey: `resource:${id ?? "new"}`,
+    snapshot: draftSnapshot,
+    ready: !!page && page.id === id && hydratedId.current === id,
+    serverVersion: page?.updated_at,
+    schema: resourceRecoverySchema,
+    onRestore: (draft) => {
+      setTitle(draft.title);
+      setSlug(
+        baseline.current?.status === "published"
+          ? baseline.current.slug
+          : draft.slug,
+      );
+      setContentStr(draft.contentStr);
+      setOgImage(draft.ogImage);
+      setStatus(draft.status);
+      setMetaTitle(draft.metaTitle);
+      setMetaDesc(draft.metaDesc);
+      setMetaKeywords(draft.metaKeywords);
+      setPreviewScore(null);
+      setValidationErrors([]);
+      setQualityWarning(null);
+    },
+  });
 
   const isPublished = baseline.current?.status === "published";
   const storedVersionChanged = !!(
@@ -514,6 +553,7 @@ const GeneratedPageEditor = () => {
         return;
       }
       markSaved(submitted);
+      recovery.clearSaved(submitted);
       setQualityWarning(null);
       if (outcome.kind === "saved" && outcome.scoreWarning)
         toast({
@@ -686,6 +726,17 @@ const GeneratedPageEditor = () => {
 
   return (
     <div>
+      <LocalDraftRecoveryBanner
+        recovery={recovery}
+        disabled={
+          saveMutation.isPending ||
+          regenerateMutation.isPending ||
+          aiGenerating ||
+          enhancing ||
+          generatingOg ||
+          scoring
+        }
+      />
       {storedVersionChanged && (
         <div role="alert" className="admin-card mb-5 p-4">
           <p>

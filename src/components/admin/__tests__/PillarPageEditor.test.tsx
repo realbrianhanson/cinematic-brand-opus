@@ -54,6 +54,9 @@ const basePillar = () => ({
 });
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "guide-admin" } }),
+}));
 vi.mock("@/lib/withTimeout", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   safeMutation: (run: () => unknown) => run(),
@@ -127,6 +130,7 @@ const saveButton = () =>
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -139,6 +143,30 @@ afterEach(() => {
 h.pillar = basePillar();
 
 describe("topic guide editor", () => {
+  it("recovers a crashed guide draft only after explicit restore and clears it on save", async () => {
+    const first = renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.change(screen.getByDisplayValue("AI for Small Business"), {
+      target: { value: "Recovered guide title" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    first.unmount();
+    renderEditor();
+    const restore = await screen.findByRole("button", {
+      name: "Restore working copy",
+    });
+    expect(screen.getByDisplayValue("AI for Small Business")).toBeTruthy();
+    expect(h.update).not.toHaveBeenCalled();
+    fireEvent.click(restore);
+    expect(screen.getByDisplayValue("Recovered guide title")).toBeTruthy();
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(h.navigate).toHaveBeenCalledWith("/admin/pillars"),
+    );
+    // The crashed instance's source remains; this saved instance's slot is cleared.
+    expect(localStorage.length).toBe(1);
+  });
   it("restores Save after a rejected sharing-image upload", async () => {
     h.upload.mockRejectedValueOnce(new Error("Network unavailable"));
     renderEditor();

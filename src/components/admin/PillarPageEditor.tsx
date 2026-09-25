@@ -3,6 +3,9 @@ import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAdminDraftGuard } from "./useAdminDraftGuard";
+import { z } from "zod";
+import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
+import LocalDraftRecoveryBanner from "./LocalDraftRecoveryBanner";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
@@ -76,6 +79,19 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
 export const GUIDE_IMAGE_UPLOAD_TIMEOUT_MS = 30_000;
+const guideRecoverySchema = z
+  .object({
+    title: z.string(),
+    slug: z.string(),
+    status: z.string(),
+    nicheId: z.string(),
+    editorContent: z.string(),
+    metaTitle: z.string(),
+    metaDesc: z.string(),
+    keywords: z.string(),
+    ogImage: z.string(),
+  })
+  .strict();
 
 const PillarPageEditor = () => {
   const { id } = useParams();
@@ -202,6 +218,34 @@ const PillarPageEditor = () => {
     }
   }, [pillar, markSaved]);
 
+  const recovery = useLocalEditorRecovery({
+    documentKey: `guide:${id ?? "new"}`,
+    snapshot: draftSnapshot,
+    ready:
+      editorReady &&
+      (isNew
+        ? hydratedId.current === null
+        : !!pillar && hydratedId.current === id),
+    serverVersion: pillar?.updated_at,
+    schema: guideRecoverySchema,
+    onRestore: (draft) => {
+      setTitle(draft.title);
+      setSlug(draft.slug);
+      setSlugManual(true);
+      setStatus(draft.status);
+      setNicheId(draft.nicheId);
+      setEditorContent(draft.editorContent);
+      const editor = editorRef.current;
+      if (editor && !editor.isDestroyed)
+        editor.commands.setContent(draft.editorContent, { emitUpdate: false });
+      setMetaTitle(draft.metaTitle);
+      setMetaDesc(draft.metaDesc);
+      setKeywords(draft.keywords);
+      setOgImage(draft.ogImage);
+      setGateBlock(null);
+    },
+  });
+
   // The editor is created after the data arrives (immediatelyRender: false),
   // so the stored body must be loaded when it reports ready, as PostEditor does.
   const handleEditorReady = useCallback(
@@ -299,6 +343,7 @@ const PillarPageEditor = () => {
       }),
     onSuccess: (submitted) => {
       markSaved(submitted);
+      recovery.clearSaved(submitted);
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
       toast({ title: "Pillar page saved" });
       navigate("/admin/pillars");
@@ -429,6 +474,10 @@ const PillarPageEditor = () => {
       disabled={saveMutation.isPending}
       style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
     >
+      <LocalDraftRecoveryBanner
+        recovery={recovery}
+        disabled={saveMutation.isPending || uploading}
+      />
       {gateBlock && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"

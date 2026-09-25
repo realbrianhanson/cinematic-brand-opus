@@ -1,3 +1,4 @@
+import { blogSearch, blogArchivePath } from "../_shared/blogPagination.ts";
 import { safeHref } from "../_shared/safeHref.ts";
 import sanitize from "npm:sanitize-html@2.17.7";
 import { htmlPolicy } from "../_shared/htmlPolicy.ts";
@@ -445,6 +446,7 @@ const APP_ONLY_PATHS = new Set([
   "/speaking",
   "/shop",
   "/start-here",
+  "/first-ai-build",
   "/support",
   "/privacy",
   "/terms",
@@ -549,15 +551,35 @@ ${settings.author_bio ? `<p>${esc(settings.author_bio)}</p>` : ""}
 async function renderBlogIndex(
   settings: Settings,
   path: string,
+  search: { page: number; category: string },
 ): Promise<Response> {
-  const { data: posts } = await supabase
+  let query = supabase
     .from("posts")
     .select("slug, title, excerpt, featured_image, updated_at, created_at")
-    .eq("status", "published")
-    .order("created_at", { ascending: false });
-  const items = posts ?? [];
+    .eq("status", "published");
+  if (search.category) {
+    const { data: category, error } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("slug", search.category)
+      .maybeSingle();
+    if (error) throw error;
+    if (!category)
+      return notFound(settings, blogArchivePath(search.page, search.category));
+    query = query.eq("category_id", category.id);
+  }
+  const { data: posts, error } = await query
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range((search.page - 1) * 12, search.page * 12);
+  if (error) throw error;
+  const items = (posts ?? []).slice(0, 12);
+  if (search.page > 1 && !items.length)
+    return notFound(settings, blogArchivePath(search.page, search.category));
+  const hasNext = (posts?.length ?? 0) > 12;
+  path = blogArchivePath(search.page, search.category);
   const body = `
-<h1>Blog</h1>
+<h1>Articles &amp; Playbooks${search.page > 1 ? ` — Page ${search.page}` : ""}</h1>
 <p>${items.length} published post${items.length === 1 ? "" : "s"}.</p>
 ${items
   .map(
@@ -569,11 +591,12 @@ ${items
   <p><a href="/blog/${esc(p.slug)}">Read →</a></p>
 </article>`,
   )
-  .join("")}`;
+  .join("")}
+<nav aria-label="Article pages">${search.page > 1 ? `<a rel="prev" href="${esc(blogArchivePath(search.page - 1, search.category))}">Previous articles</a> · ` : ""}Page ${search.page}${hasNext ? ` · <a rel="next" href="${esc(blogArchivePath(search.page + 1, search.category))}">Next articles</a>` : ""}</nav>`;
   return renderShell({
     path,
     title:
-      `Blog — ${settings.site_name || settings.publisher_name || ""}`.trim(),
+      `Articles & Playbooks${search.page > 1 ? ` — Page ${search.page}` : ""} — ${settings.site_name || settings.publisher_name || ""}`.trim(),
     description: `All published articles${settings.author_name ? ` by ${settings.author_name}` : ""}.`,
     breadcrumbs: [
       { name: "Home", url: "/" },
@@ -1321,6 +1344,11 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   let path = url.searchParams.get("path") || "/";
   if (!path.startsWith("/")) path = "/" + path;
+  const archiveSearch = blogSearch(
+    Object.fromEntries(
+      new URLSearchParams(path.split("?")[1]?.split("#")[0] ?? ""),
+    ),
+  );
   // Strip query and hash, collapse trailing slash (except root)
   path = path.split("?")[0].split("#")[0];
   if (path.length > 1) path = path.replace(/\/+$/, "");
@@ -1332,7 +1360,8 @@ Deno.serve(async (req) => {
 
     if (parts.length === 0) return renderHome(settings, "/");
     if (parts[0] === "blog") {
-      if (parts.length === 1) return renderBlogIndex(settings, path);
+      if (parts.length === 1)
+        return renderBlogIndex(settings, path, archiveSearch);
       if (parts.length === 2) return renderBlogPost(settings, path, parts[1]);
     }
     if (parts[0] === "resources") {

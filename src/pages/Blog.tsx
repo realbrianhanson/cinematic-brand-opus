@@ -1,7 +1,7 @@
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { fetchBlogPage } from "@/lib/publicLists";
-import { useEffect, useMemo, useRef } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { blogArchivePath } from "../../supabase/functions/_shared/blogPagination";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, ArrowLeft, Clock } from "lucide-react";
@@ -83,8 +83,6 @@ const TypographicCover = ({
   );
 };
 
-const PAGE_SIZE = 12;
-
 const CardSkeleton = () => (
   <div
     className="animate-pulse"
@@ -125,80 +123,29 @@ const CardSkeleton = () => (
   </div>
 );
 
-// Card-only columns — never fetch body_html on the index page.
-const CARD_COLUMNS =
-  "id, slug, title, excerpt, featured_image, featured_image_alt, reading_time, created_at, categories(name, slug)";
-
 interface BlogProps {
   category?: string;
-  /** First page rendered on the server so the list is in the initial HTML. */
+  page?: number;
+  /** The requested archive page is rendered on the server. */
   initialPage?: { items: unknown[]; nextPage: number | null } | null;
 }
 
-const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
+const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
   const siteConfig = useSiteConfig();
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-    isFetchNextPageError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["public-posts-infinite", category],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) => fetchBlogPage(supabase, pageParam, category),
-    getNextPageParam: (last) => last.nextPage,
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["public-posts-page", category, page],
+    queryFn: () => fetchBlogPage(supabase, page - 1, category),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     ...(initialPage
       ? {
-          initialData: {
-            pages: [
-              {
-                items: initialPage.items as never[],
-                nextPage: initialPage.nextPage,
-              },
-            ],
-            pageParams: [0],
-          },
-          // Treat server data as immediately stale so signed-in admins and
-          // fresh publishes still refetch after hydration.
+          initialData: initialPage as Awaited<ReturnType<typeof fetchBlogPage>>,
           initialDataUpdatedAt: 0,
         }
       : {}),
   });
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || isError || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage)
-          fetchNextPage();
-      },
-      { rootMargin: "600px 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isError]);
-
-  const posts = useMemo(() => {
-    const seen = new Set<string>();
-    const out: Awaited<ReturnType<typeof fetchBlogPage>>["items"] = [];
-    for (const p of data?.pages ?? []) {
-      for (const it of p.items) {
-        if (seen.has(it.id)) continue;
-        seen.add(it.id);
-        out.push(it);
-      }
-    }
-    return out;
-  }, [data]);
+  const posts = data?.items ?? [];
+  const hasNextPage = data?.nextPage != null;
 
   return (
     <div
@@ -268,14 +215,12 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
             {posts.length
-              ? "More articles could not be loaded."
+              ? "These articles could not be refreshed."
               : "Articles could not be loaded."}{" "}
             <button
               type="button"
               className="underline underline-offset-4"
-              onClick={() =>
-                void (isFetchNextPageError ? fetchNextPage() : refetch())
-              }
+              onClick={() => void refetch()}
             >
               Try again
             </button>
@@ -398,26 +343,37 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
               </div>
             </Link>
           ))}
-
-          {isFetchingNextPage &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <CardSkeleton key={`sk-more-${i}`} />
-            ))}
         </div>
 
-        {hasNextPage && !isLoading && (
-          <div className="mt-8 text-center">
-            <button
-              type="button"
-              className="public-secondary-action"
-              disabled={isFetchingNextPage}
-              onClick={() => void fetchNextPage()}
-            >
-              {isFetchingNextPage ? "Loading more…" : "Load more articles"}
-            </button>
-          </div>
+        {(page > 1 || hasNextPage) && (
+          <nav
+            aria-label="Article pages"
+            className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          >
+            {page > 1 && (
+              <a
+                href={blogArchivePath(page - 1, category)}
+                rel="prev"
+                className="public-secondary-action min-h-12"
+              >
+                {" "}
+                <ArrowLeft size={16} aria-hidden="true" /> Previous articles
+              </a>
+            )}
+            <span aria-current="page" className="px-3 text-sm text-white/75">
+              Page {page}
+            </span>
+            {hasNextPage && (
+              <a
+                href={blogArchivePath(page + 1, category)}
+                rel="next"
+                className="public-secondary-action min-h-12"
+              >
+                Next articles <ArrowRight size={16} aria-hidden="true" />
+              </a>
+            )}
+          </nav>
         )}
-        <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
 
         {!hasNextPage && !isLoading && posts.length > 0 && (
           <p

@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Link } from "@/lib/router-compat";
 import type { ShopOffer } from "@/lib/shop";
 import OfferCard from "./OfferCard";
+import OfferBuildExample from "./OfferBuildExample";
 
 export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
   if (!offers.length) return null;
@@ -53,6 +54,7 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
           />
         ))}
       </div>
+      <OfferBuildExample offers={offers} />
     </section>
   );
 }

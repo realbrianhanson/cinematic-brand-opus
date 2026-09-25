@@ -55,6 +55,67 @@ beforeEach(() => {
   deps.origin.mockResolvedValue("https://example.com");
 });
 describe("bounded optional measurement collector", () => {
+  it("accepts only fixed planner projects/actions and discards all answers and prompt text", async () => {
+    const actions = [
+      "build_plan_created",
+      "build_prompt_copied",
+      "build_plan_downloaded",
+      "build_training_clicked",
+    ];
+    for (const type of actions) {
+      const planner = {
+        ...event,
+        type,
+        path: "/first-ai-build",
+        project: "inquiries",
+        ...(type === "build_training_clicked" ? { offer_id: sessionId } : {}),
+      };
+      const parsed = parseConversionRequest({
+        ...body(),
+        events: [
+          {
+            ...planner,
+            businessType: "Private business",
+            audience: "Private audience",
+            buildPrompt: "Private prompt",
+          },
+        ],
+      });
+      expect(parsed?.events).toEqual([planner]);
+      for (const change of [
+        { project: "Private business" },
+        { project: undefined },
+        { path: "/shop" },
+        { destination: "workshop" },
+      ]) {
+        expect(
+          parseConversionRequest({
+            ...body(),
+            events: [{ ...planner, ...change }],
+          }),
+        ).toBeNull();
+      }
+    }
+    expect(
+      parseConversionRequest({
+        ...body(),
+        events: [{ ...event, project: "inquiries" }],
+      }),
+    ).toBeNull();
+    expect(
+      parseConversionRequest({
+        ...body(),
+        events: [
+          {
+            ...event,
+            type: "build_training_clicked",
+            path: "/first-ai-build",
+            project: "inquiries",
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
   it("stores only whitelisted fields and hashed session/IP capabilities", async () => {
     const payload = {
       ...body(),

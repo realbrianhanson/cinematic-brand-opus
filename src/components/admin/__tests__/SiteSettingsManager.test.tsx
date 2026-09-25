@@ -37,6 +37,7 @@ vi.mock("@/lib/withTimeout", () => ({
 vi.mock("@/integrations/supabase/client", () => {
   const settings = {
     id: "s1",
+    updated_at: "2026-09-25T00:00:00Z",
     site_name: "Brian Hanson",
     site_url: "https://brianhanson.com",
     publisher_name: "Brian Hanson",
@@ -59,6 +60,8 @@ vi.mock("@/integrations/supabase/client", () => {
   };
   const privateRow = {
     id: "p1",
+    updated_at: "2026-09-25T00:00:00Z",
+    gsc_property: "",
     report_email: "",
     report_enabled: false,
     voice_profile: "",
@@ -70,6 +73,7 @@ vi.mock("@/integrations/supabase/client", () => {
     let payload: Record<string, unknown> | null = null;
     chain.select = () => chain;
     chain.limit = () => chain;
+    chain.order = () => chain;
     chain.maybeSingle = () =>
       Promise.resolve({ data: privateRow, error: null });
     chain.update = (p: Record<string, unknown>) => {
@@ -90,7 +94,33 @@ vi.mock("@/integrations/supabase/client", () => {
   return {
     supabase: {
       from,
-      rpc: (name: string) => {
+      rpc: (name: string, args?: Record<string, unknown>) => {
+        if (name === "admin_save_site_settings") {
+          h.updates.push(
+            {
+              table: "site_settings",
+              payload: args?._public_patch as Record<string, unknown>,
+            },
+            {
+              table: "site_settings_private",
+              payload: args?._private_patch as Record<string, unknown>,
+            },
+          );
+          return {
+            abortSignal: () =>
+              Promise.resolve({
+                data: h.emptyTable
+                  ? null
+                  : {
+                      public_id: "s1",
+                      private_id: "p1",
+                      public_updated_at: "2026-09-25T00:01:00Z",
+                      private_updated_at: "2026-09-25T00:01:00Z",
+                    },
+                error: h.updateError,
+              }),
+          };
+        }
         if (name === "admin_read_site_settings")
           return {
             maybeSingle: () => Promise.resolve({ data: settings, error: null }),

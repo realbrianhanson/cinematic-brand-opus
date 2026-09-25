@@ -10,8 +10,10 @@ import {
 import FirstAiBuild from "@/pages/FirstAiBuild";
 import { buildFirstAiPlan, PROJECT_OPTIONS } from "@/lib/firstAiBuild";
 import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
+import { recordMeasurement } from "@/lib/measurement";
 import type { ShopOffer } from "@/lib/shop";
 
+vi.mock("@/lib/measurement", () => ({ recordMeasurement: vi.fn() }));
 vi.mock("@/components/Nav", () => ({ default: () => <nav /> }));
 vi.mock("@/components/Footer", () => ({ default: () => <footer /> }));
 vi.mock("@/components/FormPrivacyLink", () => ({
@@ -79,10 +81,30 @@ describe("Your First AI Build", () => {
     expect(vi.mocked(subscribeToNewsletter)).not.toHaveBeenCalled();
     expect(storage).not.toHaveBeenCalled();
     expect(window.location.search).toBe("");
+    expect(recordMeasurement).toHaveBeenCalledWith([
+      {
+        type: "build_plan_created",
+        path: "/first-ai-build",
+        project: "inquiries",
+      },
+    ]);
+    expect(
+      JSON.stringify(vi.mocked(recordMeasurement).mock.calls),
+    ).not.toContain(input.businessType);
+    expect(
+      JSON.stringify(vi.mocked(recordMeasurement).mock.calls),
+    ).not.toContain(input.audience);
     fireEvent.click(screen.getByRole("button", { name: "Copy build prompt" }));
     await screen.findByText(
       "Build prompt copied. Paste it into your app builder to begin.",
     );
+    expect(recordMeasurement).toHaveBeenLastCalledWith([
+      {
+        type: "build_prompt_copied",
+        path: "/first-ai-build",
+        project: "inquiries",
+      },
+    ]);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       plan.buildPrompt,
     );
@@ -116,6 +138,7 @@ describe("Your First AI Build", () => {
     createPlan();
     fireEvent.click(screen.getByRole("button", { name: "Copy build prompt" }));
     await screen.findByText(/Copy is unavailable here/);
+    expect(recordMeasurement).toHaveBeenCalledTimes(1);
     expect(
       screen
         .getByText(
@@ -143,6 +166,13 @@ describe("Your First AI Build", () => {
       { timeout: 2000 },
     );
     expect(screen.getByText(/Download started/)).toBeTruthy();
+    expect(recordMeasurement).toHaveBeenLastCalledWith([
+      {
+        type: "build_plan_downloaded",
+        path: "/first-ai-build",
+        project: "inquiries",
+      },
+    ]);
   });
 
   it("only submits the optional newsletter email and accurately reports delivery failures", async () => {
@@ -173,6 +203,7 @@ describe("Your First AI Build", () => {
   it("shows relevant available training and a free fallback when offers are unavailable", () => {
     const offers = [
       {
+        id: "12345678-1234-4123-8123-123456789012",
         slug: "app-building-workshop",
         title: "App Building Workshop",
         kind: "paid",
@@ -191,6 +222,21 @@ describe("Your First AI Build", () => {
         .getByRole("link", { name: /Explore PushTen/ })
         .getAttribute("href"),
     ).toBe("/offers/pushten");
+    const trainingLink = screen.getByRole("link", {
+      name: "Explore the App Building Workshop",
+    });
+    trainingLink.addEventListener("click", (event) => event.preventDefault(), {
+      once: true,
+    });
+    fireEvent.click(trainingLink);
+    expect(recordMeasurement).toHaveBeenLastCalledWith([
+      {
+        type: "build_training_clicked",
+        path: "/first-ai-build",
+        project: "inquiries",
+        offer_id: offers[0].id,
+      },
+    ]);
     unmount();
     render(<FirstAiBuild offers={[]} />);
     createPlan();

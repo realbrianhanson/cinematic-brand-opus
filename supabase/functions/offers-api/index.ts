@@ -39,6 +39,10 @@ import {
   offerThrottle,
   requireOfferAdmin,
 } from "../_shared/offersRuntime.ts";
+import {
+  checkoutRecoveryState,
+  recoverOfferCheckout,
+} from "../_shared/offerCheckoutRecovery.ts";
 import { handleDeliveryRetry } from "./deliveryRetry.ts";
 
 Deno.serve(async (req) => {
@@ -62,6 +66,7 @@ Deno.serve(async (req) => {
         "recover",
         "email_access",
         "retry_deliveries",
+        "retry_checkout",
       ].includes(action)
     )
       throw new OfferError(400, "invalid_action", "Unknown offer action.");
@@ -174,7 +179,11 @@ Deno.serve(async (req) => {
     await offerThrottle(
       admin,
       `token:${action}:${tokenHash}`,
-      action === "claim" ? 12 : action === "email_access" ? 4 : 240,
+      action === "claim"
+        ? 12
+        : action === "email_access" || action === "retry_checkout"
+          ? 4
+          : 240,
     );
     const origin = await offerOrigin(admin);
 
@@ -303,12 +312,13 @@ Deno.serve(async (req) => {
                   : (session.payment_intent?.id ?? null),
             };
           },
-          record: async (orderId, session) => {
+          record: async (orderId, session, attempt) => {
             const { error } = await admin.rpc("offer_record_checkout", {
               _order_id: orderId,
               _session_id: session.id,
               _checkout_url: session.url,
               _payment_intent_id: session.paymentIntentId,
+              _checkout_attempt: attempt ?? 1,
             });
             if (error) throw new Error("Checkout association failed");
           },
@@ -339,6 +349,81 @@ Deno.serve(async (req) => {
         "This access link was not found.",
       );
     const order = rawOrder as OfferOrder;
+    let recoveryParent: OfferOrder | null = null;
+    if (
+      (action === "status" || action === "retry_checkout") &&
+      order.parent_order_id
+    ) {
+      const { data, error } = await admin
+        .from("offer_orders")
+        .select("status,declined_at,next_offer_deadline")
+        .eq("id", order.parent_order_id)
+        .maybeSingle();
+      if (error) throw error;
+      recoveryParent = data as OfferOrder | null;
+    }
+    if (action === "retry_checkout") {
+      if (!(await resolveOfferMailer(admin)).ok)
+        throw new OfferError(
+          503,
+          "delivery_unavailable",
+          "Paid checkout is unavailable until download email delivery is configured.",
+        );
+      const stripe = offerStripe(secret ?? "");
+      const result = await recoverOfferCheckout({
+        order,
+        parent: recoveryParent,
+        token,
+        origin,
+        secret,
+        webhook,
+        retrieve: async (sessionId) =>
+          await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ["payment_intent"],
+          }),
+        prepare: async (previous, paymentIntentId) => {
+          const { data, error } = await admin.rpc(
+            "offer_prepare_checkout_retry",
+            {
+              _order_id: previous.id,
+              _session_id: previous.stripe_session_id,
+              _checkout_attempt: previous.checkout_attempt ?? 1,
+              _payment_intent_id: paymentIntentId,
+              _token_hash: suppliedHash,
+              _origin: origin,
+            },
+          );
+          if (error) throw offerDatabaseError(error);
+          return data as OfferOrder;
+        },
+        provider: {
+          create: async (input, idempotencyKey) => {
+            const session = await stripe.checkout.sessions.create(input, {
+              idempotencyKey,
+            });
+            return {
+              id: session.id,
+              url: session.url,
+              paymentIntentId:
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : (session.payment_intent?.id ?? null),
+            };
+          },
+          record: async (orderId, session, attempt) => {
+            const { error } = await admin.rpc("offer_record_checkout", {
+              _order_id: orderId,
+              _session_id: session.id,
+              _checkout_url: session.url,
+              _payment_intent_id: session.paymentIntentId,
+              _checkout_attempt: attempt ?? 1,
+            });
+            if (error) throw new Error("Checkout association failed");
+          },
+        },
+      });
+      return offerJson(200, result);
+    }
     if (action === "email_access") {
       if (order.status !== "fulfilled")
         throw new OfferError(
@@ -427,6 +512,7 @@ Deno.serve(async (req) => {
     const mailer = await resolveOfferMailer(admin);
     return offerJson(200, {
       order: publicOrder(order),
+      checkout_recovery: checkoutRecoveryState(order, recoveryParent),
       thank_you_message: offerCopy?.thank_you_message ?? "",
       presentation: offerCopy?.presentation ?? null,
       next_offer: nextOffer,

@@ -334,6 +334,53 @@ export default function OfferAccess() {
                 </button>
               </>
             )}
+            {data.checkout_recovery?.available && data.payments_ready && (
+              <div className="mt-6 rounded border border-white/20 p-4">
+                <p className="text-sm text-white/80">
+                  {data.checkout_recovery.reason}
+                </p>
+                <p className="mt-2 text-sm text-white/70">
+                  Your price stays {offerPrice(data.order)}. You will review and
+                  confirm a separate payment at checkout.
+                </p>
+                <button
+                  className={`${buttonClass} mt-4`}
+                  disabled={!!busy}
+                  onClick={() =>
+                    void act("retry-checkout", async () => {
+                      const result = await invokeOfferApi<OfferClaim>({
+                        action: "retry_checkout",
+                        token,
+                      });
+                      if (currentToken.current !== token) return;
+                      if (result.checkout_url)
+                        window.location.assign(
+                          safeOfferRedirect(result.checkout_url),
+                        );
+                      else await refresh();
+                    })
+                  }
+                >
+                  {busy === "retry-checkout"
+                    ? "Checking previous checkout…"
+                    : `Restart checkout · ${offerPrice(data.order)}`}
+                </button>
+              </div>
+            )}
+            {["expired", "failed"].includes(data.order.status) &&
+              !data.checkout_recovery?.available && (
+                <div className="mt-5 text-sm text-white/75">
+                  {data.checkout_recovery?.reason && (
+                    <p>{data.checkout_recovery.reason}</p>
+                  )}
+                  <a
+                    href="/support"
+                    className="mt-3 inline-block underline underline-offset-4"
+                  >
+                    Contact support about this checkout
+                  </a>
+                </div>
+              )}
             <div className="border-t border-white/15 mt-7 pt-5">
               <button
                 className="inline-flex items-center gap-2 text-sm underline underline-offset-4"

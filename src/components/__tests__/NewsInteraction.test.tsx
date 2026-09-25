@@ -35,6 +35,11 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQuery: () => ({
+    data: { items: [], nextPage: 1 },
+    isError: state.error,
+    refetch: state.refetch,
+  }),
   useInfiniteQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     state.keys.push(queryKey);
     return {
@@ -124,8 +129,13 @@ describe("news search and pagination recovery", () => {
       render(page === "news" ? <News /> : <Blog />);
       expect(state.observe).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-      expect(state.next).toHaveBeenCalledOnce();
-      expect(state.refetch).not.toHaveBeenCalled();
+      if (page === "news") {
+        expect(state.next).toHaveBeenCalledOnce();
+        expect(state.refetch).not.toHaveBeenCalled();
+      } else {
+        expect(state.refetch).toHaveBeenCalledOnce();
+        expect(state.next).not.toHaveBeenCalled();
+      }
     },
   );
 });

@@ -988,6 +988,7 @@ function OfferForm({
                   <OfferCopyAssistant
                     builder={builder}
                     offer={previewOffer}
+                    savedOfferId={savedId || undefined}
                     stage={effectiveStage}
                     onApply={updatePage}
                   />

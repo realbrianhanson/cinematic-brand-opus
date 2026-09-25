@@ -31,7 +31,7 @@ The optional newsletter form explicitly subscribes to Brian's emails through the
 - Planner answers and results stay in React state. No query strings, local storage, or analytics payloads contain those answers.
 - Copy/download export only after the visitor asks. React text rendering and escaped Markdown protect literal user context.
 - Reloading resets the plan; the page tells visitors to save it first.
-- No new dependency, database table, migration, AI API, or backend deployment is needed for the tool.
+- The planner itself needs no AI API or new dependency. Optional first-party measurement requires its coordinated database migration and collector deployment.
 - Optional offer recommendations require the existing anonymous public offer read. Optional newsletter signup requires its existing configured delivery service.
 - No real newsletter signup, payment, or paid AI request is part of verification.
 
@@ -41,10 +41,10 @@ Engine tests cover all three projects, both audiences, missing/invalid context, 
 
 Manual browser checks cover desktop, 390px and 320px widths, all three project choices, editable answers, long single-word input, selectable expanded prompts, actual clipboard contents, and a downloaded Markdown file. The generated downstream apps were not built in a third-party AI builder during this verification.
 
-## Separate production measurement work
+## Optional first-party measurement
 
-The existing conversion system has coordinated path allowlists in the browser, edge collector, and database recording function. They currently exclude `/first-ai-build`. Planner page views and completions are therefore **not measured** in this release. Do not infer conversions from tool usage or report invented results. A later coordinated measurement release should add privacy-preserving events for a plan created, prompt copied, plan downloaded, and training listing opened; send only task identifiers and event names, never the entered context or prompt.
+The browser, edge collector, and database now recognize `/first-ai-build`. With the visitor’s existing measurement consent, the planner records four fixed actions: plan created, successful clipboard copy, browser download started, and a click to an available training listing. Each action contains only its event name, the path, one of the three project identifiers, and (for training) the published offer ID. The shared parser strips unknown properties before the browser sends the request; the collector and database independently validate the fixed choices. Business/audience answers and generated prompts are never sent to measurement.
 
-The legacy `render-page` edge function's `APP_ONLY_PATHS` also needs `/first-ai-build` when that function is next deployed, so direct requests to the legacy renderer do not enter its missing-page flow. The primary TanStack server route already serves this page with canonical metadata.
+Existing consent, canonical-host, admin/QA/bot exclusions, revocation, session expiry, and 90-day retention still apply. Conversion reporting now shows unique consenting sessions for each action; these actions overlap and are not a required sequential funnel. Downloads are starts, not confirmed saves; training clicks are not purchases. No historical activity is backfilled. An older backend displays an unavailable notice rather than invented zeros.
 
-Frontend publishing and any future shared-backend changes remain separate actions. This feature is stacked on the existing council-improvements branch; do not use it to bypass the outstanding main-branch merge approval.
+Deploy `20260925110000_first_ai_build_measurement.sql`, the `conversion-events` function (shared parser changed), and the frontend together to enable measurement. The legacy `render-page` function now includes `/first-ai-build` in `APP_ONLY_PATHS`, preventing direct requests from entering the missing-page recorder; deploy that function too. The main TanStack route serves the actual planner and canonical metadata.

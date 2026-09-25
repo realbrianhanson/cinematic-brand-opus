@@ -9,6 +9,7 @@ vi.mock("@/components/PublicRouteError", () => ({ default: () => null }));
 vi.mock("@/lib/publicData.functions", () => ({
   getPublicPillarBySlug: vi.fn(),
   getPublicSiteSettings: vi.fn(),
+  getPublicGuideResources: vi.fn(),
 }));
 
 import { Route } from "../../routes/guides.$slug";

@@ -37,6 +37,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 }));
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "resource-admin" } }),
+}));
 vi.mock("@/lib/withTimeout", () => ({
   safeMutation: (run: () => unknown) => run(),
 }));
@@ -137,6 +140,7 @@ const contentBox = () =>
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.clearAllMocks();
   h.updateError = null;
   h.updateMissing = false;
@@ -144,6 +148,51 @@ afterEach(() => {
 });
 
 describe("GeneratedPageEditor", () => {
+  it("restores an unsaved resource only on request and keeps the saved-version guard", async () => {
+    h.page = basePage();
+    const first = renderEditor();
+    await screen.findByDisplayValue("12 Best AI Tools in 2026");
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "A recovered resource title" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    first.unmount();
+    renderEditor();
+    const restore = await screen.findByRole("button", {
+      name: "Restore working copy",
+    });
+    expect(screen.getByLabelText("Title")).toHaveValue(
+      "12 Best AI Tools in 2026",
+    );
+    fireEvent.click(restore);
+    expect(screen.getByLabelText("Title")).toHaveValue(
+      "A recovered resource title",
+    );
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    expect(updates()).toHaveLength(0);
+    expect(h.invoke).not.toHaveBeenCalled();
+  });
+  it("offers comparison instead of restoring an old backup over a newer saved resource", async () => {
+    h.page = basePage();
+    const first = renderEditor();
+    await screen.findByDisplayValue("12 Best AI Tools in 2026");
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Old draft title" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    first.unmount();
+    h.page = basePage({
+      title: "Newer saved resource",
+      updated_at: "2026-09-25T15:00:00Z",
+    });
+    renderEditor();
+    await screen.findByRole("button", { name: "Download working copy" });
+    expect(
+      screen.queryByRole("button", { name: "Restore working copy" }),
+    ).toBeNull();
+    expect(screen.getByLabelText("Title")).toHaveValue("Newer saved resource");
+    expect(updates()).toHaveLength(0);
+  });
   it("keeps changed resource content when navigation is cancelled", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     h.page = basePage();

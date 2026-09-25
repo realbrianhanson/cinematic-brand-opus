@@ -50,7 +50,7 @@ function markup(page: React.ReactNode, config: SiteConfig = brianPreset) {
 }
 
 describe("authority home and dedicated speaking journey", () => {
-  it("explains the primary event and supplies real proof before the store showcase", () => {
+  it("explains the primary event and makes offers reachable before the full testimonial wall", () => {
     const offer: ShopOffer = {
       id: "fixture",
       slug: "example-training",
@@ -74,8 +74,8 @@ describe("authority home and dedicated speaking journey", () => {
     expect(html.indexOf('id="event"')).toBeLessThan(
       html.indexOf('id="testimonials"'),
     );
-    expect(html.indexOf('id="testimonials"')).toBeLessThan(
-      html.indexOf('id="shop"'),
+    expect(html.indexOf('id="shop"')).toBeLessThan(
+      html.indexOf('id="testimonials"'),
     );
     expect(html).toContain('href="/support"');
     expect(html).toContain('href="/privacy"');
