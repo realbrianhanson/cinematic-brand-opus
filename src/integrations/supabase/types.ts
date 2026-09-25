@@ -1425,7 +1425,10 @@ export type Database = {
           first_attempt_at: string | null
           id: string
           kind: string
+          last_attempt_at: string | null
           last_error: string | null
+          last_error_detail: string | null
+          last_provider_status: number | null
           lease_id: string | null
           lease_until: string | null
           next_attempt_at: string
@@ -1434,6 +1437,7 @@ export type Database = {
           provider_id: string | null
           sent_at: string | null
           status: string
+          uncertain_since: string | null
         }
         Insert: {
           attempts?: number
@@ -1443,7 +1447,10 @@ export type Database = {
           first_attempt_at?: string | null
           id?: string
           kind: string
+          last_attempt_at?: string | null
           last_error?: string | null
+          last_error_detail?: string | null
+          last_provider_status?: number | null
           lease_id?: string | null
           lease_until?: string | null
           next_attempt_at?: string
@@ -1452,6 +1459,7 @@ export type Database = {
           provider_id?: string | null
           sent_at?: string | null
           status?: string
+          uncertain_since?: string | null
         }
         Update: {
           attempts?: number
@@ -1461,7 +1469,10 @@ export type Database = {
           first_attempt_at?: string | null
           id?: string
           kind?: string
+          last_attempt_at?: string | null
           last_error?: string | null
+          last_error_detail?: string | null
+          last_provider_status?: number | null
           lease_id?: string | null
           lease_until?: string | null
           next_attempt_at?: string
@@ -1470,6 +1481,7 @@ export type Database = {
           provider_id?: string | null
           sent_at?: string | null
           status?: string
+          uncertain_since?: string | null
         }
         Relationships: []
       }
@@ -3200,6 +3212,19 @@ export type Database = {
         }
         Returns: Json
       }
+      offer_record_access_attempt: {
+        Args: {
+          _error?: string
+          _error_detail?: string
+          _id: string
+          _lease_id: string
+          _outcome: string
+          _provider_id?: string
+          _provider_status?: number
+          _retry_after_seconds?: number
+        }
+        Returns: string
+      }
       offer_record_checkout: {
         Args: {
           _checkout_attempt?: number
@@ -3210,6 +3235,7 @@ export type Database = {
         }
         Returns: Json
       }
+      offer_requeue_access_delivery: { Args: { _id: string }; Returns: boolean }
       offer_reserve_order: {
         Args: {
           _email: string
