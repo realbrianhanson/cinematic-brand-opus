@@ -1,9 +1,10 @@
-import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
-import { useState, useEffect } from "react";
+import type { WidgetConfig } from "@/lib/widgetConfig";
+import { useState, useEffect, useRef } from "react";
 import { Linkedin, Twitter, Facebook, Link2, Mail } from "lucide-react";
 import { useLocation } from "@/lib/router-compat";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { absoluteUrl } from "@/config/site";
+import { withTimeout } from "@/lib/withTimeout";
 
 const ICONS: Record<string, typeof Linkedin> = {
   linkedin: Linkedin,
@@ -16,20 +17,26 @@ const ICONS: Record<string, typeof Linkedin> = {
 const PageShareBar = ({ config }: { config: WidgetConfig }) => {
   const { pathname } = useLocation();
   const siteConfig = useSiteConfig();
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<
+    "idle" | "copying" | "copied" | "manual"
+  >("idle");
+  const request = useRef(0);
   const platforms: string[] = config.platforms || [
     "linkedin",
     "twitter",
     "facebook",
     "copy",
   ];
-  const [url, setUrl] = useState("");
+  const url = absoluteUrl(pathname, siteConfig);
   const [title, setTitle] = useState("");
   useEffect(() => {
-    setUrl(absoluteUrl(pathname, siteConfig));
     setTitle(document.title);
-    setCopied(false);
-  }, [pathname, siteConfig]);
+    setCopyState("idle");
+    request.current += 1;
+    return () => {
+      request.current += 1;
+    };
+  }, [url]);
 
   const shareUrls: Record<string, string> = {
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
@@ -39,61 +46,81 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
   };
 
   const handleCopy = async () => {
+    const operation = ++request.current;
+    setCopyState("copying");
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await withTimeout(navigator.clipboard.writeText(url), 5000);
+      if (request.current === operation) setCopyState("copied");
     } catch {
-      setCopied(false);
+      if (request.current === operation) setCopyState("manual");
     }
   };
 
   return (
-    <div className="flex items-center gap-3">
-      {platforms.map((p) => {
-        const Icon = ICONS[p];
-        if (!Icon) return null;
-        if (p === "copy") {
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {platforms.map((p) => {
+          const Icon = ICONS[p];
+          if (!Icon) return null;
+          if (p === "copy") {
+            return (
+              <button
+                key={p}
+                type="button"
+                disabled={copyState === "copying"}
+                onClick={handleCopy}
+                className="min-h-11 p-2 transition-colors font-body flex items-center gap-1 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "none",
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                <Icon size={14} aria-hidden="true" />{" "}
+                {copyState === "copying" ? "Copying…" : "Copy link"}
+              </button>
+            );
+          }
           return (
-            <button
+            <a
               key={p}
-              onClick={handleCopy}
-              className="p-2 transition-colors font-body flex items-center gap-1"
+              aria-label={`Share via ${p}`}
+              href={shareUrls[p]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
               style={{
                 color: "rgba(255,255,255,0.7)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                background: "none",
-                cursor: "pointer",
-                fontSize: 12,
               }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "hsl(var(--accent))")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
+              }
             >
-              <Icon size={14} /> {copied ? "Copied!" : "Copy"}
-            </button>
+              <Icon size={14} aria-hidden="true" />
+            </a>
           );
-        }
-        return (
-          <a
-            key={p}
-            aria-label={`Share via ${p}`}
-            href={shareUrls[p]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 transition-colors"
-            style={{
-              color: "rgba(255,255,255,0.7)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--accent))")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
-            }
-          >
-            <Icon size={14} />
-          </a>
-        );
-      })}
+        })}
+      </div>
+      <p role="status" className="text-xs text-white/75">
+        {copyState === "copied" && "Page link copied."}
+        {copyState === "manual" &&
+          "We couldn’t copy the link. Select it below and copy it manually."}
+      </p>
+      {copyState === "manual" && (
+        <input
+          aria-label="Page link"
+          readOnly
+          value={url}
+          onFocus={(event) => event.currentTarget.select()}
+          className="w-full min-w-0 rounded border border-white/25 bg-white/5 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+        />
+      )}
     </div>
   );
 };

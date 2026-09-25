@@ -2,6 +2,7 @@
 import React from "react";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -69,6 +70,67 @@ function renderInsideOfferForm() {
 }
 
 describe("proof library editing", () => {
+  it("locks a new evidence save synchronously so a rapid repeat cannot insert it twice", async () => {
+    mock.save.mockReturnValue(new Promise(() => {}));
+    renderInsideOfferForm();
+    await screen.findByText("Item 0");
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "Exact quote" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("Exact quote or documented description"),
+      { target: { value: "Useful result." } },
+    );
+    const button = screen.getByRole("button", { name: "Save evidence" });
+    act(() => {
+      button.click();
+      button.click();
+    });
+    expect(mock.save).toHaveBeenCalledOnce();
+  });
+  it("waits for the initial list before allowing evidence mutations", async () => {
+    let resolveList: (items: OfferProof[]) => void = () => {};
+    mock.list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+    renderInsideOfferForm();
+    expect(
+      screen
+        .getByRole("button", { name: "Add evidence" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    await act(async () => {
+      resolveList([]);
+    });
+    expect(
+      screen
+        .getByRole("button", { name: "Add evidence" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+  it("retries a failed library read without claiming there is no evidence or discarding edits", async () => {
+    mock.list.mockRejectedValueOnce(new Error("Connection lost"));
+    renderInsideOfferForm();
+    await screen.findByText(/proof library could not be loaded/);
+    expect(screen.queryByText(/No saved evidence yet/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "My unsaved evidence" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry evidence library" }),
+    );
+    await screen.findByText("Item 0");
+    expect(
+      (screen.getByLabelText("Evidence title") as HTMLInputElement).value,
+    ).toBe("My unsaved evidence");
+    expect(mock.list).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/proof library could not be loaded/)).toBeNull();
+  });
   it("saves the evidence, not the surrounding offer, when Enter is pressed", async () => {
     const submit = renderInsideOfferForm();
     await screen.findByText("Item 0");

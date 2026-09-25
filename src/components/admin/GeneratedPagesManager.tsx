@@ -151,7 +151,13 @@ const GeneratedPagesManager = () => {
   }, [statusFilter, nicheFilter, schemaFilter, search, needsRefresh]);
 
   // Fetch data
-  const { data: pages, isLoading } = useQuery({
+  const {
+    data: pages,
+    isLoading,
+    error: pagesError,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ["admin-generated-pages"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -242,6 +248,9 @@ const GeneratedPagesManager = () => {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  useEffect(() => {
+    if (pages && page >= totalPages) setPage(totalPages - 1);
+  }, [pages, page, totalPages]);
   const paginated = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
   const selectedVisible = filtered.filter((p) => selected.has(p.id));
   const titleFor = (id: string) =>
@@ -665,6 +674,22 @@ const GeneratedPagesManager = () => {
           </div>
         )}
 
+        {pagesError && (
+          <div role="alert" className="admin-notice">
+            <p>
+              Couldn't load generated pages: {errorMessage(pagesError)}. Your
+              filters are still here.
+            </p>
+            <button
+              className="admin-btn-ghost"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              Retry loading pages
+            </button>
+          </div>
+        )}
+
         {paginated.map((pg) => {
           const niche = pg.niches;
           const schema = pg.content_schemas;
@@ -950,7 +975,7 @@ const GeneratedPagesManager = () => {
           );
         })}
 
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && !pagesError && filtered.length === 0 && (
           <div style={{ padding: 40, textAlign: "center" }}>
             <p
               className="font-body"

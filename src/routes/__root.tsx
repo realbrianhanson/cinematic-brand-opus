@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { recoverChunkError } from "@/lib/chunkRecovery";
 import { siteConfig as fallbackConfig, type SiteConfig } from "@/config/site";
 import { configFromMatches } from "@/config/runtime";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
@@ -36,21 +37,6 @@ async function loadSiteConfig(): Promise<SiteConfig> {
   }
   return lastSiteConfig;
 }
-
-// ported from main.tsx — recover from stale lazy-chunk references after a redeploy.
-const RELOAD_KEY = "__chunk_reload_at";
-const isChunkLoadError = (msg: string) =>
-  /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk [\d]+ failed/i.test(
-    msg,
-  );
-const maybeReload = (msg: string) => {
-  if (typeof window === "undefined") return;
-  if (!isChunkLoadError(msg)) return;
-  const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
-  if (Date.now() - last < 10_000) return;
-  sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
-  window.location.reload();
-};
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
@@ -102,10 +88,10 @@ function RootComponent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const onError = (e: ErrorEvent) => maybeReload(e.message || "");
+    const onError = (e: ErrorEvent) => recoverChunkError(e.message || "");
     const onUnhandled = (e: PromiseRejectionEvent) => {
       const msg = (e.reason && (e.reason.message || String(e.reason))) || "";
-      maybeReload(msg);
+      recoverChunkError(msg);
     };
 
     window.addEventListener("error", onError);

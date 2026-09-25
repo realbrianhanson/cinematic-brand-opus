@@ -24,6 +24,18 @@ const h = vi.hoisted(() => ({
   params: { id: "pillar-1" } as { id?: string },
   pillar: null as Record<string, unknown> | null,
   updatedRows: [{ id: "pillar-1" }] as { id: string }[],
+  blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
+  writeWait: undefined as Promise<void> | undefined,
+  upload: vi.fn(),
+  publicUrl: vi.fn((path: string) => ({
+    data: { publicUrl: `https://images.example/${path}` },
+  })),
+}));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: (options: typeof h.blocker) => {
+    h.blocker = options;
+  },
 }));
 
 const basePillar = () => ({
@@ -42,7 +54,8 @@ const basePillar = () => ({
 });
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
-vi.mock("@/lib/withTimeout", () => ({
+vi.mock("@/lib/withTimeout", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   safeMutation: (run: () => unknown) => run(),
 }));
 vi.mock("@/lib/router-compat", () => ({
@@ -70,21 +83,29 @@ vi.mock("@/integrations/supabase/client", () => {
           h.update(payload);
           return {
             eq: () => ({
-              select: async () => ({ data: h.updatedRows, error: null }),
+              select: async () => {
+                await h.writeWait;
+                return { data: h.updatedRows, error: null };
+              },
             }),
           };
         },
         insert: async (payload: unknown) => {
           h.insert(payload);
+          await h.writeWait;
           return { error: null };
         },
       }),
-      storage: { from: () => ({}) },
+      storage: {
+        from: () => ({ upload: h.upload, getPublicUrl: h.publicUrl }),
+      },
     },
   };
 });
 
-import PillarPageEditor from "../PillarPageEditor";
+import PillarPageEditor, {
+  GUIDE_IMAGE_UPLOAD_TIMEOUT_MS,
+} from "../PillarPageEditor";
 
 const renderEditor = () => {
   const qc = new QueryClient({
@@ -106,15 +127,155 @@ const saveButton = () =>
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
   h.params = { id: "pillar-1" };
   h.pillar = basePillar();
   h.updatedRows = [{ id: "pillar-1" }];
+  h.writeWait = undefined;
+  h.upload.mockReset();
 });
 h.pillar = basePillar();
 
 describe("topic guide editor", () => {
+  it("restores Save after a rejected sharing-image upload", async () => {
+    h.upload.mockRejectedValueOnce(new Error("Network unavailable"));
+    renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /SEO Settings/ }));
+    fireEvent.change(screen.getByLabelText("Upload guide sharing image"), {
+      target: {
+        files: [new File(["image"], "preview.png", { type: "image/png" })],
+      },
+    });
+    await waitFor(() =>
+      expect(h.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Upload failed",
+          description: "Network unavailable",
+        }),
+      ),
+    );
+    expect(saveButton().disabled).toBe(false);
+    expect(
+      (screen.getByLabelText("Upload guide sharing image") as HTMLInputElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("restores Save after a stalled upload and ignores its late completion after retry", async () => {
+    let finishOld!: (value: unknown) => void;
+    h.upload.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    const { container } = renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /SEO Settings/ }));
+    vi.useFakeTimers();
+    const input = screen.getByLabelText("Upload guide sharing image");
+    const file = new File(["image"], "preview.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(saveButton().disabled).toBe(true);
+    await act(async () =>
+      vi.advanceTimersByTimeAsync(GUIDE_IMAGE_UPLOAD_TIMEOUT_MS + 1),
+    );
+    expect(saveButton().disabled).toBe(false);
+    expect(h.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Upload failed",
+        description: expect.stringContaining("timed out"),
+      }),
+    );
+    h.upload.mockResolvedValueOnce({ error: null });
+    fireEvent.change(input, { target: { files: [file] } });
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    const newestPath = h.upload.mock.calls[1][0] as string;
+    expect(
+      container.querySelector(
+        `img[src="https://images.example/${newestPath}"]`,
+      ),
+    ).toBeTruthy();
+    await act(async () => finishOld({ error: null }));
+    expect(
+      container.querySelector(
+        `img[src="https://images.example/${newestPath}"]`,
+      ),
+    ).toBeTruthy();
+    expect(h.publicUrl).toHaveBeenCalledTimes(1);
+    expect(saveButton().disabled).toBe(false);
+  });
+  it("freezes body and fields until publishing completes, then leaves without an unsaved-draft prompt", async () => {
+    let finish!: () => void;
+    h.writeWait = new Promise((resolve) => {
+      finish = resolve;
+    });
+    h.pillar = {
+      ...basePillar(),
+      status: "draft",
+      content: [1, 2, 3, 4, 5]
+        .map(
+          (n) =>
+            `<h2>Section ${n}</h2><p>${"Practical specific guidance for business owners. ".repeat(12)}</p>`,
+        )
+        .join(""),
+    };
+    const { container } = renderEditor();
+    const title = await screen.findByDisplayValue("AI for Small Business");
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(title.matches(":disabled")).toBe(true);
+    expect(editorFrom(container)?.isEditable).toBe(false);
+    await act(async () => {
+      finish();
+    });
+    await waitFor(() =>
+      expect(h.navigate).toHaveBeenCalledWith("/admin/pillars"),
+    );
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    expect(h.update.mock.calls[0][0]).toMatchObject({ status: "published" });
+  });
+
+  it("freezes a new guide during its insert so success cannot leave a newer unsaved draft on the create route", async () => {
+    let finish!: () => void;
+    h.params = {};
+    h.pillar = null;
+    h.writeWait = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const { container } = renderEditor();
+    const title = await screen.findByPlaceholderText("Pillar page title");
+    fireEvent.change(title, { target: { value: "New draft guide" } });
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(h.insert).toHaveBeenCalledTimes(1));
+    expect(title.matches(":disabled")).toBe(true);
+    expect(editorFrom(container)?.isEditable).toBe(false);
+    fireEvent.click(saveButton());
+    expect(h.insert).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish();
+    });
+    await waitFor(() =>
+      expect(h.navigate).toHaveBeenCalledWith("/admin/pillars"),
+    );
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+  });
+  it("protects changed guide text when navigation is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderEditor();
+    const title = await screen.findByDisplayValue("AI for Small Business");
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    fireEvent.change(title, { target: { value: "Unsaved guide headline" } });
+    expect(h.blocker.shouldBlockFn()).toBe(true);
+    expect((title as HTMLInputElement).value).toBe("Unsaved guide headline");
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    confirm.mockRestore();
+  });
   it("loads the stored body into the editor and saves it back unchanged", async () => {
     const { container } = renderEditor();
     await waitFor(() =>
@@ -131,6 +292,7 @@ describe("topic guide editor", () => {
     await waitFor(() =>
       expect(h.navigate).toHaveBeenCalledWith("/admin/pillars"),
     );
+    expect(h.blocker.shouldBlockFn()).toBe(false);
   });
 
   it("reads legacy meta_* SEO keys and merges both key sets on save", async () => {

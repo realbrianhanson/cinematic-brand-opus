@@ -53,6 +53,10 @@ jobs:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
 
+      - name: Production worker runtime smoke test
+        # Read-only local GETs: login SSR and its compiled JavaScript asset.
+        run: bun run test:preview
+
       - name: Formatting (Prettier only)
         # Last, after the build, so formatting drift (often in files the
         # Lovable agent writes) still turns the run red without skipping the

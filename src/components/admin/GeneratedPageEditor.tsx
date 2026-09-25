@@ -3,6 +3,7 @@ import type { Json, Tables } from "@/integrations/supabase/types";
 import { z } from "zod";
 import { errorMessage, isErrorCode } from "@/lib/errorMessage";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -145,6 +146,21 @@ const GeneratedPageEditor = () => {
   const hydratedId = useRef<string | null>(null);
   const baseline = useRef<SavedBaseline | null>(null);
   const [hydrationEpoch, setHydrationEpoch] = useState(0);
+  const draftSnapshot = {
+    title,
+    slug,
+    contentStr,
+    ogImage,
+    status,
+    metaTitle,
+    metaDesc,
+    metaKeywords,
+  };
+  const lastSubmittedDraft = useRef(draftSnapshot);
+  const { markSaved } = useAdminDraftGuard(
+    draftSnapshot,
+    `resource:${id ?? "new"}`,
+  );
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["admin-generated-page", id],
@@ -181,9 +197,21 @@ const GeneratedPageEditor = () => {
     setMetaDesc(seo.description || "");
     setMetaKeywords(seo.keywords.join(", "));
     setOgImage(seo.og_image || "");
+    const loadedDraft = {
+      title: page.title,
+      slug: page.slug,
+      contentStr: JSON.stringify(page.content_json, null, 2),
+      ogImage: seo.og_image || "",
+      status: page.status ?? "draft",
+      metaTitle: seo.title || "",
+      metaDesc: seo.description || "",
+      metaKeywords: seo.keywords.join(", "),
+    };
+    lastSubmittedDraft.current = loadedDraft;
+    markSaved(loadedDraft);
     if (seo.title || seo.description || seo.keywords.length > 0)
       setHasGenerated(true);
-  }, [page, hydrationEpoch]);
+  }, [page, hydrationEpoch, markSaved]);
 
   const isPublished = baseline.current?.status === "published";
   const storedVersionChanged = !!(
@@ -468,20 +496,24 @@ const GeneratedPageEditor = () => {
       content?: Record<string, unknown>;
       overrideReason?: string;
     }) =>
-      safeMutation(
-        () =>
-          vars.overrideReason
-            ? publishWithOverride(vars.overrideReason)
-            : saveEdits(vars.content ?? {}),
-        45_000,
-      ),
-    onSuccess: (outcome) => {
+      safeMutation(async () => {
+        const submitted = vars.overrideReason
+          ? lastSubmittedDraft.current
+          : draftSnapshot;
+        const outcome = await (vars.overrideReason
+          ? publishWithOverride(vars.overrideReason)
+          : saveEdits(vars.content ?? {}));
+        lastSubmittedDraft.current = submitted;
+        return { outcome, submitted };
+      }, 45_000),
+    onSuccess: ({ outcome, submitted }) => {
       qc.invalidateQueries({ queryKey: ["admin-generated-pages"] });
       qc.invalidateQueries({ queryKey: ["admin-generated-page", id] });
       if (outcome.kind === "needs_override") {
         setQualityWarning({ score: outcome.score, issues: outcome.issues });
         return;
       }
+      markSaved(submitted);
       setQualityWarning(null);
       if (outcome.kind === "saved" && outcome.scoreWarning)
         toast({

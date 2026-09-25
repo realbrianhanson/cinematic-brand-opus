@@ -28,9 +28,13 @@ export default function OfferAccess() {
   const [copyFallback, setCopyFallback] = useState("");
   const [parent, setParent] = useState("");
   const [recoveryToken, setRecoveryToken] = useState("");
+  const [closedFollowUp, setClosedFollowUp] = useState(false);
   const [now, setNow] = useState(Date.now());
   const childToken = useRef<{ id: string; token: string } | null>(null);
   const currentToken = useRef("");
+  const statusRequest = useRef(0);
+  const pollAttempts = useRef(0);
+  const actionLock = useRef<object | null>(null);
   useEffect(() => {
     function readAccessToken() {
       const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -53,6 +57,9 @@ export default function OfferAccess() {
       setInitialized(true);
       if (currentToken.current === accessToken) return;
       currentToken.current = accessToken;
+      statusRequest.current += 1;
+      pollAttempts.current = 0;
+      actionLock.current = null;
       setToken(accessToken);
       setBusy("");
       setData(null);
@@ -61,6 +68,7 @@ export default function OfferAccess() {
       setCopyFallback("");
       setParent("");
       setRecoveryToken("");
+      setClosedFollowUp(false);
       childToken.current = null;
       try {
         const previous = sessionStorage.getItem(`offer-parent:${accessToken}`);
@@ -71,61 +79,67 @@ export default function OfferAccess() {
     }
     readAccessToken();
     window.addEventListener("hashchange", readAccessToken);
-    return () => window.removeEventListener("hashchange", readAccessToken);
+    return () => {
+      window.removeEventListener("hashchange", readAccessToken);
+      currentToken.current = "";
+      statusRequest.current += 1;
+    };
   }, []);
-  const refresh = useCallback(async () => {
-    if (!token) return;
-    const result = await invokeOfferApi<AccessData>({
-      action: "status",
-      token,
-    });
-    if (currentToken.current !== token) return;
-    setData(result);
-    setError("");
-    return result;
-  }, [token]);
-  useEffect(() => {
-    if (!token) return;
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let attempts = 0;
-    const poll = async () => {
+  const refresh = useCallback(
+    async (automatic = false) => {
+      if (!token || currentToken.current !== token) return;
+      const request = ++statusRequest.current;
+      if (!automatic) pollAttempts.current = 0;
       try {
         const result = await invokeOfferApi<AccessData>({
           action: "status",
           token,
         });
-        if (!active || currentToken.current !== token) return;
+        if (currentToken.current !== token || request !== statusRequest.current)
+          return;
         setData(result);
         setError("");
-        if (
-          (result.order.status === "pending" ||
-            result.delivery_state === "processing") &&
-          ++attempts < 20
-        )
-          timer = setTimeout(poll, 3000);
+        return result;
       } catch (err) {
-        if (active && currentToken.current === token)
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Your download could not be loaded",
-          );
+        if (currentToken.current !== token || request !== statusRequest.current)
+          return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Your download could not be loaded",
+        );
+        throw err;
       }
-    };
-    void poll();
+    },
+    [token],
+  );
+  useEffect(() => {
+    if (!token) return;
+    void refresh().catch(() => {});
     return () => {
-      active = false;
-      if (timer) clearTimeout(timer);
+      statusRequest.current += 1;
     };
-  }, [token]);
+  }, [token, refresh]);
+  useEffect(() => {
+    if (!token || !data || busy || pollAttempts.current >= 19) return;
+    if (data.order.status !== "pending" && data.delivery_state !== "processing")
+      return;
+    const timer = setTimeout(() => {
+      pollAttempts.current += 1;
+      void refresh(true).catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [token, data, busy, refresh]);
   useEffect(() => {
     if (!data?.next_offer_deadline) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [data?.next_offer_deadline]);
   async function act(action: string, work: () => Promise<void>) {
-    if (busy) return;
+    if (actionLock.current) return;
+    const lock = {};
+    actionLock.current = lock;
+    statusRequest.current += 1;
     setBusy(action);
     setError("");
     setNotice("");
@@ -135,7 +149,10 @@ export default function OfferAccess() {
       if (currentToken.current === token)
         setError(err instanceof Error ? err.message : "Please try again.");
     } finally {
-      if (currentToken.current === token) setBusy("");
+      if (actionLock.current === lock) {
+        actionLock.current = null;
+        if (currentToken.current === token) setBusy("");
+      }
     }
   }
   async function acceptNext() {
@@ -158,6 +175,15 @@ export default function OfferAccess() {
       parent_token: token,
     });
     if (currentToken.current !== token) return;
+    if (["expired", "failed", "refunded"].includes(result.status)) {
+      // One child order is allowed per parent, even after it closes. Keep its
+      // original token for recovery; a fresh token cannot create another one.
+      setClosedFollowUp(true);
+      persistOfferToken(token);
+      throw new Error(
+        `This follow-up order is ${result.status}. Your original download remains available. Check follow-up access or contact support for help.`,
+      );
+    }
     window.location.assign(
       safeOfferRedirect(result.checkout_url || result.access_url),
     );
@@ -165,7 +191,7 @@ export default function OfferAccess() {
   const expiredNext =
     !!data?.next_offer_deadline &&
     new Date(data.next_offer_deadline).getTime() <= now;
-  const next = expiredNext ? null : data?.next_offer;
+  const next = expiredNext || closedFollowUp ? null : data?.next_offer;
   const upsell = readPresentation(next?.presentation)?.upsell;
   const thanks = readPresentation(data?.presentation)?.thankYou;
   return (
@@ -519,6 +545,11 @@ export default function OfferAccess() {
                 href={`/offer-access#token=${recoveryToken}`}
               >
                 Check follow-up access
+              </a>
+            )}
+            {closedFollowUp && (
+              <a className="block underline mt-3" href="/support">
+                Contact support about this follow-up
               </a>
             )}
             {token && !data && (

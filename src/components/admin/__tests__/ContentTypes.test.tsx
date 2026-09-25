@@ -2,6 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -23,10 +24,17 @@ const h = vi.hoisted(() => ({
   toast: vi.fn(),
   navigate: vi.fn(),
   params: {} as { id?: string },
+  blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
   state: {
     ops: [] as FakeOp[],
     respond: (_op: FakeOp): FakeResult => ({ data: [], error: null }),
   } as FakeState,
+}));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: (options: typeof h.blocker) => {
+    h.blocker = options;
+  },
 }));
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
@@ -70,16 +78,10 @@ const schema = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const wrap = (ui: ReactNode) =>
-  render(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      {ui}
-    </QueryClientProvider>,
-  );
+const wrap = (
+  ui: ReactNode,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) => render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 
 afterEach(() => {
   cleanup();
@@ -195,6 +197,70 @@ describe("ContentTypesManager delete", () => {
 });
 
 describe("ContentTypeEditor", () => {
+  it("freezes a new format during insertion and leaves its saved form clean", async () => {
+    let finish!: (result: FakeResult) => void;
+    h.params = {};
+    h.state.respond = (op) =>
+      op.action === "insert"
+        ? new Promise<FakeResult>((resolve) => {
+            finish = resolve;
+          })
+        : { data: [], error: null };
+    wrap(<ContentTypeEditor />);
+    const name = screen.getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My new format" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitFor(() =>
+      expect(h.state.ops.filter((op) => op.action === "insert")).toHaveLength(
+        1,
+      ),
+    );
+    expect(name.matches(":disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(h.state.ops.filter((op) => op.action === "insert")).toHaveLength(1);
+    await act(async () => {
+      finish({ data: [{ id: "new-format" }], error: null });
+    });
+    await waitFor(() =>
+      expect(h.navigate).toHaveBeenCalledWith("/admin/content-types"),
+    );
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+  });
+  it("keeps unsaved format text when navigation is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    h.params = { id: "cs1" };
+    h.state.respond = editorRespond({ existing: schema() });
+    wrap(<ContentTypeEditor />);
+    const name = await screen.findByDisplayValue("Tool Roundups");
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    fireEvent.change(name, { target: { value: "My unsaved format" } });
+    expect(h.blocker.shouldBlockFn()).toBe(true);
+    expect((name as HTMLInputElement).value).toBe("My unsaved format");
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    confirm.mockRestore();
+  });
+  it.each(["-2", "101"])(
+    "rejects an unsafe generation size of %s before saving",
+    async (value) => {
+      h.params = { id: "cs1" };
+      h.state.respond = editorRespond({ existing: schema() });
+      wrap(<ContentTypeEditor />);
+      fireEvent.change(await screen.findByRole("spinbutton"), {
+        target: { value },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+      await waitFor(() =>
+        expect(h.toast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: "destructive",
+            description: expect.stringContaining("between 1 and 100"),
+          }),
+        ),
+      );
+      expect(h.state.ops.some((op) => op.action === "update")).toBe(false);
+    },
+  );
+
   const editorRespond =
     (opts: { existing: unknown; published?: number; updated?: unknown[] }) =>
     (op: FakeOp): FakeResult => {
@@ -206,6 +272,24 @@ describe("ContentTypeEditor", () => {
         return { data: opts.updated ?? [{ id: "cs1" }], error: null };
       return { data: null, error: null };
     };
+
+  it("keeps unsaved fields when the existing format refreshes in the background", async () => {
+    h.params = { id: "cs1" };
+    h.state.respond = editorRespond({ existing: schema() });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    wrap(<ContentTypeEditor />, client);
+    const name = await screen.findByDisplayValue("Tool Roundups");
+    fireEvent.change(name, { target: { value: "My unsaved format" } });
+    await act(async () => {
+      client.setQueryData(
+        ["admin-content-schema", "cs1"],
+        schema({ name: "Remote format edit" }),
+      );
+    });
+    expect((name as HTMLInputElement).value).toBe("My unsaved format");
+  });
 
   it("shows a not-found state instead of an empty, saveable form", async () => {
     h.params = { id: "00000000-0000-0000-0000-000000000000" };

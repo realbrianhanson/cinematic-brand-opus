@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -18,7 +19,15 @@ const h = vi.hoisted(() => ({
   updates: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   invoke: vi.fn(),
   updateError: null as unknown,
+  emptyTable: "" as string,
   indexnow: {} as Record<string, unknown>,
+  blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
+}));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: (options: typeof h.blocker) => {
+    h.blocker = options;
+  },
 }));
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
@@ -69,8 +78,13 @@ vi.mock("@/integrations/supabase/client", () => {
     };
     chain.eq = () => {
       h.updates.push({ table, payload: payload! });
-      return Promise.resolve({ error: h.updateError });
+      return chain;
     };
+    chain.then = (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: table === h.emptyTable ? [] : [{ id: "saved" }],
+        error: h.updateError,
+      }).then(resolve);
     return chain;
   };
   return {
@@ -92,10 +106,11 @@ vi.mock("@/integrations/supabase/client", () => {
 
 import SiteSettingsManager from "../SiteSettingsManager";
 
-function renderPage() {
-  const client = new QueryClient({
+function renderPage(
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
+  }),
+) {
   return render(
     <QueryClientProvider client={client}>
       <SiteSettingsManager />
@@ -111,6 +126,7 @@ const sitemapXml = Array.from(
 beforeEach(() => {
   h.updates = [];
   h.updateError = null;
+  h.emptyTable = "";
   h.toast.mockReset();
   h.invoke.mockReset();
   h.indexnow = {
@@ -149,6 +165,70 @@ afterEach(() => {
 });
 
 describe("Brand & publishing", () => {
+  it("keeps unsaved settings when navigation is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderPage();
+    const name = await screen.findByLabelText("Site Name");
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    fireEvent.change(name, { target: { value: "Keep my brand changes" } });
+    expect(h.blocker.shouldBlockFn()).toBe(true);
+    expect(name).toHaveValue("Keep my brand changes");
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    confirm.mockRestore();
+  });
+  it.each(["site_settings", "site_settings_private"])(
+    "does not report success when %s is no longer writable",
+    async (table) => {
+      h.emptyTable = table;
+      renderPage();
+      const name = await screen.findByLabelText("Site Name");
+      fireEvent.change(name, {
+        target: { value: "Keep these unsaved settings" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Save Settings/i }));
+      await waitFor(() =>
+        expect(h.toast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Save failed",
+            variant: "destructive",
+          }),
+        ),
+      );
+      expect(h.toast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Settings saved" }),
+      );
+      expect(name).toHaveValue("Keep these unsaved settings");
+    },
+  );
+  it("keeps unsaved public and private fields during background refreshes", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    renderPage(client);
+    const name = await screen.findByLabelText("Site Name");
+    fireEvent.change(name, { target: { value: "My unfinished brand edit" } });
+    await act(async () => {
+      client.setQueryData(
+        ["admin-site-settings"],
+        (old: Record<string, unknown>) => ({
+          ...old,
+          site_name: "A remote change",
+        }),
+      );
+      client.setQueryData(
+        ["admin-site-settings-private"],
+        (old: Record<string, unknown>) => ({
+          ...old,
+          voice_profile: "A remote voice change",
+        }),
+      );
+    });
+    expect(name).toHaveValue("My unfinished brand edit");
+    fireEvent.click(screen.getByRole("button", { name: /Save Settings/i }));
+    await waitFor(() => expect(h.updates.length).toBe(2));
+    expect(h.updates[0].payload.site_name).toBe("My unfinished brand edit");
+    expect(h.updates[1].payload.voice_profile).toBeNull();
+  });
   it("labels every text field so it can be found by its name", async () => {
     renderPage();
     await screen.findByLabelText("Site URL");

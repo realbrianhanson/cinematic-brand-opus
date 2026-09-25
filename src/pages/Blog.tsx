@@ -175,7 +175,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (!el || isError || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage)
@@ -185,7 +185,7 @@ const Blog = ({ initialPage, category = "" }: BlogProps = {}) => {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isError]);
 
   const posts = useMemo(() => {
     const seen = new Set<string>();

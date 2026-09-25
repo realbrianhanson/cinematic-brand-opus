@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 
 const slugify = (s: string) =>
   s
@@ -91,6 +92,7 @@ const NichesManager = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NicheForm>({ ...emptyForm });
+  const { dirty, markSaved } = useAdminDraftGuard(form, "niche-editor");
   const [subtopicInput, setSubtopicInput] = useState("");
   const [keywordInput, setKeywordInput] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -297,10 +299,12 @@ const NichesManager = () => {
   const openNew = () => {
     setEditingId(null);
     setOriginalContext({});
-    setForm({
+    const nextForm = {
       ...emptyForm,
       context: { ...emptyForm.context, subtopics: [], keywords_seed: [] },
-    });
+    };
+    setForm(nextForm);
+    markSaved(nextForm);
     setSlugManual(false);
     setSubtopicInput("");
     setKeywordInput("");
@@ -311,7 +315,7 @@ const NichesManager = () => {
     const ctx = (niche.context ?? {}) as NicheContext;
     setEditingId(niche.id);
     setOriginalContext(niche.context ?? {});
-    setForm({
+    const nextForm = {
       name: niche.name,
       slug: niche.slug,
       parent_niche_id: niche.parent_niche_id ?? "",
@@ -328,7 +332,9 @@ const NichesManager = () => {
         target_keyword:
           typeof ctx.target_keyword === "string" ? ctx.target_keyword : "",
       },
-    });
+    };
+    setForm(nextForm);
+    markSaved(nextForm);
     setSlugManual(true);
     setSubtopicInput("");
     setKeywordInput("");
@@ -336,8 +342,15 @@ const NichesManager = () => {
   };
 
   const closeModal = () => {
+    markSaved(form);
     setModalOpen(false);
     setEditingId(null);
+  };
+
+  const requestCloseModal = () => {
+    if (saveMutation.isPending) return;
+    if (dirty && !window.confirm("Discard your unsaved niche changes?")) return;
+    closeModal();
   };
 
   const updateName = (val: string) => {
@@ -827,7 +840,7 @@ const NichesManager = () => {
       )}
 
       {/* Add/Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={(o) => !o && closeModal()}>
+      <Dialog open={modalOpen} onOpenChange={(o) => !o && requestCloseModal()}>
         <DialogContent
           className="admin-card"
           style={{
@@ -853,12 +866,15 @@ const NichesManager = () => {
             </DialogTitle>
           </DialogHeader>
 
-          <div
+          <fieldset
+            disabled={saveMutation.isPending}
             style={{
               display: "flex",
               flexDirection: "column",
               gap: 14,
               padding: "8px 0",
+              border: 0,
+              minWidth: 0,
             }}
           >
             <ModalField label="Name" htmlFor="niche-name">
@@ -1069,14 +1085,15 @@ const NichesManager = () => {
                 style={{ resize: "vertical" }}
               />
             </ModalField>
-          </div>
+          </fieldset>
 
           <DialogFooter
             className="flex gap-2 justify-end"
             style={{ paddingTop: 12 }}
           >
             <button
-              onClick={closeModal}
+              onClick={requestCloseModal}
+              disabled={saveMutation.isPending}
               className="font-body"
               style={{
                 padding: "8px 16px",

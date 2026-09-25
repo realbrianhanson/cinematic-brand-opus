@@ -2,17 +2,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import NewsItemEditor from "../NewsItemEditor";
+import NewsItemEditor, {
+  NEWS_IMAGE_UPLOAD_TIMEOUT_MS,
+} from "../NewsItemEditor";
 
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
   update: vi.fn(),
   saved: { id: "news-1" } as { id: string } | null,
+  load: vi.fn(),
+  upload: vi.fn(),
+  publicUrl: vi.fn((path: string) => ({
+    data: { publicUrl: `https://images.example/${path}` },
+  })),
 }));
 const item = {
   id: "news-1",
@@ -32,14 +40,21 @@ const item = {
   content_sources: { name: "Perplexity Daily" },
 };
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
-vi.mock("@/lib/withTimeout", () => ({
+vi.mock("@/lib/withTimeout", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   safeMutation: (run: () => unknown) => run(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    storage: { from: () => ({ upload: h.upload, getPublicUrl: h.publicUrl }) },
     from: () => ({
       select: () => ({
-        eq: () => ({ maybeSingle: async () => ({ data: item, error: null }) }),
+        eq: (_column: string, id: string) => ({
+          maybeSingle: () =>
+            h.load.getMockImplementation()
+              ? h.load(id)
+              : Promise.resolve({ data: item, error: null }),
+        }),
       }),
       update: (payload: unknown) => {
         h.update(payload);
@@ -56,11 +71,169 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
+  h.load.mockReset();
+  h.upload.mockReset();
+  vi.restoreAllMocks();
   h.saved = { id: "news-1" };
 });
 
 describe("news editorial review", () => {
+  it("unlocks after a stalled upload and ignores its late completion after a retry", async () => {
+    let finishOld!: (value: unknown) => void;
+    h.upload.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    const onClose = vi.fn();
+    render(
+      <NewsItemEditor itemId="news-1" onClose={onClose} onSaved={vi.fn()} />,
+    );
+    const editor = await screen.findByRole("textbox", {
+      name: "Full article content",
+    });
+    fireEvent.change(editor, { target: { value: "Keep my unsaved article" } });
+    vi.useFakeTimers();
+    const upload = screen.getByLabelText("Upload new image");
+    const file = new File(["image"], "preview.png", { type: "image/png" });
+    fireEvent.change(upload, { target: { files: [file] } });
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Close article editor",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    await act(async () =>
+      vi.advanceTimersByTimeAsync(NEWS_IMAGE_UPLOAD_TIMEOUT_MS + 1),
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Close article editor",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    expect(editor.matches(":disabled")).toBe(false);
+    expect((editor as HTMLTextAreaElement).value).toBe(
+      "Keep my unsaved article",
+    );
+    expect(h.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Upload failed",
+        description: expect.stringContaining("timed out"),
+      }),
+    );
+    h.upload.mockResolvedValueOnce({ error: null });
+    fireEvent.change(upload, { target: { files: [file] } });
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    const newPath = h.upload.mock.calls[1][0] as string;
+    expect(
+      screen.getByDisplayValue(`https://images.example/${newPath}`),
+    ).toBeTruthy();
+    await act(async () => finishOld({ error: null }));
+    expect(
+      screen.getByDisplayValue(`https://images.example/${newPath}`),
+    ).toBeTruthy();
+    expect(h.publicUrl).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+  it("shows and saves the publication time in the editor's local timezone", async () => {
+    const options = new Intl.DateTimeFormat().resolvedOptions();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...options,
+      timeZone: "America/New_York",
+    });
+    h.load.mockResolvedValue({
+      data: { ...item, published_at: "2026-09-25T14:00:00.000Z" },
+      error: null,
+    });
+    render(
+      <NewsItemEditor itemId="news-1" onClose={vi.fn()} onSaved={vi.fn()} />,
+    );
+    const date = await screen.findByLabelText("Publication date");
+    expect((date as HTMLInputElement).value).toBe("2026-09-25T10:00");
+    fireEvent.change(date, { target: { value: "2026-09-25T11:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(h.update).toHaveBeenCalledWith(
+        expect.objectContaining({ published_at: "2026-09-25T15:00:00.000Z" }),
+      ),
+    );
+  });
+  it("ignores a late response for a previously selected article", async () => {
+    let resolveOld!: (value: unknown) => void;
+    h.load.mockImplementation((id: string) =>
+      id === "old"
+        ? new Promise((resolve) => {
+            resolveOld = resolve;
+          })
+        : Promise.resolve({
+            data: { ...item, id: "new", full_content: "New article" },
+            error: null,
+          }),
+    );
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    const view = render(
+      <NewsItemEditor itemId="old" onClose={onClose} onSaved={onSaved} />,
+    );
+    view.rerender(
+      <NewsItemEditor itemId="new" onClose={onClose} onSaved={onSaved} />,
+    );
+    expect(await screen.findByDisplayValue("New article")).toBeTruthy();
+    await act(async () =>
+      resolveOld({
+        data: { ...item, full_content: "Wrong old article" },
+        error: null,
+      }),
+    );
+    expect(screen.getByDisplayValue("New article")).toBeTruthy();
+    expect(screen.queryByDisplayValue("Wrong old article")).toBeNull();
+  });
+
+  it("offers a retry after a thrown load error", async () => {
+    h.load.mockRejectedValueOnce(new Error("Network unavailable"));
+    const onClose = vi.fn();
+    render(
+      <NewsItemEditor itemId="news-1" onClose={onClose} onSaved={vi.fn()} />,
+    );
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    h.load.mockResolvedValue({ data: item, error: null });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading article" }),
+    );
+    expect(
+      await screen.findByRole("textbox", { name: "Full article content" }),
+    ).toBeTruthy();
+  });
+
+  it("asks before discarding changed article text", async () => {
+    const onClose = vi.fn();
+    render(
+      <NewsItemEditor itemId="news-1" onClose={onClose} onSaved={vi.fn()} />,
+    );
+    const editor = await screen.findByRole("textbox", {
+      name: "Full article content",
+    });
+    fireEvent.change(editor, { target: { value: "My unsaved article" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alertdialog")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect((editor as HTMLTextAreaElement).value).toBe("My unsaved article");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close article editor" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard changes" }),
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   it("edits and saves the actual Markdown format without converting it into escaped HTML", async () => {
     const onSaved = vi.fn();
     render(

@@ -112,11 +112,16 @@ const CategoriesManager = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("categories")
         .update(toRow(edit))
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data?.length)
+        throw new Error(
+          "The category was not saved. It may have been removed or your access changed. Your edits are still here.",
+        );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
@@ -127,8 +132,16 @@ const CategoriesManager = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("categories").delete().eq("id", id);
+      const { data, error } = await supabase
+        .from("categories")
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data?.length)
+        throw new Error(
+          "Nothing was deleted. The category may already be gone, or your access changed.",
+        );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
@@ -164,7 +177,10 @@ const CategoriesManager = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="admin-card min-w-0 p-5 sm:p-7">
+        <fieldset
+          disabled={addMutation.isPending}
+          className="admin-card min-w-0 p-5 sm:p-7"
+        >
           <h2
             className="font-heading"
             style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}
@@ -202,7 +218,7 @@ const CategoriesManager = () => {
           >
             <Plus size={14} aria-hidden="true" /> Add Category
           </button>
-        </div>
+        </fieldset>
 
         <div className="admin-card min-w-0 p-5 sm:p-7">
           <h2
@@ -264,6 +280,7 @@ const CategoriesManager = () => {
                 category={cat}
                 onEdit={() => startEdit(cat)}
                 onDelete={() => setDeleteTarget(cat)}
+                disabled={updateMutation.isPending || deleteMutation.isPending}
               />
             ),
           )}
@@ -311,10 +328,12 @@ const CategoryItem = ({
   category,
   onEdit,
   onDelete,
+  disabled,
 }: {
   category: CategoryRow;
   onEdit: () => void;
   onDelete: () => void;
+  disabled: boolean;
 }) => (
   <div
     className="flex items-center justify-between gap-3 rounded hover:bg-[hsl(var(--admin-surface-2))]"
@@ -340,6 +359,7 @@ const CategoryItem = ({
         aria-label={`Edit ${category.name}`}
         title="Edit"
         onClick={onEdit}
+        disabled={disabled}
         style={{ ...iconButton, color: "hsl(var(--admin-accent))" }}
       >
         <Pencil size={14} aria-hidden="true" />
@@ -349,6 +369,7 @@ const CategoryItem = ({
         aria-label={`Delete ${category.name}`}
         title="Delete"
         onClick={onDelete}
+        disabled={disabled}
         style={{ ...iconButton, color: "hsl(var(--admin-danger))" }}
       >
         <Trash2 size={14} aria-hidden="true" />
@@ -379,12 +400,12 @@ const EditRow = ({
   >
     <input
       aria-label="Category name"
+      disabled={saving}
       value={draft.name}
       onChange={(e) =>
         onChange({
           ...draft,
           name: e.target.value,
-          slug: slugify(e.target.value),
         })
       }
       className="admin-input font-body"
@@ -393,6 +414,7 @@ const EditRow = ({
     />
     <input
       aria-label="Category slug"
+      disabled={saving}
       value={draft.slug}
       onChange={(e) => onChange({ ...draft, slug: e.target.value })}
       className="admin-input font-body"
@@ -400,6 +422,7 @@ const EditRow = ({
     />
     <input
       aria-label="Category description"
+      disabled={saving}
       value={draft.description}
       onChange={(e) => onChange({ ...draft, description: e.target.value })}
       className="admin-input font-body"
@@ -420,6 +443,7 @@ const EditRow = ({
         type="button"
         aria-label="Cancel edit"
         title="Cancel"
+        disabled={saving}
         onClick={onCancel}
         style={{ ...iconButton, ...ghostText }}
       >

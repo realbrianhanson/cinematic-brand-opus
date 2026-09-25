@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { validOfferUrl, type OfferPresentation } from "./offerBuilder";
+import { withTimeout } from "./withTimeout";
 
 export type OfferKind = "free" | "paid";
 export type OfferCheckoutMode = "native" | "external";
@@ -78,28 +79,53 @@ export class OfferApiError extends Error {
 export async function invokeOfferApi<T>(
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("offers-api", {
-    body,
-  });
-  if (error) {
-    let payload: { error?: string; message?: string; code?: string } = {};
-    const response =
-      error.context instanceof Response ? error.context : undefined;
-    if (response)
-      payload = await response
-        .clone()
-        .json()
-        .catch(() => ({}));
-    throw new OfferApiError(
-      payload.message ||
-        payload.error ||
-        "We couldn't complete that request. Please try again.",
-      payload.code,
-      response?.status,
-    );
-  }
-  if (data?.error) throw new OfferApiError(data.error, data.code);
-  return data as T;
+  const controller = new AbortController();
+  // Bound both the request and any session refresh before transport starts.
+  // A timeout is uncertain: callers retain their original idempotency token.
+  return withTimeout(
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("offers-api", {
+        body,
+        signal: controller.signal,
+      });
+      if (error) {
+        let payload: { error?: string; message?: string; code?: string } = {};
+        const response =
+          error.context instanceof Response ? error.context : undefined;
+        if (response) {
+          try {
+            // Non-2xx SDK responses still have an unread body. Keep the
+            // transport alive until its error details have been consumed.
+            const decoded: unknown = await response.clone().json();
+            if (decoded && typeof decoded === "object") {
+              const fields = decoded as Record<string, unknown>;
+              payload = {
+                message:
+                  typeof fields.message === "string"
+                    ? fields.message
+                    : undefined,
+                error:
+                  typeof fields.error === "string" ? fields.error : undefined,
+                code: typeof fields.code === "string" ? fields.code : undefined,
+              };
+            }
+          } catch {
+            // A missing/unreadable body still retains the response status.
+          }
+        }
+        throw new OfferApiError(
+          payload.message ||
+            payload.error ||
+            "We couldn't complete that request. Please try again.",
+          payload.code,
+          response?.status,
+        );
+      }
+      if (data?.error) throw new OfferApiError(data.error, data.code);
+      return data as T;
+    })(),
+    20000,
+  ).finally(() => controller.abort());
 }
 export function offerPrice(
   offer: Pick<PublicOffer, "kind" | "amount_minor" | "currency"> &

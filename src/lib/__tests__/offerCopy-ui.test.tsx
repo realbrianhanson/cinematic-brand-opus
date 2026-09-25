@@ -2,6 +2,7 @@
 import React from "react";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -78,6 +79,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -180,6 +182,73 @@ describe("copy assistant user control", () => {
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Temporarily unavailable",
     );
+    expect(apply).not.toHaveBeenCalled();
+  });
+  it("lets the author cancel a pending session lookup without starting generation later", async () => {
+    let resolveSession: (value: unknown) => void = () => {};
+    mocks.getSession.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const apply = vi.fn();
+    render(
+      <OfferCopyAssistant
+        builder={emptyBuilder()}
+        offer={product}
+        stage="landing"
+        onApply={apply}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Generate suggestions" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel generation" }));
+    await act(async () => {
+      resolveSession({
+        data: { session: { access_token: "admin-token" } },
+        error: null,
+      });
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByRole("button", { name: "Generate suggestions" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+  it("releases the assistant after a stalled response and aborts the request without changing copy", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    const apply = vi.fn();
+    render(
+      <OfferCopyAssistant
+        builder={emptyBuilder()}
+        offer={product}
+        stage="landing"
+        onApply={apply}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Generate suggestions" }),
+      );
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(40000);
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/timed out/i);
+    expect(
+      screen
+        .getByRole("button", { name: "Generate suggestions" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+    expect(vi.mocked(fetch).mock.calls[0][1]?.signal?.aborted).toBe(true);
     expect(apply).not.toHaveBeenCalled();
   });
 });

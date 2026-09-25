@@ -14,6 +14,10 @@ const section = (n: number) =>
   `<h2>Section ${n}</h2><p>${"Practical, specific steps owners can take this week. ".repeat(8)}</p>`;
 const FULL_BODY = [1, 2, 3, 4, 5].map(section).join("");
 const THIN_BODY = "<h2>Draft</h2><p>Only a short stub so far.</p>";
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: () => undefined,
+}));
 
 const h = vi.hoisted(() => ({
   toast: vi.fn(),

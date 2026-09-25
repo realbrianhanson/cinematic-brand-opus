@@ -32,9 +32,12 @@ export default function OfferProofLibrary({
   const [items, setItems] = useState<OfferProof[]>([]);
   const [editing, setEditing] = useState<ProofInput | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const mutationLocked = useRef(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const editorKey = editing ? editing.id || "new" : "";
   // Open the editor where the admin is looking and put focus in it.
@@ -45,15 +48,14 @@ export default function OfferProofLibrary({
   }, [editorKey]);
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setLoadError(false);
     void listOfferProof()
       .then((proof) => {
         if (active) setItems(proof);
       })
       .catch(() => {
-        if (active)
-          setError(
-            "The proof library could not be loaded. Your page is unchanged.",
-          );
+        if (active) setLoadError(true);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -61,12 +63,12 @@ export default function OfferProofLibrary({
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadAttempt]);
   function update<K extends keyof ProofInput>(key: K, value: ProofInput[K]) {
     setEditing((current) => (current ? { ...current, [key]: value } : current));
   }
   async function save() {
-    if (!editing || busy) return;
+    if (!editing || mutationLocked.current || loading) return;
     if (!editing.title.trim() || !editing.content.trim()) {
       setError(
         "Add a title and the exact quote, demonstration description, or fact.",
@@ -79,6 +81,7 @@ export default function OfferProofLibrary({
       );
       return;
     }
+    mutationLocked.current = true;
     setBusy(true);
     setError("");
     setNotice("");
@@ -101,17 +104,20 @@ export default function OfferProofLibrary({
     } catch {
       setError("The evidence could not be saved. Your changes are still here.");
     } finally {
+      mutationLocked.current = false;
       setBusy(false);
     }
   }
   async function remove(item: OfferProof) {
     if (
-      busy ||
+      mutationLocked.current ||
+      loading ||
       !window.confirm(
         `Remove “${item.title}” from the proof library? Existing page snapshots will keep their current wording.`,
       )
     )
       return;
+    mutationLocked.current = true;
     setBusy(true);
     setError("");
     try {
@@ -125,6 +131,7 @@ export default function OfferProofLibrary({
     } catch {
       setError("The evidence could not be removed. Please try again.");
     } finally {
+      mutationLocked.current = false;
       setBusy(false);
     }
   }
@@ -156,7 +163,7 @@ export default function OfferProofLibrary({
           maxLength={200}
           value={editing.title}
           onChange={(event) => update("title", event.target.value)}
-          disabled={busy}
+          disabled={busy || loading}
         />
       </label>
       <label className="block text-sm">
@@ -167,7 +174,7 @@ export default function OfferProofLibrary({
           onChange={(event) =>
             update("kind", event.target.value as OfferProof["kind"])
           }
-          disabled={busy}
+          disabled={busy || loading}
         >
           <option value="testimonial">Testimonial</option>
           <option value="demonstration">Demonstration</option>
@@ -182,7 +189,7 @@ export default function OfferProofLibrary({
           maxLength={6000}
           value={editing.content}
           onChange={(event) => update("content", event.target.value)}
-          disabled={busy}
+          disabled={busy || loading}
         />
       </label>
       <label className="block text-sm">
@@ -192,7 +199,7 @@ export default function OfferProofLibrary({
           maxLength={500}
           value={editing.attribution}
           onChange={(event) => update("attribution", event.target.value)}
-          disabled={busy}
+          disabled={busy || loading}
         />
       </label>
       <label className="block text-sm">
@@ -203,7 +210,7 @@ export default function OfferProofLibrary({
           maxLength={2048}
           value={editing.source_url}
           onChange={(event) => update("source_url", event.target.value)}
-          disabled={busy}
+          disabled={busy || loading}
         />
       </label>
       <label className="block text-sm">
@@ -215,7 +222,7 @@ export default function OfferProofLibrary({
           maxLength={3000}
           value={editing.notes}
           onChange={(event) => update("notes", event.target.value)}
-          disabled={busy}
+          disabled={busy || loading}
         />
       </label>
       <label className="flex items-start gap-2 text-sm">
@@ -223,7 +230,7 @@ export default function OfferProofLibrary({
           type="checkbox"
           checked={editing.approved}
           onChange={(event) => update("approved", event.target.checked)}
-          disabled={busy}
+          disabled={busy || loading}
         />
         I have checked this evidence and approved its wording and attribution
         for use.
@@ -232,7 +239,7 @@ export default function OfferProofLibrary({
         <button
           type="button"
           className="admin-btn-primary"
-          disabled={busy}
+          disabled={busy || loading}
           onClick={() => void save()}
         >
           {busy ? "Saving…" : "Save evidence"}
@@ -240,7 +247,7 @@ export default function OfferProofLibrary({
         <button
           type="button"
           className="admin-btn-ghost"
-          disabled={busy}
+          disabled={busy || loading}
           onClick={() => setEditing(null)}
         >
           Cancel
@@ -255,7 +262,7 @@ export default function OfferProofLibrary({
         <button
           type="button"
           className="admin-btn-secondary"
-          disabled={busy}
+          disabled={busy || loading}
           onClick={() => {
             setEditing({ ...blank });
             setError("");
@@ -275,6 +282,19 @@ export default function OfferProofLibrary({
           Loading evidence…
         </p>
       )}
+      {loadError && (
+        <div role="alert" className="space-y-2 text-sm">
+          <p>The proof library could not be loaded. Your page is unchanged.</p>
+          <button
+            type="button"
+            className="admin-btn-secondary"
+            disabled={busy || loading}
+            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+          >
+            Retry evidence library
+          </button>
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-sm text-red-500">
           {error}
@@ -286,7 +306,7 @@ export default function OfferProofLibrary({
         </p>
       )}
       {editing && !editing.id && editor}
-      {!loading && !items.length && (
+      {!loading && !loadError && !items.length && (
         <p className="text-sm opacity-70">
           No saved evidence yet. A product demonstration can be useful proof
           even before you have testimonials.
@@ -316,6 +336,7 @@ export default function OfferProofLibrary({
                 checked={selectedIds.includes(item.id)}
                 disabled={
                   busy ||
+                  loading ||
                   !item.approved ||
                   (!selectedIds.includes(item.id) && selectedIds.length >= 30)
                 }
@@ -333,7 +354,7 @@ export default function OfferProofLibrary({
               <button
                 type="button"
                 className="admin-btn-secondary"
-                disabled={busy || !item.approved}
+                disabled={busy || loading || !item.approved}
                 onClick={() => {
                   onInsert({ ...item, source_url: "", notes: "" });
                   setNotice(
@@ -346,7 +367,7 @@ export default function OfferProofLibrary({
               <button
                 type="button"
                 className="admin-btn-ghost"
-                disabled={busy}
+                disabled={busy || loading}
                 onClick={() => {
                   const {
                     created_at: _created,
@@ -362,7 +383,7 @@ export default function OfferProofLibrary({
               <button
                 type="button"
                 className="admin-btn-ghost"
-                disabled={busy}
+                disabled={busy || loading}
                 onClick={() => void remove(item)}
               >
                 Remove
