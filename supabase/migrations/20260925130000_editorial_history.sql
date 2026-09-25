@@ -30,8 +30,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF jsonb_build_array(OLD.title, OLD.slug, OLD.content_json, OLD.seo_meta, OLD.status, OLD.niche_id, OLD.content_schema_id)
     IS DISTINCT FROM jsonb_build_array(NEW.title, NEW.slug, NEW.content_json, NEW.seo_meta, NEW.status, NEW.niche_id, NEW.content_schema_id) THEN
-    INSERT INTO public.generated_page_revisions(page_id, snapshot, actor_id, change_source)
-      VALUES (OLD.id, to_jsonb(OLD), auth.uid(), CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'authenticated' END);
+    -- The source row is locked: keep captures strictly ordered even when the
+    -- clock repeats or moves backwards, so retention cannot discard newer work.
+    INSERT INTO public.generated_page_revisions(page_id, snapshot, actor_id, change_source, created_at)
+      VALUES (OLD.id, to_jsonb(OLD), auth.uid(), CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'authenticated' END,
+        greatest(clock_timestamp(), coalesce((SELECT max(created_at) FROM public.generated_page_revisions WHERE page_id = OLD.id), '-infinity'::timestamptz) + interval '1 microsecond'));
     DELETE FROM public.generated_page_revisions WHERE page_id = OLD.id AND id NOT IN
       (SELECT id FROM public.generated_page_revisions WHERE page_id = OLD.id ORDER BY created_at DESC, id DESC LIMIT 20);
   END IF;
@@ -42,8 +45,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF jsonb_build_array(OLD.title, OLD.slug, OLD.content, OLD.seo_meta, OLD.status, OLD.niche_id)
     IS DISTINCT FROM jsonb_build_array(NEW.title, NEW.slug, NEW.content, NEW.seo_meta, NEW.status, NEW.niche_id) THEN
-    INSERT INTO public.pillar_page_revisions(page_id, snapshot, actor_id, change_source)
-      VALUES (OLD.id, to_jsonb(OLD), auth.uid(), CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'authenticated' END);
+    -- The source row is locked: keep captures strictly ordered even when the
+    -- clock repeats or moves backwards, so retention cannot discard newer work.
+    INSERT INTO public.pillar_page_revisions(page_id, snapshot, actor_id, change_source, created_at)
+      VALUES (OLD.id, to_jsonb(OLD), auth.uid(), CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'authenticated' END,
+        greatest(clock_timestamp(), coalesce((SELECT max(created_at) FROM public.pillar_page_revisions WHERE page_id = OLD.id), '-infinity'::timestamptz) + interval '1 microsecond'));
     DELETE FROM public.pillar_page_revisions WHERE page_id = OLD.id AND id NOT IN
       (SELECT id FROM public.pillar_page_revisions WHERE page_id = OLD.id ORDER BY created_at DESC, id DESC LIMIT 20);
   END IF;

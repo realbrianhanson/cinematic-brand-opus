@@ -120,6 +120,19 @@ for (let index = 0; index < 25; index++) {
     guide.id,
     `Guide ${index}`,
   ]);
+  if (index === 0) {
+    // Simulate repeated/backward clock readings. New captures must remain newer
+    // than retained records even when the wall clock is behind their timestamp.
+    await db.exec(
+      "update generated_page_revisions set created_at=clock_timestamp()+interval '1 second'; update pillar_page_revisions set created_at=clock_timestamp()+interval '1 second';",
+    );
+  }
+}
+for (const table of ["generated_page_revisions", "pillar_page_revisions"]) {
+  assert.equal(
+    (await one(`select count(distinct created_at)::int n from ${table}`)).n,
+    20,
+  );
 }
 assert.equal(
   (await one("select count(*)::int n from generated_page_revisions")).n,
