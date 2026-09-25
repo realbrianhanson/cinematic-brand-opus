@@ -1,10 +1,7 @@
 // Cheap checks that run before draft-from-opportunity spends on the
 // expensive draft + critique calls, plus the AI-failure contract shared with
 // daily-content-run.
-import {
-  AI_CREDITS_EXHAUSTED,
-  AI_CREDITS_MESSAGE,
-} from "../daily-content-run/credits.ts";
+import { AI_CREDITS_EXHAUSTED, AI_CREDITS_MESSAGE } from "./aiCredits.ts";
 
 export const FRESHNESS_MAX_HOURS = 96;
 const UNKNOWN_FRESHNESS_HOURS = 999;

@@ -11,7 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { cosineSim } from "../_shared/embeddings.ts";
 import { MAIN_MODEL } from "../_shared/models.ts";
-import { creditsExhaustedBody } from "../draft-from-opportunity/preflight.ts";
+import { creditsExhaustedBody } from "../_shared/draftPreflight.ts";
 import {
   CONSIDERED_STATUS,
   hasItemsFetchedSince,

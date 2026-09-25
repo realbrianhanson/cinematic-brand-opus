@@ -19,6 +19,9 @@ const h = vi.hoisted(() => ({
   updates: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   invoke: vi.fn(),
   updateError: null as unknown,
+  saveArgs: vi.fn(),
+  settingsVersion: "complete" as
+    "complete" | "missing-private" | "null-timestamps",
   emptyTable: "" as string,
   indexnow: {} as Record<string, unknown>,
   blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
@@ -75,7 +78,19 @@ vi.mock("@/integrations/supabase/client", () => {
     chain.limit = () => chain;
     chain.order = () => chain;
     chain.maybeSingle = () =>
-      Promise.resolve({ data: privateRow, error: null });
+      Promise.resolve({
+        data:
+          h.settingsVersion === "missing-private"
+            ? null
+            : {
+                ...privateRow,
+                updated_at:
+                  h.settingsVersion === "null-timestamps"
+                    ? null
+                    : privateRow.updated_at,
+              },
+        error: null,
+      });
     chain.update = (p: Record<string, unknown>) => {
       payload = p;
       return chain;
@@ -96,6 +111,7 @@ vi.mock("@/integrations/supabase/client", () => {
       from,
       rpc: (name: string, args?: Record<string, unknown>) => {
         if (name === "admin_save_site_settings") {
+          h.saveArgs(args);
           h.updates.push(
             {
               table: "site_settings",
@@ -123,7 +139,17 @@ vi.mock("@/integrations/supabase/client", () => {
         }
         if (name === "admin_read_site_settings")
           return {
-            maybeSingle: () => Promise.resolve({ data: settings, error: null }),
+            maybeSingle: () =>
+              Promise.resolve({
+                data: {
+                  ...settings,
+                  updated_at:
+                    h.settingsVersion === "null-timestamps"
+                      ? null
+                      : settings.updated_at,
+                },
+                error: null,
+              }),
           };
         if (name === "admin_indexnow_status")
           return Promise.resolve({ data: h.indexnow, error: null });
@@ -156,6 +182,8 @@ const sitemapXml = Array.from(
 beforeEach(() => {
   h.updates = [];
   h.updateError = null;
+  h.saveArgs.mockReset();
+  h.settingsVersion = "complete";
   h.emptyTable = "";
   h.toast.mockReset();
   h.invoke.mockReset();
@@ -195,6 +223,29 @@ afterEach(() => {
 });
 
 describe("Brand & publishing", () => {
+  it.each(["missing-private", "null-timestamps"] as const)(
+    "preserves null concurrency markers for %s settings",
+    async (version) => {
+      h.settingsVersion = version;
+      renderPage();
+      await screen.findByLabelText("Site Name");
+      fireEvent.click(screen.getByRole("button", { name: /Save Settings/i }));
+      await waitFor(() =>
+        expect(h.toast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Settings saved" }),
+        ),
+      );
+      expect(h.saveArgs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _public_id: "s1",
+          _private_id: version === "missing-private" ? null : "p1",
+          _public_updated_at:
+            version === "null-timestamps" ? null : "2026-09-25T00:00:00Z",
+          _private_updated_at: null,
+        }),
+      );
+    },
+  );
   it("keeps unsaved settings when navigation is cancelled", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     renderPage();

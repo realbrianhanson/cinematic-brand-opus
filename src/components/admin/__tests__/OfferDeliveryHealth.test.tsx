@@ -96,7 +96,7 @@ describe("download email delivery health", () => {
     });
     const banner = screen.getByText(/aren't going out yet/);
     expect(banner.textContent).toBe(
-      `Download emails aren't going out yet. Last try ${when(pending.at)}: Resend rejected the sender domain as unverified. We retry on our own every 15 minutes with longer gaps each time, next try ${when(pending.next_attempt_at!)}. Customers can still use their private link`,
+      `Download emails aren't going out yet. Last try ${when(pending.at)}: Resend rejected the sender domain as unverified. Retry eligible after ${when(pending.next_attempt_at!)}. Use Retry due emails now to process eligible messages. Automatic retries require a configured schedule. Customers can still use their private link`,
     );
     expect(screen.queryByRole("button", { name: "Requeue" })).toBeNull();
   });
