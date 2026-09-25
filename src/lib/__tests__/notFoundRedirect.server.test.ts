@@ -25,8 +25,9 @@ const get = (path: string, init: RequestInit = {}) =>
 describe("redirectForNotFound", () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it("sends an unknown page home with a 302 and records it", async () => {
+  it("preserves an unknown page's 404 body and records it", async () => {
     const deps = lookup();
+    const original = html404();
     const res = await redirectForNotFound(
       get("/Case-Studies/?utm_source=fb", {
         headers: {
@@ -34,12 +35,12 @@ describe("redirectForNotFound", () => {
           "user-agent": "Mozilla/5.0 Chrome/120",
         },
       }),
-      html404(),
+      original,
       deps,
     );
-    expect(res?.status).toBe(302);
-    expect(res?.headers.get("location")).toBe("/?utm_source=fb");
-    expect(res?.headers.get("cache-control")).toBe("no-store");
+    expect(res).toBeNull();
+    expect(original.status).toBe(404);
+    expect(await original.text()).toBe("<html>missing</html>");
     expect(deps.resolve).toHaveBeenCalledWith("/case-studies");
     expect(deps.record).toHaveBeenCalledWith(
       "/case-studies",
@@ -71,7 +72,7 @@ describe("redirectForNotFound", () => {
     );
   });
 
-  it("ignores a malformed rule and still goes home", async () => {
+  it("ignores a malformed rule and preserves the 404", async () => {
     const deps = lookup({
       resolve: vi.fn(async () => ({
         to_path: "//evil.example",
@@ -79,8 +80,7 @@ describe("redirectForNotFound", () => {
       })),
     });
     const res = await redirectForNotFound(get("/old"), html404(), deps);
-    expect(res?.status).toBe(302);
-    expect(res?.headers.get("location")).toBe("/");
+    expect(res).toBeNull();
   });
 
   it("classifies crawlers as bots", async () => {
@@ -100,11 +100,11 @@ describe("redirectForNotFound", () => {
       "/offers/retired",
     ]) {
       const res = await redirectForNotFound(get(path), html404(), lookup());
-      expect(res?.status, path).toBe(302);
+      expect(res, path).toBeNull();
     }
   });
 
-  it("still redirects home when the database is down", async () => {
+  it("preserves the 404 when the database is down", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const deps = lookup({
       resolve: vi.fn(async () => {
@@ -116,8 +116,7 @@ describe("redirectForNotFound", () => {
       html404(),
       deps,
     );
-    expect(res?.status).toBe(302);
-    expect(res?.headers.get("location")).toBe("/");
+    expect(res).toBeNull();
     expect(deps.record).not.toHaveBeenCalled();
   });
 
@@ -131,10 +130,10 @@ describe("redirectForNotFound", () => {
       timeoutMs: 50,
     });
     expect(Date.now() - started).toBeLessThan(1000);
-    expect(res?.headers.get("location")).toBe("/");
+    expect(res).toBeNull();
   });
 
-  it("goes home when a record failure happens after no rule", async () => {
+  it("preserves the 404 when recording fails after no rule", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const deps = lookup({
       record: vi.fn(async () => {
@@ -142,7 +141,7 @@ describe("redirectForNotFound", () => {
       }),
     });
     const res = await redirectForNotFound(get("/x"), html404(), deps);
-    expect(res?.headers.get("location")).toBe("/");
+    expect(res).toBeNull();
   });
 
   it("handles HEAD requests", async () => {
@@ -151,7 +150,7 @@ describe("redirectForNotFound", () => {
       html404(),
       lookup(),
     );
-    expect(res?.status).toBe(302);
+    expect(res).toBeNull();
   });
 
   describe("leaves the response alone", () => {
@@ -208,11 +207,13 @@ describe("redirectForNotFound", () => {
     });
   });
 
-  it("does not let the preview cookie keep other missing pages", async () => {
+  it("still checks redirect rules outside draft preview paths", async () => {
     const req = get("/my-story", {
       headers: { cookie: `${ADMIN_PREVIEW_COOKIE}=1` },
     });
-    const res = await redirectForNotFound(req, html404(), lookup());
-    expect(res?.status).toBe(302);
+    const deps = lookup();
+    const res = await redirectForNotFound(req, html404(), deps);
+    expect(res).toBeNull();
+    expect(deps.resolve).toHaveBeenCalledWith("/my-story");
   });
 });

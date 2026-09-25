@@ -90,7 +90,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-// Missing pages move on automatically: a saved redirect rule or the home page.
+// Missing pages follow saved redirects or keep a helpful not-found screen.
 function NotFoundComponent() {
   return <NotFoundRedirect />;
 }

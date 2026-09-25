@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
+import {
+  decliningSearchPages,
+  type SearchPerformanceRow,
+} from "../_shared/searchFreshness.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,66 +11,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Aggregate GSC data by page over two 14-day windows within the last 28 days
-// and flag pages whose clicks or average position declined.
+// Historical imports are 28-day aggregates. Never manufacture daily windows
+// from their fetch timestamps or row order.
 async function gscDeclineIds(
   supabase: any,
   siteUrl: string,
 ): Promise<{ url: string; delta: number }[]> {
-  const { data: recent } = await supabase
-    .from("gsc_performance")
-    .select("*")
-    .order("period_end", { ascending: false })
-    .limit(50000);
-  if (!recent || recent.length === 0) return [];
-  // Group by page_url; split into "recent half" vs "older half" of the 28d snapshot by fetched_at.
-  const perPage: Record<
-    string,
-    {
-      clicksNew: number;
-      clicksOld: number;
-      posNew: number;
-      posOld: number;
-      nNew: number;
-      nOld: number;
-    }
-  > = {};
-  const midpoint = recent[Math.floor(recent.length / 2)]?.fetched_at || null;
-  for (const r of recent) {
-    const url = String(r.page_url);
-    perPage[url] ||= {
-      clicksNew: 0,
-      clicksOld: 0,
-      posNew: 0,
-      posOld: 0,
-      nNew: 0,
-      nOld: 0,
-    };
-    const isNew = midpoint
-      ? new Date(r.fetched_at) >= new Date(midpoint)
-      : true;
-    if (isNew) {
-      perPage[url].clicksNew += r.clicks;
-      perPage[url].posNew += Number(r.position);
-      perPage[url].nNew += 1;
-    } else {
-      perPage[url].clicksOld += r.clicks;
-      perPage[url].posOld += Number(r.position);
-      perPage[url].nOld += 1;
-    }
+  const rows: SearchPerformanceRow[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; offset < 50_000; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("gsc_performance")
+      .select(
+        "page_url, query, clicks, impressions, position, period_start, period_end",
+      )
+      .order("period_end", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error)
+      throw new Error(`Search performance read failed: ${error.message}`);
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize)
+      return decliningSearchPages(rows, siteUrl);
   }
-  const results: { url: string; delta: number }[] = [];
-  for (const [url, v] of Object.entries(perPage)) {
-    const clickDelta = v.clicksNew - v.clicksOld;
-    const posNew = v.nNew ? v.posNew / v.nNew : 0;
-    const posOld = v.nOld ? v.posOld / v.nOld : 0;
-    // Decline = clicks dropped OR average position got worse (higher = worse)
-    if (clickDelta < 0 || posNew > posOld) {
-      results.push({ url, delta: clickDelta });
-    }
-  }
-  results.sort((a, b) => a.delta - b.delta); // biggest click drops first
-  return results;
+  // A bounded partial history cannot establish comparable reporting periods.
+  console.warn(
+    "Search freshness comparison skipped: history exceeds 50,000 rows",
+  );
+  return [];
 }
 
 Deno.serve(async (req) => {
@@ -100,6 +72,10 @@ Deno.serve(async (req) => {
         .or(`last_refreshed.lt.${cutoff},last_refreshed.is.null`),
       siteUrl ? gscDeclineIds(supabase, siteUrl) : Promise.resolve([]),
     ]);
+    if (dateFlags.error)
+      throw new Error(
+        `Content freshness read failed: ${dateFlags.error.message}`,
+      );
 
     const dateStaleIds: string[] = (dateFlags.data || []).map((p: any) => p.id);
 
@@ -107,10 +83,14 @@ Deno.serve(async (req) => {
     // URL shape: {siteUrl}/resources/{content_schema_slug}/{slug}
     const decliningIds: string[] = [];
     if (Array.isArray(gscFlags) && gscFlags.length > 0 && siteUrl) {
-      const { data: allPages } = await supabase
+      const { data: allPages, error: pagesError } = await supabase
         .from("generated_pages")
         .select("id, slug, content_schemas(slug)")
         .eq("status", "published");
+      if (pagesError)
+        throw new Error(
+          `Published resources read failed: ${pagesError.message}`,
+        );
       const urlToId: Record<string, string> = {};
       for (const p of (allPages || []) as any[]) {
         const cs = p.content_schemas?.slug;
@@ -132,7 +112,11 @@ Deno.serve(async (req) => {
 
     if (priorityOrdered.length === 0) {
       return new Response(
-        JSON.stringify({ flagged: 0, message: "All content is fresh." }),
+        JSON.stringify({
+          flagged: 0,
+          message:
+            "No resources were flagged by the available date and comparable search-period checks.",
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

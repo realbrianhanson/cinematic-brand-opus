@@ -42,7 +42,7 @@ export const Route = createFileRoute("/offers/$slug")({
   errorComponent: () => (
     <PublicRouteError message="This offer could not be loaded." />
   ),
-  // Retired or unknown offers move on to a saved redirect or the home page.
+  // Retired or unknown offers follow a saved redirect or keep the 404.
   notFoundComponent: NotFoundRedirect,
 });
 

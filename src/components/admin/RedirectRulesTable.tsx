@@ -180,7 +180,7 @@ export default function RedirectRulesTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this rule?</AlertDialogTitle>
             <AlertDialogDescription>
-              Visitors to {pendingDelete?.from_path} will go to the home page
+              Visitors to {pendingDelete?.from_path} will see Page not found
               instead
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -62,8 +62,8 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      // Missing public pages (unknown routes and loader notFound) go to a
-      // saved redirect rule or the home page instead of a dead end.
+      // Missing public pages redirect only when an explicit rule exists.
+      // Otherwise preserve the 404 and its helpful navigation.
       const redirect = await redirectForNotFound(request, response).catch(
         (error: unknown) => {
           console.error("[not-found] redirect skipped", error);

@@ -54,7 +54,7 @@ describe("server entry", () => {
 });
 
 describe("server entry missing pages", () => {
-  it("redirects an HTML 404 home even when the database is unreachable", async () => {
+  it("preserves an HTML 404 and its body when the database is unreachable", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     upstream.fetch.mockResolvedValue(
       new Response("<html>missing</html>", {
@@ -67,8 +67,9 @@ describe("server entry missing pages", () => {
       {},
       {},
     );
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
+    expect(await res.text()).toBe("<html>missing</html>");
   });
 
   it("keeps real 404s for files and admin pages", async () => {

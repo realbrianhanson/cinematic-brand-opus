@@ -154,7 +154,9 @@ describe("RedirectsManager", () => {
       screen.getByRole("heading", { level: 1, name: "Redirects" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/go to your home page automatically/i),
+      screen.getByText(
+        /Page not found screen unless a redirect rule is saved/i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/add a rule when a better page exists/i),

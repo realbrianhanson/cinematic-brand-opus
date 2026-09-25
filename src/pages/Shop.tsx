@@ -75,7 +75,7 @@ export default function Shop({
           </h1>
           <p className="max-w-md text-base md:text-lg text-white/75 leading-relaxed">
             {owner
-              ? "Start with the free kit. Then pick the training or tool that fits your next build"
+              ? "Choose a resource or training for the task you want to tackle next. Each listing explains what’s included and how to get access"
               : "Practical training, useful tools, and resources worth returning to. Find the next step that fits what you want to learn or build"}
           </p>
         </div>
@@ -84,6 +84,17 @@ export default function Shop({
         id="main-content"
         className="mx-auto max-w-[1440px] px-6 lg:px-14 pb-24"
       >
+        {owner && !filtered && filters.page === 1 && (
+          <p className="mb-7 text-white/75">
+            Not sure which fits?{" "}
+            <Link
+              to="/start-here"
+              className="text-[var(--brand-accent)] underline underline-offset-4"
+            >
+              Choose a starting point for your goal
+            </Link>
+          </p>
+        )}
         <section
           aria-label="Shop filters"
           className="border-y border-white/15 py-6 space-y-6"

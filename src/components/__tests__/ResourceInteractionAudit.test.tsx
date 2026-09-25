@@ -81,6 +81,36 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("resource interactions", () => {
+  it("labels a refresh timestamp as refreshed, without inventing a source review", () => {
+    const data = resource("refreshed");
+    mocks.loaderData = {
+      ...data,
+      page: {
+        ...data.page,
+        last_refreshed: "2026-07-11T12:00:00Z",
+        created_at: "2026-07-01T12:00:00Z",
+      },
+      settings: { ...data.settings, author_name: "Brian Hanson" },
+    };
+    render(<ResourceRoute />);
+    expect(screen.getByText(/Last refreshed/)).toBeTruthy();
+    expect(screen.queryByText(/Last verified/)).toBeNull();
+    expect(
+      screen.queryByText(/reviewed against|Researched with live web data/),
+    ).toBeNull();
+  });
+  it("does not turn a creation date into a verification date", () => {
+    const data = resource("new");
+    mocks.loaderData = {
+      ...data,
+      page: { ...data.page, created_at: "2026-07-01T12:00:00Z" },
+      settings: { ...data.settings, author_name: "Brian Hanson" },
+    };
+    render(<ResourceRoute />);
+    expect(
+      screen.queryByText(/Last verified|Last refreshed|reviewed against/),
+    ).toBeNull();
+  });
   it("resets checklist and feedback state and records the next resource on client navigation", async () => {
     const view = render(<ResourceRoute />);
     fireEvent.click(screen.getByRole("checkbox"));

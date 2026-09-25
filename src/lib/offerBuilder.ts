@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasOfferSectionContent } from "./offerSectionLayout";
 
 const short = z.string().max(300);
 const copy = z.string().max(6000);
@@ -219,6 +220,27 @@ export function newSection(type: OfferSection["type"] = "text"): OfferSection {
   };
 }
 export type OfferRecipeKind = "lead-magnet" | "sales" | "upsell";
+export type OfferAwareness = "context" | "comparing" | "ready";
+export const offerAwarenessGuidance: Record<
+  OfferAwareness,
+  { label: string; guidance: string }
+> = {
+  context: {
+    label: "Needs context",
+    guidance:
+      "Start with their situation and explain your method before presenting the included resources and proof.",
+  },
+  comparing: {
+    label: "Comparing options",
+    guidance:
+      "Lead with the useful outcome, then show how the approach works, evidence and what is included.",
+  },
+  ready: {
+    label: "Ready for this offer",
+    guidance:
+      "Put the included resources and benefits first. Confirm fit with evidence and answers before the decision.",
+  },
+};
 export type OfferRecipeContext = {
   strategy: OfferStrategy;
   offer: {
@@ -233,10 +255,11 @@ export type OfferRecipeContext = {
 export function pageRecipe(
   kind: OfferRecipeKind,
   context?: OfferRecipeContext,
+  awareness?: OfferAwareness,
 ): OfferPage {
   const page = emptyPage();
   page.focusMode = true;
-  const types: OfferSection["type"][] =
+  let types: OfferSection["type"][] =
     kind === "lead-magnet"
       ? ["benefits", "deliverables", "image", "proof", "faq", "cta"]
       : kind === "upsell"
@@ -250,6 +273,44 @@ export function pageRecipe(
             "faq",
             "cta",
           ];
+  if (awareness) {
+    const order: Record<OfferAwareness, OfferSection["type"][]> = {
+      context: [
+        "problem",
+        "method",
+        "benefits",
+        "deliverables",
+        "image",
+        "proof",
+        "faq",
+        "cta",
+      ],
+      comparing: [
+        "benefits",
+        "method",
+        "proof",
+        "deliverables",
+        "image",
+        "faq",
+        "cta",
+      ],
+      ready: [
+        "deliverables",
+        "benefits",
+        "image",
+        "proof",
+        "method",
+        "faq",
+        "cta",
+      ],
+    };
+    const wanted = new Set(types);
+    if (awareness === "context") {
+      wanted.add("problem");
+      wanted.add("method");
+    }
+    types = order[awareness].filter((type) => wanted.has(type));
+  }
   const headings: Partial<Record<OfferSection["type"], string>> = {
     problem: "Does this sound familiar?",
     method: "How it works",
@@ -376,6 +437,7 @@ export type OfferAdvice = {
   step: "strategy" | "pages" | "next";
   stage?: "landing" | "upsell" | "thank-you";
   sectionId?: string;
+  fieldId?: string;
 };
 export function reviewOffer(
   builder: OfferBuilder,
@@ -425,6 +487,7 @@ export function reviewOffer(
       "Add the sending ad or email, then check that the page carries through the same promise.",
     );
   for (const stage of ["landing", "upsell"] as const) {
+    if (stage === "upsell" && offer?.checkout_mode === "external") continue;
     const page = builder.presentation[stage];
     const used =
       stage === "landing" ||
@@ -467,6 +530,39 @@ export function reviewOffer(
         `Build the ${label} sales argument`,
         "Add the included resources, how they help, real proof, and answers to the buyer’s questions.",
       );
+    if (page.sections.some(hasOfferSectionContent)) {
+      for (const [type, title, detail] of [
+        [
+          "deliverables",
+          "Make the included resources easy to find",
+          "Confirm the public page names what the buyer receives, including access or support limits. Add a What you get section if it is not already clear elsewhere.",
+        ],
+        [
+          "method",
+          "Explain how the buyer gets the result",
+          "Confirm the public page explains the steps or approach. Add a How it works section if that explanation is missing.",
+        ],
+        [
+          "faq",
+          "Answer the buying questions on the page",
+          "Private objections do not appear on the page. Confirm the public copy answers questions about fit, effort, access and terms; add only answers you can verify.",
+        ],
+      ] as const) {
+        if (!page.sections.some((section) => section.type === type))
+          issues.push({
+            title: `${title} on the ${label}`,
+            detail,
+            step: "pages",
+            stage,
+            fieldId: `offer-section-type-${stage}`,
+          });
+      }
+    } else if (offer?.body.trim()) {
+      add(
+        `Review the original description on the ${label}`,
+        "Check the visible original description against the buyer brief: what is included, how it works, relevant proof and answers to the buying questions. This prose needs a human review; the brief itself is private.",
+      );
+    }
     for (const section of page.sections) {
       const media = section.type === "image" || section.type === "video";
       if (

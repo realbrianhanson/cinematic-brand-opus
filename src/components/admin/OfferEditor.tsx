@@ -70,6 +70,7 @@ import OfferIssueList from "./OfferIssueList";
 import OfferConfirmDialog from "./OfferConfirmDialog";
 import OfferRevisionHistory from "./OfferRevisionHistory";
 import OfferReviewStatus from "./OfferReviewStatus";
+import OfferJourneyReadiness from "./offers/OfferJourneyReadiness";
 
 const workflow: { id: OfferStep; title: string; detail: string }[] = [
   { id: "strategy", title: "Strategy", detail: "Buyer, promise & proof" },
@@ -227,6 +228,7 @@ function OfferForm({
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const dirty = serialize(form, builder) !== baseline.current;
   const external = form.checkoutMode === "external";
+  const effectiveStage = external ? "landing" : stage;
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
   const patchForm = (changes: Partial<Form>) =>
@@ -535,13 +537,20 @@ function OfferForm({
       : [];
 
   function updatePage(page: OfferPage, pageStage: "landing" | "upsell") {
+    // Both editors must agree even when the author deliberately clears a CTA.
+    // Leave an untouched legacy fallback alone when changing another page field.
+    if (
+      pageStage === "landing" &&
+      page.ctaText !== currentBuilder.current.presentation.landing.ctaText
+    )
+      update("externalButtonText", page.ctaText);
     setBuilder((old) => ({
       ...old,
       presentation: { ...old.presentation, [pageStage]: page },
     }));
   }
   function insertProof(proof: OfferProof) {
-    const pageStage = stage === "upsell" ? "upsell" : "landing";
+    const pageStage = effectiveStage === "upsell" ? "upsell" : "landing";
     const page = builder.presentation[pageStage];
     if (page.sections.length >= 30) {
       setError(
@@ -876,9 +885,10 @@ function OfferForm({
               <OfferBuilderPreview
                 offer={previewOffer}
                 builder={builder}
-                stage={stage}
+                stage={effectiveStage}
                 device={device}
                 nextOffer={external ? null : selectedNextOffer.data}
+                followUpWindowMinutes={Number(form.window) || 0}
               />
             </div>
           </section>
@@ -904,22 +914,27 @@ function OfferForm({
                   Presentation
                   <select
                     className="admin-input mt-2 w-full"
-                    value={stage}
+                    value={effectiveStage}
                     onChange={(event) =>
                       setStage(event.target.value as PageStage)
                     }
                   >
                     <option value="landing">Landing page</option>
-                    <option value="upsell">This offer as an upsell</option>
-                    <option value="thank-you">Thank-you & first step</option>
+                    {!external && (
+                      <option value="upsell">This offer as an upsell</option>
+                    )}
+                    {!external && (
+                      <option value="thank-you">Thank-you & first step</option>
+                    )}
                   </select>
                 </label>
                 <p className="admin-help">
-                  Each presentation has its own copy. The product, price and
-                  delivery remain the same.
+                  {external
+                    ? "The linked provider handles checkout and confirmation. Your local landing page is the only presentation used for this offer."
+                    : "Each presentation has its own copy. The product, price and delivery remain the same."}
                 </p>
               </div>
-              {stage === "thank-you" ? (
+              {effectiveStage === "thank-you" ? (
                 <section className="admin-card p-5 space-y-5">
                   <h2 className="text-xl font-semibold">
                     Help your customer get started
@@ -961,19 +976,19 @@ function OfferForm({
               ) : (
                 <>
                   <OfferPageFields
-                    key={stage}
-                    value={builder.presentation[stage]}
-                    stage={stage}
+                    key={effectiveStage}
+                    value={builder.presentation[effectiveStage]}
+                    stage={effectiveStage}
                     recipeContext={{
                       strategy: builder.strategy,
                       offer: previewOffer,
                     }}
-                    onChange={(page) => updatePage(page, stage)}
+                    onChange={(page) => updatePage(page, effectiveStage)}
                   />
                   <OfferCopyAssistant
                     builder={builder}
                     offer={previewOffer}
-                    stage={stage}
+                    stage={effectiveStage}
                     onApply={updatePage}
                   />
                 </>
@@ -1109,6 +1124,18 @@ function OfferForm({
               health={health}
               onChange={patchForm}
               onUpload={(file) => void upload(file)}
+              actionLabel={
+                builder.presentation.landing.ctaText || form.externalButtonText
+              }
+              onActionLabelChange={(ctaText) => {
+                updatePage(
+                  { ...builder.presentation.landing, ctaText },
+                  "landing",
+                );
+                // Keep the old field in step with this explicit edit, so clearing
+                // the label cannot revive stale legacy wording.
+                update("externalButtonText", ctaText);
+              }}
             />
             <div hidden={step !== "review"} className="space-y-6">
               <section className="admin-card p-5 space-y-5">
@@ -1133,20 +1160,6 @@ function OfferForm({
                       <Check size={16} /> Required offer details are complete.
                     </p>
                   )}
-                  {!external &&
-                    form.kind === "paid" &&
-                    !health.data?.payments_ready && (
-                      <p className="admin-help mt-2">
-                        Checkout setup is not verified. Complete payment and
-                        download-email setup before sharing a paid offer.
-                      </p>
-                    )}
-                  {form.nextOffer && nextChoice?.status !== "published" && (
-                    <p className="admin-help mt-2">
-                      Your selected follow-up is not published, so it will not
-                      appear for visitors.
-                    </p>
-                  )}
                   <OfferReviewStatus
                     offer={
                       savedId && version.current
@@ -1163,9 +1176,17 @@ function OfferForm({
                     onError={setError}
                   />
                 </div>
+                <OfferJourneyReadiness
+                  external={external}
+                  paid={form.kind === "paid"}
+                  health={health}
+                  onRetry={() => void health.refetch()}
+                  hasFollowUp={!!form.nextOffer}
+                  followUpStatus={nextChoice?.status}
+                />
                 <div>
                   <h3 className="font-semibold text-sm">
-                    Strengthen the argument
+                    Customer decision: strengthen the argument
                   </h3>
                   <p className="admin-help mt-1">
                     Editorial suggestions, not a prediction of conversion rate.
@@ -1174,7 +1195,7 @@ function OfferForm({
                     <ul className="mt-3 space-y-3">
                       {advice.map((item) => (
                         <li
-                          key={item.title}
+                          key={`${item.title}:${item.sectionId || item.fieldId || ""}`}
                           className="rounded-lg bg-black/[0.025] p-3 dark:bg-white/[0.025]"
                         >
                           <strong className="text-sm">{item.title}</strong>
@@ -1185,10 +1206,12 @@ function OfferForm({
                             onClick={() => {
                               if (item.stage) setStage(item.stage);
                               setStep(item.step);
-                              if (item.sectionId)
+                              if (item.sectionId || item.fieldId)
                                 requestAnimationFrame(() => {
                                   const field = document.getElementById(
-                                    `${item.sectionId}-copy`,
+                                    item.sectionId
+                                      ? `${item.sectionId}-copy`
+                                      : item.fieldId!,
                                   );
                                   const details = field?.closest("details");
                                   if (details) details.open = true;

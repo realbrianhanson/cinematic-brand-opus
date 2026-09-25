@@ -9,6 +9,9 @@ import {
   sectionTypes,
   type OfferPage,
   type OfferSection,
+  type OfferAwareness,
+  type OfferRecipeKind,
+  offerAwarenessGuidance,
 } from "@/lib/offerBuilder";
 
 export default function OfferPageFields({
@@ -24,9 +27,22 @@ export default function OfferPageFields({
 }) {
   const [addingType, setAddingType] =
     useState<OfferSection["type"]>("benefits");
-  const [recipe, setRecipe] = useState<"lead-magnet" | "sales" | "upsell">(
-    stage === "upsell" ? "upsell" : "sales",
-  );
+  const [chosenRecipe, setRecipe] = useState<OfferRecipeKind | null>(null);
+  const recipe =
+    chosenRecipe ||
+    (stage === "upsell"
+      ? "upsell"
+      : recipeContext?.offer.kind === "free"
+        ? "lead-magnet"
+        : "sales");
+  const [chosenAwareness, setAwareness] = useState<OfferAwareness | null>(null);
+  const awareness =
+    chosenAwareness ||
+    (stage === "upsell" || recipeContext?.strategy.traffic === "customer"
+      ? "ready"
+      : recipeContext?.strategy.traffic === "cold"
+        ? "context"
+        : "comparing");
   // A newly added section opens and takes focus so it can be filled in.
   const [addedId, setAddedId] = useState("");
   useEffect(() => {
@@ -57,7 +73,7 @@ export default function OfferPageFields({
       )
     )
       return;
-    const next = pageRecipe(recipe, recipeContext);
+    const next = pageRecipe(recipe, recipeContext, awareness);
     onChange({
       ...value,
       headline: value.headline || next.headline,
@@ -99,6 +115,30 @@ export default function OfferPageFields({
             <option value="upsell">Upsell · the relevant next step</option>
           </select>
         </label>
+        <label className="block text-sm font-medium">
+          Build this layout for a buyer who is…
+          <select
+            className="admin-input mt-2 w-full"
+            value={awareness}
+            onChange={(event) =>
+              setAwareness(event.target.value as OfferAwareness)
+            }
+          >
+            {Object.entries(offerAwarenessGuidance).map(([key, item]) => (
+              <option key={key} value={key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="admin-help">
+          {offerAwarenessGuidance[awareness].guidance}
+        </p>
+        <p className="admin-help">
+          Your traffic source suggests a starting point; choose what this buyer
+          already knows. Applying the layout saves its section order, not this
+          planning choice.
+        </p>
         <button
           type="button"
           className="admin-btn-secondary w-full"
@@ -113,6 +153,39 @@ export default function OfferPageFields({
           copied.
         </p>
       </div>
+      {recipeContext?.strategy.adMessage.trim() && (
+        <div className="rounded-xl border border-current/10 p-4 space-y-3">
+          <h3 className="text-sm font-semibold">
+            Carry the sending promise through
+          </h3>
+          <p className="admin-help">
+            Compare the message visitors saw with this page. Match the real
+            offer, outcome and next action. This reference stays private.
+          </p>
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="font-semibold">Ad, email or referral message</dt>
+              <dd className="mt-1 whitespace-pre-line break-words opacity-75">
+                {recipeContext.strategy.adMessage}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Page headline</dt>
+              <dd className="mt-1 break-words opacity-75">
+                {value.headline ||
+                  recipeContext.offer.title ||
+                  "Add your headline below."}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Page action</dt>
+              <dd className="mt-1 break-words opacity-75">
+                {value.ctaText || "Choose clear primary button text below."}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
       {(
         [
           ["eyebrow", "Eyebrow", 100],
@@ -304,6 +377,7 @@ export default function OfferPageFields({
         <label className="block text-sm font-medium">
           New section type
           <select
+            id={`offer-section-type-${stage}`}
             className="admin-input mt-2 w-full"
             value={addingType}
             onChange={(event) =>

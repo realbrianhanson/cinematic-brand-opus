@@ -3,10 +3,10 @@
  *
  * A GET/HEAD request whose HTML response is a 404 (unknown route, or a route
  * loader that threw notFound for a missing post/guide/resource/offer) becomes
- * a redirect: a saved rule wins, otherwise the path is recorded for the admin
- * Redirects page and the visitor goes home with a 302. Files, admin, API and
- * asset paths keep their real 404. Any database problem still sends the
- * visitor home; this code never turns a 404 into an error page.
+ * a redirect only when an explicit saved rule exists. Otherwise the path is
+ * recorded for the admin Redirects page and the original 404 stays intact.
+ * Files, admin, API and asset paths are not looked up. Database failures must
+ * not disguise a missing page as a homepage redirect.
  */
 import {
   classifyUserAgent,
@@ -41,7 +41,6 @@ function redirectResponse(location: string, status: RedirectStatus): Response {
     status,
     headers: {
       location,
-      // Home fallbacks must not stick: a rule added later has to take effect.
       "cache-control": status === 301 ? "public, max-age=3600" : "no-store",
     },
   });
@@ -103,9 +102,10 @@ export async function redirectForNotFound(
       deps,
       options.timeoutMs ?? NOT_FOUND_LOOKUP_TIMEOUT_MS,
     );
+    if (!destination) return null;
+    void response.body?.cancel().catch(() => undefined);
     return redirectResponse(destination.location, destination.status);
   } finally {
     controller.abort();
-    void response.body?.cancel().catch(() => undefined);
   }
 }

@@ -355,7 +355,7 @@ const GeneratedPage = ({
             </span>
             {page.last_refreshed && (
               <span className="font-body flex items-center gap-1">
-                <Calendar size={12} /> Last verified{" "}
+                <Calendar size={12} /> Last refreshed{" "}
                 {formatPublicDate(page.last_refreshed, {
                   month: "short",
                   day: "numeric",
@@ -364,18 +364,6 @@ const GeneratedPage = ({
               </span>
             )}
           </div>
-          <p
-            className="font-body mb-6"
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.7)",
-              fontStyle: "italic",
-            }}
-          >
-            {page.last_refreshed || page.created_at
-              ? `Researched with live web data, reviewed against ${formatPublicDate(page.last_refreshed || page.created_at, { month: "long", year: "numeric" })} sources.`
-              : "Researched with live web data and reviewed against public sources."}
-          </p>
 
           <div className="flex items-center gap-3 mb-10">
             {[
@@ -526,10 +514,7 @@ const GeneratedPage = ({
             </div>
           )}
 
-          <AuthorBox
-            settings={settings}
-            lastVerified={page.last_refreshed || page.created_at}
-          />
+          <AuthorBox settings={settings} />
 
           <div
             className="mt-16 p-8 text-center"
@@ -846,10 +831,8 @@ const SourcesSection = ({ sources }: { sources: unknown }) => {
 
 const AuthorBox = ({
   settings,
-  lastVerified,
 }: {
   settings: PublicSiteSettings | undefined;
-  lastVerified?: string | null;
 }) => {
   if (!settings?.author_name && !settings?.author_bio) return null;
   const social = Object.entries(settings.author_social_links ?? {}).filter(
@@ -916,19 +899,6 @@ const AuthorBox = ({
               </a>
             </span>
           ))}
-        </p>
-      )}
-      {lastVerified && (
-        <p
-          className="font-body mt-4"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
-        >
-          Last verified{" "}
-          {formatPublicDate(lastVerified, {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
         </p>
       )}
     </aside>

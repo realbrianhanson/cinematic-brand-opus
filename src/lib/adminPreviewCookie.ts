@@ -3,7 +3,7 @@
  *
  * Draft previews open the public URL (for example /blog/draft-slug). The
  * server renders those as a 404 for anonymous reads, then the signed-in admin
- * sees the draft in the browser. The automatic 404 -> home redirect skips
+ * sees the draft in the browser. Saved-redirect resolution skips
  * content detail pages for browsers carrying this cookie so previews keep
  * working. It grants nothing: anyone setting it only sees the normal 404 page.
  */
