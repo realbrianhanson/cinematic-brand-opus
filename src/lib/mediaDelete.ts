@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database, Tables } from "@/integrations/supabase/types";
+import type { Database, Json, Tables } from "@/integrations/supabase/types";
 
 /** Bucket every admin media upload writes to. */
 export const MEDIA_BUCKET = "blog-images";
@@ -14,7 +14,14 @@ export type MediaFile = Pick<
 >;
 
 export type MediaUsageKind =
-  "post" | "topic_guide" | "generated_page" | "offer" | "news_item";
+  | "post"
+  | "topic_guide"
+  | "generated_page"
+  | "offer"
+  | "news_item"
+  | "offer_draft"
+  | "offer_revision"
+  | "site_branding";
 
 export interface MediaUsageRef {
   kind: MediaUsageKind;
@@ -64,10 +71,9 @@ const titled = (
 const COUNTED = { count: "exact" as const };
 
 /**
- * Every place a media URL can be stored. Matching is by substring of the
+ * Searchable text fields. Matching is by substring of the
  * storage path so resized or re-hosted variants of the same URL still count.
- * generated_pages.content_json is structured JSON that PostgREST cannot
- * pattern-match; those pages get images from their OG field, checked here.
+ * Structured page, funnel and branding documents are checked separately.
  */
 const USAGE_CHECKS: UsageCheck[] = [
   {
@@ -188,17 +194,152 @@ const safeEncodeURI = (value: string) => {
   }
 };
 
+const rawUsageNeedles = (item: Pick<MediaFile, "file_path" | "url">) => {
+  const path = item.file_path.trim();
+  const base = path || item.url.trim();
+  return base ? [...new Set(path ? [base, safeEncodeURI(base)] : [base])] : [];
+};
+
+/** Inspect values, including nested image blocks, without treating % or _ as wildcards. */
+function documentUsesMedia(
+  value: Json | undefined,
+  needles: string[],
+): boolean {
+  if (typeof value === "string")
+    return needles.some((needle) => value.includes(needle));
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value).some((child) =>
+    documentUsesMedia(child, needles),
+  );
+}
+
+type DocumentRow = UsageRow & { value: Json };
+type DocumentPage = {
+  rows: DocumentRow[];
+  count: number | null;
+  error: QueryError;
+};
+const DOCUMENT_PAGE_SIZE = 200;
+const DOCUMENT_SCAN_LIMIT = 5000;
+
+/** Fail as unknown if the scan cannot finish; never call a partly checked file unused. */
+async function checkDocuments(
+  kind: MediaUsageKind,
+  needles: string[],
+  load: (from: number, to: number) => PromiseLike<DocumentPage>,
+) {
+  const matches: UsageRow[] = [];
+  let count = 0;
+  for (let from = 0; from < DOCUMENT_SCAN_LIMIT; from += DOCUMENT_PAGE_SIZE) {
+    const page = await load(from, from + DOCUMENT_PAGE_SIZE - 1);
+    if (page.error) return { kind, rows: [], count: 0, error: page.error };
+    if (page.count !== null && page.count > DOCUMENT_SCAN_LIMIT) {
+      throw new Error(
+        "Couldn't finish checking saved documents. This library is too large for a complete usage check.",
+      );
+    }
+    for (const row of page.rows) {
+      if (!documentUsesMedia(row.value, needles)) continue;
+      count++;
+      if (matches.length < USAGE_ROW_LIMIT)
+        matches.push({ id: row.id, title: row.title });
+    }
+    if (
+      page.rows.length < DOCUMENT_PAGE_SIZE ||
+      (page.count !== null && from + page.rows.length >= page.count)
+    ) {
+      return { kind, rows: matches, count, error: null };
+    }
+  }
+  throw new Error(
+    "Couldn't finish checking saved documents. File usage is unknown.",
+  );
+}
+
+function structuredUsageChecks(client: Client, needles: string[]) {
+  return [
+    checkDocuments("generated_page", needles, (from, to) =>
+      client
+        .from("generated_pages")
+        .select("id, title, content_json", COUNTED)
+        .order("id")
+        .range(from, to)
+        .then(({ data, count, error }) => ({
+          rows: (data ?? []).map((r) => ({ ...r, value: r.content_json })),
+          count,
+          error,
+        })),
+    ),
+    checkDocuments("offer", needles, (from, to) =>
+      client
+        .from("offers")
+        .select("id, title, presentation", COUNTED)
+        .order("id")
+        .range(from, to)
+        .then(({ data, count, error }) => ({
+          rows: (data ?? []).map((r) => ({ ...r, value: r.presentation })),
+          count,
+          error,
+        })),
+    ),
+    checkDocuments("offer_draft", needles, (from, to) =>
+      client
+        .from("offer_builder_drafts")
+        .select("offer_id, document, offers(title)", COUNTED)
+        .order("offer_id")
+        .range(from, to)
+        .then(({ data, count, error }) => ({
+          rows: (data ?? []).map((r) => ({
+            id: r.offer_id,
+            title: `${r.offers?.title || "Untitled offer"} (saved draft)`,
+            value: r.document,
+          })),
+          count,
+          error,
+        })),
+    ),
+    checkDocuments("offer_revision", needles, (from, to) =>
+      client
+        .from("offer_builder_revisions")
+        .select("id, document, version, offers(title)", COUNTED)
+        .order("id")
+        .range(from, to)
+        .then(({ data, count, error }) => ({
+          rows: (data ?? []).map((r) => ({
+            id: r.id,
+            title: `${r.offers?.title || "Untitled offer"} (version ${r.version})`,
+            value: r.document,
+          })),
+          count,
+          error,
+        })),
+    ),
+    checkDocuments("site_branding", needles, (from, to) =>
+      client
+        .from("site_branding")
+        .select("id, settings", COUNTED)
+        .order("id")
+        .range(from, to)
+        .then(({ data, count, error }) => ({
+          rows: (data ?? []).map((r) => ({
+            id: String(r.id),
+            title: "Site branding and homepage",
+            value: r.settings,
+          })),
+          count,
+          error,
+        })),
+    ),
+  ];
+}
+
 /**
  * ILIKE patterns that find a file inside stored HTML or URL columns. Uses the
  * storage path (plus its URL-encoded form when different) and falls back to
  * the full URL. Returns nothing rather than a match-everything pattern.
  */
 export function usageNeedles(item: Pick<MediaFile, "file_path" | "url">) {
-  const path = item.file_path.trim();
-  const base = path || item.url.trim();
-  if (!base) return [];
-  const variants = path ? [base, safeEncodeURI(base)] : [base];
-  return [...new Set(variants)].map((v) => `%${escapeLikePattern(v)}%`);
+  return rawUsageNeedles(item).map((v) => `%${escapeLikePattern(v)}%`);
 }
 
 /**
@@ -218,7 +359,12 @@ export async function findMediaUsage(
       })),
     ),
   );
-  const results = await Promise.all(jobs);
+  const results = await Promise.all([
+    ...jobs,
+    ...(needles.length
+      ? structuredUsageChecks(client, rawUsageNeedles(item))
+      : []),
+  ]);
 
   const failed = results.find((r) => r.error);
   if (failed?.error) {

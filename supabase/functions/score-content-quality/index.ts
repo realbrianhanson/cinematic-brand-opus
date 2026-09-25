@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
     const { data: page, error } = await supabase
       .from("generated_pages")
-      .select("id, title, content_json, status")
+      .select("id, title, content_json, status, updated_at")
       .eq("id", page_id)
       .single();
 
@@ -134,12 +134,27 @@ Deno.serve(async (req) => {
       page.title,
     );
 
-    const { error: saveErr } = await supabase
+    const { data: saved, error: saveErr } = await supabase
       .from("generated_pages")
       .update({ quality_score: score })
-      .eq("id", page_id);
+      .eq("id", page_id)
+      .eq("updated_at", page.updated_at)
+      .select("id")
+      .maybeSingle();
     if (saveErr)
       throw new Error(`Could not save the score: ${saveErr.message}`);
+    if (!saved)
+      return new Response(
+        JSON.stringify({
+          error:
+            "This page changed during the quality check. Run the check again for the latest saved content.",
+          persisted: false,
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
 
     return new Response(
       JSON.stringify({

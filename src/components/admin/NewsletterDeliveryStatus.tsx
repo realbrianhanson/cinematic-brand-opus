@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { pendingBackendUpdate } from "@/lib/adminBackendUpdate";
+import QueryNotice from "./QueryNotice";
 import {
   loadDeliveryBreakdown,
   loadSendHistory,
@@ -115,8 +117,13 @@ export function DeliveryProblem({ row }: { row: DeliveryRow }) {
     enabled: needsReceipts,
   });
   const run = useMutation({
-    mutationFn: (mode: "retry" | "resume") =>
-      mode === "retry" ? retryFailedDelivery(row.id) : resumeDelivery(row.id),
+    mutationFn: (mode: "retry" | "resume") => {
+      if (breakdown.isPending || breakdown.error)
+        throw new Error("Delivery receipts must be available before sending.");
+      return mode === "retry"
+        ? retryFailedDelivery(row.id)
+        : resumeDelivery(row.id);
+    },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["newsletter-preview"] });
       void qc.invalidateQueries({ queryKey: ["newsletter-history"] });
@@ -132,8 +139,10 @@ export function DeliveryProblem({ row }: { row: DeliveryRow }) {
     },
     onError: (e: Error) =>
       toast({
-        title: "Retry did not start",
-        description: e.message,
+        title:
+          pendingBackendUpdate(e, "newsletter")?.title ?? "Retry did not start",
+        description:
+          pendingBackendUpdate(e, "newsletter")?.description ?? e.message,
         variant: "destructive",
       }),
   });
@@ -148,6 +157,11 @@ export function DeliveryProblem({ row }: { row: DeliveryRow }) {
           fromAddress: row.from_address,
         });
   const counts = breakdown.data;
+  const backendError = pendingBackendUpdate(run.error, "newsletter")
+    ? run.error
+    : null;
+  const deliveryUnavailable =
+    breakdown.isPending || !!breakdown.error || !!backendError;
   const retryable =
     !!counts &&
     (explained?.retryable ?? true) &&
@@ -209,15 +223,19 @@ export function DeliveryProblem({ row }: { row: DeliveryRow }) {
         )}
       {breakdown.isError && (
         <p style={{ margin: "6px 0 0" }}>
-          Delivery receipts could not be loaded, so retry is hidden.
+          Delivery receipts could not be loaded. Sending stays unavailable until
+          they can be verified.
         </p>
+      )}
+      {backendError && (
+        <QueryNotice error={backendError} backendScope="newsletter" />
       )}
       {(retryable || resumable) && (
         <button
           type="button"
           className="admin-btn"
           style={{ marginTop: 10 }}
-          disabled={run.isPending}
+          disabled={run.isPending || deliveryUnavailable}
           onClick={() => {
             const mode = retryable ? "retry" : "resume";
             const question =
@@ -252,9 +270,11 @@ export function NewsletterHistory() {
   });
   if (history.isError)
     return (
-      <p role="alert" className="admin-notice admin-notice-error">
-        Send history could not be loaded.
-      </p>
+      <QueryNotice
+        error={history.error}
+        backendScope="newsletter"
+        retry={() => void history.refetch()}
+      />
     );
   if (history.isPending || !history.data?.length) return null;
   return (

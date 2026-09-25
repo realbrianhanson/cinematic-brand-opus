@@ -95,6 +95,9 @@ const GeneratedPage = ({
   const viewCounted = useRef(false);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
+  const [feedbackPending, setFeedbackPending] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+  const feedbackRequest = useRef(false);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["public-gen-page", contentType, pageSlug],
@@ -186,13 +189,6 @@ const GeneratedPage = ({
     return out;
   }, [content]);
 
-  const logEngagement = async (eventType: string, metadata: Json = {}) => {
-    if (!page?.id) return;
-    await supabase
-      .from("page_engagement")
-      .insert({ page_id: page.id, event_type: eventType, metadata });
-  };
-
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -202,10 +198,25 @@ const GeneratedPage = ({
       toast({ title: "Could not copy link", variant: "destructive" });
     }
   };
-  const handleFeedback = (type: "up" | "down") => {
-    if (feedback) return;
-    setFeedback(type);
-    logEngagement("feedback", { type });
+  const handleFeedback = async (type: "up" | "down") => {
+    if (feedback || feedbackRequest.current || !page?.id) return;
+    feedbackRequest.current = true;
+    setFeedbackPending(true);
+    setFeedbackError("");
+    try {
+      const { error } = await supabase.from("page_engagement").insert({
+        page_id: page.id,
+        event_type: "feedback",
+        metadata: { type },
+      });
+      if (error) throw error;
+      setFeedback(type);
+    } catch {
+      setFeedbackError("Your feedback could not be saved. Please try again");
+    } finally {
+      feedbackRequest.current = false;
+      setFeedbackPending(false);
+    }
   };
 
   if (isLoading) {
@@ -370,20 +381,24 @@ const GeneratedPage = ({
             {[
               {
                 icon: Linkedin,
+                label: "Share on LinkedIn",
                 href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
               },
               {
                 icon: Twitter,
+                label: "Share on X",
                 href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(page.title)}`,
               },
               {
                 icon: Facebook,
+                label: "Share on Facebook",
                 href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
               },
-            ].map(({ icon: Icon, href }, i) => (
+            ].map(({ icon: Icon, href, label }, i) => (
               <a
                 key={i}
                 href={href}
+                aria-label={label}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 transition-colors hover:text-[var(--brand-accent)]"
@@ -529,7 +544,9 @@ const GeneratedPage = ({
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={() => handleFeedback("up")}
-                disabled={!!feedback}
+                aria-label="This resource was helpful"
+                aria-pressed={feedback === "up"}
+                disabled={!!feedback || feedbackPending}
                 className="p-3 transition-all"
                 style={{
                   border: "1px solid",
@@ -552,7 +569,9 @@ const GeneratedPage = ({
               </button>
               <button
                 onClick={() => handleFeedback("down")}
-                disabled={!!feedback}
+                aria-label="This resource was not helpful"
+                aria-pressed={feedback === "down"}
+                disabled={!!feedback || feedbackPending}
                 className="p-3 transition-all"
                 style={{
                   border: "1px solid",
@@ -576,10 +595,21 @@ const GeneratedPage = ({
             </div>
             {feedback && (
               <p
+                role="status"
                 className="font-body mt-3"
                 style={{ fontSize: 12, color: "var(--brand-accent)" }}
               >
                 Thanks for your feedback!
+              </p>
+            )}
+            {feedbackPending && (
+              <p role="status" className="mt-3 text-sm text-white/75">
+                Saving your feedback…
+              </p>
+            )}
+            {feedbackError && (
+              <p role="alert" className="mt-3 text-sm text-red-200">
+                {feedbackError}
               </p>
             )}
           </div>

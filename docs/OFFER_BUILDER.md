@@ -34,9 +34,24 @@ Client helpers are in `src/lib/offerBuilderClient.ts`:
 - `listOfferProof()` returns up to 200 items, newest first.
 - `saveOfferProof(input)` creates or updates proof; `deleteOfferProof(id)` removes a library record. Previously published text remains an independent copy.
 
+## Guided page building and conversion review
+
+The September 25 polish keeps the existing version-1 schema and requires no new database migration.
+
+- **Guided recipes:** lead-magnet, sales and upsell recipes copy the entered problem, method, outcome and deliverables into matching sections. The entered outcome can supply an empty headline, the product summary can supply an empty supporting promise, and checkout-aware button text fills only an empty button. Existing headline/button copy is preserved. Applying a recipe explicitly replaces the section layout after confirmation. Private evidence notes, permissions and unanswered objections never become public copy automatically. Proof and FAQ answers still require the editor to add confirmed material.
+- **Readiness review:** editorial suggestions link to the appropriate builder step and presentation; incomplete sections open directly at their copy field. The review checks empty recipe sections, missing testimonial attribution, absent page proof, action placement, source-message alignment for cold/email traffic, and the customer's first useful action. These are advisory, separate from required publication validation, and never claim a conversion percentage. An unused upsell does not produce irrelevant copy warnings.
+- **Scannable sections:** benefits and deliverables written as `-` lists become inclusion cards; a method list becomes numbered steps. FAQ copy uses `## Question` followed by its confirmed answer to create native expandable questions. Existing prose and mixed body formatting retain the original renderer. Empty recipe placeholders are omitted; if no section has substantive content, the original description remains visible alongside any CTA. The renderer remains text-safe and never interprets arbitrary HTML.
+- **Evidence:** exact testimonial text and public attribution remain editable together. Library facts and demonstrations insert as ordinary evidence text with attribution, not customer quotations. Source URLs and permission notes stay private; only explicitly inserted public text enters the presentation. Selecting evidence for AI does not automatically insert it on a public page.
+- **Action placement:** mobile landing pages show a route to the real offer controls immediately after the headline and promise, before a large cover image. Native pages repeat that route after the sales argument. These controls scroll/focus the existing purchase or download area; they never create an order or initiate a payment. Funnel-only landing pages do not expose standalone action controls, and previews keep actions disabled.
+- **Follow-up clarity:** the builder distinguishes an external provider's journey from native delivery. It explains that accepting a paid follow-up opens separate checkout, declining ends the pitch while retaining the first download, and the timer limits that invitation. A separately available public offer remains available after the invitation expires; the editor warns against describing it as the customer's only chance to buy.
+
+These changes improve the quality and clarity of the available workflow. They do not add native order bumps, one-click/off-session charges, decline-to-downsell branches or randomized A/B testing. Those require separate commerce, consent, state-transition and attribution contracts, plus payment-provider verification before release.
+
 ## AI assistance
 
 The server verifies the administrator's authenticated session and reads approved proof using that session. `admin_offer_copy_allow()` supplies a database-backed rolling limit of 12 requests per minute and 100 per day per administrator. It records only the user ID and request time, not prompts or generated copy, and remains effective across server instances. Only authenticated administrators can call it; usage rows are private. The endpoint must call it before model generation and fail closed if the RPC is unavailable.
+
+The copy request carries checkout mode and price-display mode. The server supplies explicit pricing context: fixed, free, provider-controlled, or not yet set. Stale prices are removed from provider-controlled requests; an unfinished paid price is unknown, never free. External-provider delivery is distinguished from native checkout.
 
 AI results are suggestions for the editor. They do not save, publish, change prices, or insert unreviewed proof automatically. Requests, selected evidence, model responses, and media addresses must pass their corresponding shared/server validation. The production deployment needs the configured AI provider environment variables already used by the project; provider availability is separate from the migration.
 

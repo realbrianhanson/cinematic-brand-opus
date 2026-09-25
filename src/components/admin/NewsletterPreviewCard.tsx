@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { safeMutation } from "@/lib/withTimeout";
 import { functionPayload } from "@/lib/newsletterAdmin";
 import { Loader2, Mail, RefreshCw, X } from "lucide-react";
+import QueryNotice from "./QueryNotice";
 import {
   DeliveryProblem,
   NewsletterHistory,
@@ -52,6 +53,7 @@ const NewsletterPreviewCard = () => {
     data: row,
     isLoading,
     error: loadError,
+    refetch,
   } = useQuery({
     queryKey: ["newsletter-preview", weekKey],
     queryFn: async () => {
@@ -69,6 +71,10 @@ const NewsletterPreviewCard = () => {
   const cancelMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
+        if (loadError)
+          throw new Error(
+            "Newsletter details must be available before making changes.",
+          );
         if (!row?.id) throw new Error("No preview to cancel");
         const { data: cancelled, error } = await supabase
           .from("newsletter_sends")
@@ -101,6 +107,10 @@ const NewsletterPreviewCard = () => {
   const regenerateMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
+        if (loadError)
+          throw new Error(
+            "Newsletter details must be available before composing a preview.",
+          );
         const response = await supabase.functions.invoke(
           "compose-weekly-newsletter-preview",
           { body: {} },
@@ -183,7 +193,11 @@ const NewsletterPreviewCard = () => {
 
   if (loadError)
     return shell(
-      <p role="alert">Unable to load the newsletter. Please reload.</p>,
+      <QueryNotice
+        error={loadError}
+        backendScope="newsletter"
+        retry={() => void refetch()}
+      />,
     );
 
   if (!row) {

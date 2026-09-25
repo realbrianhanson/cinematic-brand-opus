@@ -71,10 +71,11 @@ describe("article reading support", () => {
       '<h2 id="same">A &amp; B</h2><h3 id="same">A <em>detail</em></h3><script>alert(1)</script><h2>Next</h2>',
     );
     expect(r.headings.map((h) => h.id)).toEqual([
-      "article-section-1",
+      "same",
       "article-section-2",
       "article-section-3",
     ]);
+    expect(new Set(r.headings.map((h) => h.id)).size).toBe(r.headings.length);
     expect(r.headings[0].title).toBe("A & B");
     expect(r.html).not.toContain("<script>");
     for (const h of r.headings) expect(r.html).toContain(`id="${h.id}"`);

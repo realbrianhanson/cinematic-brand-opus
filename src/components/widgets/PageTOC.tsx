@@ -1,5 +1,6 @@
 import type { WidgetConfig, WidgetPageContext } from "@/lib/widgetConfig";
 import { useEffect, useState } from "react";
+import { useLocation } from "@/lib/router-compat";
 
 interface Heading {
   id: string;
@@ -8,6 +9,7 @@ interface Heading {
 }
 
 const PageTOC = ({ config }: { config: WidgetConfig }) => {
+  const { pathname } = useLocation();
   const [headings, setHeadings] = useState<Heading[]>([]);
   const minHeadings = config.min_headings || 3;
 
@@ -23,12 +25,13 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
       });
     });
     setHeadings(items);
-  }, []);
+  }, [pathname]);
 
   if (headings.length < minHeadings) return null;
 
   return (
     <nav
+      aria-label="Article table of contents"
       style={{
         padding: 24,
         border: "1px solid rgba(255,255,255,0.06)",

@@ -69,6 +69,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("business overview", () => {
+  it("explains the missing backend prerequisite without inventing counts or reading broad tables", async () => {
+    h.rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.admin_overview_snapshot in the schema cache",
+      },
+    });
+    renderDashboard();
+    expect(
+      await screen.findByText("Backend update pending"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Paid orders")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Nothing needs your attention right now"),
+    ).not.toBeInTheDocument();
+    expect(h.from).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Check again" }),
+    ).toBeInTheDocument();
+  });
   it("reserves the card grid with skeletons and makes one request while loading", () => {
     h.rpc.mockReturnValue(new Promise(() => {}));
     renderDashboard();

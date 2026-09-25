@@ -7,6 +7,7 @@ type Choice = {
   title: string;
   status: string;
   next_offer_id: string | null;
+  funnel_only?: boolean;
 };
 
 /** Builder step 3: an optional follow-up after fulfillment. */
@@ -69,18 +70,23 @@ export default function OfferNextStep({
             1. {form.title || "Your offer"}
           </li>
           <li className="rounded-lg border border-current/10 p-3">
-            2. Confirmation and access to the original purchase
+            {external
+              ? "2. Visitor reviews the offer on the linked website"
+              : "2. Confirmation and access to the original purchase"}
           </li>
           <li className="rounded-lg border border-current/10 p-3">
             3.{" "}
-            {nextChoice
-              ? `${nextChoice.title} (${nextChoice.status})`
-              : "Optional follow-up offer"}
+            {external
+              ? "Provider handles payment, delivery and any follow-ups"
+              : nextChoice
+                ? `${nextChoice.title} (${nextChoice.status})`
+                : "Optional follow-up offer"}
           </li>
         </ol>
         <p className="admin-help">
-          Accept opens the follow-up checkout. Decline keeps the original
-          download available.
+          {external
+            ? "This page sends visitors to the provider. It does not create a local order or download."
+            : "Accept opens the follow-up checkout. No thanks ends the pitch and keeps the original download available; it does not route to a downsell."}
         </p>
       </section>
       {external ? (
@@ -135,6 +141,20 @@ export default function OfferNextStep({
             </label>
             {form.nextOffer && (
               <>
+                <div className="rounded-xl border border-current/10 p-4 space-y-2">
+                  <h3 className="text-sm font-semibold">
+                    Make the upgrade earn its place
+                  </h3>
+                  <p className="admin-help">
+                    Explain the extra speed, implementation support or
+                    capability this product adds. Keep what was promised in the
+                    original purchase complete on its own.
+                  </p>
+                  <p className="admin-help">
+                    Edit the selected offer’s “This offer as an upsell”
+                    presentation to change the pitch shown here.
+                  </p>
+                </div>
                 <label className="block text-sm font-medium">
                   Time available after fulfillment, in minutes
                   <input
@@ -155,7 +175,8 @@ export default function OfferNextStep({
                 <p className="admin-help">
                   The follow-up must be published to appear. Existing orders
                   keep the follow-up and time window in place when they were
-                  created.
+                  created. A time window limits this follow-up invitation; it
+                  does not remove a separately available public offer.
                 </p>
               </>
             )}
@@ -182,6 +203,15 @@ export default function OfferNextStep({
                 </span>
               </span>
             </label>
+            {form.nextOffer &&
+              nextChoice?.funnel_only === false &&
+              Number(form.window) > 0 && (
+                <p className="admin-notice">
+                  The selected follow-up is also available on its own. Avoid
+                  “only chance to buy” claims; its public page remains available
+                  after this invitation expires.
+                </p>
+              )}
             {form.funnelOnly && (
               <p className="admin-help">
                 {qualifyingParents.length

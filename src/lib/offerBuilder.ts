@@ -218,16 +218,29 @@ export function newSection(type: OfferSection["type"] = "text"): OfferSection {
     proofId: "",
   };
 }
+export type OfferRecipeKind = "lead-magnet" | "sales" | "upsell";
+export type OfferRecipeContext = {
+  strategy: OfferStrategy;
+  offer: {
+    title: string;
+    summary: string;
+    kind: "free" | "paid";
+    checkout_mode?: "native" | "external";
+  };
+};
+
+/** Reuse supplied product facts only. Private evidence and unanswered objections stay private. */
 export function pageRecipe(
-  kind: "lead-magnet" | "sales" | "upsell",
+  kind: OfferRecipeKind,
+  context?: OfferRecipeContext,
 ): OfferPage {
   const page = emptyPage();
   page.focusMode = true;
   const types: OfferSection["type"][] =
     kind === "lead-magnet"
-      ? ["benefits", "deliverables", "image", "faq", "cta"]
+      ? ["benefits", "deliverables", "image", "proof", "faq", "cta"]
       : kind === "upsell"
-        ? ["benefits", "method", "proof", "faq", "cta"]
+        ? ["benefits", "deliverables", "method", "proof", "faq", "cta"]
         : [
             "problem",
             "method",
@@ -237,63 +250,276 @@ export function pageRecipe(
             "faq",
             "cta",
           ];
+  const headings: Partial<Record<OfferSection["type"], string>> = {
+    problem: "Does this sound familiar?",
+    method: "How it works",
+    benefits:
+      kind === "upsell"
+        ? "What this next step helps you do"
+        : "What this helps you do",
+    deliverables: "What’s included",
+    image: "Take a look inside",
+    proof: "What customers say",
+    faq: "Your questions, answered",
+    cta: "Ready to take the next step?",
+  };
+  const supplied: Partial<Record<OfferSection["type"], string>> = context
+    ? {
+        problem: context.strategy.problem.trim(),
+        method: context.strategy.mechanism.trim(),
+        benefits: context.strategy.outcome.trim(),
+        deliverables: context.strategy.deliverables.trim(),
+      }
+    : {};
   page.sections = types.map((type) => ({
     ...newSection(type),
-    heading: sectionLabels[type],
+    heading: headings[type] || sectionLabels[type],
+    body: supplied[type] || "",
   }));
+  if (context) {
+    const outcome = context.strategy.outcome.trim();
+    page.headline =
+      outcome && outcome.length <= 300
+        ? outcome
+        : context.offer.title.slice(0, 300);
+    page.subheadline = context.offer.summary.slice(0, 1000);
+    page.ctaText =
+      context.offer.checkout_mode === "external"
+        ? "See the offer"
+        : context.offer.kind === "free"
+          ? "Get the free resource"
+          : "Continue to checkout";
+  }
   return page;
 }
 
+export const sectionGuidance: Record<
+  OfferSection["type"],
+  { purpose: string; placeholder: string }
+> = {
+  text: {
+    purpose: "Make one clear point that helps the buyer decide.",
+    placeholder: "Explain why this matters to your buyer.",
+  },
+  problem: {
+    purpose:
+      "Show you understand the buyer’s current situation without exaggerating the consequences.",
+    placeholder: "Describe the obstacle in your customer’s own words.",
+  },
+  benefits: {
+    purpose:
+      "Connect each benefit to a useful outcome. Start each item with - to display benefit cards.",
+    placeholder:
+      "- A specific task the buyer can complete\n- A practical improvement the product supports",
+  },
+  method: {
+    purpose:
+      "Explain how the buyer gets the result. Start each step with - to display a numbered process.",
+    placeholder:
+      "- The first action\n- What happens next\n- How to put the result to work",
+  },
+  deliverables: {
+    purpose:
+      "List actual included resources and access. Start each item with - to display inclusion cards.",
+    placeholder:
+      "- Resource name — what it helps them do\n- Included support or access, with its real limits",
+  },
+  proof: {
+    purpose:
+      "Use an exact testimonial with public attribution. Keep permissions and private source notes in the proof library.",
+    placeholder: "Paste the exact approved quotation.",
+  },
+  faq: {
+    purpose:
+      "Use ## before each question, followed by its answer, to create an expandable FAQ. Only include answers you can confirm.",
+    placeholder:
+      "## Who is this for?\nYour answer.\n\n## What happens after I buy?\nYour answer.",
+  },
+  guarantee: {
+    purpose:
+      "State only your actual refund terms, eligibility, time limit, and how to request help.",
+    placeholder: "Your real guarantee or refund policy.",
+  },
+  image: {
+    purpose:
+      "Show the product or a genuine demonstration. Describe what the image shows for readers using assistive technology.",
+    placeholder:
+      "Describe the image, including details needed to understand it.",
+  },
+  video: {
+    purpose:
+      "Show the product working. Use YouTube or Vimeo for an embedded walkthrough.",
+    placeholder: "Explain what the viewer will learn from the demonstration.",
+  },
+  cta: {
+    purpose:
+      "Restate the next action. The button returns to this offer’s purchase or download controls.",
+    placeholder:
+      "Summarize what they get and the next step. Use only confirmed terms.",
+  },
+};
+
+/** A testimonial is a quotation; facts and demonstrations are ordinary evidence copy. */
+export function sectionFromProof(proof: OfferProof): OfferSection {
+  return {
+    ...newSection(proof.kind === "testimonial" ? "proof" : "text"),
+    heading: proof.title,
+    body: proof.content,
+    caption: proof.attribution,
+    proofId: proof.id,
+  };
+}
+
+export type OfferAdvice = {
+  title: string;
+  detail: string;
+  step: "strategy" | "pages" | "next";
+  stage?: "landing" | "upsell" | "thank-you";
+  sectionId?: string;
+};
 export function reviewOffer(
   builder: OfferBuilder,
-): { title: string; detail: string }[] {
-  const issues: { title: string; detail: string }[] = [];
-  if (!builder.strategy.audience.trim())
-    issues.push({
-      title: "Name the buyer",
-      detail: "Describe the person and situation this offer is designed for.",
-    });
-  if (!builder.strategy.outcome.trim())
-    issues.push({
-      title: "Make the promise concrete",
-      detail: "Explain what the buyer should be able to do with the product.",
-    });
-  if (!builder.strategy.deliverables.trim())
-    issues.push({
-      title: "Spell out what they receive",
-      detail: "List the files, resources, or access included in the price.",
-    });
+  offer?: {
+    title: string;
+    body: string;
+    checkout_mode?: string;
+    funnel_only?: boolean;
+  },
+): OfferAdvice[] {
+  const issues: OfferAdvice[] = [];
+  const brief = (field: keyof OfferStrategy, title: string, detail: string) => {
+    if (!builder.strategy[field].trim())
+      issues.push({ title, detail, step: "strategy" });
+  };
+  brief(
+    "audience",
+    "Name the buyer",
+    "Describe the person and situation this offer is designed for.",
+  );
+  brief(
+    "outcome",
+    "Make the promise concrete",
+    "Explain what the buyer should be able to do with the product.",
+  );
+  brief(
+    "deliverables",
+    "Spell out what they receive",
+    "List the files, resources, or access included in the price.",
+  );
   if (!builder.strategy.evidence.trim() && !builder.proofIds.length)
     issues.push({
       title: "Support the argument",
       detail:
         "Add a real demonstration, relevant testimonial, or documented evidence.",
+      step: "strategy",
     });
-  if (!builder.strategy.objections.trim())
-    issues.push({
-      title: "Answer the hesitation",
-      detail: "Capture the buyer’s main questions about fit, effort, or value.",
-    });
-  for (const [role, page] of Object.entries({
-    landing: builder.presentation.landing,
-    upsell: builder.presentation.upsell,
-  })) {
-    if (page.sections.some((s) => s.type === "guarantee" && !s.body.trim()))
+  brief(
+    "objections",
+    "Answer the hesitation",
+    "Capture the buyer’s main questions about fit, effort, or value.",
+  );
+  if (["cold", "email"].includes(builder.strategy.traffic))
+    brief(
+      "adMessage",
+      "Match the message that brought them here",
+      "Add the sending ad or email, then check that the page carries through the same promise.",
+    );
+  for (const stage of ["landing", "upsell"] as const) {
+    const page = builder.presentation[stage];
+    const used =
+      stage === "landing" ||
+      offer?.funnel_only ||
+      Object.values(page).some(
+        (value) => typeof value === "string" && value.trim(),
+      ) ||
+      page.sections.length > 0;
+    if (!used) continue;
+    const label = stage === "landing" ? "landing page" : "upsell";
+    const add = (title: string, detail: string, sectionId?: string) =>
       issues.push({
-        title: `Complete the ${role} guarantee`,
-        detail:
-          "Describe only terms you actually offer, or remove this section.",
+        title,
+        detail,
+        step: "pages",
+        stage,
+        ...(sectionId ? { sectionId } : {}),
       });
+    if (!page.headline.trim() && !offer?.title.trim())
+      add(
+        `Give the ${label} a clear headline`,
+        "Name the useful result before asking for a decision.",
+      );
+    if (!page.ctaText.trim())
+      add(
+        `Make the ${label} action specific`,
+        "Choose a clear button label that describes the next step. The default button will still work.",
+      );
     if (
-      page.sections.some(
-        (s) => (s.type === "image" || s.type === "video") && !s.imageUrl,
+      stage === "landing" &&
+      builder.strategy.traffic === "cold" &&
+      !page.focusMode
+    )
+      add(
+        "Focus paid traffic on this offer",
+        "Consider focus mode to remove Shop navigation and related offers from this decision.",
+      );
+    if (!page.sections.length && !offer?.body.trim())
+      add(
+        `Build the ${label} sales argument`,
+        "Add the included resources, how they help, real proof, and answers to the buyer’s questions.",
+      );
+    for (const section of page.sections) {
+      const media = section.type === "image" || section.type === "video";
+      if (
+        (media && !section.imageUrl.trim()) ||
+        (!media && section.type !== "cta" && !section.body.trim())
+      ) {
+        add(
+          `Complete “${section.heading || sectionLabels[section.type]}” on the ${label}`,
+          media
+            ? "Add the demonstration’s HTTPS media address or remove this section."
+            : "This section has no copy. Fill it with confirmed facts or remove it before sharing.",
+          section.id,
+        );
+      } else if (section.type === "proof" && !section.caption.trim()) {
+        add(
+          `Attribute the ${label} testimonial`,
+          "Add the approved public name or attribution so readers know whose words these are.",
+          section.id,
+        );
+      }
+    }
+    if (
+      page.sections.length &&
+      !page.sections.some((section) => section.type === "cta")
+    )
+      add(
+        `Add an action after the ${label} argument`,
+        "A final call to action lets readers return to the purchase or download controls after reading.",
+      );
+    if (
+      page.sections.some((section) => section.body.trim()) &&
+      !page.sections.some(
+        (section) =>
+          (["proof", "image", "video"].includes(section.type) ||
+            section.proofId) &&
+          (section.body.trim() || section.imageUrl.trim()),
       )
     )
-      issues.push({
-        title: `Add the ${role} demonstration`,
-        detail: "An image or video section is missing its HTTPS media address.",
-      });
+      add(
+        `Show proof on the ${label}`,
+        "Selected library evidence and private brief notes do not appear automatically. Insert relevant approved evidence or a real demonstration into the page.",
+      );
   }
+  if (
+    offer?.checkout_mode !== "external" &&
+    !builder.presentation.thankYou.firstStep.trim()
+  )
+    issues.push({
+      title: "Give the customer a first useful action",
+      detail: "Tell them where to start after opening their resource.",
+      step: "pages",
+      stage: "thank-you",
+    });
   return issues;
 }
 

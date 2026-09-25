@@ -46,9 +46,11 @@ export default function OfferLanding(props: OfferLandingProps) {
 function OfferIntro({
   offer,
   compact = false,
+  preview = false,
 }: {
   offer: PublicOffer;
   compact?: boolean;
+  preview?: boolean;
 }) {
   const page = readPresentation(offer.presentation)?.landing;
   return (
@@ -76,6 +78,25 @@ function OfferIntro({
       <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
         {page?.subheadline || offer.summary}
       </p>
+      {!offer.funnel_only && (
+        <button
+          type="button"
+          disabled={preview}
+          onClick={() => {
+            const action = document.getElementById("offer-action");
+            action?.scrollIntoView({ behavior: "smooth", block: "start" });
+            action?.focus({ preventScroll: true });
+          }}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-[var(--brand-accent)] px-5 py-4 text-center font-semibold text-[var(--brand-backdrop)] @3xl:hidden disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+        >
+          {offer.checkout_mode === "external"
+            ? "View offer details"
+            : offer.kind === "free"
+              ? "Go to download form"
+              : "View checkout details"}
+          <ArrowRight aria-hidden="true" size={18} className="shrink-0" />
+        </button>
+      )}
       {offer.cover_url && (
         <img
           src={offer.cover_url}
@@ -240,7 +261,7 @@ function ExternalOfferLanding({
             : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
         }
       >
-        <OfferIntro offer={offer} compact={compact} />
+        <OfferIntro offer={offer} compact={compact} preview={preview} />
         <aside
           id="offer-action"
           tabIndex={-1}
@@ -385,7 +406,7 @@ function NativeOfferLanding({
             : "grid @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)] gap-y-8 gap-x-10 @3xl:gap-x-16 items-start"
         }
       >
-        <OfferIntro offer={offer} compact={compact} />
+        <OfferIntro offer={offer} compact={compact} preview={preview} />
         <aside
           id="offer-action"
           tabIndex={-1}
@@ -512,6 +533,29 @@ function NativeOfferLanding({
           )}
         </aside>
         <OfferDetails offer={offer} preview={preview} />
+        {!offer.funnel_only && (
+          <div className="min-w-0 border-t border-white/15 pt-6 @3xl:col-start-1 @3xl:row-start-3">
+            <p className="text-lg font-semibold">
+              {offerPrice(offer)}
+              {offer.kind === "paid" ? " · one payment" : ""}
+            </p>
+            <button
+              type="button"
+              disabled={preview}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded bg-[var(--brand-accent)] px-6 py-4 font-semibold text-[var(--brand-backdrop)] @sm:w-auto disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+              onClick={() => {
+                const action = document.getElementById("offer-action");
+                action?.scrollIntoView({ behavior: "smooth", block: "center" });
+                action?.focus({ preventScroll: true });
+              }}
+            >
+              {offer.kind === "free"
+                ? "Back to the download form"
+                : "Review checkout details"}
+              <ArrowRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
       {!preview &&
         !offer.funnel_only &&

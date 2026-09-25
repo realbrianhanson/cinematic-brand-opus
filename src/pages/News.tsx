@@ -221,7 +221,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
   // IntersectionObserver for infinite scroll
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {

@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { articleReading } from "../articleReading";
 
 describe("article body heading ownership", () => {
+  it("preserves authored heading links and avoids collisions with generated anchors", () => {
+    const result = articleReading(
+      '<a href="#pricing">Jump to pricing</a><h2 id="pricing">Pricing</h2><h2>Compare</h2><h3 id="article-section-2">Details</h3>',
+    );
+    expect(result.html).toContain('href="#pricing"');
+    expect(result.headings.map((h) => h.id)).toEqual([
+      "pricing",
+      "article-section-3",
+      "article-section-2",
+    ]);
+  });
   it("removes only a leading title duplicate after sanitizing and decoding", () => {
     const result = articleReading(
       " <h1>A &amp; <em>B</em>\nGuide</h1><h2>Start here</h2><p>Useful details.</p>",

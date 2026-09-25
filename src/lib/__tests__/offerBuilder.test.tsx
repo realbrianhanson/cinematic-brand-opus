@@ -127,6 +127,59 @@ describe("consistent landing and follow-up rendering", () => {
     expect(html).toContain("· $29<");
     expect(html).not.toContain("Browse the Shop");
   });
+  it("puts a mobile route to the offer controls before a large cover image without starting a purchase", () => {
+    const html = renderToStaticMarkup(
+      <OfferLanding
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          external_url: "https://example.com/checkout",
+          cover_url: "https://example.com/cover.webp",
+        }}
+        preview
+      />,
+    );
+    expect(html.indexOf("View offer details")).toBeLessThan(
+      html.indexOf('src="https://example.com/cover.webp"'),
+    );
+    expect(html).toContain("@3xl:hidden");
+    expect(invoke).not.toHaveBeenCalled();
+    expect(html).not.toContain('href="https://example.com/checkout"');
+    const free = renderToStaticMarkup(
+      <OfferLanding
+        offer={{
+          ...offer,
+          kind: "free",
+          amount_minor: 0,
+          cover_url: "https://example.com/cover.webp",
+        }}
+        preview
+      />,
+    );
+    expect(free.indexOf("Go to download form")).toBeLessThan(
+      free.indexOf('src="https://example.com/cover.webp"'),
+    );
+    expect(free).toContain("Back to the download form");
+    expect(free).not.toContain("Review checkout details");
+    const provider = renderToStaticMarkup(
+      <OfferLanding
+        offer={{
+          ...offer,
+          checkout_mode: "external",
+          price_display_mode: "provider",
+          amount_minor: 0,
+        }}
+        preview
+      />,
+    );
+    expect(provider).toContain("View current pricing");
+    expect(provider).not.toContain("$0");
+    const gated = renderToStaticMarkup(
+      <OfferLanding offer={{ ...offer, funnel_only: true }} preview />,
+    );
+    expect(gated).not.toContain("View checkout details");
+    expect(gated).not.toContain("Review checkout details");
+  });
   it("does not render raw HTML as executable content", () => {
     const builder = emptyBuilder();
     const page = pageRecipe("sales");

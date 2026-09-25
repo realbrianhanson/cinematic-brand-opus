@@ -4,6 +4,7 @@ import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errorMessage";
+import { pendingBackendUpdate } from "@/lib/adminBackendUpdate";
 import { refreshOutcome, indexingOutcome } from "@/lib/adminOutcomes";
 import {
   Plus,
@@ -314,7 +315,12 @@ export default function Dashboard() {
         </div>
       </header>
       <QueryNotice
-        error={data ? null : overview.error}
+        error={
+          pendingBackendUpdate(overview.error, "overview") || !data
+            ? overview.error
+            : null
+        }
+        backendScope="overview"
         retry={() => overview.refetch()}
       />
       {overview.error && data && (

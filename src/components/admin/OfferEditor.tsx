@@ -33,7 +33,7 @@ import {
 } from "@/lib/offers";
 import {
   builderFromOffer,
-  newSection,
+  sectionFromProof,
   offerBuilderSchema,
   reviewOffer,
   type OfferBuilder,
@@ -265,7 +265,7 @@ function OfferForm({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("offers")
-        .select("id,title,status,next_offer_id")
+        .select("id,title,status,next_offer_id,funnel_only")
         .eq("checkout_mode", "native")
         .order("title")
         .limit(1000)
@@ -549,13 +549,7 @@ function OfferForm({
       );
       return;
     }
-    const section = {
-      ...newSection("proof"),
-      heading: proof.title,
-      body: proof.content,
-      caption: proof.attribution,
-      proofId: proof.id,
-    };
+    const section = sectionFromProof(proof);
     setBuilder((old) => ({
       ...old,
       proofIds: [...new Set([...old.proofIds, proof.id])].slice(0, 30),
@@ -673,7 +667,7 @@ function OfferForm({
     created_at: initial?.created_at || "",
     updated_at: initial?.updated_at || "",
   };
-  const advice = reviewOffer(builder);
+  const advice = reviewOffer(builder, previewOffer);
   const stepIndex = workflow.findIndex((item) => item.id === step);
   const nextChoice = choices.data?.find((item) => item.id === form.nextOffer);
   const latest = history[0];
@@ -970,6 +964,10 @@ function OfferForm({
                     key={stage}
                     value={builder.presentation[stage]}
                     stage={stage}
+                    recipeContext={{
+                      strategy: builder.strategy,
+                      offer: previewOffer,
+                    }}
                     onChange={(page) => updatePage(page, stage)}
                   />
                   <OfferCopyAssistant
@@ -1181,6 +1179,26 @@ function OfferForm({
                         >
                           <strong className="text-sm">{item.title}</strong>
                           <p className="admin-help mt-1">{item.detail}</p>
+                          <button
+                            type="button"
+                            className="admin-btn-ghost mt-2"
+                            onClick={() => {
+                              if (item.stage) setStage(item.stage);
+                              setStep(item.step);
+                              if (item.sectionId)
+                                requestAnimationFrame(() => {
+                                  const field = document.getElementById(
+                                    `${item.sectionId}-copy`,
+                                  );
+                                  const details = field?.closest("details");
+                                  if (details) details.open = true;
+                                  field?.scrollIntoView?.({ block: "center" });
+                                  field?.focus();
+                                });
+                            }}
+                          >
+                            Review this item <ArrowRight size={14} />
+                          </button>
                         </li>
                       ))}
                     </ul>

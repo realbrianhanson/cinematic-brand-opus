@@ -129,6 +129,7 @@ const ContentTypeList = ({
         {niches.length > 1 && (
           <div className="mb-10 flex flex-wrap gap-2">
             <button
+              aria-pressed={!nicheFilter}
               onClick={() => setNicheFilter("")}
               className="font-body uppercase px-4 py-2 transition-all duration-200"
               style={{
@@ -155,6 +156,7 @@ const ContentTypeList = ({
               const active = nicheFilter === n.slug;
               return (
                 <button
+                  aria-pressed={active}
                   key={n.slug}
                   onClick={() => setNicheFilter(n.slug)}
                   className="font-body uppercase px-4 py-2 transition-all duration-200"

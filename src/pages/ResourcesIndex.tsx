@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useSearchParams } from "@/lib/router-compat";
 import type {
@@ -71,7 +71,21 @@ const ResourcesIndex = ({
   const [params, setParams] = useSearchParams();
   const term = (params.get("q") || "").slice(0, 200);
   const [input, setInput] = useState(term);
-  const [page, setPage] = useState(0);
+  const requestedPage = Number(params.get("page") || 1);
+  const page =
+    Number.isSafeInteger(requestedPage) && requestedPage > 0
+      ? Math.min(requestedPage - 1, 1000)
+      : 0;
+  useEffect(() => setInput(term), [term]);
+  const updateSearch = (query: string, nextPage = 0) => {
+    setParams((current) => {
+      if (query) current.set("q", query);
+      else current.delete("q");
+      if (query && nextPage > 0) current.set("page", String(nextPage + 1));
+      else current.delete("page");
+      return current;
+    });
+  };
   const search = useQuery({
     queryKey: ["public-library-search", term, page],
     enabled: !!term,
@@ -175,8 +189,7 @@ const ResourcesIndex = ({
           className="flex gap-3 mb-10"
           onSubmit={(e) => {
             e.preventDefault();
-            setPage(0);
-            setParams(input.trim() ? { q: input.trim().slice(0, 200) } : {});
+            updateSearch(input.trim().slice(0, 200));
           }}
           role="search"
         >
@@ -206,8 +219,7 @@ const ResourcesIndex = ({
                 className="underline"
                 onClick={() => {
                   setInput("");
-                  setParams({});
-                  setPage(0);
+                  updateSearch("");
                 }}
               >
                 Clear search
@@ -224,8 +236,14 @@ const ResourcesIndex = ({
             )}
             {search.data && !search.error && (
               <>
-                <p className="mb-5 text-white/70">
+                <p
+                  className="mb-5 text-white/70"
+                  role="status"
+                  aria-live="polite"
+                >
                   {search.data.total} result{search.data.total === 1 ? "" : "s"}
+                  {search.data.total > 24 &&
+                    ` · Page ${page + 1} of ${Math.ceil(search.data.total / 24)}`}
                 </p>
                 <div className="grid md:grid-cols-2 gap-5">
                   {search.data.items.map((item) => (
@@ -248,14 +266,14 @@ const ResourcesIndex = ({
                   <button
                     disabled={!page}
                     className="underline disabled:opacity-30"
-                    onClick={() => setPage((p) => p - 1)}
+                    onClick={() => updateSearch(term, page - 1)}
                   >
                     Previous
                   </button>
                   <button
                     disabled={(page + 1) * 24 >= search.data.total}
                     className="underline disabled:opacity-30"
-                    onClick={() => setPage((p) => p + 1)}
+                    onClick={() => updateSearch(term, page + 1)}
                   >
                     Next
                   </button>

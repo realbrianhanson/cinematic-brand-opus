@@ -28,7 +28,7 @@ import {
 
 const STORAGE_KEY = "site-chat-conversation-v1";
 
-/** One saved conversation per browser; nothing about the visitor leaves their device. */
+/** Restore browser-local history; recent messages are sent when asking a question. */
 function loadSaved(): UIMessage[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -54,7 +54,7 @@ const messageText = (message: UIMessage) =>
     .trim();
 
 export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
-  const { identity } = useSiteConfig();
+  const { identity, sections } = useSiteConfig();
   const initialMessages = useMemo(loadSaved, []);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [resetCount, setResetCount] = useState(0);
@@ -101,14 +101,24 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
     : "";
 
   return (
-    <div className="flex h-[min(34rem,calc(100vh-7rem))] w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-white/15 bg-[var(--brand-backdrop)] shadow-2xl">
+    <div
+      id="site-chat-panel"
+      role="dialog"
+      aria-label="Website AI assistant"
+      aria-modal="false"
+      className="flex w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-white/15 bg-[var(--brand-backdrop)] shadow-2xl"
+      style={{
+        height:
+          "min(34rem, calc(100dvh - 6rem - var(--mobile-bar-space, 0px)))",
+      }}
+    >
       <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
         <div>
           <p className="font-display text-lg leading-tight text-white">
             Ask about the products
           </p>
           <p className="text-xs text-white/55">
-            Quick answers. {identity.name} handles the rest by email.
+            AI assistant · {identity.name} handles the rest by email.
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -192,6 +202,7 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
           }}
         >
           <PromptInputTextarea
+            aria-label="Your question"
             ref={textareaRef}
             autoFocus
             maxLength={SITE_CHAT_LIMITS.maxTextChars}
@@ -216,12 +227,13 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
             </>
           )}
           <a
-            href="/speaking"
+            href={sections.speaking ? "/speaking" : "/support"}
             className="text-[var(--brand-accent-light)] underline underline-offset-4"
           >
-            send an event inquiry
+            {sections.speaking ? "send an event inquiry" : "get support"}
           </a>
-          . This chat is saved in your browser only.
+          . History is saved in this browser. Questions are sent to our AI
+          service for a reply.
         </p>
       </div>
     </div>

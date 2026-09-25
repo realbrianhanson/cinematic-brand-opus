@@ -41,6 +41,7 @@ function fakeClient(
       "delete",
       "in",
       "order",
+      "range",
     ]) {
       builder[op] = (...args: unknown[]) => {
         const call = { table, op, args };
@@ -219,6 +220,133 @@ describe("findMediaUsage", () => {
     await expect(findMediaUsage(item, client)).rejects.toThrow(
       /permission denied/,
     );
+  });
+
+  it("finds nested media in offer pages, drafts, versions, resources and branding", async () => {
+    const { client } = fakeClient((table, own) => {
+      if (!own.some((c) => c.op === "range")) return empty;
+      const nested = { blocks: [{ image: { src: item.url } }] };
+      const data = {
+        offers: [{ id: "offer", title: "Workshop", presentation: nested }],
+        generated_pages: [
+          { id: "resource", title: "Workbook", content_json: nested },
+        ],
+        offer_builder_drafts: [
+          {
+            offer_id: "offer",
+            offers: { title: "Workshop" },
+            document: nested,
+          },
+        ],
+        offer_builder_revisions: [
+          {
+            id: "revision",
+            version: 2,
+            offers: { title: "Workshop" },
+            document: nested,
+          },
+        ],
+        site_branding: [{ id: true, settings: nested }],
+      }[table];
+      return { data: data ?? [], count: data?.length ?? 0, error: null };
+    });
+    const usage = await findMediaUsage(item, client);
+    expect(usage.total).toBe(5);
+    expect(usage.titles).toEqual([
+      "Workbook",
+      "Workshop",
+      "Workshop (saved draft)",
+      "Workshop (version 2)",
+      "Site branding and homepage",
+    ]);
+  });
+
+  it("checks documents after the first page and deduplicates published offer matches", async () => {
+    const { client, calls } = fakeClient((table, own) => {
+      if (table !== "offers") return empty;
+      const range = own.find((c) => c.op === "range");
+      if (!range)
+        return own.some((c) => c.op === "ilike" && c.args[0] === "cover_url")
+          ? {
+              data: [{ id: "found", title: "Workshop" }],
+              count: 1,
+              error: null,
+            }
+          : empty;
+      if (range.args[0] === 0)
+        return {
+          data: Array.from({ length: 200 }, (_, i) => ({
+            id: `other-${i}`,
+            title: "Other",
+            presentation: {},
+          })),
+          count: 201,
+          error: null,
+        };
+      return {
+        data: [
+          { id: "found", title: "Workshop", presentation: { image: item.url } },
+        ],
+        count: 201,
+        error: null,
+      };
+    });
+    const usage = await findMediaUsage(item, client);
+    expect(usage.total).toBe(1);
+    expect(calls).toContainEqual({
+      table: "offers",
+      op: "range",
+      args: [200, 399],
+    });
+  });
+
+  it("fails as unknown when a structured scan errors or exceeds its budget", async () => {
+    const failed = fakeClient((table) =>
+      table === "site_branding"
+        ? {
+            data: null,
+            count: null,
+            error: { message: "branding unavailable" },
+          }
+        : empty,
+    );
+    await expect(findMediaUsage(item, failed.client)).rejects.toThrow(
+      /branding unavailable/,
+    );
+    const oversized = fakeClient((table) =>
+      table === "offer_builder_revisions"
+        ? { data: [], count: 5001, error: null }
+        : empty,
+    );
+    await expect(findMediaUsage(item, oversized.client)).rejects.toThrow(
+      /too large/,
+    );
+  });
+
+  it("matches encoded filenames literally and never scans an empty path", async () => {
+    const encodedItem = { file_path: "photos/my image_1%.png", url: "" };
+    const { client } = fakeClient((table) =>
+      table === "site_branding"
+        ? {
+            data: [
+              {
+                id: true,
+                settings: {
+                  image: "https://cdn.test/photos/my%20image_1%25.png",
+                },
+              },
+            ],
+            count: 1,
+            error: null,
+          }
+        : empty,
+    );
+    expect((await findMediaUsage(encodedItem, client)).total).toBe(1);
+    const blank = fakeClient(() => empty);
+    expect(
+      (await findMediaUsage({ file_path: "", url: "" }, blank.client)).total,
+    ).toBe(0);
+    expect(blank.calls).toEqual([]);
   });
 });
 

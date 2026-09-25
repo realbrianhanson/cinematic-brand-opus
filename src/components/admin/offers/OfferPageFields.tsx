@@ -4,6 +4,8 @@ import {
   newSection,
   pageRecipe,
   sectionLabels,
+  sectionGuidance,
+  type OfferRecipeContext,
   sectionTypes,
   type OfferPage,
   type OfferSection,
@@ -13,8 +15,10 @@ export default function OfferPageFields({
   value,
   stage,
   onChange,
+  recipeContext,
 }: {
   value: OfferPage;
+  recipeContext?: OfferRecipeContext;
   stage: "landing" | "upsell";
   onChange: (value: OfferPage) => void;
 }) {
@@ -53,8 +57,15 @@ export default function OfferPageFields({
       )
     )
       return;
-    const next = pageRecipe(recipe);
-    onChange({ ...value, sections: next.sections, focusMode: next.focusMode });
+    const next = pageRecipe(recipe, recipeContext);
+    onChange({
+      ...value,
+      headline: value.headline || next.headline,
+      subheadline: value.subheadline || next.subheadline,
+      ctaText: value.ctaText || next.ctaText,
+      sections: next.sections,
+      focusMode: next.focusMode,
+    });
   }
   return (
     <section className="admin-card space-y-5 p-5 md:p-6">
@@ -96,7 +107,10 @@ export default function OfferPageFields({
           Use this layout
         </button>
         <p className="admin-help">
-          Adds editable sections. You supply the claims, proof, and terms.
+          Uses the problem, outcome, method and deliverables you entered in your
+          brief. Existing headline and button copy stay in place. Add approved
+          proof and confirmed answers yourself; private evidence notes are never
+          copied.
         </p>
       </div>
       {(
@@ -161,6 +175,9 @@ export default function OfferPageFields({
               {index + 1}. {section.heading || sectionLabels[section.type]}
             </summary>
             <div className="mt-4 space-y-3">
+              <p className="admin-help">
+                {sectionGuidance[section.type].purpose}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -215,6 +232,8 @@ export default function OfferPageFields({
                 <textarea
                   className="admin-input mt-2 w-full"
                   rows={5}
+                  id={`${section.id}-copy`}
+                  placeholder={sectionGuidance[section.type].placeholder}
                   maxLength={6000}
                   value={section.body}
                   onChange={(event) =>
@@ -252,6 +271,21 @@ export default function OfferPageFields({
                   </label>
                 </>
               )}
+              {(section.type === "proof" || section.type === "text") && (
+                <label className="block text-sm">
+                  {section.type === "proof"
+                    ? "Public testimonial attribution"
+                    : "Public evidence attribution (optional)"}
+                  <input
+                    className="admin-input mt-2 w-full"
+                    maxLength={500}
+                    value={section.caption}
+                    onChange={(event) =>
+                      updateSection(index, { caption: event.target.value })
+                    }
+                  />
+                </label>
+              )}
               {section.type === "guarantee" && (
                 <p className="admin-help">
                   Use only the exact guarantee and refund terms you actually
@@ -261,7 +295,7 @@ export default function OfferPageFields({
               {section.type === "proof" && (
                 <p className="admin-help">
                   Keep testimonials exact and attributed. Add approved material
-                  from your proof library below.
+                  from the proof library in Strategy.
                 </p>
               )}
             </div>
