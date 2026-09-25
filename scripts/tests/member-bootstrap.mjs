@@ -134,6 +134,33 @@ for (const [label, seed, count] of [
 }
 
 const cleanCommerce = new PGlite();
+// Private editorial history, import metadata and payment attempts must refuse
+// inherited data even when a neutral bootstrap marker was copied with it.
+for (const table of [
+  "generated_page_revisions",
+  "pillar_page_revisions",
+  "gsc_imports",
+  "gsc_import_rows",
+  "offer_checkout_attempts",
+]) {
+  const inherited = new PGlite();
+  await inherited.exec(fixture + `create table public.${table}(id uuid);`);
+  await inherited.exec(sql);
+  await inherited.exec(
+    `insert into public.${table} values(gen_random_uuid());`,
+  );
+  await assert.rejects(
+    inherited.exec(sql),
+    new RegExp(`Refusing bootstrap: ${table}`),
+  );
+  await inherited.exec("rollback");
+  assert.equal(
+    (await inherited.query(`select count(*)::int n from public.${table}`))
+      .rows[0].n,
+    1,
+  );
+  await inherited.close();
+}
 for (const table of [
   "offer_access_deliveries",
   "offer_access_grants",

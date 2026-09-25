@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
 import LocalDraftRecoveryBanner from "./LocalDraftRecoveryBanner";
+import SavedVersionHistory from "./SavedVersionHistory";
+import { asEditorialRecord } from "@/lib/editorialHistory";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +67,7 @@ const resourceRecoverySchema = z
     metaTitle: z.string(),
     metaDesc: z.string(),
     metaKeywords: z.string(),
+    seoBase: z.record(z.unknown()).default({}),
   })
   .strict();
 
@@ -146,6 +149,7 @@ const GeneratedPageEditor = () => {
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDesc, setMetaDesc] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
+  const [seoBase, setSeoBase] = useState<Record<string, unknown>>({});
   const [seoOpen, setSeoOpen] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [previewScore, setPreviewScore] = useState<ScoreResult | null>(null);
@@ -169,6 +173,7 @@ const GeneratedPageEditor = () => {
     metaTitle,
     metaDesc,
     metaKeywords,
+    seoBase,
   };
   const lastSubmittedDraft = useRef(draftSnapshot);
   const { markSaved } = useAdminDraftGuard(
@@ -207,6 +212,8 @@ const GeneratedPageEditor = () => {
     setPreviewScore(null);
     setValidationErrors([]);
     const seo = seoFormSchema.parse(page.seo_meta);
+    const fullSeo = asEditorialRecord(page.seo_meta);
+    setSeoBase(fullSeo);
     setMetaTitle(seo.title || "");
     setMetaDesc(seo.description || "");
     setMetaKeywords(seo.keywords.join(", "));
@@ -220,6 +227,7 @@ const GeneratedPageEditor = () => {
       metaTitle: seo.title || "",
       metaDesc: seo.description || "",
       metaKeywords: seo.keywords.join(", "),
+      seoBase: fullSeo,
     };
     lastSubmittedDraft.current = loadedDraft;
     markSaved(loadedDraft);
@@ -246,6 +254,9 @@ const GeneratedPageEditor = () => {
       setMetaTitle(draft.metaTitle);
       setMetaDesc(draft.metaDesc);
       setMetaKeywords(draft.metaKeywords);
+      setSeoBase(
+        draft.seoBase ?? asEditorialRecord(baseline.current?.seo_meta),
+      );
       setPreviewScore(null);
       setValidationErrors([]);
       setQualityWarning(null);
@@ -492,8 +503,11 @@ const GeneratedPageEditor = () => {
     const publishing = status === "published" && !isPublished;
     const cleanTitle = title.trim();
     const seoMeta = {
+      ...seoBase,
       title: metaTitle || null,
+      meta_title: metaTitle || null,
       description: metaDesc || null,
+      meta_description: metaDesc || null,
       keywords: metaKeywords
         .split(",")
         .map((k) => k.trim())
@@ -736,6 +750,45 @@ const GeneratedPageEditor = () => {
           generatingOg ||
           scoring
         }
+      />
+      <SavedVersionHistory
+        kind="resource"
+        documentId={id}
+        disabled={
+          saveMutation.isPending ||
+          regenerateMutation.isPending ||
+          aiGenerating ||
+          enhancing ||
+          generatingOg ||
+          scoring
+        }
+        current={{
+          title,
+          content_json: parseJson(contentStr).value,
+          seo_meta: {
+            ...seoBase,
+            title: metaTitle,
+            description: metaDesc,
+            keywords: metaKeywords,
+            og_image: ogImage,
+          },
+        }}
+        onLoad={(version) => {
+          if (typeof version.content === "string") return;
+          setTitle(version.title);
+          setContentStr(JSON.stringify(version.content, null, 2));
+          setSeoBase(version.seoMeta);
+          const seo = seoFormSchema.parse(version.seoMeta);
+          setMetaTitle(seo.title || String(version.seoMeta.meta_title ?? ""));
+          setMetaDesc(
+            seo.description || String(version.seoMeta.meta_description ?? ""),
+          );
+          setMetaKeywords(seo.keywords.join(", "));
+          setOgImage(seo.og_image || "");
+          setPreviewScore(null);
+          setValidationErrors([]);
+          setQualityWarning(null);
+        }}
       />
       {storedVersionChanged && (
         <div role="alert" className="admin-card mb-5 p-4">

@@ -54,19 +54,30 @@ vi.mock("@/integrations/supabase/client", () => {
         }),
         update: (payload: unknown) => {
           h.update(payload);
-          return {
-            eq: () => ({
-              select: async () => ({
-                data: [{ id: "pillar-1" }],
+          const chain = {
+            eq: () => chain,
+            select: () => ({
+              maybeSingle: async () => ({
+                data: { id: "pillar-1", updated_at: "2026-09-25T10:00:01Z" },
                 error: null,
               }),
             }),
           };
+          return chain;
         },
       }),
       rpc: async (...args: unknown[]) => {
         h.rpc(...args);
-        return { data: [], error: null };
+        return {
+          data: [
+            {
+              ...h.pillar,
+              status: "published",
+              updated_at: "2026-09-25T10:00:02Z",
+            },
+          ],
+          error: null,
+        };
       },
       storage: { from: () => ({}) },
     },
@@ -85,6 +96,7 @@ const renderEditor = (content: string) => {
     content,
     published_at: null,
     seo_meta: {},
+    updated_at: "2026-09-25T10:00:00Z",
   };
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -135,10 +147,11 @@ describe("topic guide publish gate", () => {
     // Edits are saved unpublished first, then the audited RPC publishes.
     expect(h.update.mock.calls[0][0]).toMatchObject({ status: "draft" });
     expect(h.rpc).toHaveBeenCalledWith(
-      "publish_pillar_page_with_override",
+      "publish_pillar_page_with_override_v2",
       expect.objectContaining({
         p_pillar_id: "pillar-1",
         p_reason: "Launch promo, full guide lands next week",
+        p_expected_updated_at: "2026-09-25T10:00:01Z",
       }),
     );
   });

@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
   updateError: null as unknown,
   updateMissing: false,
   writeSequence: 0,
+  history: [] as Record<string, unknown>[],
   blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -55,6 +56,8 @@ vi.mock("@/integrations/supabase/client", () => ({
           return h.state.ops;
         },
         respond: (op: FakeOp): FakeResult => {
+          if (op.table === "generated_page_revisions")
+            return { data: h.history, error: null };
           if (op.table === "generated_pages" && op.action === "select")
             return { data: h.page, error: null };
           if (op.action === "update") {
@@ -145,9 +148,92 @@ afterEach(() => {
   h.updateError = null;
   h.updateMissing = false;
   h.writeSequence = 0;
+  h.history = [];
 });
 
 describe("GeneratedPageEditor", () => {
+  it("loads historical content and complete source metadata into an unsaved draft without restoring authority fields", async () => {
+    h.page = basePage();
+    h.history = [
+      {
+        id: "old-version",
+        page_id: "p1",
+        created_at: "2026-09-24T00:00:00Z",
+        change_source: "system",
+        actor_id: null,
+        snapshot: {
+          ...basePage(),
+          title: "Earlier useful resource",
+          slug: "old-slug",
+          status: "published",
+          quality_score: 99,
+          publish_override: true,
+          content_json: { ...content, intro: "The earlier version's content" },
+          seo_meta: {
+            title: "Old SEO",
+            description: "Old description",
+            sources: ["https://example.com/original"],
+            custom_source_note: "Preserve this context",
+          },
+        },
+      },
+    ];
+    h.invoke.mockResolvedValue({
+      data: { score: 82, issues: [] },
+      error: null,
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderEditor();
+    await screen.findByDisplayValue("12 Best AI Tools in 2026");
+    fireEvent.click(screen.getByRole("button", { name: "Saved versions" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Choose a saved version" }),
+      { target: { value: "old-version" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load version into editor" }),
+    );
+    expect(screen.getByLabelText("Title")).toHaveValue(
+      "Earlier useful resource",
+    );
+    expect(screen.getByLabelText("Status")).toHaveValue("draft");
+    expect(screen.getByLabelText("URL slug")).toHaveValue(
+      "12-best-ai-tools-in-2026",
+    );
+    expect(updates()).toHaveLength(0);
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updates().length).toBeGreaterThan(0));
+    expect(updates()[0].seo_meta).toMatchObject({
+      sources: ["https://example.com/original"],
+      custom_source_note: "Preserve this context",
+    });
+    expect(updates()[0]).not.toHaveProperty("quality_score");
+    expect(updates()[0]).not.toHaveProperty("publish_override");
+    expect(updates()[0]).not.toHaveProperty("id");
+  });
+  it("preserves source references and unknown SEO keys on an ordinary save", async () => {
+    h.page = basePage({
+      seo_meta: {
+        title: "Meta",
+        description: "Desc",
+        sources: [{ url: "https://example.com/source" }],
+        custom_provenance: { captured: "2026-09-01" },
+      },
+    });
+    h.invoke.mockResolvedValue({
+      data: { score: 82, issues: [] },
+      error: null,
+    });
+    renderEditor();
+    await screen.findByDisplayValue("12 Best AI Tools in 2026");
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updates().length).toBeGreaterThan(0));
+    expect(updates()[0].seo_meta).toMatchObject({
+      sources: [{ url: "https://example.com/source" }],
+      custom_provenance: { captured: "2026-09-01" },
+    });
+  });
   it("restores an unsaved resource only on request and keeps the saved-version guard", async () => {
     h.page = basePage();
     const first = renderEditor();

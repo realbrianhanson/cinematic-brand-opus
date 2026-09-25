@@ -573,6 +573,12 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_page_revisions: {
+        Row: { id: string; page_id: string; snapshot: Json; actor_id: string | null; change_source: string; created_at: string }
+        Insert: { id?: string; page_id: string; snapshot: Json; actor_id?: string | null; change_source: string; created_at?: string }
+        Update: { id?: string; page_id?: string; snapshot?: Json; actor_id?: string | null; change_source?: string; created_at?: string }
+        Relationships: [{ foreignKeyName: "generated_page_revisions_page_id_fkey"; columns: ["page_id"]; isOneToOne: false; referencedRelation: "generated_pages"; referencedColumns: ["id"] }]
+      }
       generated_pages: {
         Row: {
           content_json: Json
@@ -1890,6 +1896,12 @@ export type Database = {
           },
         ]
       }
+      pillar_page_revisions: {
+        Row: { id: string; page_id: string; snapshot: Json; actor_id: string | null; change_source: string; created_at: string }
+        Insert: { id?: string; page_id: string; snapshot: Json; actor_id?: string | null; change_source: string; created_at?: string }
+        Update: { id?: string; page_id?: string; snapshot?: Json; actor_id?: string | null; change_source?: string; created_at?: string }
+        Relationships: [{ foreignKeyName: "pillar_page_revisions_page_id_fkey"; columns: ["page_id"]; isOneToOne: false; referencedRelation: "pillar_pages"; referencedColumns: ["id"] }]
+      }
       pillar_pages: {
         Row: {
           content: string
@@ -2723,6 +2735,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      publish_pillar_page_with_override: {
+        Args: { p_pillar_id: string; p_reason: string; p_issues?: string[] }
+        Returns: Database["public"]["Tables"]["pillar_pages"]["Row"][]
+      }
+      publish_pillar_page_with_override_v2: {
+        Args: { p_pillar_id: string; p_reason: string; p_issues: string[]; p_expected_updated_at: string }
+        Returns: Database["public"]["Tables"]["pillar_pages"]["Row"][]
+      }
       _offer_apply_stripe_event_v1: {
         Args: {
           _amount_minor: number
