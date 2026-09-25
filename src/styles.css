@@ -1143,6 +1143,30 @@
   margin: 10px 0;
   overflow-wrap: anywhere;
 }
+.public-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(var(--brand-accent-rgb), 0.6);
+  border-radius: 4px;
+  color: var(--brand-accent);
+  background: rgba(var(--brand-accent-rgb), 0.08);
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.public-secondary-action:hover:not(:disabled) {
+  background: rgba(var(--brand-accent-rgb), 0.16);
+}
+
+.public-secondary-action:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .public-discovery-card {
   display: block;
   padding: 28px;

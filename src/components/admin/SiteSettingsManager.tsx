@@ -1,5 +1,6 @@
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeMutation } from "@/lib/withTimeout";
@@ -102,6 +103,8 @@ const SiteSettingsManager = () => {
   const [form, setForm] = useState<Settings>(defaultSettings);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [credentialInput, setCredentialInput] = useState("");
+  const hydrated = useRef(false);
+  const { markSaved } = useAdminDraftGuard(form, "site-settings");
 
   const {
     data: settings,
@@ -148,8 +151,9 @@ const SiteSettingsManager = () => {
   });
 
   useEffect(() => {
-    if (settings && !privateLoading && !privateError) {
-      setForm({
+    if (settings && !privateLoading && !privateError && !hydrated.current) {
+      hydrated.current = true;
+      const loadedForm = {
         ...defaultSettings,
         ...settings,
         author_credentials: (settings.author_credentials as string[]) ?? [],
@@ -166,9 +170,11 @@ const SiteSettingsManager = () => {
         newsletter_postal_address: settings.newsletter_postal_address ?? "",
         report_email: privateSettings?.report_email ?? "",
         report_enabled: privateSettings?.report_enabled ?? false,
-      } as Settings);
+      } as Settings;
+      setForm(loadedForm);
+      markSaved(loadedForm);
     }
-  }, [settings, privateSettings, privateLoading, privateError]);
+  }, [settings, privateSettings, privateLoading, privateError, markSaved]);
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -199,11 +205,16 @@ const SiteSettingsManager = () => {
         };
 
         if (settings?.id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from("site_settings")
             .update(payload)
-            .eq("id", settings.id);
+            .eq("id", settings.id)
+            .select("id");
           if (error) throw error;
+          if (!data?.length)
+            throw new Error(
+              "The site settings were not saved. The saved record or your access changed. Your values are still here.",
+            );
         } else {
           const { error } = await supabase
             .from("site_settings")
@@ -223,19 +234,26 @@ const SiteSettingsManager = () => {
           updated_at: new Date().toISOString(),
         };
         if (privateSettings?.id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from("site_settings_private")
             .update(privatePayload)
-            .eq("id", privateSettings.id);
+            .eq("id", privateSettings.id)
+            .select("id");
           if (error) throw error;
+          if (!data?.length)
+            throw new Error(
+              "The public settings were saved, but private settings were not saved because the record or your access changed. Your values are still here; retry saving to complete the update.",
+            );
         } else {
           const { error } = await supabase
             .from("site_settings_private")
             .insert(privatePayload);
           if (error) throw error;
         }
+        return form;
       }),
-    onSuccess: () => {
+    onSuccess: (submitted) => {
+      markSaved(submitted);
       qc.invalidateQueries({ queryKey: ["admin-site-settings"] });
       qc.invalidateQueries({ queryKey: ["admin-site-settings-private"] });
       qc.invalidateQueries({ queryKey: ["admin-indexnow-keyfile"] });

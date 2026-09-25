@@ -2,11 +2,12 @@ import { seoDocumentSchema } from "@/lib/contentDocument";
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
 import { supabase } from "@/integrations/supabase/client";
-import { safeMutation } from "@/lib/withTimeout";
+import { safeMutation, withTimeout } from "@/lib/withTimeout";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
@@ -74,6 +75,7 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     : {};
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
+export const GUIDE_IMAGE_UPLOAD_TIMEOUT_MS = 30_000;
 
 const PillarPageEditor = () => {
   const { id } = useParams();
@@ -97,12 +99,30 @@ const PillarPageEditor = () => {
   const [keywords, setKeywords] = useState("");
   const [ogImage, setOgImage] = useState("");
   const [uploading, setUploading] = useState(false);
+  const uploadLock = useRef(false);
+  const activeGuideId = useRef(id);
+  activeGuideId.current = id;
   // Publish gate: a guide that is too thin needs an override reason.
   const [gateBlock, setGateBlock] = useState<{
     issues: string[];
     content: string;
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
+  const draftSnapshot = {
+    title,
+    slug,
+    status,
+    nicheId,
+    editorContent,
+    metaTitle,
+    metaDesc,
+    keywords,
+    ogImage,
+  };
+  const { markSaved } = useAdminDraftGuard(
+    draftSnapshot,
+    `guide:${id ?? "new"}`,
+  );
 
   const {
     data: pillar,
@@ -164,12 +184,23 @@ const PillarPageEditor = () => {
       setMetaDesc(seo.description || asText(rawSeo.meta_description));
       setKeywords((seo.keywords ?? []).join(", "));
       setOgImage(seo.og_image ?? "");
+      markSaved({
+        title: pillar.title,
+        slug: pillar.slug,
+        status: pillar.status ?? "draft",
+        nicheId: pillar.niche_id ?? "",
+        editorContent: pillar.content ?? "",
+        metaTitle: seo.title || asText(rawSeo.meta_title),
+        metaDesc: seo.description || asText(rawSeo.meta_description),
+        keywords: (seo.keywords ?? []).join(", "),
+        ogImage: seo.og_image ?? "",
+      });
       const editor = editorRef.current;
       if (editor && !editor.isDestroyed && pillar.content) {
         editor.commands.setContent(pillar.content, { emitUpdate: false });
       }
     }
-  }, [pillar]);
+  }, [pillar, markSaved]);
 
   // The editor is created after the data arrives (immediatelyRender: false),
   // so the stored body must be loaded when it reports ready, as PostEditor does.
@@ -264,8 +295,10 @@ const PillarPageEditor = () => {
             override.reason,
             override.issues,
           );
+        return draftSnapshot;
       }),
-    onSuccess: () => {
+    onSuccess: (submitted) => {
+      markSaved(submitted);
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
       toast({ title: "Pillar page saved" });
       navigate("/admin/pillars");
@@ -279,6 +312,7 @@ const PillarPageEditor = () => {
   });
 
   const requestSave = (publishNow: boolean) => {
+    if (saveMutation.isPending || uploading) return;
     const editor = editorRef.current;
     if (!editor || editor.isDestroyed) {
       toast({
@@ -303,25 +337,42 @@ const PillarPageEditor = () => {
     saveMutation.mutate({ publishNow, content });
   };
 
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (editor && !editor.isDestroyed)
+      editor.setEditable(!saveMutation.isPending, false);
+  }, [saveMutation.isPending, editorReady]);
+
   const handleOgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || uploadLock.current || saveMutation.isPending) return;
+    uploadLock.current = true;
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `pillar-og/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("blog-images")
-      .upload(path, file);
-    if (error) {
-      toast({ title: "Upload failed", variant: "destructive" });
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `pillar-og/${Date.now()}.${ext}`;
+      const { error } = await withTimeout(
+        supabase.storage.from("blog-images").upload(path, file),
+        GUIDE_IMAGE_UPLOAD_TIMEOUT_MS,
+      );
+      if (error) throw error;
+      if (activeGuideId.current !== id) return;
+      const { data: urlData } = supabase.storage
+        .from("blog-images")
+        .getPublicUrl(path);
+      setOgImage(urlData.publicUrl);
+    } catch (error) {
+      if (activeGuideId.current === id)
+        toast({
+          title: "Upload failed",
+          description: errorMessage(error),
+          variant: "destructive",
+        });
+    } finally {
+      uploadLock.current = false;
       setUploading(false);
-      return;
     }
-    const { data: urlData } = supabase.storage
-      .from("blog-images")
-      .getPublicUrl(path);
-    setOgImage(urlData.publicUrl);
-    setUploading(false);
   };
 
   if (!isNew && isLoading) {
@@ -365,7 +416,8 @@ const PillarPageEditor = () => {
     );
   }
 
-  const saveDisabled = saveMutation.isPending || !title.trim() || !editorReady;
+  const saveDisabled =
+    saveMutation.isPending || uploading || !title.trim() || !editorReady;
   const overrideReady =
     overrideReason.trim().length >= MIN_GUIDE_OVERRIDE_REASON;
 
@@ -373,7 +425,10 @@ const PillarPageEditor = () => {
     connectedPages?.filter((p) => p.status === "published").length ?? 0;
 
   return (
-    <div>
+    <fieldset
+      disabled={saveMutation.isPending}
+      style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+    >
       {gateBlock && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
@@ -716,6 +771,8 @@ const PillarPageEditor = () => {
                   <input
                     type="file"
                     accept="image/*"
+                    aria-label="Upload guide sharing image"
+                    disabled={uploading}
                     onChange={handleOgUpload}
                     className="font-body"
                     style={{
@@ -818,7 +875,7 @@ const PillarPageEditor = () => {
           )}
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 };
 

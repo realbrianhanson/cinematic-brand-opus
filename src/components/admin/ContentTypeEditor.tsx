@@ -1,6 +1,6 @@
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import {
   CONTENT_TYPE_TEMPLATES,
   type SchemaTemplate,
@@ -94,6 +95,22 @@ const ContentTypeEditor = () => {
   const [isActive, setIsActive] = useState(true);
   const [schemaJson, setSchemaJson] = useState("{}");
   const [schemaOpen, setSchemaOpen] = useState(false);
+  const hydratedId = useRef<string | null>(null);
+  const draftSnapshot = {
+    name,
+    slug,
+    description,
+    titleTemplate,
+    descriptionTemplate,
+    itemsPerSection,
+    rendererComponent,
+    isActive,
+    schemaJson,
+  };
+  const { markSaved } = useAdminDraftGuard(
+    draftSnapshot,
+    `content-format:${id ?? "new"}`,
+  );
 
   const schemaValid = useMemo(() => {
     try {
@@ -151,7 +168,8 @@ const ContentTypeEditor = () => {
       (publishedCount ?? 0) > 0);
 
   useEffect(() => {
-    if (existing) {
+    if (existing && hydratedId.current !== existing.id) {
+      hydratedId.current = existing.id;
       setName(existing.name);
       setSlug(existing.slug);
       setSlugManual(true);
@@ -162,8 +180,19 @@ const ContentTypeEditor = () => {
       setRendererComponent(existing.renderer_component);
       setIsActive(existing.is_active ?? true);
       setSchemaJson(JSON.stringify(existing.schema_definition, null, 2));
+      markSaved({
+        name: existing.name,
+        slug: existing.slug,
+        description: existing.description ?? "",
+        titleTemplate: existing.title_template,
+        descriptionTemplate: existing.description_template ?? "",
+        itemsPerSection: existing.items_per_section ?? 15,
+        rendererComponent: existing.renderer_component,
+        isActive: existing.is_active ?? true,
+        schemaJson: JSON.stringify(existing.schema_definition, null, 2),
+      });
     }
-  }, [existing]);
+  }, [existing, markSaved]);
 
   const applyTemplate = (tpl: SchemaTemplate) => {
     setName(tpl.name);
@@ -180,6 +209,15 @@ const ContentTypeEditor = () => {
   const saveMutation = useMutation({
     mutationFn: () =>
       safeMutation(async () => {
+        if (
+          !Number.isInteger(itemsPerSection) ||
+          itemsPerSection < 1 ||
+          itemsPerSection > 100
+        ) {
+          throw new Error(
+            "Items per section must be a whole number between 1 and 100.",
+          );
+        }
         let parsed: Json;
         try {
           parsed = JSON.parse(schemaJson);
@@ -224,8 +262,10 @@ const ContentTypeEditor = () => {
             .insert(payload);
           if (error) throw error;
         }
+        return draftSnapshot;
       }),
-    onSuccess: () => {
+    onSuccess: (submitted) => {
+      markSaved(submitted);
       qc.invalidateQueries({ queryKey: ["admin-content-schemas"] });
       qc.invalidateQueries({ queryKey: ["admin-content-schema", id] });
       toast({ title: isNew ? "Content type created" : "Content type updated" });
@@ -291,7 +331,16 @@ const ContentTypeEditor = () => {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+    <fieldset
+      disabled={saveMutation.isPending}
+      style={{
+        maxWidth: 800,
+        margin: "0 auto",
+        padding: 0,
+        border: 0,
+        minWidth: 0,
+      }}
+    >
       {/* Header */}
       <div
         className="flex items-center justify-between"
@@ -676,7 +725,7 @@ const ContentTypeEditor = () => {
           )}
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 };
 

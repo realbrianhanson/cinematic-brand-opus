@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { OfferBuilder, OfferPage } from "@/lib/offerBuilder";
+import { withTimeout } from "@/lib/withTimeout";
 import {
   applyOfferCopy,
   canEditOfferSection,
@@ -38,6 +39,7 @@ export default function OfferCopyAssistant({
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [applied, setApplied] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const page = builder.presentation[stage];
@@ -48,7 +50,7 @@ export default function OfferCopyAssistant({
   );
 
   async function generate() {
-    if (busy) return;
+    if (controller.current) return;
     setError("");
     const section = editableSections.find((item) => item.id === sectionId);
     const parsed = offerCopyRequestSchema.safeParse({
@@ -89,38 +91,48 @@ export default function OfferCopyAssistant({
       return;
     }
     const current = new AbortController();
-    controller.current?.abort();
     controller.current = current;
     setBusy(true);
     setResult(null);
     setApplied(false);
+    setCancelled(false);
     try {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !data.session?.access_token)
-        throw new Error("Sign in again to use the copy assistant.");
-      const response = await fetch("/api/admin/offer-copy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.session.access_token}`,
-        },
-        body: JSON.stringify(parsed.data),
-        signal: current.signal,
-      });
-      const output = await response.json().catch(() => null);
-      if (!response.ok)
-        throw new Error(
-          typeof output?.error === "string"
-            ? output.error
-            : "The copy assistant is unavailable. Your draft is unchanged.",
-        );
-      const validated = offerCopyResponseSchema.safeParse(output);
-      if (!validated.success)
-        throw new Error(
-          "The suggestion could not be read. Your draft is unchanged.",
-        );
+      const response = await withTimeout(
+        (async () => {
+          const { data, error: sessionError } = await withTimeout(
+            supabase.auth.getSession(),
+            5000,
+          );
+          current.signal.throwIfAborted();
+          if (sessionError || !data.session?.access_token)
+            throw new Error("Sign in again to use the copy assistant.");
+          const response = await fetch("/api/admin/offer-copy", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify(parsed.data),
+            signal: current.signal,
+          });
+          const output = await response.json().catch(() => null);
+          if (!response.ok)
+            throw new Error(
+              typeof output?.error === "string"
+                ? output.error
+                : "The copy assistant is unavailable. Your draft is unchanged.",
+            );
+          const validated = offerCopyResponseSchema.safeParse(output);
+          if (!validated.success)
+            throw new Error(
+              "The suggestion could not be read. Your draft is unchanged.",
+            );
+          return validated.data;
+        })(),
+        40000,
+      );
       if (!current.signal.aborted)
-        setResult({ response: validated.data, request: parsed.data, source });
+        setResult({ response, request: parsed.data, source });
     } catch (failure) {
       if (!current.signal.aborted)
         setError(
@@ -129,7 +141,12 @@ export default function OfferCopyAssistant({
             : "The assistant could not finish. Your draft is unchanged.",
         );
     } finally {
-      if (!current.signal.aborted) setBusy(false);
+      const wasAborted = current.signal.aborted;
+      current.abort();
+      if (controller.current === current) {
+        controller.current = null;
+        if (!wasAborted) setBusy(false);
+      }
     }
   }
 
@@ -199,6 +216,20 @@ export default function OfferCopyAssistant({
       >
         {busy ? "Writing suggestions…" : "Generate suggestions"}
       </button>
+      {busy && (
+        <button
+          type="button"
+          className="admin-btn-ghost"
+          onClick={() => {
+            controller.current?.abort();
+            controller.current = null;
+            setBusy(false);
+            setCancelled(true);
+          }}
+        >
+          Cancel generation
+        </button>
+      )}
       <p className="text-xs opacity-60">
         Generation uses your site's A.I. gateway. Review every claim before
         applying. Proof, guarantees, prices and publication stay under your
@@ -207,6 +238,11 @@ export default function OfferCopyAssistant({
       {error && (
         <p role="alert" className="text-sm text-red-500">
           {error}
+        </p>
+      )}
+      {cancelled && (
+        <p role="status" className="text-sm">
+          Stopped waiting for suggestions. Your working draft is unchanged.
         </p>
       )}
       {stale && !applied && (

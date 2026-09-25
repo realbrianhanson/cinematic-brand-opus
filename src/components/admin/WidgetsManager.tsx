@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { withTimeout } from "@/lib/withTimeout";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import WidgetConfigFields from "./WidgetConfigFields";
 
@@ -24,6 +25,8 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 const QUERY_KEY = ["admin-widgets"];
 /** Pause after the last keystroke before a config edit is saved. */
 export const WIDGET_SAVE_DELAY_MS = 600;
+/** A stalled transport must not block the next queued edit indefinitely. */
+export const WIDGET_REQUEST_TIMEOUT_MS = 15_000;
 
 // Page first: it is the zone visitors see on every article. The sidebar zone
 // has no public layout, so it is listed last and explained.
@@ -43,20 +46,67 @@ const ZONES = [
 type ZoneId = (typeof ZONES)[number]["id"];
 
 async function saveWidget(id: string, patch: WidgetPatch) {
-  const { data, error } = await supabase
-    .from("widget_config")
-    .update(patch)
-    .eq("id", id)
-    .select("id");
-  // A row blocked by RLS returns no error and no rows: treat it as a failure.
-  if (error) return error;
-  if (!data?.length) return new Error("The change was not saved.");
-  return null;
+  const controller = new AbortController();
+  const timedOut = new Error(
+    "The save timed out before it could be confirmed. Your draft is still here. Retry to save the latest version.",
+  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<Error>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(timedOut);
+      controller.abort();
+    }, WIDGET_REQUEST_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      deadline,
+      (async () => {
+        const current = await supabase
+          .from("widget_config")
+          .select("updated_at")
+          .eq("id", id)
+          .abortSignal(controller.signal)
+          .maybeSingle();
+        if (controller.signal.aborted) return timedOut;
+        if (current.error) return current.error;
+        if (!current.data)
+          return new Error(
+            "This widget no longer exists or your access changed.",
+          );
+        // Abort cannot undo an already accepted database operation. A version
+        // predicate also prevents a delayed old write from replacing a newer one.
+        let update = supabase.from("widget_config").update(patch).eq("id", id);
+        update =
+          current.data.updated_at === null
+            ? update.is("updated_at", null)
+            : update.eq("updated_at", current.data.updated_at);
+        const { data, error } = await update
+          .select("id")
+          .abortSignal(controller.signal);
+        if (controller.signal.aborted) return timedOut;
+        if (error) return error;
+        if (!data?.length)
+          return new Error(
+            "The widget changed or your access changed before the save completed. Your draft is still here. Retry to save against the latest version.",
+          );
+        return null;
+      })(),
+    ]);
+  } catch (error) {
+    if (controller.signal.aborted) return timedOut;
+    return error instanceof Error ? error : new Error(errorMessage(error));
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 const WidgetsManager = () => {
   const [activeTab, setActiveTab] = useState<ZoneId>("page");
   const [reordering, setReordering] = useState(false);
+  const reorderingRef = useRef(false);
+  const saves = useRef(new Map<string, Promise<boolean>>());
+  const togglingRef = useRef(new Set<string>());
+  const [toggling, setToggling] = useState(new Set<string>());
   const queryClient = useQueryClient();
   const tabsId = useId();
 
@@ -66,16 +116,28 @@ const WidgetsManager = () => {
     error: loadError,
   } = useQuery({
     queryKey: QUERY_KEY,
+    retry: false,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("widget_config")
-        .select("*")
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
-      return (data ?? []).map((w) => ({
-        ...w,
-        config: parseWidgetConfig(w.config),
-      })) as Widget[];
+      const controller = new AbortController();
+      try {
+        const { data, error } = await withTimeout(
+          Promise.resolve(
+            supabase
+              .from("widget_config")
+              .select("*")
+              .order("sort_order", { ascending: true })
+              .abortSignal(controller.signal),
+          ),
+          WIDGET_REQUEST_TIMEOUT_MS,
+        );
+        if (error) throw error;
+        return (data ?? []).map((w) => ({
+          ...w,
+          config: parseWidgetConfig(w.config),
+        })) as Widget[];
+      } finally {
+        controller.abort();
+      }
     },
   });
 
@@ -85,28 +147,48 @@ const WidgetsManager = () => {
       old?.map((w) => (w.id === id ? { ...w, ...patch } : w)),
     );
 
-  const persist = async (widget: Widget, patch: WidgetPatch) => {
-    const error = await saveWidget(widget.id, patch);
-    if (error) {
-      toast({
-        title: `Couldn't save ${widget.display_name}`,
-        description: errorMessage(error),
-        variant: "destructive",
-      });
-      return false;
-    }
-    patchCache(widget.id, patch);
-    return true;
+  const persist = (widget: Widget, patch: WidgetPatch) => {
+    // Keep writes ordered even when changing zones unmounts the editor card.
+    const pending = (
+      saves.current.get(widget.id) ?? Promise.resolve(true)
+    ).then(async () => {
+      const error = await saveWidget(widget.id, patch);
+      if (error) {
+        toast({
+          title: `Couldn't save ${widget.display_name}`,
+          description: errorMessage(error),
+          variant: "destructive",
+        });
+        return false;
+      }
+      patchCache(widget.id, patch);
+      return true;
+    });
+    saves.current.set(widget.id, pending);
+    void pending.then(() => {
+      if (saves.current.get(widget.id) === pending)
+        saves.current.delete(widget.id);
+    });
+    return pending;
   };
 
   const handleToggle = async (widget: Widget) => {
+    if (togglingRef.current.has(widget.id)) return;
+    togglingRef.current.add(widget.id);
+    setToggling(new Set(togglingRef.current));
     const is_enabled = !widget.is_enabled;
     patchCache(widget.id, { is_enabled });
-    if (!(await persist(widget, { is_enabled })))
-      patchCache(widget.id, { is_enabled: widget.is_enabled });
+    try {
+      if (!(await persist(widget, { is_enabled })))
+        patchCache(widget.id, { is_enabled: widget.is_enabled });
+    } finally {
+      togglingRef.current.delete(widget.id);
+      setToggling(new Set(togglingRef.current));
+    }
   };
 
   const handleReorder = async (widget: Widget, direction: "up" | "down") => {
+    if (reorderingRef.current) return;
     const inZone = (widgets || [])
       .filter((w) => w.widget_zone === widget.widget_zone)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -119,6 +201,7 @@ const WidgetsManager = () => {
       widget.sort_order === other.sort_order
         ? [other.sort_order + step, other.sort_order]
         : [other.sort_order, widget.sort_order];
+    reorderingRef.current = true;
     setReordering(true);
     try {
       const results = await Promise.all([
@@ -133,16 +216,23 @@ const WidgetsManager = () => {
           variant: "destructive",
         });
     } finally {
-      setReordering(false);
       // Show the order the database actually holds.
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      try {
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      } finally {
+        reorderingRef.current = false;
+        setReordering(false);
+      }
     }
   };
 
   const zone = ZONES.find((z) => z.id === activeTab) ?? ZONES[0];
-  const zoneWidgets = (widgets || [])
-    .filter((w) => w.widget_zone === activeTab)
-    .sort((a, b) => a.sort_order - b.sort_order);
+  const widgetGroups = ZONES.map(({ id }) => ({
+    id,
+    widgets: (widgets || [])
+      .filter((w) => w.widget_zone === id)
+      .sort((a, b) => a.sort_order - b.sort_order),
+  }));
 
   return (
     <div>
@@ -235,17 +325,26 @@ const WidgetsManager = () => {
         )}
 
         <div className="flex flex-col gap-4">
-          {zoneWidgets.map((widget, idx) => (
-            <WidgetCard
-              key={widget.id}
-              widget={widget}
-              isFirst={idx === 0}
-              isLast={idx === zoneWidgets.length - 1}
-              reordering={reordering}
-              onToggle={() => handleToggle(widget)}
-              onSaveConfig={(config) => persist(widget, { config })}
-              onReorder={(dir) => handleReorder(widget, dir)}
-            />
+          {widgetGroups.map((group) => (
+            <div
+              key={group.id}
+              className="flex flex-col gap-4"
+              style={{ display: group.id === activeTab ? undefined : "none" }}
+            >
+              {group.widgets.map((widget, idx) => (
+                <WidgetCard
+                  key={widget.id}
+                  widget={widget}
+                  isFirst={idx === 0}
+                  isLast={idx === group.widgets.length - 1}
+                  reordering={reordering}
+                  toggling={toggling.has(widget.id)}
+                  onToggle={() => handleToggle(widget)}
+                  onSaveConfig={(config) => persist(widget, { config })}
+                  onReorder={(dir) => handleReorder(widget, dir)}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -304,7 +403,7 @@ function useWidgetDraft(
     timer.current = setTimeout(() => void flush(), WIDGET_SAVE_DELAY_MS);
   };
 
-  return { draft, status, change };
+  return { draft, status, change, retry: flush };
 }
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -319,6 +418,7 @@ const WidgetCard = ({
   isFirst,
   isLast,
   reordering,
+  toggling,
   onToggle,
   onSaveConfig,
   onReorder,
@@ -327,11 +427,12 @@ const WidgetCard = ({
   isFirst: boolean;
   isLast: boolean;
   reordering: boolean;
+  toggling: boolean;
   onToggle: () => void;
   onSaveConfig: (config: WidgetConfig) => Promise<boolean>;
   onReorder: (dir: "up" | "down") => void;
 }) => {
-  const { draft, status, change } = useWidgetDraft(widget, onSaveConfig);
+  const { draft, status, change, retry } = useWidgetDraft(widget, onSaveConfig);
   const arrow = (dir: "up" | "down", disabled: boolean) => (
     <button
       type="button"
@@ -403,12 +504,23 @@ const WidgetCard = ({
           >
             {STATUS_TEXT[status]}
           </span>
+          {status === "error" && (
+            <button
+              type="button"
+              className="admin-btn-ghost"
+              aria-label={`Retry saving ${widget.display_name}`}
+              onClick={() => void retry()}
+            >
+              Retry
+            </button>
+          )}
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
               role="switch"
               aria-label={`Show ${widget.display_name}`}
               checked={widget.is_enabled}
+              disabled={toggling}
               onChange={onToggle}
               className="sr-only peer"
             />

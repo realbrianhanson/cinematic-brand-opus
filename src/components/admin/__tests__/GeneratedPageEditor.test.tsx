@@ -27,6 +27,13 @@ const h = vi.hoisted(() => ({
   updateError: null as unknown,
   updateMissing: false,
   writeSequence: 0,
+  blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
+}));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: (options: typeof h.blocker) => {
+    h.blocker = options;
+  },
 }));
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
@@ -137,6 +144,22 @@ afterEach(() => {
 });
 
 describe("GeneratedPageEditor", () => {
+  it("keeps changed resource content when navigation is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    h.page = basePage();
+    renderEditor();
+    await screen.findByDisplayValue("12 Best AI Tools in 2026");
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    const unfinished = JSON.stringify({
+      ...content,
+      intro: "Unsaved resource edit",
+    });
+    fireEvent.change(contentBox(), { target: { value: unfinished } });
+    expect(h.blocker.shouldBlockFn()).toBe(true);
+    expect(contentBox()).toHaveValue(unfinished);
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    confirm.mockRestore();
+  });
   it("refuses a stale draft save after another editor publishes and the query refetches", async () => {
     h.page = basePage();
     const { qc } = renderEditor();

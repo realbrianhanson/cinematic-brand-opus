@@ -20,11 +20,19 @@ export type FakeResult = {
 
 export interface FakeState {
   ops: FakeOp[];
-  respond: (op: FakeOp) => FakeResult;
+  respond: (op: FakeOp) => FakeResult | Promise<FakeResult>;
   rpc?: (name: string) => FakeResult;
 }
 
-const FILTERS = ["eq", "in", "or", "order", "limit"] as const;
+const FILTERS = [
+  "eq",
+  "is",
+  "in",
+  "or",
+  "order",
+  "limit",
+  "abortSignal",
+] as const;
 
 export function createFakeSupabase(state: FakeState) {
   const from = (table: string) => {
@@ -63,11 +71,9 @@ export function createFakeSupabase(state: FakeState) {
         reject: (e: unknown) => unknown,
       ) => {
         state.ops.push(op);
-        try {
-          return Promise.resolve(resolve(state.respond(op)));
-        } catch (e) {
-          return Promise.resolve(reject(e));
-        }
+        return Promise.resolve()
+          .then(() => state.respond(op))
+          .then(resolve, reject);
       },
     };
     for (const name of FILTERS) {

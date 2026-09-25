@@ -48,12 +48,24 @@ credentials — are stored in Project Settings > Secrets and are never committed
 ```bash
 bun run dev          # dev server with hot reload
 bun run build        # production build
+bun run preview      # serve the built Cloudflare worker locally
+bun run test:preview # bounded local worker smoke check after build
 bunx vitest run      # test suite
 bun run typecheck   # TypeScript check
 bun run lint        # correctness lint
 bun run test:database # isolated PostgreSQL regressions
 bunx deno check --no-config supabase/functions/*/index.ts # backend check
 ```
+
+To check the production build locally, use Node.js 22 or later, run
+`bun run build`, then `bun run preview --port 5188`. Open
+`http://127.0.0.1:5188`. The preview uses the pinned Wrangler dependency and
+Nitro's generated `.output/server/wrangler.json`; rebuild after source changes.
+Wrangler's [local mode](https://developers.cloudflare.com/workers/wrangler/commands/workers/#dev)
+runs the worker and assets on your computer without deploying. The app still
+uses the backend configured in `.env`, so use a test backend for write workflows.
+The `test:preview` smoke check runs on macOS/Linux, disables backend environment
+loading, checks the login page and compiled JavaScript, and stops its worker.
 
 ---
 

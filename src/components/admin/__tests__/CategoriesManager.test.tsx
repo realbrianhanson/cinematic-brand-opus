@@ -82,6 +82,73 @@ const respondWith =
   };
 
 describe("CategoriesManager", () => {
+  it("preserves a category's saved slug when only its name changes", async () => {
+    h.state.respond = respondWith([category], (op) =>
+      op.action === "update"
+        ? { data: [{ id: "c1" }], error: null }
+        : undefined,
+    );
+    wrap();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Marketing" }),
+    );
+    fireEvent.change(screen.getByLabelText("Category name"), {
+      target: { value: "Marketing for owners" },
+    });
+    expect(
+      (screen.getByLabelText("Category slug") as HTMLInputElement).value,
+    ).toBe("marketing");
+    fireEvent.click(screen.getByRole("button", { name: "Save category" }));
+    await waitFor(() =>
+      expect(lastOp(h.state, (op) => op.action === "update")?.payload).toEqual({
+        name: "Marketing for owners",
+        slug: "marketing",
+        description: null,
+      }),
+    );
+  });
+
+  it("keeps the edit open when access changed and the update matched no rows", async () => {
+    h.state.respond = respondWith([category]);
+    wrap();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Marketing" }),
+    );
+    fireEvent.change(screen.getByLabelText("Category description"), {
+      target: { value: "Unsaved description" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save category" }));
+    await waitFor(() =>
+      expect(h.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Couldn't save the category",
+          variant: "destructive",
+        }),
+      ),
+    );
+    expect(
+      (screen.getByLabelText("Category description") as HTMLInputElement).value,
+    ).toBe("Unsaved description");
+  });
+
+  it("does not dismiss the delete dialog when no row was removed", async () => {
+    h.state.respond = respondWith([category]);
+    wrap();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete Marketing" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete category" }));
+    await waitFor(() =>
+      expect(h.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Couldn't delete the category",
+          variant: "destructive",
+        }),
+      ),
+    );
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+  });
+
   it("explains what categories do when there are none", async () => {
     h.state.respond = respondWith([]);
     wrap();

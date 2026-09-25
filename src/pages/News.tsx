@@ -5,9 +5,9 @@ import {
 import { formatPublicDate } from "@/lib/publicDate";
 import { fetchNewsPage } from "@/lib/publicLists";
 import { useSiteConfig } from "@/config/SiteConfigContext";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@/lib/router-compat";
+import { Link, useSearchParams } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Clock, Search } from "lucide-react";
 import Footer from "@/components/Footer";
@@ -156,13 +156,29 @@ const News = ({ initialPage }: NewsProps = {}) => {
     siteConfig.content.newsBuckets.find((b) => b.lanes.includes(lane ?? ""))
       ?.label ?? "News";
 
-  const [query, setQuery] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setSearchTerm(query.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [query]);
-  const [lane, setLane] = useState<string>("all");
+  const [params, setParams] = useSearchParams();
+  const searchTerm = (params.get("q") ?? "").trim().slice(0, 200);
+  const requestedLane = params.get("topic") ?? "all";
+  const lane = BUCKETS.some((bucket) => bucket.value === requestedLane)
+    ? requestedLane
+    : "all";
+  const [query, setQuery] = useState(searchTerm);
+  useEffect(() => setQuery(searchTerm), [searchTerm]);
+  function setFilters(search: string, topic: string) {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      const term = search.trim().slice(0, 200);
+      if (term) next.set("q", term);
+      else next.delete("q");
+      if (topic !== "all") next.set("topic", topic);
+      else next.delete("topic");
+      return next;
+    });
+  }
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilters(query, lane);
+  }
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -170,6 +186,9 @@ const News = ({ initialPage }: NewsProps = {}) => {
     data,
     isLoading,
     isError,
+    isFetching,
+    isFetchNextPageError,
+    refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -221,7 +240,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
   // IntersectionObserver for infinite scroll
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (!el || isError || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -232,7 +251,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isError]);
 
   const allItems = useMemo(
     () => uniqueNewsItems((data?.pages ?? []).flatMap((page) => page.items)),
@@ -241,7 +260,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
 
   const filtered = allItems;
 
-  const featured = !query && lane === "all" ? filtered[0] : undefined;
+  const featured = !searchTerm && lane === "all" ? filtered[0] : undefined;
   const rest = featured ? filtered.slice(1) : filtered;
 
   return (
@@ -302,48 +321,59 @@ const News = ({ initialPage }: NewsProps = {}) => {
         style={{ maxWidth: 1440 }}
       >
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-10">
-          <div className="relative flex-1 max-w-xl">
-            <Search
-              size={16}
-              style={{
-                position: "absolute",
-                left: 14,
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "rgba(255,255,255,0.7)",
-              }}
-            />
-            <input
-              type="search"
-              aria-label="Search news"
-              placeholder="Search news…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full font-body"
-              style={{
-                background: "#14141b",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#fff",
-                padding: "12px 14px 12px 42px",
-                fontSize: 15,
-                outline: "none",
-              }}
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor =
-                  "rgba(var(--brand-accent-rgb),0.5)")
-              }
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")
-              }
-            />
-          </div>
+          <form
+            role="search"
+            onSubmit={submitSearch}
+            className="flex flex-1 max-w-xl gap-2"
+          >
+            <div className="relative min-w-0 flex-1">
+              <Search
+                size={16}
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "rgba(255,255,255,0.7)",
+                }}
+              />
+              <input
+                type="search"
+                maxLength={200}
+                aria-label="Search news"
+                placeholder="Search news…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full font-body"
+                style={{
+                  background: "#14141b",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#fff",
+                  padding: "12px 14px 12px 42px",
+                  fontSize: 15,
+                  outline: "none",
+                }}
+                onFocus={(e) =>
+                  (e.currentTarget.style.borderColor =
+                    "rgba(var(--brand-accent-rgb),0.5)")
+                }
+                onBlur={(e) =>
+                  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")
+                }
+              />
+            </div>
+            <button type="submit" className="public-secondary-action shrink-0">
+              Search
+            </button>
+          </form>
           <div className="flex flex-wrap gap-2">
             {BUCKETS.map((l) => {
               const active = lane === l.value;
               return (
                 <button
                   key={l.value}
-                  onClick={() => setLane(l.value)}
+                  type="button"
+                  onClick={() => setFilters(query, l.value)}
                   aria-pressed={active}
                   className="font-body uppercase transition-colors"
                   style={{
@@ -378,19 +408,36 @@ const News = ({ initialPage }: NewsProps = {}) => {
           </div>
         )}
         {isError && (
-          <p
-            className="font-body"
+          <div
+            role="alert"
+            className="font-body mb-6"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            News didn’t load. Refresh the page to try again
-          </p>
+            <p>
+              {isFetchNextPageError
+                ? "More briefings didn’t load. Your loaded items are still available."
+                : filtered.length
+                  ? "We couldn’t refresh these briefings. Your loaded items are still available."
+                  : "News didn’t load. Try again without changing your search."}
+            </p>
+            <button
+              type="button"
+              className="public-secondary-action mt-3"
+              disabled={isFetching}
+              onClick={() =>
+                void (isFetchNextPageError ? fetchNextPage() : refetch())
+              }
+            >
+              Try again
+            </button>
+          </div>
         )}
         {!isLoading && !isError && !hasNextPage && filtered.length === 0 && (
           <p
             className="font-body"
             style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
           >
-            {query || lane !== "all"
+            {searchTerm || lane !== "all"
               ? "No news matches your search"
               : "No briefings are available right now"}
           </p>

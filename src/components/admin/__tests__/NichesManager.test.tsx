@@ -22,10 +22,17 @@ const h = vi.hoisted(() => {
     niches: [] as unknown[],
     respond: (_op: FakeOp): FakeResult => ({ data: [], error: null }),
     rpc: (_name: string): FakeResult => ({ data: state.niches, error: null }),
+    blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
   };
   return state;
 });
 const readNiches = h.rpc;
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBlocker: (options: typeof h.blocker) => {
+    h.blocker = options;
+  },
+}));
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("@/lib/withTimeout", () => ({
@@ -91,6 +98,25 @@ afterEach(() => {
 });
 
 describe("NichesManager edit", () => {
+  it("retains an unsaved niche when closing or navigating is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    h.niches = [niche()];
+    h.respond = defaultRespond;
+    renderManager();
+    fireEvent.click(await screen.findByRole("button", { name: /Edit/ }));
+    const name = screen.getByLabelText("Name");
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    fireEvent.change(name, { target: { value: "Keep my niche draft" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect((name as HTMLInputElement).value).toBe("Keep my niche draft");
+    expect(h.blocker.shouldBlockFn()).toBe(true);
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(h.blocker.shouldBlockFn()).toBe(false);
+    confirm.mockRestore();
+  });
   it("keeps target_keyword and content_focus when saving an edit", async () => {
     h.niches = [niche()];
     h.respond = defaultRespond;

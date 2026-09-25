@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -107,7 +108,10 @@ const PAGES = [
   page("c", { status: "published" }),
 ];
 
-function setup(respond?: (op: FakeOp) => FakeResult | undefined) {
+function setup(
+  respond?: (op: FakeOp) => FakeResult | undefined,
+  qc = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   h.state = { ops: [], respond: () => ({ data: null, error: null }) };
   h.respond = (op) => {
     const custom = respond?.(op);
@@ -131,7 +135,6 @@ function setup(respond?: (op: FakeOp) => FakeResult | undefined) {
       };
     return { data: null, error: null };
   };
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <GeneratedPagesManager />
@@ -148,6 +151,43 @@ afterEach(() => {
 });
 
 describe("GeneratedPagesManager", () => {
+  it("shows a failed load honestly and retries without losing the filters", async () => {
+    let unavailable = true;
+    setup((op) =>
+      op.table === "generated_pages" && op.action === "select" && unavailable
+        ? { data: null, error: { message: "Network unavailable" } }
+        : undefined,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load generated pages",
+    );
+    expect(screen.queryByText("No generated pages found.")).toBeNull();
+    unavailable = false;
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading pages" }),
+    );
+    expect(await screen.findByTitle("Page A")).toBeTruthy();
+  });
+
+  it("returns to an existing page when a refresh removes the last page of results", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const many = Array.from({ length: 51 }, (_, i) => page(`item-${i}`));
+    setup(
+      (op) =>
+        op.table === "generated_pages" && op.action === "select"
+          ? { data: many, error: null }
+          : undefined,
+      qc,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Next/ }));
+    await act(async () => {
+      qc.setQueryData(["admin-generated-pages"], [many[0]]);
+    });
+    expect(await screen.findByTitle(many[0].title)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Next/ })).toBeNull();
+  });
   it("renders the same grid cells for indexed and non-indexed rows", async () => {
     setup();
     await screen.findByTitle("Page C");

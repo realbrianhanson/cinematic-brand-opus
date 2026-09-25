@@ -102,6 +102,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   Object.defineProperty(window, "location", {
@@ -799,6 +800,62 @@ describe("offer visitor journey", () => {
     expect(requests[1].token).toBe(requests[0].token);
     expect(requests[0]).not.toHaveProperty("email");
   });
+  it.each(["expired", "failed", "refunded"])(
+    "preserves the existing child access and offers support after a verified %s follow-up",
+    async (status) => {
+      openAccess();
+      const next = {
+        ...offer,
+        id: "22222222-2222-4222-8222-222222222222",
+        kind: "paid" as const,
+        amount_minor: 2700,
+        title: "Workflow toolkit",
+      };
+      invoke.mockImplementation((_name, { body }) =>
+        Promise.resolve(
+          respond(
+            body.action === "claim"
+              ? { status, access_url: access.access_url }
+              : { ...access, next_offer: next, payments_ready: true },
+          ),
+        ),
+      );
+      render(<OfferAccessPage />);
+      const button = await screen.findByRole("button", {
+        name: /Continue to checkout/,
+      });
+      fireEvent.click(button);
+      expect((await screen.findByRole("alert")).textContent).toContain(
+        `follow-up order is ${status}`,
+      );
+      expect(assign).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem("offer-access-token")).toBe(token);
+      const requests = invoke.mock.calls
+        .filter((call) => call[1].body.action === "claim")
+        .map((call) => call[1].body);
+      expect(requests).toHaveLength(1);
+      expect(requests[0].parent_token).toBe(token);
+      expect(sessionStorage.getItem(`offer-attempt:${next.id}:${token}`)).toBe(
+        requests[0].token,
+      );
+      expect(
+        screen
+          .getByRole("link", { name: "Check follow-up access" })
+          .getAttribute("href"),
+      ).toBe(`/offer-access#token=${requests[0].token}`);
+      expect(
+        screen
+          .getByRole("link", { name: "Contact support about this follow-up" })
+          .getAttribute("href"),
+      ).toBe("/support");
+      expect(
+        screen.queryByRole("button", { name: /Continue to checkout/ }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "Download file" }),
+      ).toBeTruthy();
+    },
+  );
   it("does not expose download controls for pending or refunded orders", async () => {
     openAccess();
     invoke.mockResolvedValue(
@@ -949,5 +1006,76 @@ describe("offer visitor journey", () => {
       screen.getByRole("heading", { name: "Parent resource", level: 1 }),
     ).toBeTruthy();
     expect(screen.queryByText("Stale child")).toBeNull();
+  });
+  it("keeps newly confirmed access when an older automatic status read arrives late", async () => {
+    vi.useFakeTimers();
+    openAccess();
+    let resolveOld: (value: unknown) => void = () => {};
+    const pending = {
+      ...access,
+      order: { ...access.order, status: "pending" },
+    };
+    invoke.mockResolvedValueOnce(respond(pending));
+    invoke.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    invoke.mockResolvedValueOnce(respond(access));
+    render(<OfferAccessPage />);
+    await act(async () => {});
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(invoke).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Check payment status" }),
+      );
+    });
+    expect(screen.getByRole("button", { name: "Download file" })).toBeTruthy();
+    await act(async () => {
+      resolveOld(respond(pending));
+    });
+    expect(screen.getByRole("button", { name: "Download file" })).toBeTruthy();
+    expect(screen.queryByText("Waiting for payment confirmation")).toBeNull();
+  });
+  it("locks an access action before a rapid repeat can issue another download request", async () => {
+    openAccess();
+    invoke.mockImplementation((_name, { body }) =>
+      body.action === "download"
+        ? new Promise(() => {})
+        : Promise.resolve(respond(access)),
+    );
+    render(<OfferAccessPage />);
+    const button = await screen.findByRole("button", { name: "Download file" });
+    act(() => {
+      button.click();
+      button.click();
+    });
+    expect(
+      invoke.mock.calls.filter((call) => call[1].body.action === "download"),
+    ).toHaveLength(1);
+  });
+  it("resumes automatic payment checks after a failed initial read is retried", async () => {
+    vi.useFakeTimers();
+    openAccess();
+    invoke.mockRejectedValueOnce(new Error("Temporary network error"));
+    invoke.mockResolvedValueOnce(
+      respond({ ...access, order: { ...access.order, status: "pending" } }),
+    );
+    invoke.mockResolvedValueOnce(respond(access));
+    render(<OfferAccessPage />);
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    });
+    expect(screen.getByText("Waiting for payment confirmation")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(screen.getByRole("button", { name: "Download file" })).toBeTruthy();
+    expect(invoke).toHaveBeenCalledTimes(3);
   });
 });
