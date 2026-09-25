@@ -497,4 +497,29 @@ assert.ok(
   "hold item skipped until its columns exist",
 );
 
-console.log("admin overview database tests passed");
+// Atomic Search Console activation reports completed empty imports and failed
+// attempts without falling back to older nonempty periods.
+await db.exec(
+  readFileSync(
+    "supabase/migrations/20260925101000_atomic_gsc_imports.sql",
+    "utf8",
+  ),
+);
+await asAdmin(db, true);
+await db.exec(`insert into gsc_imports(property,period_start,period_end,status,row_count,completed_at)
+values('sc-domain:example.test','2099-01-01','2099-01-28','complete',0,now());
+insert into gsc_imports(property,period_start,period_end,status,error_message,started_at)
+values('sc-domain:example.test','2099-01-02','2099-01-29','failed','Provider unavailable',now()+interval '1 second');`);
+const emptySearch = (
+  await db.query("select public.admin_performance_snapshot(30) d")
+).rows[0].d.search;
+assert.equal(emptySearch.period_start, "2099-01-01");
+assert.equal(emptySearch.period_end, "2099-01-28");
+assert.equal(emptySearch.rows, 0);
+assert.equal(emptySearch.clicks, 0);
+assert.equal(emptySearch.property, "sc-domain:example.test");
+assert.equal(emptySearch.latest_import.status, "failed");
+assert.ok(emptySearch.fetched_at);
+console.log(
+  "admin overview database tests passed, including empty completed/failed Search Console imports",
+);

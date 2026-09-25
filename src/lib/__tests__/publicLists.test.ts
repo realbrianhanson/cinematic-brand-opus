@@ -5,6 +5,7 @@ import {
   fetchNewsPage,
   fetchBlogPage,
   literalSearchFilter,
+  fetchGuideResources,
 } from "../publicLists";
 function client(responses: unknown[]) {
   const urls: URL[] = [];
@@ -25,6 +26,25 @@ function client(responses: unknown[]) {
   };
 }
 describe("public listing filters", () => {
+  it("connects guides only to published resources in their exact stored topic and active format", async () => {
+    const h = client([
+      [
+        {
+          id: "resource",
+          slug: "sample",
+          title: "A related resource",
+          content_schemas: { name: "Templates", slug: "templates" },
+        },
+      ],
+    ]);
+    expect(await fetchGuideResources(h.db, "topic-id")).toHaveLength(1);
+    expect(h.urls[0].searchParams.get("niche_id")).toBe("eq.topic-id");
+    expect(h.urls[0].searchParams.get("status")).toBe("eq.published");
+    expect(h.urls[0].searchParams.get("content_schemas.is_active")).toBe(
+      "eq.true",
+    );
+    expect(h.urls[0].searchParams.get("limit")).toBe("100");
+  });
   it("sends search and lane constraints to the database along with the requested page", async () => {
     const h = client([
       [
@@ -53,6 +73,20 @@ describe("public listing filters", () => {
     expect(h.urls[0].searchParams.get("slug")).toBe("eq.guides");
     expect(h.urls[1].searchParams.get("category_id")).toBe("eq.cat-id");
     expect(h.urls[1].searchParams.get("offset")).toBe("24");
+  });
+  it("looks ahead one row without rendering it or linking beyond an exact final page", async () => {
+    const rows = Array.from({ length: 13 }, (_, index) => ({
+      id: `post-${index}`,
+    }));
+    const h = client([rows, rows.slice(0, 12)]);
+    const first = await fetchBlogPage(h.db, 0);
+    expect(first.items).toHaveLength(12);
+    expect(first.nextPage).toBe(1);
+    expect(h.urls[0].searchParams.get("limit")).toBe("13");
+    const last = await fetchBlogPage(h.db, 1);
+    expect(last.items).toHaveLength(12);
+    expect(last.nextPage).toBeNull();
+    expect(h.urls[1].searchParams.get("offset")).toBe("12");
   });
   it("returns empty for an unknown category instead of showing unrelated posts", async () => {
     const h = client([null]);

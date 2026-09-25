@@ -1,34 +1,30 @@
-import { Link } from "@/lib/router-compat";
+import { fetchGuideResources, type GuideResource } from "@/lib/publicLists";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SiloNavigationProps {
   nicheId: string;
   pillarTitle: string;
+  initialPages?: GuideResource[] | null;
 }
 
-const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
-  const { data: pages } = useQuery({
+const SiloNavigation = ({ nicheId, initialPages }: SiloNavigationProps) => {
+  const {
+    data: pages,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["silo-nav-pages", nicheId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("generated_pages")
-        .select(
-          "id, title, slug, content_schema_id, content_schemas(name, slug), niches!generated_pages_niche_id_fkey(slug)",
-        )
-        .eq("niche_id", nicheId)
-        .eq("status", "published")
-        .order("title");
-      return data ?? [];
-    },
+    queryFn: () => fetchGuideResources(supabase, nicheId),
     enabled: !!nicheId,
     staleTime: 30000,
+    ...(initialPages ? { initialData: initialPages } : {}),
   });
 
   const grouped: Record<
     string,
     { name: string; pages: NonNullable<typeof pages> }
-  > = {};
+  > = Object.create(null);
   (pages ?? []).forEach((pg) => {
     const schemaSlug = pg.content_schemas?.slug ?? "other";
     const schemaName = pg.content_schemas?.name ?? "Other";
@@ -37,6 +33,19 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
     grouped[schemaSlug].pages.push(pg);
   });
 
+  if (isError && !pages?.length)
+    return (
+      <p role="status">
+        Related resources could not be loaded.{" "}
+        <button
+          type="button"
+          className="underline min-h-12"
+          onClick={() => void refetch()}
+        >
+          Try again
+        </button>
+      </p>
+    );
   if (Object.keys(grouped).length === 0) return null;
 
   return (
@@ -48,7 +57,7 @@ const SiloNavigation = ({ nicheId, pillarTitle }: SiloNavigationProps) => {
       }}
     >
       <h2 className="font-display" style={{ fontSize: 28, marginBottom: 28 }}>
-        Everything in This Guide
+        Resources for This Guide
       </h2>
       {Object.entries(grouped).map(([schemaSlug, group]) => (
         <div key={schemaSlug} style={{ marginBottom: 28 }}>

@@ -35,6 +35,9 @@ export interface OfferOrder {
   stripe_checkout_url: string | null;
   checkout_expires_at: string | null;
   fulfilled_at: string | null;
+  checkout_attempt?: number;
+  checkout_retry_token_hash?: string | null;
+  checkout_retry_origin?: string | null;
 }
 
 export function requireToken(value: unknown): string {
@@ -207,7 +210,13 @@ export function checkoutRequest(
   }
   // Keep the original expiry on retries. Stripe can replay an existing session
   // even with <30 minutes left; it rejects a genuinely new session that is too short.
-  const metadata = { offer_order_id: order.id, integration: "site-offers" };
+  const metadata = {
+    offer_order_id: order.id,
+    integration: "site-offers",
+    ...((order.checkout_attempt ?? 1) > 1
+      ? { offer_checkout_attempt: String(order.checkout_attempt) }
+      : {}),
+  };
   return {
     mode: "payment" as const,
     payment_method_types: ["card" as const],
@@ -243,6 +252,7 @@ export interface OfferCheckoutProvider {
   record: (
     orderId: string,
     session: { id: string; url: string; paymentIntentId: string | null },
+    attempt?: number,
   ) => Promise<void>;
 }
 
@@ -276,6 +286,15 @@ export async function claimReservedOffer(input: {
     return { status: order.status, access_url: url };
   requirePayments(input.secret, input.webhook);
   const now = input.now ?? Date.now();
+  if (
+    order.checkout_retry_token_hash &&
+    order.checkout_retry_token_hash !== (await hashOfferToken(input.token))
+  )
+    throw new OfferError(
+      409,
+      "checkout_access_changed",
+      "Continue with the private access link used to restart this checkout, or contact support.",
+    );
   const storedCheckout = safeCheckoutUrl(order.stripe_checkout_url);
   if (storedCheckout && Date.parse(order.checkout_expires_at ?? "") > now) {
     return {
@@ -292,12 +311,23 @@ export async function claimReservedOffer(input: {
     );
   }
   const session = await input.provider.create(
-    checkoutRequest(order, input.token, input.origin, now),
-    `site-offer-${order.id}`,
+    checkoutRequest(
+      order,
+      input.token,
+      order.checkout_retry_origin || input.origin,
+      now,
+    ),
+    (order.checkout_attempt ?? 1) === 1
+      ? `site-offer-${order.id}`
+      : `site-offer-${order.id}-attempt-${order.checkout_attempt}`,
   );
   const checkoutUrl = safeCheckoutUrl(session.url);
   if (!checkoutUrl) throw new Error("Checkout did not return a valid URL");
-  await input.provider.record(order.id, { ...session, url: checkoutUrl });
+  await input.provider.record(
+    order.id,
+    { ...session, url: checkoutUrl },
+    order.checkout_attempt ?? 1,
+  );
   return {
     status: "pending" as const,
     checkout_url: checkoutUrl,
@@ -320,6 +350,7 @@ export interface OfferStripeMutation {
   _payment_intent_id: string | null;
   _amount_minor: number | null;
   _currency: string | null;
+  _checkout_attempt?: number;
 }
 function objectId(value: unknown): string | null {
   if (typeof value === "string" && value) return value;
@@ -381,6 +412,16 @@ export function stripeEventMutation(
       "invalid_payment_event",
       "Invalid offer payment event.",
     );
+  }
+  if (metadata.offer_checkout_attempt !== undefined) {
+    const attempt = String(metadata.offer_checkout_attempt);
+    if (!/^[1-4]$/.test(attempt))
+      throw new OfferError(
+        400,
+        "invalid_payment_event",
+        "Invalid checkout attempt.",
+      );
+    base._checkout_attempt = Number(attempt);
   }
   base._order_id = metadata.offer_order_id;
   base._session_id = obj.id;

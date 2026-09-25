@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyBuilder, emptyPage, newSection } from "../offerBuilder";
 import {
   applyOfferCopy,
+  buildOfferPageCopyContext,
   offerCopyRequestSchema,
   offerCopyResponseSchema,
   type OfferCopySuggestion,
@@ -18,6 +19,62 @@ const headline: OfferCopySuggestion = {
 };
 
 describe("offer copy boundaries", () => {
+  it("includes every section in page order, CTA and exact terms while bounding long copy", () => {
+    const sections = Array.from({ length: 29 }, (_, index) => ({
+      ...newSection(index === 0 ? "faq" : "benefits"),
+      body: "Benefit or question. ".repeat(400),
+      imageUrl: "https://example.com/private-reference.png",
+      caption: "Screenshot of the product",
+    }));
+    const terms = {
+      ...newSection("guarantee"),
+      body: "Exact terms. ".repeat(400),
+    };
+    const page = {
+      ...emptyPage(),
+      eyebrow: "For owners",
+      ctaText: "See current pricing",
+      ctaMicrocopy: "Opens a separate checkout",
+      sections: [...sections, terms],
+    };
+    const context = buildOfferPageCopyContext(page);
+    expect(context.sections.map((section) => section.id)).toEqual(
+      page.sections.map((section) => section.id),
+    );
+    expect(context).toMatchObject({
+      ctaText: page.ctaText,
+      ctaMicrocopy: page.ctaMicrocopy,
+      eyebrow: page.eyebrow,
+    });
+    expect(context.sections.at(-1)).toMatchObject({
+      body: terms.body,
+      truncated: false,
+    });
+    expect(context.sections[0]).toMatchObject({
+      type: "faq",
+      hasMedia: true,
+      truncated: true,
+    });
+    expect(
+      context.sections.reduce(
+        (sum, section) => sum + section.body.length + section.caption.length,
+        0,
+      ),
+    ).toBeLessThanOrEqual(24000);
+    expect(JSON.stringify(context)).not.toContain("private-reference");
+    expect(page.sections[0].body.length).toBeGreaterThan(1200);
+  });
+  it("marks omitted terms incomplete rather than claiming the supplied excerpt is the full guarantee", () => {
+    const page = {
+      ...emptyPage(),
+      sections: Array.from({ length: 5 }, () => ({
+        ...newSection("guarantee"),
+        body: "x".repeat(6000),
+      })),
+    };
+    const context = buildOfferPageCopyContext(page);
+    expect(context.sections[4]).toMatchObject({ body: "", truncated: true });
+  });
   it("only applies requested headline copy, preserving prices outside the page and page sections", () => {
     const page = {
       ...emptyPage(),

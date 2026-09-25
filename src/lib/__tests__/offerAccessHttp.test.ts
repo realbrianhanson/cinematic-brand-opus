@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
   background: vi.fn(),
   signed: vi.fn(),
   rpc: vi.fn(),
+  stripe: vi.fn(),
+  retrieveCheckout: vi.fn(),
+  createCheckout: vi.fn(),
 }));
 vi.mock("../../../supabase/functions/_shared/offersRuntime.ts", () => ({
   offerAdminClient: mocks.admin,
@@ -33,7 +36,7 @@ vi.mock("../../../supabase/functions/_shared/offersRuntime.ts", () => ({
   requireOfferAdmin: mocks.requireAdmin,
   offerCors: {},
   offerOrigin: async () => "https://example.com",
-  offerStripe: vi.fn(),
+  offerStripe: mocks.stripe,
   offerDatabaseError: (error: unknown) => error,
   offerJson: (status: number, body: unknown) =>
     new Response(JSON.stringify(body), {
@@ -70,6 +73,7 @@ let handler: (request: Request) => Promise<Response>;
 const token = "a".repeat(64),
   original = "b".repeat(64);
 let currentOrder: Record<string, unknown> | null = null;
+let currentParent: Record<string, unknown> | null = null;
 let dueDeliveries: { id: string }[] = [];
 const limits: number[] = [];
 const from = vi.fn((table: string) => {
@@ -85,7 +89,15 @@ const from = vi.fn((table: string) => {
   };
   const chain = {
     select: () => chain,
-    eq: () => chain,
+    eq: (column: string, value: unknown) => {
+      if (
+        table === "offer_orders" &&
+        column === "id" &&
+        value === currentOrder?.parent_order_id
+      )
+        result.data = currentParent;
+      return chain;
+    },
     in: () => chain,
     lte: () => chain,
     order: () => chain,
@@ -125,6 +137,15 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   currentOrder = null;
+  currentParent = null;
+  mocks.stripe.mockReturnValue({
+    checkout: {
+      sessions: {
+        retrieve: mocks.retrieveCheckout,
+        create: mocks.createCheckout,
+      },
+    },
+  });
   dueDeliveries = [];
   limits.length = 0;
   vi.stubGlobal("Deno", { env: { get: () => undefined } });
@@ -405,5 +426,137 @@ describe("offer access HTTP security boundaries", () => {
     });
     expect(response.status).toBe(400);
     expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+});
+
+describe("controlled checkout recovery HTTP adapter", () => {
+  function prepareRetry() {
+    const settings: Record<string, string> = {
+      STRIPE_SECRET_KEY: "sk_test_fixture",
+      STRIPE_WEBHOOK_SECRET: "whsec_fixture",
+    };
+    vi.stubGlobal("Deno", { env: { get: (key: string) => settings[key] } });
+    currentOrder = {
+      id: "11111111-1111-4111-8111-111111111111",
+      offer_id: "22222222-2222-4222-8222-222222222222",
+      parent_order_id: "33333333-3333-4333-8333-333333333333",
+      email: "reader@example.com",
+      status: "expired",
+      amount_minor: 2700,
+      currency: "usd",
+      title_snapshot: "Toolkit",
+      stripe_session_id: "cs_original",
+      checkout_attempt: 1,
+      checkout_expires_at: new Date(Date.now() - 1000).toISOString(),
+    };
+    currentParent = {
+      status: "fulfilled",
+      declined_at: null,
+      next_offer_deadline: new Date(Date.now() + 3 * 3600_000).toISOString(),
+    };
+    mocks.retrieveCheckout.mockResolvedValue({
+      id: "cs_original",
+      mode: "payment",
+      status: "expired",
+      payment_status: "unpaid",
+      payment_intent: null,
+      livemode: false,
+      metadata: { integration: "site-offers", offer_order_id: currentOrder.id },
+    });
+    mocks.createCheckout.mockResolvedValue({
+      id: "cs_retry",
+      url: "https://checkout.stripe.com/retry",
+      payment_intent: null,
+    });
+    mocks.rpc.mockImplementation(async (name: string) => ({
+      data:
+        name === "offer_prepare_checkout_retry"
+          ? {
+              ...currentOrder,
+              status: "pending",
+              stripe_session_id: null,
+              checkout_attempt: 2,
+              checkout_expires_at: new Date(
+                Date.now() + 3600_000,
+              ).toISOString(),
+            }
+          : null,
+      error: null,
+    }));
+  }
+  it("requires an existing private link, fresh expanded Stripe read, and a successful transaction before creating a session", async () => {
+    prepareRetry();
+    const response = await request({ action: "retry_checkout", token });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      status: "pending",
+      checkout_url: "https://checkout.stripe.com/retry",
+    });
+    expect(mocks.retrieveCheckout).toHaveBeenCalledWith("cs_original", {
+      expand: ["payment_intent"],
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "offer_prepare_checkout_retry",
+      expect.objectContaining({
+        _order_id: currentOrder!.id,
+        _session_id: "cs_original",
+        _checkout_attempt: 1,
+        _payment_intent_id: null,
+        _origin: "https://example.com",
+      }),
+    );
+    expect(mocks.createCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ offer_checkout_attempt: "2" }),
+      }),
+      { idempotencyKey: `site-offer-${currentOrder!.id}-attempt-2` },
+    );
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "offer_record_checkout",
+      expect.objectContaining({
+        _checkout_attempt: 2,
+        _session_id: "cs_retry",
+      }),
+    );
+    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.deliver).not.toHaveBeenCalled();
+  });
+  it("does not create a payment after provider uncertainty or a refused database reservation", async () => {
+    prepareRetry();
+    mocks.retrieveCheckout.mockRejectedValueOnce(new Error("provider timeout"));
+    expect((await request({ action: "retry_checkout", token })).status).toBe(
+      503,
+    );
+    expect(mocks.createCheckout).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    mocks.rpc.mockResolvedValue({
+      error: new OfferError(409, "changed", "Checkout changed"),
+    });
+    expect((await request({ action: "retry_checkout", token })).status).toBe(
+      409,
+    );
+    expect(mocks.createCheckout).not.toHaveBeenCalled();
+  });
+  it("keeps recovery unavailable without a matching order or working mail delivery", async () => {
+    prepareRetry();
+    currentOrder = null;
+    expect((await request({ action: "retry_checkout", token })).status).toBe(
+      404,
+    );
+    expect(mocks.retrieveCheckout).not.toHaveBeenCalled();
+    prepareRetry();
+    mocks.mailer.mockResolvedValue({ ok: false });
+    expect((await request({ action: "retry_checkout", token })).status).toBe(
+      503,
+    );
+    expect(mocks.retrieveCheckout).not.toHaveBeenCalled();
+    expect(mocks.createCheckout).not.toHaveBeenCalled();
+  });
+  it("reports retry eligibility without contacting Stripe or mutating on a status read", async () => {
+    prepareRetry();
+    const response = await request({ action: "status", token });
+    expect((await response.json()).checkout_recovery.available).toBe(true);
+    expect(mocks.retrieveCheckout).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

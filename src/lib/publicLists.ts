@@ -91,10 +91,33 @@ export async function fetchBlogPage(
   const { data, error } = await query
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .range(page * BLOG_PAGE_SIZE, (page + 1) * BLOG_PAGE_SIZE - 1);
+    // One extra card proves there is another page; an exact multiple must not link to an empty archive.
+    .range(page * BLOG_PAGE_SIZE, (page + 1) * BLOG_PAGE_SIZE);
   if (error) throw error;
   return {
-    items: data ?? [],
-    nextPage: data?.length === BLOG_PAGE_SIZE ? page + 1 : null,
+    items: (data ?? []).slice(0, BLOG_PAGE_SIZE),
+    nextPage: (data?.length ?? 0) > BLOG_PAGE_SIZE ? page + 1 : null,
   };
 }
+
+/** Guide connections use the stored niche relationship, never word-overlap guesses. */
+export async function fetchGuideResources(
+  client: SupabaseClient<Database>,
+  nicheId: string,
+) {
+  const { data, error } = await client
+    .from("generated_pages")
+    .select("id, title, slug, content_schemas!inner(name, slug)")
+    .eq("niche_id", nicheId)
+    .eq("status", "published")
+    .eq("content_schemas.is_active", true)
+    .order("title")
+    .order("id")
+    .limit(100)
+    .abortSignal(AbortSignal.timeout(5000));
+  if (error) throw error;
+  return data ?? [];
+}
+export type GuideResource = Awaited<
+  ReturnType<typeof fetchGuideResources>
+>[number];

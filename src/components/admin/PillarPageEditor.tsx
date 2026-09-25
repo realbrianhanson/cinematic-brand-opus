@@ -3,6 +3,10 @@ import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAdminDraftGuard } from "./useAdminDraftGuard";
+import { z } from "zod";
+import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
+import LocalDraftRecoveryBanner from "./LocalDraftRecoveryBanner";
+import SavedVersionHistory from "./SavedVersionHistory";
 import { useParams, useNavigate } from "@/lib/router-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Editor } from "@tiptap/react";
@@ -17,25 +21,27 @@ import {
   MIN_GUIDE_OVERRIDE_REASON,
 } from "@/lib/guidePublishGate";
 
-// publish_pillar_page_with_override is newer than the generated client types.
 const publishGuideWithOverride = async (
   pillarId: string,
   reason: string,
   issues: string[],
+  expectedUpdatedAt: string,
 ) => {
-  const { error } = await (
-    supabase as unknown as {
-      rpc: (
-        fn: string,
-        args: Record<string, unknown>,
-      ) => Promise<{ error: unknown }>;
-    }
-  ).rpc("publish_pillar_page_with_override", {
-    p_pillar_id: pillarId,
-    p_reason: reason,
-    p_issues: issues,
-  });
+  const { data, error } = await supabase.rpc(
+    "publish_pillar_page_with_override_v2",
+    {
+      p_pillar_id: pillarId,
+      p_reason: reason,
+      p_issues: issues,
+      p_expected_updated_at: expectedUpdatedAt,
+    },
+  );
   if (error) throw error;
+  if (!data?.[0]?.updated_at)
+    throw new Error(
+      "The topic guide was not published. Load the latest saved version and try again.",
+    );
+  return data[0];
 };
 
 const slugify = (s: string) =>
@@ -76,6 +82,37 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
 export const GUIDE_IMAGE_UPLOAD_TIMEOUT_MS = 30_000;
+const guideRecoverySchema = z
+  .object({
+    title: z.string(),
+    slug: z.string(),
+    status: z.string(),
+    nicheId: z.string(),
+    editorContent: z.string(),
+    metaTitle: z.string(),
+    metaDesc: z.string(),
+    keywords: z.string(),
+    ogImage: z.string(),
+    seoBase: z.record(z.unknown()).default({}),
+  })
+  .strict();
+
+const savedGuideSnapshot = (guide: Tables<"pillar_pages">) => {
+  const seo = seoDocumentSchema.parse(guide.seo_meta);
+  const rawSeo = asRecord(guide.seo_meta);
+  return {
+    title: guide.title,
+    slug: guide.slug,
+    status: guide.status ?? "draft",
+    nicheId: guide.niche_id ?? "",
+    editorContent: guide.content ?? "",
+    metaTitle: seo.title || asText(rawSeo.meta_title),
+    metaDesc: seo.description || asText(rawSeo.meta_description),
+    keywords: (seo.keywords ?? []).join(", "),
+    ogImage: seo.og_image ?? "",
+    seoBase: rawSeo,
+  };
+};
 
 const PillarPageEditor = () => {
   const { id } = useParams();
@@ -85,6 +122,9 @@ const PillarPageEditor = () => {
   const isNew = !id;
   const editorRef = useRef<Editor | null>(null);
   const hydratedId = useRef<string | null>(null);
+  const loadedGuide = useRef<Tables<"pillar_pages"> | null>(null);
+  const [hydrationEpoch, setHydrationEpoch] = useState(0);
+  const [saveConflict, setSaveConflict] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
 
   const [title, setTitle] = useState("");
@@ -98,6 +138,7 @@ const PillarPageEditor = () => {
   const [metaDesc, setMetaDesc] = useState("");
   const [keywords, setKeywords] = useState("");
   const [ogImage, setOgImage] = useState("");
+  const [seoBase, setSeoBase] = useState<Record<string, unknown>>({});
   const [uploading, setUploading] = useState(false);
   const uploadLock = useRef(false);
   const activeGuideId = useRef(id);
@@ -118,6 +159,7 @@ const PillarPageEditor = () => {
     metaDesc,
     keywords,
     ogImage,
+    seoBase,
   };
   const { markSaved } = useAdminDraftGuard(
     draftSnapshot,
@@ -171,6 +213,8 @@ const PillarPageEditor = () => {
     // Hydrate once per guide so a background refetch never clobbers edits.
     if (pillar && hydratedId.current !== pillar.id) {
       hydratedId.current = pillar.id;
+      loadedGuide.current = pillar;
+      setSaveConflict(false);
       setTitle(pillar.title);
       setSlug(pillar.slug);
       setSlugManual(true);
@@ -180,27 +224,47 @@ const PillarPageEditor = () => {
       const seo = seoDocumentSchema.parse(pillar.seo_meta);
       // Generated guides store meta_title/meta_description; read both shapes.
       const rawSeo = asRecord(pillar.seo_meta);
+      setSeoBase(rawSeo);
       setMetaTitle(seo.title || asText(rawSeo.meta_title));
       setMetaDesc(seo.description || asText(rawSeo.meta_description));
       setKeywords((seo.keywords ?? []).join(", "));
       setOgImage(seo.og_image ?? "");
-      markSaved({
-        title: pillar.title,
-        slug: pillar.slug,
-        status: pillar.status ?? "draft",
-        nicheId: pillar.niche_id ?? "",
-        editorContent: pillar.content ?? "",
-        metaTitle: seo.title || asText(rawSeo.meta_title),
-        metaDesc: seo.description || asText(rawSeo.meta_description),
-        keywords: (seo.keywords ?? []).join(", "),
-        ogImage: seo.og_image ?? "",
-      });
+      markSaved(savedGuideSnapshot(pillar));
       const editor = editorRef.current;
-      if (editor && !editor.isDestroyed && pillar.content) {
-        editor.commands.setContent(pillar.content, { emitUpdate: false });
+      if (editor && !editor.isDestroyed) {
+        editor.commands.setContent(pillar.content ?? "", { emitUpdate: false });
       }
     }
-  }, [pillar, markSaved]);
+  }, [pillar, hydrationEpoch, markSaved]);
+
+  const recovery = useLocalEditorRecovery({
+    documentKey: `guide:${id ?? "new"}`,
+    snapshot: draftSnapshot,
+    ready:
+      editorReady &&
+      (isNew
+        ? hydratedId.current === null
+        : !!pillar && hydratedId.current === id),
+    serverVersion: pillar?.updated_at,
+    schema: guideRecoverySchema,
+    onRestore: (draft) => {
+      setTitle(draft.title);
+      setSlug(draft.slug);
+      setSlugManual(true);
+      setStatus(draft.status);
+      setNicheId(draft.nicheId);
+      setEditorContent(draft.editorContent);
+      const editor = editorRef.current;
+      if (editor && !editor.isDestroyed)
+        editor.commands.setContent(draft.editorContent, { emitUpdate: false });
+      setMetaTitle(draft.metaTitle);
+      setMetaDesc(draft.metaDesc);
+      setKeywords(draft.keywords);
+      setOgImage(draft.ogImage);
+      setSeoBase(draft.seoBase ?? asRecord(loadedGuide.current?.seo_meta));
+      setGateBlock(null);
+    },
+  });
 
   // The editor is created after the data arrives (immediatelyRender: false),
   // so the stored body must be loaded when it reports ready, as PostEditor does.
@@ -237,12 +301,14 @@ const PillarPageEditor = () => {
         // With an override the edits are saved unpublished first; the audited
         // RPC then publishes past the gate.
         const finalStatus =
-          override || keepStatus ? (pillar?.status ?? "draft") : requested;
+          override || keepStatus
+            ? (loadedGuide.current?.status ?? "draft")
+            : requested;
         const seoTitle = metaTitle || title;
         // Merge so keys this form does not edit (faqs, sources, ...) survive,
         // and write both key shapes the site and generator read.
         const seoMeta = {
-          ...asRecord(pillar?.seo_meta),
+          ...seoBase,
           title: seoTitle,
           meta_title: seoTitle,
           description: metaDesc,
@@ -266,49 +332,79 @@ const PillarPageEditor = () => {
           payload.published_at = new Date().toISOString();
 
         let savedId = id ?? null;
+        let savedVersion: string | null = null;
         if (id) {
+          const expected = loadedGuide.current;
+          if (!expected?.updated_at || expected.id !== id)
+            throw new Error(
+              "Load the latest saved version before saving this guide.",
+            );
           const { data, error } = await supabase
             .from("pillar_pages")
             .update(payload)
             .eq("id", id)
-            .select("id");
+            .eq("updated_at", expected.updated_at)
+            .select("id,updated_at")
+            .maybeSingle();
           if (error) throw error;
-          if (!data?.length)
+          if (!data?.updated_at)
             throw new Error(
-              "This topic guide no longer exists. Your changes were not saved.",
+              "This topic guide changed, was deleted, or your access changed. Your changes were not saved. Load the latest saved version before trying again.",
             );
+          savedVersion = data.updated_at;
+          loadedGuide.current = {
+            ...expected,
+            ...payload,
+            updated_at: savedVersion,
+          } as Tables<"pillar_pages">;
+          qc.setQueryData(["admin-pillar", id], loadedGuide.current);
         } else if (override) {
           const { data, error } = await supabase
             .from("pillar_pages")
             .insert(payload)
-            .select("id")
+            .select("id,updated_at")
             .single();
           if (error) throw error;
           savedId = data.id;
+          savedVersion = data.updated_at;
         } else {
           const { error } = await supabase.from("pillar_pages").insert(payload);
           if (error) throw error;
         }
-        if (override && savedId)
-          await publishGuideWithOverride(
+        if (override && savedId) {
+          if (!savedVersion)
+            throw new Error(
+              "The guide was saved, but its version could not be confirmed for publication.",
+            );
+          const published = await publishGuideWithOverride(
             savedId,
             override.reason,
             override.issues,
+            savedVersion,
           );
+          loadedGuide.current = published;
+          qc.setQueryData(["admin-pillar", savedId], published);
+        }
         return draftSnapshot;
       }),
     onSuccess: (submitted) => {
       markSaved(submitted);
+      recovery.clearSaved(submitted);
       qc.invalidateQueries({ queryKey: ["admin-pillars"] });
       toast({ title: "Pillar page saved" });
       navigate("/admin/pillars");
     },
-    onError: (err: Error) =>
+    onError: (err: Error) => {
+      if (errorMessage(err).includes("changed")) {
+        setSaveConflict(true);
+        void qc.invalidateQueries({ queryKey: ["admin-pillar", id] });
+      }
       toast({
         title: "Error",
         description: errorMessage(err),
         variant: "destructive",
-      }),
+      });
+    },
   });
 
   const requestSave = (publishNow: boolean) => {
@@ -429,6 +525,74 @@ const PillarPageEditor = () => {
       disabled={saveMutation.isPending}
       style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
     >
+      <LocalDraftRecoveryBanner
+        recovery={recovery}
+        disabled={saveMutation.isPending || uploading}
+      />
+      {id &&
+        (saveConflict ||
+          pillar?.updated_at !== loadedGuide.current?.updated_at) && (
+          <div className="admin-card p-4 mb-4" role="alert">
+            <p>
+              This guide changed in another window. Saving uses the version you
+              originally loaded and will not overwrite the newer saved version.
+            </p>
+            <button
+              type="button"
+              className="admin-btn-secondary mt-2"
+              onClick={() => {
+                if (!pillar) return;
+                if (
+                  !window.confirm(
+                    "Load the latest saved guide? Unsaved edits will be replaced. Download or copy anything you want to keep first.",
+                  )
+                )
+                  return;
+                // Rebase only after accepting this saved version. A background
+                // refetch must never mark the editor's unsaved work as saved.
+                recovery.clearSaved(savedGuideSnapshot(pillar));
+                hydratedId.current = null;
+                setGateBlock(null);
+                setHydrationEpoch((value) => value + 1);
+              }}
+            >
+              Load latest saved guide
+            </button>
+          </div>
+        )}
+      <SavedVersionHistory
+        kind="guide"
+        documentId={id}
+        disabled={saveMutation.isPending || uploading}
+        current={{
+          title,
+          content: editorContent,
+          seo_meta: {
+            ...seoBase,
+            title: metaTitle,
+            description: metaDesc,
+            keywords,
+            og_image: ogImage,
+          },
+        }}
+        onLoad={(version) => {
+          if (typeof version.content !== "string") return;
+          setTitle(version.title);
+          setEditorContent(version.content);
+          const editor = editorRef.current;
+          if (editor && !editor.isDestroyed)
+            editor.commands.setContent(version.content, { emitUpdate: false });
+          setSeoBase(version.seoMeta);
+          const seo = seoDocumentSchema.parse(version.seoMeta);
+          setMetaTitle(seo.title || asText(version.seoMeta.meta_title));
+          setMetaDesc(
+            seo.description || asText(version.seoMeta.meta_description),
+          );
+          setKeywords((seo.keywords ?? []).join(", "));
+          setOgImage(seo.og_image ?? "");
+          setGateBlock(null);
+        }}
+      />
       {gateBlock && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"

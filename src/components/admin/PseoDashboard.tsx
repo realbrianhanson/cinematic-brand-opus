@@ -34,6 +34,15 @@ const schema = z.object({
   ),
   daily_views: z.array(z.object({ day: z.string(), views: number })),
   search: z.object({
+    property: z.string().nullable().optional(),
+    latest_import: z
+      .object({
+        status: z.string(),
+        started_at: z.string(),
+        error_message: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
     period_end: z.string().nullable(),
     period_start: z.string().nullable(),
     fetched_at: z.string().nullable(),
@@ -308,6 +317,24 @@ export default function PseoDashboard() {
             <h2 className="text-xl font-semibold mb-3">
               Search Console signals
             </h2>
+            {data.search.latest_import?.status === "failed" && (
+              <p role="alert" className="admin-notice mb-3">
+                The latest Search Console import failed. The last complete
+                dataset is still shown. Check the property and integration
+                before retrying.
+              </p>
+            )}
+            {data.search.latest_import?.status === "importing" && (
+              <p role="status" className="admin-notice mb-3">
+                A Search Console import has not completed yet. These figures
+                stay on the last complete dataset until it finishes.
+              </p>
+            )}
+            {data.search.property && (
+              <p className="text-sm text-muted-foreground mb-2">
+                Property: {data.search.property}
+              </p>
+            )}
             {data.search.period_end ? (
               <>
                 <p className="text-sm text-muted-foreground">

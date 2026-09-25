@@ -40,6 +40,9 @@ const item = {
   content_sources: { name: "Perplexity Daily" },
 };
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "news-admin" } }),
+}));
 vi.mock("@/lib/withTimeout", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   safeMutation: (run: () => unknown) => run(),
@@ -71,6 +74,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
   h.load.mockReset();
@@ -80,6 +84,43 @@ afterEach(() => {
 });
 
 describe("news editorial review", () => {
+  it("offers the article's local draft after reopening without saving or publishing on restore", async () => {
+    const props = { itemId: "news-1", onClose: vi.fn(), onSaved: vi.fn() };
+    const first = render(<NewsItemEditor {...props} />);
+    const editor = await screen.findByRole("textbox", {
+      name: "Full article content",
+    });
+    fireEvent.change(editor, {
+      target: { value: "Unfinished factual review" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    first.unmount();
+    render(<NewsItemEditor {...props} />);
+    const restore = await screen.findByRole("button", {
+      name: "Restore working copy",
+    });
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Full article content",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe(item.full_content);
+    fireEvent.click(restore);
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Full article content",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Unfinished factual review");
+    expect(h.update).not.toHaveBeenCalled();
+    expect(props.onSaved).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(props.onSaved).toHaveBeenCalledOnce());
+    // Saving clears only the current instance, not the crashed source instance.
+    expect(localStorage.length).toBe(1);
+  });
   it("unlocks after a stalled upload and ignores its late completion after a retry", async () => {
     let finishOld!: (value: unknown) => void;
     h.upload.mockImplementationOnce(

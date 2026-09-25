@@ -23,7 +23,11 @@ const h = vi.hoisted(() => ({
   insert: vi.fn(),
   params: { id: "pillar-1" } as { id?: string },
   pillar: null as Record<string, unknown> | null,
-  updatedRows: [{ id: "pillar-1" }] as { id: string }[],
+  updatedRows: [{ id: "pillar-1", updated_at: "2026-09-25T10:00:01Z" }] as {
+    id: string;
+    updated_at: string;
+  }[],
+  filters: [] as unknown[][],
   blocker: { shouldBlockFn: () => false, enableBeforeUnload: false },
   writeWait: undefined as Promise<void> | undefined,
   upload: vi.fn(),
@@ -46,6 +50,7 @@ const basePillar = () => ({
   niche_id: null,
   content: storedBody,
   published_at: "2026-09-01T00:00:00.000Z",
+  updated_at: "2026-09-25T10:00:00Z",
   seo_meta: {
     meta_title: "Stored meta title",
     meta_description: "Stored meta description for search results",
@@ -54,6 +59,9 @@ const basePillar = () => ({
 });
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "guide-admin" } }),
+}));
 vi.mock("@/lib/withTimeout", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   safeMutation: (run: () => unknown) => run(),
@@ -81,14 +89,19 @@ vi.mock("@/integrations/supabase/client", () => {
         }),
         update: (payload: unknown) => {
           h.update(payload);
-          return {
-            eq: () => ({
-              select: async () => {
+          const chain = {
+            eq: (...filter: unknown[]) => {
+              h.filters.push(filter);
+              return chain;
+            },
+            select: () => ({
+              maybeSingle: async () => {
                 await h.writeWait;
-                return { data: h.updatedRows, error: null };
+                return { data: h.updatedRows[0] ?? null, error: null };
               },
             }),
           };
+          return chain;
         },
         insert: async (payload: unknown) => {
           h.insert(payload);
@@ -111,11 +124,14 @@ const renderEditor = () => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={qc}>
-      <PillarPageEditor />
-    </QueryClientProvider>,
-  );
+  return {
+    ...render(
+      <QueryClientProvider client={qc}>
+        <PillarPageEditor />
+      </QueryClientProvider>,
+    ),
+    qc,
+  };
 };
 
 const editorFrom = (container: HTMLElement) =>
@@ -127,18 +143,120 @@ const saveButton = () =>
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
   h.params = { id: "pillar-1" };
   h.pillar = basePillar();
-  h.updatedRows = [{ id: "pillar-1" }];
+  h.updatedRows = [{ id: "pillar-1", updated_at: "2026-09-25T10:00:01Z" }];
+  h.filters = [];
   h.writeWait = undefined;
   h.upload.mockReset();
 });
 h.pillar = basePillar();
 
 describe("topic guide editor", () => {
+  it("clears the old editor body when the latest saved guide is empty, then saves the empty body", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { container, qc } = renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    expect(editorFrom(container)?.getText()).toContain("Stored guide body");
+    h.pillar = {
+      ...basePillar(),
+      content: "",
+      updated_at: "2026-09-25T10:00:02Z",
+    };
+    act(() => qc.setQueryData(["admin-pillar", "pillar-1"], h.pillar));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load latest saved guide" }),
+    );
+    await waitFor(() => expect(editorFrom(container)?.getText()).toBe(""));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update.mock.calls[0][0]).toMatchObject({ content: "<p></p>" });
+    expect(h.filters).toContainEqual(["updated_at", "2026-09-25T10:00:02Z"]);
+  });
+
+  it("rebases crash recovery after explicitly loading the latest saved guide", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const first = renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.change(screen.getByDisplayValue("AI for Small Business"), {
+      target: { value: "Unsaved copy before loading latest" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    const oldBackupKey = localStorage.key(0)!;
+    const oldBackup = localStorage.getItem(oldBackupKey);
+    h.pillar = {
+      ...basePillar(),
+      title: "Newly saved guide title",
+      content: "<p>Newly saved body.</p>",
+      updated_at: "2026-09-25T10:00:02Z",
+    };
+    act(() => first.qc.setQueryData(["admin-pillar", "pillar-1"], h.pillar));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load latest saved guide" }),
+    );
+    const title = await screen.findByDisplayValue("Newly saved guide title");
+    await waitFor(() => expect(h.blocker.enableBeforeUnload).toBe(false));
+    expect(localStorage.getItem(oldBackupKey)).toBe(oldBackup);
+    fireEvent.change(title, {
+      target: { value: "Edits after loading latest" },
+    });
+    act(() => {
+      editorFrom(first.container)!.commands.setContent(
+        "<p>Unsaved body after loading latest.</p>",
+      );
+    });
+    await waitFor(() => expect(localStorage.length).toBe(2));
+    const newBackupKey = [localStorage.key(0)!, localStorage.key(1)!].find(
+      (key) => key !== oldBackupKey,
+    )!;
+    const backup = JSON.parse(localStorage.getItem(newBackupKey)!);
+    expect(backup.baseVersion).toBe("2026-09-25T10:00:02Z");
+    expect(JSON.parse(backup.baseline)).toMatchObject({
+      title: "Newly saved guide title",
+      editorContent: "<p>Newly saved body.</p>",
+    });
+    first.unmount();
+    const second = renderEditor();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Restore working copy" }),
+    );
+    expect(screen.getByDisplayValue("Edits after loading latest")).toBeTruthy();
+    expect(editorFrom(second.container)?.getText()).toBe(
+      "Unsaved body after loading latest.",
+    );
+    expect(h.update).not.toHaveBeenCalled();
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    expect(localStorage.getItem(oldBackupKey)).toBe(oldBackup);
+  });
+
+  it("recovers a crashed guide draft only after explicit restore and clears it on save", async () => {
+    const first = renderEditor();
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.change(screen.getByDisplayValue("AI for Small Business"), {
+      target: { value: "Recovered guide title" },
+    });
+    await waitFor(() => expect(localStorage.length).toBe(1));
+    first.unmount();
+    renderEditor();
+    const restore = await screen.findByRole("button", {
+      name: "Restore working copy",
+    });
+    expect(screen.getByDisplayValue("AI for Small Business")).toBeTruthy();
+    expect(h.update).not.toHaveBeenCalled();
+    fireEvent.click(restore);
+    expect(screen.getByDisplayValue("Recovered guide title")).toBeTruthy();
+    expect(h.blocker.enableBeforeUnload).toBe(true);
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(h.navigate).toHaveBeenCalledWith("/admin/pillars"),
+    );
+    // The crashed instance's source remains; this saved instance's slot is cleared.
+    expect(localStorage.length).toBe(1);
+  });
   it("restores Save after a rejected sharing-image upload", async () => {
     h.upload.mockRejectedValueOnce(new Error("Network unavailable"));
     renderEditor();
@@ -367,5 +485,6 @@ describe("topic guide editor", () => {
       ),
     );
     expect(h.navigate).not.toHaveBeenCalled();
+    expect(h.filters).toContainEqual(["updated_at", "2026-09-25T10:00:00Z"]);
   });
 });

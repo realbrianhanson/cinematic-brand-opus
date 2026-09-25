@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { offerStrategySchema, type OfferPage } from "./offerBuilder";
+import {
+  offerStrategySchema,
+  sectionTypes,
+  type OfferPage,
+} from "./offerBuilder";
 
 export const offerCopyModes = {
   angles: "Three sales angles",
@@ -17,10 +21,87 @@ const editableSectionTypes = [
   "faq",
   "cta",
 ] as const;
+const pageContextSchema = z
+  .object({
+    eyebrow: z.string().max(100),
+    ctaText: z.string().max(80),
+    ctaMicrocopy: z.string().max(500),
+    sections: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(80),
+            type: z.enum(sectionTypes),
+            heading: z.string().max(300),
+            body: z.string().max(6000),
+            caption: z.string().max(500),
+            proofId: z.string().max(80),
+            hasMedia: z.boolean(),
+            truncated: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(30),
+  })
+  .strict()
+  .refine(
+    (page) =>
+      page.sections.reduce(
+        (size, section) => size + section.body.length + section.caption.length,
+        0,
+      ) <= 24000,
+    "Page context is too long.",
+  );
+
+/** Preserve page order and every section's purpose; expose omitted text instead of hiding it. */
+export function buildOfferPageCopyContext(
+  page: OfferPage,
+): z.infer<typeof pageContextSchema> {
+  let remaining = 24000;
+  // Terms get first use of the budget so ordinary copy cannot crowd them out.
+  const excerpts = new Map<
+    OfferPage["sections"][number],
+    { body: string; caption: string; truncated: boolean }
+  >();
+  for (const section of [
+    ...page.sections.filter((item) => item.type === "guarantee"),
+    ...page.sections.filter((item) => item.type !== "guarantee"),
+  ]) {
+    const body = section.body.slice(
+      0,
+      Math.min(remaining, section.type === "guarantee" ? 6000 : 1200),
+    );
+    remaining -= body.length;
+    const caption = section.caption.slice(0, Math.min(remaining, 500));
+    remaining -= caption.length;
+    excerpts.set(section, {
+      body,
+      caption,
+      truncated:
+        body.length < section.body.length ||
+        caption.length < section.caption.length,
+    });
+  }
+  return {
+    eyebrow: page.eyebrow,
+    ctaText: page.ctaText,
+    ctaMicrocopy: page.ctaMicrocopy,
+    sections: page.sections.map((section) => ({
+      id: section.id,
+      type: section.type,
+      heading: section.heading,
+      ...excerpts.get(section)!,
+      proofId: section.proofId,
+      hasMedia: !!section.imageUrl,
+    })),
+  };
+}
+
 export const offerCopyRequestSchema = z
   .object({
     mode: z.enum(["angles", "headline", "section", "objections", "upsell"]),
     stage: z.enum(["landing", "upsell"]),
+    savedOfferId: z.string().uuid().optional(),
     strategy: offerStrategySchema,
     offer: z
       .object({
@@ -38,6 +119,7 @@ export const offerCopyRequestSchema = z
       .object({
         headline: z.string().max(300),
         subheadline: z.string().max(1000),
+        page: pageContextSchema.optional(),
         section: z
           .object({
             id: z.string().min(1).max(80),

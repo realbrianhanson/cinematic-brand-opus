@@ -32,6 +32,7 @@ import {
   measurementForClaim,
   measurementAllowed,
   setMeasurementChoice,
+  recordMeasurement,
 } from "@/lib/measurement";
 const send = vi.fn();
 beforeEach(() => {
@@ -67,6 +68,36 @@ afterEach(() => {
 const payloads = () =>
   send.mock.calls.map(([, options]) => JSON.parse(options.body));
 describe("optional public measurement", () => {
+  it("never transmits planner inputs, even if a caller adds them to an event", async () => {
+    state.path = "/first-ai-build";
+    history.replaceState(null, "", "/first-ai-build");
+    render(<PublicMeasurement />);
+    const action = {
+      type: "build_plan_created" as const,
+      path: "/first-ai-build",
+      project: "inquiries" as const,
+      businessType: "Secret business",
+      buildPrompt: "Private prompt",
+    };
+    recordMeasurement([action]);
+    await act(async () => {});
+    expect(send).not.toHaveBeenCalled();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Allow measurement" }),
+    );
+    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+    recordMeasurement([action]);
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(payloads()[1].events[0]).toEqual({
+      id: expect.any(String),
+      type: "build_plan_created",
+      path: "/first-ai-build",
+      project: "inquiries",
+    });
+    expect(JSON.stringify(payloads())).not.toMatch(
+      /Secret business|Private prompt|businessType|buildPrompt/,
+    );
+  });
   it("first appears as a small bottom-left pill that keeps its explanation for screen readers", async () => {
     render(<PublicMeasurement />);
     const banner = await screen.findByRole("region", {

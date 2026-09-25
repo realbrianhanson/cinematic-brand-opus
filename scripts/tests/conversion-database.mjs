@@ -22,6 +22,7 @@ for (const file of [
   "20260919150000_offer_external_listings.sql",
   "20260919220000_conversion_measurement.sql",
   "20260923171000_measure_about_page.sql",
+  "20260925110000_first_ai_build_measurement.sql",
 ])
   await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 assert.equal(
@@ -470,6 +471,91 @@ assert.equal(
   await record(neverRecordedSession, [makeEvent("page_view")]),
   false,
   "withdrawal before first record prevents late initial collection",
+);
+const plannerSession = crypto.randomUUID();
+const plannerEvents = [
+  "page_view",
+  "build_plan_created",
+  "build_prompt_copied",
+  "build_plan_downloaded",
+  "build_training_clicked",
+].map((type) => ({
+  id: crypto.randomUUID(),
+  type,
+  path: "/first-ai-build",
+  ...(type !== "page_view" ? { project: "inquiries" } : {}),
+  ...(type === "build_training_clicked" ? { offer_id: paid } : {}),
+  businessType: "Never store this",
+  buildPrompt: "Never store this either",
+}));
+assert.equal(
+  await record(plannerSession, plannerEvents),
+  true,
+  "planner events accepted",
+);
+assert.equal(
+  await record(plannerSession, plannerEvents),
+  true,
+  "planner event retries idempotent",
+);
+const storedPlanner = (
+  await db.query("SELECT * FROM conversion_events WHERE session_id=$1", [
+    plannerSession,
+  ])
+).rows;
+assert.equal(storedPlanner.length, 5);
+assert.equal(
+  JSON.stringify(storedPlanner).includes("Never store"),
+  false,
+  "only bounded event columns persisted",
+);
+for (const invalid of [
+  { project: "secret" },
+  { project: null },
+  { path: "/shop" },
+  { destination: "workshop" },
+]) {
+  assert.equal(
+    await record(crypto.randomUUID(), [
+      { ...plannerEvents[1], id: crypto.randomUUID(), ...invalid },
+    ]),
+    false,
+    "invalid planner event rejected",
+  );
+}
+assert.equal(
+  await record(crypto.randomUUID(), [
+    { ...plannerEvents[0], id: crypto.randomUUID(), project: "inquiries" },
+  ]),
+  false,
+);
+assert.equal(
+  await record(crypto.randomUUID(), [
+    { ...plannerEvents[4], id: crypto.randomUUID(), offer_id: draft },
+  ]),
+  false,
+  "draft training not measurable",
+);
+await db.exec(
+  "RESET ROLE; SET ROLE authenticated; SELECT set_config('test.user_id','00000000-0000-4000-8000-000000000001',false)",
+);
+const plannerReport = (await one("SELECT admin_conversion_snapshot(30) report"))
+  .report.first_ai_build;
+assert.deepEqual(plannerReport, {
+  visit_sessions: 1,
+  plan_sessions: 1,
+  copy_sessions: 1,
+  download_sessions: 1,
+  training_sessions: 1,
+});
+await db.exec("RESET ROLE; SET ROLE service_role");
+await one("SELECT conversion_forget_session($1,$2)", [plannerSession, token]);
+await db.exec("RESET ROLE; SET ROLE authenticated");
+assert.equal(
+  (await one("SELECT admin_conversion_snapshot(30) report")).report
+    .first_ai_build.plan_sessions,
+  0,
+  "withdrawn planner sessions removed from report",
 );
 for (const role of ["anon", "authenticated"]) {
   await db.exec(`RESET ROLE;SET ROLE ${role}`);

@@ -26,7 +26,12 @@ type PublicNiche = {
   context: Json | null;
 };
 
-import { fetchBlogPage, fetchNewsPage } from "./publicLists";
+import { blogSearch } from "../../supabase/functions/_shared/blogPagination";
+import {
+  fetchBlogPage,
+  fetchNewsPage,
+  fetchGuideResources,
+} from "./publicLists";
 import {
   PUBLIC_GENERATED_PAGE_LIST_SELECT,
   PUBLIC_GENERATED_PAGE_SELECT,
@@ -58,13 +63,18 @@ export const getPublicSiteSettings = createServerFn({ method: "GET" }).handler(
 );
 
 export const getPublicPostsFirstPage = createServerFn({ method: "GET" })
-  .inputValidator((input: { category?: string }) => ({
-    category:
-      typeof input?.category === "string" ? input.category.slice(0, 200) : "",
-  }))
-  .handler(async ({ data }) =>
-    fetchBlogPage(createPublicServerClient(), 0, data.category),
-  );
+  .inputValidator((input: { category?: string; page?: number }) =>
+    blogSearch(input ?? {}),
+  )
+  .handler(async ({ data }) => ({
+    ...(await fetchBlogPage(
+      createPublicServerClient(),
+      data.page - 1,
+      data.category,
+    )),
+    page: data.page,
+    category: data.category,
+  }));
 
 export const getPublicPostBySlug = createServerFn({ method: "GET" })
   .inputValidator(slugInput)
@@ -93,6 +103,15 @@ export const getPublicPillarBySlug = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return data ?? null;
   });
+
+export const getPublicGuideResources = createServerFn({ method: "GET" })
+  .inputValidator((input: { nicheId: string }) => {
+    if (!UUID_RE.test(input?.nicheId)) throw new Error("Invalid guide topic");
+    return input;
+  })
+  .handler(({ data }) =>
+    fetchGuideResources(createPublicServerClient(), data.nicheId),
+  );
 
 export const getPublicResourceIndex = createServerFn({ method: "GET" }).handler(
   async () => {

@@ -6,6 +6,7 @@ import { isValidEmail, isValidSender } from "@/lib/newsletterConfig";
 
 export type ValidatedSettings = {
   site_url: string;
+  gsc_property?: string;
   publisher_url: string | null;
   cta_url: string | null;
   newsletter_from_address: string;
@@ -51,6 +52,21 @@ export function validateSiteSettings(form: ValidatedSettings): FieldErrors {
   if (!isHttpsOrigin(trimmed(form.site_url)))
     errors.site_url =
       "Enter your full web address starting with https://, like https://yourdomain.com";
+
+  const property = trimmed(form.gsc_property);
+  if (
+    property &&
+    !/^sc-domain:[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/.test(
+      property,
+    ) &&
+    !(
+      isHttpsUrl(property) &&
+      !new URL(property).search &&
+      !new URL(property).hash
+    )
+  )
+    errors.gsc_property =
+      "Use sc-domain:yourdomain.com or the exact https:// URL-prefix property";
 
   const publisher = trimmed(form.publisher_url);
   if (publisher && !isHttpsUrl(publisher))

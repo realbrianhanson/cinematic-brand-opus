@@ -191,31 +191,46 @@ const WidgetsManager = () => {
     if (reorderingRef.current) return;
     const inZone = (widgets || [])
       .filter((w) => w.widget_zone === widget.widget_zone)
-      .sort((a, b) => a.sort_order - b.sort_order);
+      .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
     const idx = inZone.findIndex((w) => w.id === widget.id);
     const other = inZone[direction === "up" ? idx - 1 : idx + 1];
     if (!other) return;
-    // Equal sort_order values cannot be swapped; step past the neighbour.
-    const step = direction === "up" ? -1 : 1;
-    const [mine, theirs] =
-      widget.sort_order === other.sort_order
-        ? [other.sort_order + step, other.sort_order]
-        : [other.sort_order, widget.sort_order];
     reorderingRef.current = true;
     setReordering(true);
+    const controller = new AbortController();
     try {
-      const results = await Promise.all([
-        saveWidget(widget.id, { sort_order: mine }),
-        saveWidget(other.id, { sort_order: theirs }),
-      ]);
-      const error = results.find(Boolean);
-      if (error)
-        toast({
-          title: "Couldn't reorder widgets",
-          description: errorMessage(error),
-          variant: "destructive",
-        });
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          supabase
+            .rpc("admin_swap_widget_order", {
+              _first_id: widget.id,
+              _second_id: other.id,
+              _first_order: widget.sort_order,
+              _second_order: other.sort_order,
+              _direction: direction,
+            })
+            .abortSignal(controller.signal),
+        ),
+        WIDGET_REQUEST_TIMEOUT_MS,
+      );
+      if (error) throw error;
+      if (
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        data.saved !== true
+      )
+        throw new Error(
+          "The reorder was not confirmed. Reload before trying again.",
+        );
+    } catch (error) {
+      toast({
+        title: "Couldn't reorder widgets",
+        description: errorMessage(error),
+        variant: "destructive",
+      });
     } finally {
+      controller.abort();
       // Show the order the database actually holds.
       try {
         await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -231,7 +246,7 @@ const WidgetsManager = () => {
     id,
     widgets: (widgets || [])
       .filter((w) => w.widget_zone === id)
-      .sort((a, b) => a.sort_order - b.sort_order),
+      .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id)),
   }));
 
   return (

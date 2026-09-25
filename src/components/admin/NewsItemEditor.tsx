@@ -1,5 +1,8 @@
 import { errorMessage } from "@/lib/errorMessage";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
+import LocalDraftRecoveryBanner from "./LocalDraftRecoveryBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { safeMutation, withTimeout } from "@/lib/withTimeout";
@@ -45,6 +48,36 @@ interface Props {
 }
 
 const STATUSES = ["draft", "pending", "published", "archived"];
+const newsRecoverySchema = z
+  .object({
+    title: z.string().nullable(),
+    ai_title: z.string().nullable(),
+    ai_summary: z.string().nullable(),
+    raw_excerpt: z.string().nullable(),
+    full_content: z.string().nullable(),
+    image_url: z.string().nullable(),
+    author: z.string().nullable(),
+    url: z.string(),
+    topic_lane: z.string().nullable(),
+    published_at: z.string().nullable(),
+    status: z.string(),
+  })
+  .strict();
+const newsDraft = (
+  item: NewsItem | null,
+): z.infer<typeof newsRecoverySchema> => ({
+  title: item?.title ?? null,
+  ai_title: item?.ai_title ?? null,
+  ai_summary: item?.ai_summary ?? null,
+  raw_excerpt: item?.raw_excerpt ?? null,
+  full_content: item?.full_content ?? null,
+  image_url: item?.image_url ?? null,
+  author: item?.author ?? null,
+  url: item?.url ?? "",
+  topic_lane: item?.topic_lane ?? null,
+  published_at: item?.published_at ?? null,
+  status: item?.status ?? "pending",
+});
 export const NEWS_IMAGE_UPLOAD_TIMEOUT_MS = 30_000;
 
 const LANES = [
@@ -130,6 +163,17 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     };
   }, [itemId, loadAttempt]);
 
+  const recovery = useLocalEditorRecovery({
+    documentKey: `news:${itemId}`,
+    snapshot: newsDraft(item),
+    ready: !loading && item?.id === itemId && !loadError,
+    schema: newsRecoverySchema,
+    onRestore: (draft) =>
+      setItem((current) =>
+        current?.id === itemId ? { ...current, ...draft } : current,
+      ),
+  });
+
   const requestClose = () => {
     if (saveLock.current || uploadLock.current) return;
     if (item && JSON.stringify(item) !== original.current)
@@ -183,6 +227,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     }
     saveLock.current = true;
     setSaving(true);
+    const submittedDraft = newsDraft(item);
     try {
       await safeMutation(async () => {
         const { data: saved, error } = await supabase
@@ -208,6 +253,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
           throw new Error("The article was not saved. Refresh and try again.");
       });
       if (activeItemId.current !== itemId) return;
+      recovery.clearSaved(submittedDraft);
       toast({ title: "News updated successfully" });
       onSaved();
       onClose();
@@ -311,6 +357,10 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 minWidth: 0,
               }}
             >
+              <LocalDraftRecoveryBanner
+                recovery={recovery}
+                disabled={saving || uploading}
+              />
               {(item.status === "pending" || newsFeedIssue(item)) && (
                 <div className="admin-card p-4" role="status">
                   <strong>Editorial review</strong>
@@ -674,7 +724,12 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={onClose}>
+            <AlertDialogAction
+              onClick={() => {
+                recovery.clearSaved(newsDraft(item));
+                onClose();
+              }}
+            >
               Discard changes
             </AlertDialogAction>
           </AlertDialogFooter>

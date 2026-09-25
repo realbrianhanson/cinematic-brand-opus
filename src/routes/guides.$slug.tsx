@@ -6,6 +6,7 @@ import PublicRouteError from "@/components/PublicRouteError";
 import {
   getPublicPillarBySlug,
   getPublicSiteSettings,
+  getPublicGuideResources,
 } from "@/lib/publicData.functions";
 import {
   articleJsonLd,
@@ -51,7 +52,12 @@ export const Route = createFileRoute("/guides/$slug")({
       getPublicSiteSettings(),
     ]);
     if (!pillar) throw notFound();
-    return { pillar, settings };
+    const resourcePages = pillar.niche_id
+      ? await getPublicGuideResources({
+          data: { nicheId: pillar.niche_id },
+        }).catch(() => null)
+      : [];
+    return { pillar, settings, resourcePages };
   },
   head: ({ loaderData, params, matches }) => {
     const config = configFromMatches(matches);
@@ -102,6 +108,12 @@ export const Route = createFileRoute("/guides/$slug")({
 });
 
 function GuideRoute() {
-  const { pillar, settings } = Route.useLoaderData();
-  return <PillarPage initialPillar={pillar} initialSettings={settings} />;
+  const { pillar, settings, resourcePages } = Route.useLoaderData();
+  return (
+    <PillarPage
+      initialPillar={pillar}
+      initialSettings={settings}
+      initialResources={resourcePages}
+    />
+  );
 }

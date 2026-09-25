@@ -37,6 +37,12 @@ vi.mock("@tanstack/react-query", () => ({
       mocks.searchKeys.push(queryKey);
       return { data: { total: 60, items: [] }, isPending: false };
     }
+    if (queryKey[0] === "public-posts-page")
+      return {
+        data: { items: [], nextPage: 1 },
+        isLoading: false,
+        isError: false,
+      };
     return { data: queryKey[0] === "public-content-schemas" ? [] : null };
   },
   useInfiniteQuery: () => ({
@@ -104,7 +110,11 @@ describe("public discovery continuity", () => {
   });
   it("keeps later articles reachable without IntersectionObserver", () => {
     render(<Blog />);
-    fireEvent.click(screen.getByRole("button", { name: "Load more articles" }));
-    expect(mocks.nextPage).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("link", { name: "Next articles" }).getAttribute("href"),
+    ).toBe("/blog?page=2");
+    expect(
+      screen.queryByRole("link", { name: "Previous articles" }),
+    ).toBeNull();
   });
 });

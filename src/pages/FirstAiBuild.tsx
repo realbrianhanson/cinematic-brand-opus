@@ -22,6 +22,7 @@ import {
 } from "@/lib/firstAiBuild";
 import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
 import type { SubscribeUiResult } from "@/lib/newsletterClient";
+import { recordMeasurement } from "@/lib/measurement";
 import type { ShopOffer } from "@/lib/shop";
 
 const focusRing =
@@ -158,6 +159,13 @@ function PlanResult({
     try {
       await navigator.clipboard.writeText(plan.buildPrompt);
       setCopyState("copied");
+      recordMeasurement([
+        {
+          type: "build_prompt_copied",
+          path: "/first-ai-build",
+          project: plan.projectId,
+        },
+      ]);
     } catch {
       setCopyState("manual");
       if (promptDetails.current) promptDetails.current.open = true;
@@ -178,6 +186,13 @@ function PlanResult({
       document.body.appendChild(anchor);
       anchor.click();
       setDownloadState("started");
+      recordMeasurement([
+        {
+          type: "build_plan_downloaded",
+          path: "/first-ai-build",
+          project: plan.projectId,
+        },
+      ]);
     } catch {
       setDownloadState("error");
       if (promptDetails.current) promptDetails.current.open = true;
@@ -433,6 +448,17 @@ function PlanResult({
               ? "/offers/app-building-workshop"
               : "/guides/ai-for-small-business"
           }
+          onClick={() => {
+            if (workshop)
+              recordMeasurement([
+                {
+                  type: "build_training_clicked",
+                  path: "/first-ai-build",
+                  project: plan.projectId,
+                  offer_id: workshop.id,
+                },
+              ]);
+          }}
           className={`${primaryButton} mt-6`}
         >
           {workshop
@@ -451,6 +477,16 @@ function PlanResult({
             Looking for a longer-term next step?{" "}
             <a
               href="/offers/pushten"
+              onClick={() =>
+                recordMeasurement([
+                  {
+                    type: "build_training_clicked",
+                    path: "/first-ai-build",
+                    project: plan.projectId,
+                    offer_id: pushten.id,
+                  },
+                ])
+              }
               className={`text-[var(--brand-accent)] underline underline-offset-4 ${focusRing}`}
             >
               Explore PushTen and what’s included
@@ -515,6 +551,13 @@ export default function FirstAiBuild({
     }
     setError("");
     setPlan(buildFirstAiPlan(parsed.data));
+    recordMeasurement([
+      {
+        type: "build_plan_created",
+        path: "/first-ai-build",
+        project: parsed.data.project,
+      },
+    ]);
   }
   return (
     <div className="min-h-screen bg-[var(--brand-backdrop)] font-body text-white">

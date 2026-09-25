@@ -5,14 +5,19 @@ const TOKEN = /^[a-f0-9]{64}$/;
 const SLUG = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const ROUTE_SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const PUBLIC_PATH = new RegExp(
-  `^/(?:|shop|start-here|about|speaking|support|privacy|terms|sitemap|blog(?:/${ROUTE_SLUG})?|guides/${ROUTE_SLUG}|news(?:/[a-f0-9-]{36})?|resources(?:/${ROUTE_SLUG}){0,2}|offers/${ROUTE_SLUG})$`,
+  `^/(?:|shop|start-here|first-ai-build|about|speaking|support|privacy|terms|sitemap|blog(?:/${ROUTE_SLUG})?|guides/${ROUTE_SLUG}|news(?:/[a-f0-9-]{36})?|resources(?:/${ROUTE_SLUG}){0,2}|offers/${ROUTE_SLUG})$`,
 );
 const TYPES = [
   "page_view",
   "shop_view",
   "offer_view",
   "outbound_click",
+  "build_plan_created",
+  "build_prompt_copied",
+  "build_plan_downloaded",
+  "build_training_clicked",
 ] as const;
+const BUILD_PROJECTS = ["follow-up", "inquiries", "onboarding"] as const;
 const PLACEMENTS = [
   "nav",
   "hero",
@@ -34,6 +39,7 @@ export type ConversionEvent = {
   type: (typeof TYPES)[number];
   path: string;
   offer_id?: string;
+  project?: (typeof BUILD_PROJECTS)[number];
   placement?: (typeof PLACEMENTS)[number];
   destination?: (typeof DESTINATIONS)[number];
 };
@@ -109,6 +115,16 @@ export function parseConversionRequest(
       !DESTINATIONS.includes(event.destination as never)
     )
       return null;
+    const buildAction =
+      typeof event.type === "string" && event.type.startsWith("build_");
+    if (
+      buildAction &&
+      (event.path !== "/first-ai-build" ||
+        !BUILD_PROJECTS.includes(event.project as never))
+    )
+      return null;
+    if (!buildAction && event.project !== undefined) return null;
+    if (event.type === "build_training_clicked" && !event.offer_id) return null;
     if (event.type === "shop_view" && event.path !== "/shop") return null;
     if (
       event.type === "offer_view" &&
@@ -123,6 +139,9 @@ export function parseConversionRequest(
       id: event.id.toLowerCase(),
       type: event.type as ConversionEvent["type"],
       path: event.path,
+      ...(buildAction
+        ? { project: event.project as ConversionEvent["project"] }
+        : {}),
       ...(event.offer_id
         ? { offer_id: (event.offer_id as string).toLowerCase() }
         : {}),

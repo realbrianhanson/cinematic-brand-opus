@@ -35,6 +35,7 @@ const defaultSettings = {
   cta_subtext: "Join thousands learning to grow their business.",
   cta_button_text: "Get Free Access",
   cta_social_proof: "",
+  gsc_property: "",
   report_email: "",
   report_enabled: false,
   voice_profile: "",
@@ -104,6 +105,12 @@ const SiteSettingsManager = () => {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [credentialInput, setCredentialInput] = useState("");
   const hydrated = useRef(false);
+  const savedVersion = useRef({
+    public_id: null as string | null,
+    private_id: null as string | null,
+    public_updated_at: null as string | null,
+    private_updated_at: null as string | null,
+  });
   const { markSaved } = useAdminDraftGuard(form, "site-settings");
 
   const {
@@ -131,13 +138,16 @@ const SiteSettingsManager = () => {
       const { data, error } = await supabase
         .from("site_settings_private")
         .select(
-          "id, report_email, report_enabled, voice_profile, banned_phrases, default_expert_pov, auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality",
+          "id, updated_at, gsc_property, report_email, report_enabled, voice_profile, banned_phrases, default_expert_pov, auto_publish_enabled, auto_publish_daily_cap, auto_publish_min_quality",
         )
+        .order("id")
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as {
         id: string;
+        updated_at: string | null;
+        gsc_property: string | null;
         report_email: string | null;
         report_enabled: boolean | null;
         voice_profile: string | null;
@@ -153,6 +163,12 @@ const SiteSettingsManager = () => {
   useEffect(() => {
     if (settings && !privateLoading && !privateError && !hydrated.current) {
       hydrated.current = true;
+      savedVersion.current = {
+        public_id: settings.id,
+        private_id: privateSettings?.id ?? null,
+        public_updated_at: settings.updated_at,
+        private_updated_at: privateSettings?.updated_at ?? null,
+      };
       const loadedForm = {
         ...defaultSettings,
         ...settings,
@@ -168,6 +184,7 @@ const SiteSettingsManager = () => {
         newsletter_from_address: settings.newsletter_from_address ?? "",
         newsletter_reply_to: settings.newsletter_reply_to ?? "",
         newsletter_postal_address: settings.newsletter_postal_address ?? "",
+        gsc_property: privateSettings?.gsc_property ?? "",
         report_email: privateSettings?.report_email ?? "",
         report_enabled: privateSettings?.report_enabled ?? false,
       } as Settings;
@@ -201,55 +218,46 @@ const SiteSettingsManager = () => {
           newsletter_reply_to: form.newsletter_reply_to.trim() || null,
           newsletter_postal_address:
             form.newsletter_postal_address.trim() || null,
-          updated_at: new Date().toISOString(),
         };
 
-        if (settings?.id) {
-          const { data, error } = await supabase
-            .from("site_settings")
-            .update(payload)
-            .eq("id", settings.id)
-            .select("id");
-          if (error) throw error;
-          if (!data?.length)
-            throw new Error(
-              "The site settings were not saved. The saved record or your access changed. Your values are still here.",
-            );
-        } else {
-          const { error } = await supabase
-            .from("site_settings")
-            .insert(payload);
-          if (error) throw error;
-        }
-
-        // Persist sensitive config (report + voice/banned/POV/gates) to the
-        // admin-only table. RLS on site_settings_private already restricts this
-        // to admins; edge functions read via service role.
         const privatePayload = {
+          gsc_property: form.gsc_property.trim() || null,
           report_email: (form.report_email || "").trim(),
           report_enabled: form.report_enabled || false,
           voice_profile: form.voice_profile || null,
           banned_phrases: form.banned_phrases,
           default_expert_pov: form.default_expert_pov || null,
-          updated_at: new Date().toISOString(),
         };
-        if (privateSettings?.id) {
-          const { data, error } = await supabase
-            .from("site_settings_private")
-            .update(privatePayload)
-            .eq("id", privateSettings.id)
-            .select("id");
-          if (error) throw error;
-          if (!data?.length)
-            throw new Error(
-              "The public settings were saved, but private settings were not saved because the record or your access changed. Your values are still here; retry saving to complete the update.",
-            );
-        } else {
-          const { error } = await supabase
-            .from("site_settings_private")
-            .insert(privatePayload);
-          if (error) throw error;
-        }
+        const version = savedVersion.current;
+        const { data, error } = await supabase
+          .rpc("admin_save_site_settings", {
+            _public_id: version.public_id,
+            _private_id: version.private_id,
+            _public_updated_at: version.public_updated_at,
+            _private_updated_at: version.private_updated_at,
+            _public_patch: payload,
+            _private_patch: privatePayload,
+          })
+          .abortSignal(AbortSignal.timeout(15000));
+        if (error) throw error;
+        if (
+          !data ||
+          typeof data !== "object" ||
+          Array.isArray(data) ||
+          typeof data.public_id !== "string" ||
+          typeof data.private_id !== "string" ||
+          typeof data.public_updated_at !== "string" ||
+          typeof data.private_updated_at !== "string"
+        )
+          throw new Error(
+            "The settings save was not confirmed. Your draft is still here. Reload the saved settings before trying again.",
+          );
+        savedVersion.current = {
+          public_id: data.public_id,
+          private_id: data.private_id,
+          public_updated_at: data.public_updated_at,
+          private_updated_at: data.private_updated_at,
+        };
         return form;
       }),
     onSuccess: (submitted) => {
@@ -428,6 +436,16 @@ const SiteSettingsManager = () => {
                 inputMode="url"
                 autoComplete="url"
                 placeholder="https://yoursite.com"
+              />
+            </Field>
+            <Field
+              label="Search Console property"
+              error={errors.gsc_property}
+              hint="Use the exact property from Search Console: sc-domain:yourdomain.com or https://yourdomain.com/. Leave blank to use your Site URL."
+            >
+              <input
+                {...bind("gsc_property")}
+                placeholder="sc-domain:yourdomain.com"
               />
             </Field>
             <Field label="Publisher Name">

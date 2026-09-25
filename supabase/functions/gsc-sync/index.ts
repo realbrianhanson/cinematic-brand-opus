@@ -3,7 +3,12 @@
 // and the service account added as a user on the GSC property.
 // Skips gracefully if the secret isn't configured.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import {
+  stageGscImport,
+  resolveGscProperty,
+  type SearchRow,
+} from "../_shared/gscImport.ts";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 
 const corsHeaders = {
@@ -25,7 +30,7 @@ function pemToBuffer(pem: string) {
 }
 
 function base64url(source: ArrayBuffer | Uint8Array) {
-  const str = String.fromCharCode.apply(null, new Uint8Array(source) as any);
+  const str = String.fromCharCode(...new Uint8Array(source));
   return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -58,6 +63,7 @@ async function getAccessToken(serviceAccountJson: string): Promise<string> {
   const jwt = `${data}.${base64url(sig)}`;
   const tokRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(30000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
@@ -78,7 +84,7 @@ async function querySearchAnalytics(
   start: string,
   end: string,
 ) {
-  const rows: any[] = [];
+  const rows: SearchRow[] = [];
   let startRow = 0;
   const rowLimit = 25000;
   while (true) {
@@ -86,6 +92,7 @@ async function querySearchAnalytics(
       `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(30000),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
@@ -102,10 +109,17 @@ async function querySearchAnalytics(
     const data = await res.json();
     if (!res.ok) throw new Error(`GSC: ${JSON.stringify(data)}`);
     const chunk = data.rows || [];
+    if (!Array.isArray(chunk))
+      throw new Error(
+        "Search Console returned an invalid report. Existing data is unchanged.",
+      );
     rows.push(...chunk);
     if (chunk.length < rowLimit) break;
     startRow += rowLimit;
-    if (startRow > 200000) break; // hard cap
+    if (startRow > 200000)
+      throw new Error(
+        "Search Console import exceeded the row limit. The last complete import is unchanged.",
+      );
   }
   return rows;
 }
@@ -134,71 +148,64 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Resolve the site property from site_settings.site_url.
-  const { data: settings } = await supabase
-    .from("site_settings")
-    .select("site_url")
-    .limit(1)
-    .maybeSingle();
-  const siteUrl = (settings?.site_url || "").replace(/\/+$/, "") + "/";
-  if (!siteUrl || siteUrl === "/") {
-    return new Response(
-      JSON.stringify({
-        skipped: true,
-        reason: "site_settings.site_url is empty.",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
   try {
     const end = daysAgo(1);
     const start = daysAgo(28);
 
-    const accessToken = await getAccessToken(serviceAccountJson);
-    const rows = await querySearchAnalytics(accessToken, siteUrl, start, end);
-
-    // Clear rows for this period, then insert fresh snapshot.
-    await supabase
-      .from("gsc_performance")
-      .delete()
-      .eq("period_start", start)
-      .eq("period_end", end);
-
-    const batch = rows
-      .map((r: any) => ({
-        page_url: r.keys?.[0] || "",
-        query: r.keys?.[1] || "",
-        clicks: Math.round(r.clicks || 0),
-        impressions: Math.round(r.impressions || 0),
-        ctr: Number(r.ctr || 0),
-        position: Number(r.position || 0),
-        period_start: start,
-        period_end: end,
-      }))
-      .filter((r: any) => r.page_url && r.query);
-
-    // Insert in chunks
-    const chunkSize = 1000;
-    for (let i = 0; i < batch.length; i += chunkSize) {
-      const slice = batch.slice(i, i + chunkSize);
-      const { error } = await supabase.from("gsc_performance").insert(slice);
-      if (error) throw new Error(`Insert failed at row ${i}: ${error.message}`);
-    }
+    const [
+      { data: settings, error: settingsError },
+      { data: privateSettings, error: privateError },
+    ] = await Promise.all([
+      supabase
+        .from("site_settings")
+        .select("site_url")
+        .order("id")
+        .limit(1)
+        .abortSignal(AbortSignal.timeout(15000))
+        .maybeSingle(),
+      supabase
+        .from("site_settings_private")
+        .select("gsc_property")
+        .order("id")
+        .limit(1)
+        .abortSignal(AbortSignal.timeout(15000))
+        .maybeSingle(),
+    ]);
+    if (settingsError) throw settingsError;
+    if (privateError) throw privateError;
+    const siteUrl = resolveGscProperty(
+      privateSettings?.gsc_property,
+      settings?.site_url,
+    );
+    // Keep the portable import runner independent of remote/generated schema
+    // types; Supabase's recursive select types otherwise exceed Deno's depth.
+    const imported = await stageGscImport(
+      supabase as unknown as Parameters<typeof stageGscImport>[0],
+      { property: siteUrl, start, end },
+      async () => {
+        const accessToken = await getAccessToken(serviceAccountJson);
+        return querySearchAnalytics(accessToken, siteUrl, start, end);
+      },
+    );
 
     return new Response(
       JSON.stringify({
         ok: true,
         site: siteUrl,
         period: `${start} → ${end}`,
-        rows: batch.length,
+        rows: imported.rows,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("gsc-sync error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Unknown error" }),
+      JSON.stringify({
+        error:
+          err instanceof Error
+            ? err.message
+            : "Search Console import failed. Check the integration and retry.",
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

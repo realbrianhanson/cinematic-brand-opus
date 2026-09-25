@@ -334,6 +334,45 @@ export default function ConversionDashboard({
               </div>
             </section>
           )}
+          <section className="admin-card admin-section admin-conversion-section">
+            <h2>Your First AI Build</h2>
+            {data.first_ai_build ? (
+              <>
+                <p className="admin-help">
+                  Consenting sessions, counted once per action. Actions can
+                  overlap; a download means the browser started it, and a
+                  training click is not a purchase. Plan text and your visitors’
+                  answers are never collected.
+                </p>
+                <div className="admin-conversion-metrics">
+                  {[
+                    ["Visited the planner", data.first_ai_build.visit_sessions],
+                    ["Created a plan", data.first_ai_build.plan_sessions],
+                    ["Copied the prompt", data.first_ai_build.copy_sessions],
+                    [
+                      "Started a download",
+                      data.first_ai_build.download_sessions,
+                    ],
+                    [
+                      "Explored training",
+                      data.first_ai_build.training_sessions,
+                    ],
+                  ].map(([label, value]) => (
+                    <Metric
+                      key={String(label)}
+                      label={String(label)}
+                      value={number(Number(value))}
+                      detail="Measured sessions"
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="admin-help">
+                Planner measurement is not available from this backend yet.
+              </p>
+            )}
+          </section>
           <div className="admin-conversion-columns">
             <section className="admin-card admin-section admin-conversion-section">
               <div>

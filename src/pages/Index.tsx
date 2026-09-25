@@ -40,8 +40,8 @@ export default function Index({
         <Hero />
         {sections.proofBar && <ProofBar />}
         {sections.event && <EventCTA />}
-        <HomeTestimonials />
         <HomeShop offers={shopShowcase} />
+        <HomeTestimonials />
         {sections.story && <Story />}
         {sections.expertise && <Expertise />}
         {sections.results && <Stats />}

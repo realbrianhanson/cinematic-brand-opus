@@ -41,6 +41,7 @@ export interface OfferHealth {
   delivery_needs_review?: number;
 }
 export interface OfferAccess {
+  checkout_recovery?: { available: boolean; reason: string };
   order: {
     id: string;
     title: string;
