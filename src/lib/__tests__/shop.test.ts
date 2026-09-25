@@ -77,6 +77,7 @@ import {
   getShopCatalog,
   getShopShowcase,
   getStartHereOffers,
+  getFirstAiBuildOffers,
   getRelatedShopOffers,
 } from "../shop.functions";
 beforeEach(() => {
@@ -87,6 +88,26 @@ beforeEach(() => {
   mocks.response = { data: [], count: 0, error: null };
 });
 describe("shop catalog boundaries", () => {
+  it("only recommends published public planner offers and tolerates unavailable merchandising", async () => {
+    mocks.response.data = [{ id: "public-workshop" }];
+    expect(await getFirstAiBuildOffers()).toEqual(mocks.response.data);
+    expect(mocks.calls).toContainEqual(["select", SHOP_COLUMNS]);
+    for (const [field, value] of [
+      ["status", "published"],
+      ["show_in_shop", true],
+      ["funnel_only", false],
+    ])
+      expect(mocks.calls).toContainEqual(["eq", field, value]);
+    expect(mocks.calls).toContainEqual([
+      "in",
+      "slug",
+      ["app-building-workshop", "pushten", "ai-follow-up-starter-kit"],
+    ]);
+    expect(mocks.calls).toContainEqual(["limit", 3]);
+    expect(mocks.calls.some(([method]) => method === "abortSignal")).toBe(true);
+    mocks.response.error = { message: "Unavailable" };
+    expect(await getFirstAiBuildOffers()).toEqual([]);
+  });
   it("loads named goal offers regardless of featured placement while respecting publication and funnel privacy", async () => {
     mocks.response.data = [{ id: "public-unfeatured-workshop" }];
     expect(await getStartHereOffers()).toEqual(mocks.response.data);

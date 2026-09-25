@@ -79,6 +79,11 @@ export const brianPreset: SiteConfig = {
             description: "Find the right next step",
           },
           {
+            label: "Your First AI Build",
+            href: "/first-ai-build",
+            description: "Get a free project plan and build prompt",
+          },
+          {
             label: "Guides & Resources",
             href: "/resources",
             description: "Practical ideas you can put to work",
@@ -349,6 +354,7 @@ export const brianPreset: SiteConfig = {
     routeLinks: [
       { label: "About Brian", href: "/about" },
       { label: "Start Here", href: "/start-here" },
+      { label: "Your First AI Build", href: "/first-ai-build" },
       { label: "Shop", href: "/shop" },
       { label: "Speaking", href: "/speaking" },
       { label: "Blog", href: "/blog" },

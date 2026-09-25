@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { siteConfig } from "@/config/site";
 import { buildRuntimeConfig } from "@/config/runtime";
+import { isBrianOwner } from "@/lib/informationPages";
 import {
   loadShopSitemapOffers,
   SHOP_DISCOVERY_COLUMNS,
@@ -235,6 +236,13 @@ export async function buildSitemapXml(): Promise<string> {
     { loc: `${siteUrl}/privacy`, changefreq: "monthly", priority: "0.3" },
     { loc: `${siteUrl}/terms`, changefreq: "monthly", priority: "0.3" },
   ];
+
+  if (isBrianOwner(config))
+    entries.push({
+      loc: `${siteUrl}/first-ai-build`,
+      changefreq: "monthly",
+      priority: "0.8",
+    });
 
   if (config.sections.story)
     entries.push({

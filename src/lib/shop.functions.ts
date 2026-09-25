@@ -55,6 +55,30 @@ export const getStartHereOffers = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/** The free planner remains usable if its optional next-step offers are unavailable. */
+export const getFirstAiBuildOffers = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ShopOffer[]> => {
+    try {
+      const { data, error } = await createPublicServerClient()
+        .from("offers")
+        .select(SHOP_COLUMNS)
+        .eq("status", "published")
+        .eq("show_in_shop", true)
+        .eq("funnel_only", false)
+        .in("slug", [
+          "app-building-workshop",
+          "pushten",
+          "ai-follow-up-starter-kit",
+        ])
+        .limit(3)
+        .abortSignal(AbortSignal.timeout(4000));
+      return error ? [] : ((data || []) as ShopOffer[]);
+    } catch {
+      return [];
+    }
+  },
+);
+
 export const getRelatedShopOffers = createServerFn({ method: "GET" })
   .inputValidator((input: { excludeId: string }) => ({
     excludeId:

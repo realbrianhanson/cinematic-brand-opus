@@ -70,6 +70,27 @@ export default function StartHere({
       }
       wide
     >
+      {owner && (
+        <section className="grid gap-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-7 sm:p-9 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--brand-accent)]">
+              Free interactive tool
+            </p>
+            <h2 className="mt-4">Make your first app a useful one</h2>
+            <p className="mt-4 max-w-2xl text-white/75">
+              Pick a business task. Leave with a focused project plan, a prompt
+              you can paste into an AI app builder, and three tests to check
+              what you build. No email required.
+            </p>
+          </div>
+          <Link
+            to="/first-ai-build"
+            className="inline-flex min-h-11 items-center justify-center gap-3 rounded bg-[var(--brand-accent)] px-6 py-4 font-semibold text-[var(--brand-backdrop)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
+          >
+            Plan my first build <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+        </section>
+      )}
       {owner && <StartHerePaths offers={goalOffers} />}
       {!owner && freeOffer && (
         <section className="grid gap-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-7 sm:p-9 md:grid-cols-[1fr_auto] md:items-center">
