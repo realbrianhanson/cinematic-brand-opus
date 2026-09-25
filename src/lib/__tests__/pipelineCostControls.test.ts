@@ -9,7 +9,7 @@ import {
   creditsExhaustedBody,
   freshnessHours,
   staleSourcesReason,
-} from "../../../supabase/functions/draft-from-opportunity/preflight";
+} from "../../../supabase/functions/_shared/draftPreflight";
 import {
   PAID_SOURCE_MIN_INTERVAL_HOURS,
   paidSourceDue,
@@ -22,7 +22,7 @@ import {
 import {
   AI_CREDITS_EXHAUSTED,
   isCreditsExhausted,
-} from "../../../supabase/functions/daily-content-run/credits";
+} from "../../../supabase/functions/_shared/aiCredits";
 
 const HOUR = 3600_000;
 const NOW = Date.parse("2026-09-23T12:00:00Z");

@@ -15,7 +15,7 @@ import {
   AI_CREDITS_MESSAGE,
   isCreditsExhausted,
   type StageResult,
-} from "./credits.ts";
+} from "../_shared/aiCredits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

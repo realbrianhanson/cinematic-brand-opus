@@ -7,7 +7,7 @@ import {
 import {
   AI_CREDITS_EXHAUSTED,
   isCreditsExhausted,
-} from "../../../supabase/functions/daily-content-run/credits";
+} from "../../../supabase/functions/_shared/aiCredits";
 
 const POST = "3f0c1f5e-8a4b-4c1d-9e2f-0a1b2c3d4e5f";
 const NOW = Date.parse("2026-09-23T12:00:00.000Z");

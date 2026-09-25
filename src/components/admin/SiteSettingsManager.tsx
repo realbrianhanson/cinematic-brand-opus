@@ -231,10 +231,12 @@ const SiteSettingsManager = () => {
         const version = savedVersion.current;
         const { data, error } = await supabase
           .rpc("admin_save_site_settings", {
-            _public_id: version.public_id,
-            _private_id: version.private_id,
-            _public_updated_at: version.public_updated_at,
-            _private_updated_at: version.private_updated_at,
+            // Generated RPC types omit SQL argument nullability. Keep nulls for
+            // absent rows and legacy timestamps so the database can compare them.
+            _public_id: version.public_id as string,
+            _private_id: version.private_id as string,
+            _public_updated_at: version.public_updated_at as string,
+            _private_updated_at: version.private_updated_at as string,
             _public_patch: payload,
             _private_patch: privatePayload,
           })

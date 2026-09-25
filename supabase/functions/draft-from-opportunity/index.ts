@@ -34,7 +34,7 @@ import {
   creditsExhaustedBody,
   freshnessHours,
   staleSourcesReason,
-} from "./preflight.ts";
+} from "../_shared/draftPreflight.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
