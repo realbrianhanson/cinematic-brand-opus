@@ -73,7 +73,7 @@ The detailed evidence and current official Google guidance are in [SEO/AEO findi
 
 ## Release boundary and verification
 
-GitHub changes are for **Lovable preview**. Final publishing remains with the owner. Managed functions and shared database changes require a separate backend release; they are not deployed by this frontend push. This pass stages `render-page`, `check-content-freshness` and `refresh-stale-content`, plus their shared modules. The previous audit lists the still-pending newsletter/overview migrations and earlier function updates.
+GitHub changes are for **Lovable preview**. Final publishing remains with the owner. Managed functions and shared database changes require a separate backend release; they are not deployed by this frontend push. This pass stages `render-page`, `check-content-freshness`, `refresh-stale-content`, `generate-content` and `generate-pillar`, plus their shared modules. The generator follow-up removes the same unsupported verification and vendor-availability assumptions at their source. The previous audit lists the still-pending newsletter/overview migrations and earlier function updates.
 
 Local verification: full application type checking passed; ESLint has zero errors and 291 warning-level items; all 26 isolated database suites passed; all 40 managed-function entry points passed Deno checking; production build and full formatting checks passed. Independent generic and TypeScript reviews approved the changes after the identified defects were corrected. Desktop and 390-pixel mobile browser checks verified goal selection and no horizontal overflow.
 
