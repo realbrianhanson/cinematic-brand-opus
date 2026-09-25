@@ -14,7 +14,7 @@ export interface OfferDeliveryIssue {
   at: string | null;
   next_attempt_at: string | null;
 }
-/** `OfferHealth` plus the retry-queue fields added with the 15-minute cron */
+/** `OfferHealth` plus delivery observability, independent of a retry schedule. */
 export type OfferDeliveryHealthData = OfferHealth & {
   delivery_failed?: number;
   delivery_next_retry_at?: string | null;
@@ -49,11 +49,14 @@ function pendingCopy(
   fallbackNext: string | null | undefined,
 ) {
   const at = when(issue.at);
-  const next =
+  const next = when(issue.next_attempt_at ?? fallbackNext);
+  const timing =
     issue.status === "sending"
-      ? "running now"
-      : (when(issue.next_attempt_at ?? fallbackNext) ?? "within 15 minutes");
-  return `Download emails aren't going out yet. Last try${at ? ` ${at}` : ""}: ${reasonOf(issue)}. We retry on our own every 15 minutes with longer gaps each time, next try ${next}. Customers can still use their private link`;
+      ? "An attempt is in progress"
+      : next
+        ? `Retry eligible after ${next}`
+        : "Retry timing is unavailable";
+  return `Download emails aren't going out yet. Last try${at ? ` ${at}` : ""}: ${reasonOf(issue)}. ${timing}. Use Retry due emails now to process eligible messages. Automatic retries require a configured schedule. Customers can still use their private link`;
 }
 function failedCopy(count: number) {
   const one = count === 1;
@@ -83,7 +86,7 @@ function useRequeue(refresh: () => void) {
     onSuccess: (result) => {
       toast({
         title: "Email requeued",
-        description: `${result.sent} accepted by Resend on this run. Anything left retries every 15 minutes`,
+        description: `${result.sent} accepted by Resend on this run. Remaining messages stay queued for the next manual or configured scheduled run`,
       });
       refresh();
     },
@@ -135,7 +138,7 @@ function RequeueControl({
         description={
           review
             ? "Only do this if the Resend log shows no send for it. We send the same saved message with the same duplicate protection and try it right away"
-            : "Resend never accepted this email. We send the same saved message right away, then keep retrying every 15 minutes if it still fails"
+            : "Resend never accepted this email. We send the same saved message right away, then leave it queued for the next manual or configured scheduled run if it still fails"
         }
         confirmLabel="Requeue email"
         onCancel={() => setConfirming(false)}

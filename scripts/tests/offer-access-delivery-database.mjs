@@ -389,8 +389,12 @@ const retrySql = readFileSync(
   "supabase/migrations/20260923141000_offer_access_retry_cron.sql",
   "utf8",
 );
-await db.exec(retrySql); // No pg_cron here: scheduling is skipped.
-await db.exec(retrySql); // Re-running is harmless.
+const deliverySchemaSql = readFileSync(
+  "supabase/migrations/20260925140000_offer_delivery_schema_without_schedule.sql",
+  "utf8",
+);
+await db.exec(deliverySchemaSql); // Required schema works without scheduling.
+await db.exec(deliverySchemaSql); // Re-running is harmless.
 const row = (id) =>
   one("SELECT * FROM offer_access_deliveries WHERE id=$1", [id]);
 assert.ok((await row(stuck)).uncertain_since, "legacy attempts are uncertain");
@@ -677,8 +681,26 @@ await db.exec("RESET ROLE");
 await db.exec(`CREATE SCHEMA cron;
 CREATE TABLE cron.job(jobid bigserial PRIMARY KEY,jobname text UNIQUE,schedule text,command text);
 CREATE FUNCTION cron.schedule(text,text,text) RETURNS bigint LANGUAGE sql AS $$INSERT INTO cron.job(jobname,schedule,command) VALUES($1,$2,$3) RETURNING jobid$$;
-CREATE FUNCTION cron.unschedule(text) RETURNS boolean LANGUAGE sql AS $$DELETE FROM cron.job WHERE jobname=$1 RETURNING true$$;
-INSERT INTO cron.job(jobname,schedule,command) VALUES('offer-access-retry-15min','* * * * *','stale');`);
+CREATE FUNCTION cron.unschedule(text) RETURNS boolean LANGUAGE sql AS $$DELETE FROM cron.job WHERE jobname=$1 RETURNING true$$;`);
+await db.exec(deliverySchemaSql);
+assert.equal(
+  (await one("SELECT count(*)::int n FROM cron.job")).n,
+  0,
+  "required schema never enables retries",
+);
+await db.exec(
+  "INSERT INTO cron.job(jobname,schedule,command) VALUES('offer-access-retry-15min','* * * * *','stale')",
+);
+await db.exec(deliverySchemaSql);
+assert.equal(
+  (
+    await one(
+      "SELECT command FROM cron.job WHERE jobname='offer-access-retry-15min'",
+    )
+  ).command,
+  "stale",
+  "required schema preserves existing schedules",
+);
 await db.exec(retrySql);
 await db.exec(retrySql);
 const jobs = (
@@ -697,5 +719,5 @@ for (const fragment of [
   assert.ok(jobs[0].command.includes(fragment), fragment);
 await db.close();
 console.log(
-  "PASS: private offer email delivery, frozen retries/leases/receipts, recovery isolation and cooldown, hashed grants/expiry, preserved original links, uncertain-send quarantine, backoff/attempt limits with provider reasons, admin requeue, and the 15-minute retry job.",
+  "PASS: private offer email delivery, frozen retries/leases/receipts, recovery isolation and cooldown, hashed grants/expiry, preserved original links, uncertain-send quarantine, backoff/attempt limits with provider reasons, admin requeue, schedule-free schema rollout, and the separately optional 15-minute retry job.",
 );

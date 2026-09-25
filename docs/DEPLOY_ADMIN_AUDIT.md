@@ -8,7 +8,7 @@ PR15, PR16, PR17 and PR18 are merged into `main`. Lovable's connected project `a
 
 The newsletter-truth, admin-overview and resources/guides migrations (`20260923140000`, `20260923150000`, `20260923152000`) were applied from their reviewed source in individual transactions, with source and version recorded in migration history. Live Overview and Audience reads now work. Resource job stall handling is installed.
 
-All previously expected September23/24 migrations were found in history except the optional Jev schedule and the offer-access email retry schedule. Do not apply either schedule as a test. In particular, enabling `20260923141000_offer_access_retry_cron` can deliver previously queued customer messages.
+All previously expected September23/24 migrations were found in history except the optional Jev schedule and the offer-access email retry schedule. Required offer delivery fields/RPCs are supplied separately by `20260925140000_offer_delivery_schema_without_schedule`, now applied without activating cron. Do not apply either schedule as a test. In particular, enabling `20260923141000_offer_access_retry_cron` can deliver previously queued customer messages.
 
 The sender domain `m.brianhanson.com` is verified in Resend. The W39 rejection shown in the admin is historical. No customer messages were sent or retried during this release. No changes were made to DNS, authentication, administrator roles, provider keys or existing schedules, except the reviewed resource job stall sweeper contained in its migration.
 
