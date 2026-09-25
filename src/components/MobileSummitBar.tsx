@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, X } from "lucide-react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { summitHref } from "@/lib/summitLink";
+import { useLocation } from "@/lib/router-compat";
 
 export const MOBILE_BAR_DISMISS_KEY = "mobile-summit-bar-dismissed-v1";
 /** Page offset for other fixed widgets (the chat button) while the bar shows. */
@@ -43,6 +44,8 @@ function pillSpace(): number | null {
  * measurement pill and can be dismissed for the session.
  */
 export default function MobileSummitBar() {
+  const { pathname } = useLocation();
+  const focused = pathname.replace(/\/+$/, "") === "/first-ai-build";
   const { sections, event, nav } = useSiteConfig();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -57,7 +60,7 @@ export default function MobileSummitBar() {
   }, []);
 
   useEffect(() => {
-    if (!cta) return;
+    if (!cta || focused) return;
     const onScroll = () =>
       setScrolled(window.scrollY > window.innerHeight * 0.6);
     const measure = () => setOffset(pillSpace());
@@ -72,9 +75,10 @@ export default function MobileSummitBar() {
       window.removeEventListener("resize", measure);
       observer.disconnect();
     };
-  }, [cta]);
+  }, [cta, focused]);
 
-  const visible = mounted && !!cta && !dismissed && scrolled && offset !== null;
+  const visible =
+    mounted && !!cta && !focused && !dismissed && scrolled && offset !== null;
 
   useEffect(() => {
     const root = document.documentElement;

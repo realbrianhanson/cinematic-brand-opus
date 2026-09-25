@@ -66,7 +66,13 @@ describe("public navigation journeys", () => {
       Array.from(groups[0].querySelectorAll("a")).map((link) =>
         link.getAttribute("href"),
       ),
-    ).toEqual(["/start-here", "/resources", "/blog", "/news"]);
+    ).toEqual([
+      "/start-here",
+      "/first-ai-build",
+      "/resources",
+      "/blog",
+      "/news",
+    ]);
     const allText = nav.textContent || "";
     expect(allText.indexOf("Shop")).toBeLessThan(
       allText.indexOf("Free Resources"),

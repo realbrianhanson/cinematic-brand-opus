@@ -10,7 +10,11 @@ export default function PublicSiteChat() {
       matches: state.matches,
     }),
   });
-  if (pathname.startsWith("/admin") || pathname.startsWith("/offers/preview/"))
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/offers/preview/") ||
+    pathname.replace(/\/+$/, "") === "/first-ai-build"
+  )
     return null;
   const offerMatch = matches.find((match) => match.routeId === "/offers/$slug");
   const offerData = offerMatch?.loaderData as

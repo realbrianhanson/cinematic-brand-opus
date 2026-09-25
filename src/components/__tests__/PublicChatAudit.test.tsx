@@ -53,6 +53,16 @@ afterEach(() => {
 });
 
 describe("public assistant navigation", () => {
+  it.each(["/first-ai-build", "/first-ai-build/"])(
+    "does not compete with the free planner on %s",
+    (pathname) => {
+      state.snapshot = { location: { pathname }, matches: [] };
+      render(<PublicSiteChat />);
+      expect(
+        screen.queryByRole("button", { name: "Ask a question" }),
+      ).toBeNull();
+    },
+  );
   it("updates visibility on navigation without rerendering the root", () => {
     render(<PublicSiteChat />);
     expect(screen.getByRole("button", { name: "Ask a question" })).toBeTruthy();

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { getShopSitemapOffers } from "@/lib/shopSitemap.functions";
+import { isBrianOwner } from "@/lib/informationPages";
 
 const HTMLSitemap = () => {
   const config = useSiteConfig();
@@ -105,6 +106,9 @@ const HTMLSitemap = () => {
           <ul className="flex flex-col gap-2">
             {[
               ["/start-here", "Start Here"],
+              ...(isBrianOwner(config)
+                ? [["/first-ai-build", "Your First AI Build"]]
+                : []),
               ["/support", "Help & Support"],
               ["/privacy", "Privacy Notice"],
               ["/terms", "Website Terms"],

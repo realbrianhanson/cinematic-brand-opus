@@ -17,6 +17,7 @@ import type { ShopOffer } from "@/lib/shop";
 vi.mock("@/components/Nav", () => ({ default: () => <nav /> }));
 vi.mock("@/components/Footer", () => ({ default: () => <footer /> }));
 vi.mock("@/lib/router-compat", () => ({
+  useSearchParams: () => [new URLSearchParams()],
   Link: ({
     to,
     children,
@@ -43,6 +44,24 @@ const member = {
 };
 
 describe("new visitor and customer information pages", () => {
+  it("discovers the free planner only on the owner's Start Here page and preset links", () => {
+    const owner = renderToStaticMarkup(
+      <SiteConfigContext.Provider value={brianPreset}>
+        <StartHere offers={[]} />
+      </SiteConfigContext.Provider>,
+    );
+    const remix = renderToStaticMarkup(
+      <SiteConfigContext.Provider value={member}>
+        <StartHere offers={[]} />
+      </SiteConfigContext.Provider>,
+    );
+    expect(owner).toContain('href="/first-ai-build"');
+    expect(owner).toContain("No email required");
+    expect(remix).not.toContain("/first-ai-build");
+    expect(JSON.stringify(brianPreset.nav)).toContain("/first-ai-build");
+    expect(JSON.stringify(brianPreset.footer)).toContain("/first-ai-build");
+    expect(JSON.stringify(memberPreset)).not.toContain("/first-ai-build");
+  });
   it("uses the active member identity in every route's server-rendered metadata", () => {
     for (const path of Object.keys(
       informationPages,

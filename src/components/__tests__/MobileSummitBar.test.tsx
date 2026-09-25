@@ -7,7 +7,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { brianPreset } from "@/config/presets/brian";
 import { memberPreset } from "@/config/presets/member";
@@ -15,6 +15,11 @@ import type { SiteConfig } from "@/config/types";
 import MobileSummitBar, {
   MOBILE_BAR_DISMISS_KEY,
 } from "@/components/MobileSummitBar";
+
+const route = vi.hoisted(() => ({ pathname: "/" }));
+vi.mock("@/lib/router-compat", () => ({
+  useLocation: () => route,
+}));
 
 function mount(config: SiteConfig = brianPreset) {
   return render(
@@ -35,6 +40,7 @@ function scrollPastFirstScreen() {
 }
 
 beforeEach(() => {
+  route.pathname = "/";
   sessionStorage.clear();
   Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
 });
@@ -44,6 +50,17 @@ afterEach(() => {
 });
 
 describe("mobile Summit bar", () => {
+  it.each(["/first-ai-build", "/first-ai-build/"])(
+    "leaves the project planner's mobile controls clear on %s",
+    (pathname) => {
+      route.pathname = pathname;
+      mount();
+      scrollPastFirstScreen();
+      expect(
+        screen.queryByRole("region", { name: "Free AI Summit" }),
+      ).toBeNull();
+    },
+  );
   it("waits until the visitor scrolls past the first screen", () => {
     mount();
     expect(screen.queryByRole("region", { name: "Free AI Summit" })).toBeNull();
