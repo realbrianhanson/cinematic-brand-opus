@@ -72,6 +72,7 @@ import OfferConfirmDialog from "./OfferConfirmDialog";
 import OfferRevisionHistory from "./OfferRevisionHistory";
 import OfferReviewStatus from "./OfferReviewStatus";
 import OfferJourneyReadiness from "./offers/OfferJourneyReadiness";
+import OfferBlueprintPicker from "./offers/OfferBlueprintPicker";
 
 const workflow: { id: OfferStep; title: string; detail: string }[] = [
   { id: "strategy", title: "Strategy", detail: "Buyer, promise & proof" },
@@ -187,8 +188,16 @@ function OfferForm({
     handoff?.step || (initial ? "pages" : "strategy"),
   );
   const headerRef = useRef<HTMLElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const focusBlueprintStep = useRef(false);
   useEffect(() => {
     headerRef.current?.scrollIntoView?.({ block: "start" });
+    if (focusBlueprintStep.current) {
+      navigationRef.current
+        ?.querySelector<HTMLButtonElement>('[aria-current="step"]')
+        ?.focus();
+      focusBlueprintStep.current = false;
+    }
   }, [step]);
   const [stage, setStage] = useState<PageStage>("landing");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
@@ -852,7 +861,11 @@ function OfferForm({
         disabled={saving || uploading}
         className="grid min-w-0 gap-6 2xl:grid-cols-[160px_minmax(0,1fr)]"
       >
-        <nav aria-label="Offer builder steps" className="min-w-0">
+        <nav
+          ref={navigationRef}
+          aria-label="Offer builder steps"
+          className="min-w-0"
+        >
           <div className="flex gap-2 overflow-x-auto pb-2 2xl:sticky 2xl:top-5 2xl:flex-col 2xl:overflow-visible">
             {workflow.map((item, index) => (
               <button
@@ -934,6 +947,36 @@ function OfferForm({
           </section>
           <div className="order-1 min-w-0 space-y-6 xl:order-2">
             <div hidden={step !== "strategy"} className="space-y-6">
+              <OfferBlueprintPicker
+                value={builder.presentation.landing}
+                context={{
+                  strategy: builder.strategy,
+                  offer: {
+                    title: form.title,
+                    summary: form.summary,
+                    kind: form.kind,
+                    checkout_mode: form.checkoutMode,
+                  },
+                }}
+                external={external}
+                hasDestination={!!form.externalUrl.trim()}
+                onConfigureDelivery={() => {
+                  focusBlueprintStep.current = true;
+                  setStep("delivery");
+                }}
+                onApply={(page, message) => {
+                  // Blueprint application changes presentation only. Delivery
+                  // and its legacy button fallback remain exactly as entered.
+                  setBuilder((old) => ({
+                    ...old,
+                    presentation: { ...old.presentation, landing: page },
+                  }));
+                  setNotice(message);
+                  setStage("landing");
+                  focusBlueprintStep.current = true;
+                  setStep("pages");
+                }}
+              />
               <OfferStrategyFields
                 value={builder.strategy}
                 onChange={(strategy) =>
