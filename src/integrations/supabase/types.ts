@@ -727,6 +727,57 @@ export type Database = {
         }
         Relationships: []
       }
+      funnel_journey_measurement_events: {
+        Row: {
+          created_at: string
+          id: string
+          journey_id: string
+          next_step_id: string | null
+          option_id: string | null
+          revision: number
+          session_id: string
+          step_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          journey_id: string
+          next_step_id?: string | null
+          option_id?: string | null
+          revision: number
+          session_id: string
+          step_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          journey_id?: string
+          next_step_id?: string | null
+          option_id?: string | null
+          revision?: number
+          session_id?: string
+          step_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_journey_measurement_events_journey_id_revision_fkey"
+            columns: ["journey_id", "revision"]
+            isOneToOne: false
+            referencedRelation: "funnel_journey_revisions"
+            referencedColumns: ["journey_id", "version"]
+          },
+          {
+            foreignKeyName: "funnel_journey_measurement_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funnel_journey_requests: {
         Row: {
           created_at: string
@@ -854,15 +905,6 @@ export type Database = {
             referencedRelation: "funnel_journey_sessions"
             referencedColumns: ["token_hash"]
           },
-        ]
-      }
-      funnel_journey_measurement_events: {
-        Row: { id: string; session_id: string; journey_id: string; revision: number; step_id: string; type: string; option_id: string | null; next_step_id: string | null; created_at: string }
-        Insert: { id: string; session_id: string; journey_id: string; revision: number; step_id: string; type: string; option_id?: string | null; next_step_id?: string | null; created_at?: string }
-        Update: { id?: string; session_id?: string; journey_id?: string; revision?: number; step_id?: string; type?: string; option_id?: string | null; next_step_id?: string | null; created_at?: string }
-        Relationships: [
-          { foreignKeyName: "funnel_journey_measurement_events_session_id_fkey"; columns: ["session_id"]; isOneToOne: false; referencedRelation: "conversion_sessions"; referencedColumns: ["id"] },
-          { foreignKeyName: "funnel_journey_measurement_events_journey_id_revision_fkey"; columns: ["journey_id", "revision"]; isOneToOne: false; referencedRelation: "funnel_journey_revisions"; referencedColumns: ["journey_id", "version"] }
         ]
       }
       funnel_journeys: {
@@ -3374,19 +3416,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_save_site_branding: {
-        Args: { _value: Json; _expected_branding_updated_at: string | null; _expected_settings_updated_at: string | null }
-        Returns: Json
-      }
-      admin_offer_order_support: {
-        Args: { _query?: string; _status?: string; _kind?: string; _page?: number }
-        Returns: Json
-      }
-      admin_funnel_journey_measurement: { Args: { _days?: number }; Returns: Json }
-      funnel_journey_record_measurement: {
-        Args: { _session_id: string; _token_hash: string; _events: Json; _attribution?: Json; _consent?: boolean }
-        Returns: boolean
-      }
       _offer_apply_stripe_event_v1: {
         Args: {
           _amount_minor: number
@@ -3415,6 +3444,10 @@ export type Database = {
         Returns: Json
       }
       admin_external_payment_snapshot: {
+        Args: { _days?: number }
+        Returns: Json
+      }
+      admin_funnel_journey_measurement: {
         Args: { _days?: number }
         Returns: Json
       }
@@ -3451,6 +3484,15 @@ export type Database = {
       }
       admin_offer_experiments: { Args: never; Returns: Json }
       admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
+      admin_offer_order_support: {
+        Args: {
+          _kind?: string
+          _page?: number
+          _query?: string
+          _status?: string
+        }
+        Returns: Json
+      }
       admin_overview_attention_item: {
         Args: {
           _count: number
@@ -3522,6 +3564,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      admin_save_site_branding: {
+        Args: {
+          _expected_branding_updated_at: string
+          _expected_settings_updated_at: string
+          _value: Json
+        }
+        Returns: Json
       }
       admin_save_site_settings: {
         Args: {
@@ -3647,6 +3697,16 @@ export type Database = {
         Returns: undefined
       }
       funnel_journey_cleanup: { Args: never; Returns: undefined }
+      funnel_journey_record_measurement: {
+        Args: {
+          _attribution?: Json
+          _consent?: boolean
+          _events: Json
+          _session_id: string
+          _token_hash: string
+        }
+        Returns: boolean
+      }
       funnel_journey_save: {
         Args: {
           _active: boolean
