@@ -66,8 +66,8 @@ function UsageSummary({
   if (usage.total === 0) {
     return (
       <p className="text-sm">
-        Not used in any post, guide, resource, offer, saved offer version, news
-        item or site branding
+        Not used in any post, guide, resource, offer, saved offer version, saved
+        guide/resource history, news item or site branding
       </p>
     );
   }

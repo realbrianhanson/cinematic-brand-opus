@@ -13,6 +13,11 @@ import { loadVoiceConfig, formatVoiceBlock } from "../_shared/voice.ts";
 import { fetchOgImage } from "../_shared/ogImage.ts";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
 import { validateNewsRequest } from "../_shared/newsRequest.ts";
+import {
+  newsEditVersion,
+  NewsEditConflict,
+  updateNewsIfCurrent,
+} from "../_shared/newsConcurrency.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -58,13 +63,14 @@ Deno.serve(async (req) => {
     const { data: item, error } = await supabase
       .from("source_items")
       .select(
-        "id, title, url, raw_excerpt, full_content, ai_title, ai_summary, image_url, topic_lane, published_at, content_sources(name)",
+        "id, edit_version, title, url, raw_excerpt, full_content, ai_title, ai_summary, image_url, topic_lane, published_at, content_sources(name)",
       )
       .eq("id", id)
       .maybeSingle();
     if (error || !item) {
       return json({ error: "not found" }, 404);
     }
+    const expectedVersion = newsEditVersion(item);
 
     if (item.full_content && !force) {
       // Cached path: opportunistically backfill a missing image.
@@ -72,12 +78,10 @@ Deno.serve(async (req) => {
       if (!cachedImage) {
         cachedImage = await fetchOgImage(item.url);
         if (cachedImage) {
-          const { error: imgError } = await supabase
-            .from("source_items")
-            .update({ image_url: cachedImage.slice(0, 1000) })
-            .eq("id", item.id);
-          if (imgError)
-            console.error("image backfill failed:", imgError.message);
+          cachedImage = cachedImage.slice(0, 1000);
+          await updateNewsIfCurrent(supabase, item.id, expectedVersion, {
+            image_url: cachedImage,
+          });
         }
       }
       return json({
@@ -254,12 +258,16 @@ Return STRICT JSON only, no prose, no code fences:
     if (backfilledImage)
       updatePayload.image_url = backfilledImage.slice(0, 1000);
 
-    const { error: updateError } = await supabase
-      .from("source_items")
-      .update(updatePayload)
-      .eq("id", item.id);
-    if (updateError) {
-      console.error("source_items update failed:", updateError.message);
+    try {
+      await updateNewsIfCurrent(
+        supabase,
+        item.id,
+        expectedVersion,
+        updatePayload,
+      );
+    } catch (updateError) {
+      if (updateError instanceof NewsEditConflict) throw updateError;
+      console.error("source_items update failed:", updateError);
       return json(
         { error: "save_failed", message: "Could not store the article." },
         500,
@@ -277,6 +285,15 @@ Return STRICT JSON only, no prose, no code fences:
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    if (e instanceof NewsEditConflict)
+      return json(
+        {
+          error: "article_changed",
+          message:
+            "This article changed while generation was running. The newer saved article was kept. Reload it before trying again.",
+        },
+        409,
+      );
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

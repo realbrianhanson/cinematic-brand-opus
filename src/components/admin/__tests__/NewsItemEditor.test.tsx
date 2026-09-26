@@ -15,6 +15,7 @@ import NewsItemEditor, {
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
   update: vi.fn(),
+  filters: vi.fn(),
   saved: { id: "news-1" } as { id: string } | null,
   load: vi.fn(),
   upload: vi.fn(),
@@ -24,6 +25,7 @@ const h = vi.hoisted(() => ({
 }));
 const item = {
   id: "news-1",
+  edit_version: "00000000-0000-4000-8000-000000000001",
   title: "A new scheduling tool for business owners",
   ai_title: null,
   ai_summary: "A useful scheduling feature.",
@@ -61,13 +63,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       }),
       update: (payload: unknown) => {
         h.update(payload);
-        return {
-          eq: () => ({
-            select: () => ({
-              maybeSingle: async () => ({ data: h.saved, error: null }),
-            }),
+        const chain = {
+          eq: (column: string, value: unknown) => {
+            h.filters(column, value);
+            return chain;
+          },
+          select: () => ({
+            maybeSingle: async () => ({ data: h.saved, error: null }),
           }),
         };
+        return chain;
       },
     }),
   },
@@ -84,6 +89,69 @@ afterEach(() => {
 });
 
 describe("news editorial review", () => {
+  it("uses the loaded version and preserves edits when another writer wins", async () => {
+    h.saved = null;
+    const onSaved = vi.fn();
+    render(
+      <NewsItemEditor itemId="news-1" onClose={vi.fn()} onSaved={onSaved} />,
+    );
+    const editor = await screen.findByRole("textbox", {
+      name: "Full article content",
+    });
+    fireEvent.change(editor, { target: { value: "My important review" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText(/changed since you opened it/)).toBeTruthy();
+    expect(h.filters).toHaveBeenCalledWith("edit_version", item.edit_version);
+    expect((editor as HTMLTextAreaElement).value).toBe("My important review");
+    expect(onSaved).not.toHaveBeenCalled();
+    h.load.mockResolvedValue({
+      data: {
+        ...item,
+        edit_version: "00000000-0000-4000-8000-000000000002",
+        full_content: "Newer saved report",
+      },
+      error: null,
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Compare latest saved version" }),
+    );
+    expect(
+      await screen.findByText(/"full_content": "Newer saved report"/),
+    ).toBeTruthy();
+    expect((editor as HTMLTextAreaElement).value).toBe("My important review");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load latest saved version" }),
+    );
+    expect(await screen.findByDisplayValue("Newer saved report")).toBeTruthy();
+    expect(await screen.findByText(/direct restore is blocked/)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Restore working copy" }),
+    ).toBeNull();
+    h.saved = { id: item.id };
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Full article content" }),
+      { target: { value: "Merged review" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(h.filters).toHaveBeenCalledWith(
+      "edit_version",
+      "00000000-0000-4000-8000-000000000002",
+    );
+  });
+  it("fails closed if the deployment has no concurrency token", async () => {
+    h.load.mockResolvedValue({
+      data: { ...item, edit_version: undefined },
+      error: null,
+    });
+    render(
+      <NewsItemEditor itemId="news-1" onClose={vi.fn()} onSaved={vi.fn()} />,
+    );
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /version protection/,
+    );
+    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
+  });
   it("offers the article's local draft after reopening without saving or publishing on restore", async () => {
     const props = { itemId: "news-1", onClose: vi.fn(), onSaved: vi.fn() };
     const first = render(<NewsItemEditor {...props} />);

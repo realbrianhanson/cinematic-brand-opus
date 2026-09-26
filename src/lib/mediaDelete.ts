@@ -21,6 +21,8 @@ export type MediaUsageKind =
   | "news_item"
   | "offer_draft"
   | "offer_revision"
+  | "generated_page_revision"
+  | "topic_guide_revision"
   | "site_branding";
 
 export interface MediaUsageRef {
@@ -230,12 +232,31 @@ async function checkDocuments(
 ) {
   const matches: UsageRow[] = [];
   let count = 0;
+  let expectedCount: number | null = null;
   for (let from = 0; from < DOCUMENT_SCAN_LIMIT; from += DOCUMENT_PAGE_SIZE) {
     const page = await load(from, from + DOCUMENT_PAGE_SIZE - 1);
     if (page.error) return { kind, rows: [], count: 0, error: page.error };
+    if (
+      page.count === null ||
+      (expectedCount !== null && expectedCount !== page.count)
+    ) {
+      throw new Error(
+        "Couldn't finish checking saved documents. The library changed or the result was incomplete; check again before deleting.",
+      );
+    }
+    expectedCount = page.count;
     if (page.count !== null && page.count > DOCUMENT_SCAN_LIMIT) {
       throw new Error(
         "Couldn't finish checking saved documents. This library is too large for a complete usage check.",
+      );
+    }
+    if (
+      page.count !== null &&
+      page.rows.length <
+        Math.min(DOCUMENT_PAGE_SIZE, Math.max(0, page.count - from))
+    ) {
+      throw new Error(
+        "Couldn't finish checking saved documents. The usage result was incomplete; try again before deleting.",
       );
     }
     for (const row of page.rows) {
@@ -329,6 +350,41 @@ function structuredUsageChecks(client: Client, needles: string[]) {
           count,
           error,
         })),
+    ),
+    ...(
+      [
+        ["generated_page_revisions", "generated_page_revision", "resource"],
+        ["pillar_page_revisions", "topic_guide_revision", "guide"],
+      ] as const
+    ).map(([table, kind, label]) =>
+      // Private RLS-protected snapshots include body, SEO images and preserved
+      // source metadata. Read the full snapshot, not only today's content field.
+      checkDocuments(kind, needles, (from, to) =>
+        client
+          .from(table)
+          .select("id, snapshot", COUNTED)
+          .order("id")
+          .range(from, to)
+          .then(({ data, count, error }) => ({
+            rows: (data ?? []).map((row) => {
+              const snapshot = row.snapshot;
+              const title =
+                snapshot &&
+                typeof snapshot === "object" &&
+                !Array.isArray(snapshot) &&
+                typeof snapshot.title === "string"
+                  ? snapshot.title
+                  : `Untitled ${label}`;
+              return {
+                id: row.id,
+                title: `${title} (saved ${label} history)`,
+                value: snapshot,
+              };
+            }),
+            count,
+            error,
+          })),
+      ),
     ),
   ];
 }
