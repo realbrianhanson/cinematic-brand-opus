@@ -14,6 +14,10 @@ import {
 } from "../_shared/offerAccessMailRuntime.ts";
 import {
   accessUrl,
+  authorizedOrderItem,
+  effectiveFollowUpId,
+  publicOrderItems,
+  type OfferOrderItem,
   claimReservedOffer,
   hashOfferToken,
   nextOfferAvailable,
@@ -74,6 +78,14 @@ Deno.serve(async (req) => {
     const secret = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
     const webhook = Deno.env.get("STRIPE_WEBHOOK_SECRET")?.trim();
     const readiness = paymentReadiness(secret, webhook);
+    const withBump = async <T extends { id: string }>(offer: T | null) => {
+      if (!offer) return null;
+      const { data, error } = await admin.rpc("offer_public_bump", {
+        _offer_id: offer.id,
+      });
+      if (error) throw error;
+      return { ...offer, bump_offer: data ?? null };
+    };
 
     if (action === "retry_deliveries")
       return await handleDeliveryRetry(req, body, admin);
@@ -105,12 +117,54 @@ Deno.serve(async (req) => {
       const id = requireOfferId(body.offer_id);
       const { data, error } = await admin
         .from("offers")
-        .select(OFFER_PUBLIC_COLUMNS)
+        .select(`${OFFER_PUBLIC_COLUMNS},bump_offer_id`)
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
+      let previewOffer = null;
+      if (data) {
+        const { bump_offer_id, ...safeOffer } = data;
+        let bump = null;
+        if (data.checkout_mode === "native" && bump_offer_id) {
+          const { data: target, error: targetError } = await admin
+            .from("offers")
+            .select(
+              "id,slug,title,summary,cover_url,kind,amount_minor,currency",
+            )
+            .eq("id", bump_offer_id)
+            .eq("status", "published")
+            .eq("checkout_mode", "native")
+            .eq("kind", "paid")
+            .eq("currency", data.currency)
+            .maybeSingle();
+          if (targetError) throw targetError;
+          if (target) {
+            const {
+              id,
+              slug,
+              title,
+              summary,
+              cover_url,
+              kind,
+              amount_minor,
+              currency,
+            } = target;
+            bump = {
+              id,
+              slug,
+              title,
+              summary,
+              cover_url,
+              kind,
+              amount_minor,
+              currency,
+            };
+          }
+        }
+        previewOffer = { ...safeOffer, bump_offer: bump };
+      }
       return offerJson(200, {
-        offer: data,
+        offer: previewOffer,
         payments_ready:
           readiness.payments_ready && (await resolveOfferMailer(admin)).ok,
       });
@@ -160,7 +214,7 @@ Deno.serve(async (req) => {
       if (error) throw error;
       const mailer = await resolveOfferMailer(admin);
       return offerJson(200, {
-        offer: data,
+        offer: await withBump(data),
         payments_ready: readiness.payments_ready && mailer.ok,
       });
     }
@@ -189,6 +243,8 @@ Deno.serve(async (req) => {
 
     if (action === "claim") {
       const offerId = requireOfferId(body.offer_id);
+      const bumpId =
+        body.bump_offer_id == null ? null : requireOfferId(body.bump_offer_id);
       const parentHash =
         body.parent_token === undefined
           ? null
@@ -245,7 +301,7 @@ Deno.serve(async (req) => {
       if (!existing) {
         const { data: offer, error: offerError } = await admin
           .from("offers")
-          .select("kind,checkout_mode")
+          .select("kind,checkout_mode,bump_offer_id")
           .eq("id", offerId)
           .eq("status", "published")
           .maybeSingle();
@@ -256,7 +312,13 @@ Deno.serve(async (req) => {
             "offer_not_found",
             "This offer is not currently available.",
           );
-        paid = offer.kind === "paid";
+        if (bumpId && bumpId !== offer.bump_offer_id)
+          throw new OfferError(
+            409,
+            "invalid_bump",
+            "This optional extra is not currently available.",
+          );
+        paid = offer.kind === "paid" || !!bumpId;
         checkoutMode = offer.checkout_mode;
       }
       if (
@@ -284,6 +346,7 @@ Deno.serve(async (req) => {
             _email: email,
             _name: name,
             _parent_hash: parentHash,
+            _bump_offer_id: bumpId,
           });
           if (error) throw offerDatabaseError(error);
           reservedOrder = data as OfferOrder;
@@ -348,7 +411,16 @@ Deno.serve(async (req) => {
         "access_not_found",
         "This access link was not found.",
       );
-    const order = rawOrder as OfferOrder;
+    const { data: items, error: itemsError } = await admin
+      .from("offer_order_items")
+      .select("*")
+      .eq("order_id", rawOrder.id)
+      .order("role", { ascending: false });
+    if (itemsError) throw itemsError;
+    const order: OfferOrder = {
+      ...(rawOrder as OfferOrder),
+      items: (items ?? []) as OfferOrderItem[],
+    };
     let recoveryParent: OfferOrder | null = null;
     if (
       (action === "status" || action === "retry_checkout") &&
@@ -394,7 +466,7 @@ Deno.serve(async (req) => {
             },
           );
           if (error) throw offerDatabaseError(error);
-          return data as OfferOrder;
+          return { ...(data as OfferOrder), items: order.items };
         },
         provider: {
           create: async (input, idempotencyKey) => {
@@ -446,14 +518,9 @@ Deno.serve(async (req) => {
       });
     }
     if (action === "download") {
-      if (order.status !== "fulfilled")
-        throw new OfferError(
-          403,
-          "download_unavailable",
-          "This download is not available for this order.",
-        );
+      const item = authorizedOrderItem(order, body.item_id);
       const filename =
-        Array.from(order.asset_name_snapshot)
+        Array.from(item.asset_name_snapshot)
           .filter(
             (character) =>
               character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127,
@@ -462,7 +529,7 @@ Deno.serve(async (req) => {
           .slice(0, 200) || "download";
       const { data, error } = await admin.storage
         .from("offer-files")
-        .createSignedUrl(order.asset_path_snapshot, 300, {
+        .createSignedUrl(item.asset_path_snapshot, 300, {
           download: filename,
         });
       if (error || !data?.signedUrl)
@@ -477,6 +544,8 @@ Deno.serve(async (req) => {
     if (action === "decline") {
       const { error } = await admin.rpc("offer_decline_next", {
         _token_hash: tokenHash,
+        _offer_id:
+          body.offer_id === undefined ? null : requireOfferId(body.offer_id),
       });
       if (error) throw offerDatabaseError(error);
       return offerJson(200, { ok: true });
@@ -495,12 +564,12 @@ Deno.serve(async (req) => {
         const { data, error } = await admin
           .from("offers")
           .select(OFFER_PUBLIC_COLUMNS)
-          .eq("id", order.next_offer_id!)
+          .eq("id", effectiveFollowUpId(order)!)
           .eq("status", "published")
           .eq("checkout_mode", "native")
           .maybeSingle();
         if (error) throw error;
-        nextOffer = data;
+        nextOffer = await withBump(data);
       }
     }
     const { data: offerCopy, error: copyError } = await admin
@@ -512,6 +581,12 @@ Deno.serve(async (req) => {
     const mailer = await resolveOfferMailer(admin);
     return offerJson(200, {
       order: publicOrder(order),
+      items: publicOrderItems(order),
+      follow_up_stage: nextOffer
+        ? order.upsell_declined_at
+          ? "downsell"
+          : "upsell"
+        : null,
       checkout_recovery: checkoutRecoveryState(order, recoveryParent),
       thank_you_message: offerCopy?.thank_you_message ?? "",
       presentation: offerCopy?.presentation ?? null,

@@ -289,7 +289,9 @@ function OfferForm({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("offers")
-        .select("id,title,status,next_offer_id,funnel_only")
+        .select(
+          "id,slug,title,summary,cover_url,status,kind,currency,amount_minor,next_offer_id,downsell_offer_id,bump_offer_id,funnel_only",
+        )
         .eq("checkout_mode", "native")
         .order("title")
         .limit(1000)
@@ -321,10 +323,29 @@ function OfferForm({
       return data as PublicOffer | null;
     },
   });
+  const selectedDownsell = useQuery({
+    queryKey: ["admin-offer-downsell-preview", form.downsellOffer],
+    enabled: !external && !!form.downsellOffer,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("offers")
+        .select(
+          "id,slug,title,summary,body,cover_url,status,kind,checkout_mode,price_display_mode,external_url,external_button_text,is_affiliate,affiliate_disclosure,amount_minor,currency,thank_you_message,funnel_only,created_at,updated_at,presentation",
+        )
+        .eq("id", form.downsellOffer)
+        .abortSignal(AbortSignal.timeout(20000))
+        .maybeSingle();
+      if (error) throw error;
+      return data as PublicOffer | null;
+    },
+  });
   const qualifyingParents =
     choices.data?.filter(
       (offer) =>
-        offer.next_offer_id === savedId && offer.status === "published",
+        (offer.next_offer_id === savedId ||
+          offer.downsell_offer_id === savedId ||
+          offer.bump_offer_id === savedId) &&
+        offer.status === "published",
     ) || [];
   const offerTitle = (offerId: string) =>
     choices.data?.find((item) => item.id === offerId)?.title || "";
@@ -333,6 +354,27 @@ function OfferForm({
   const publishIssues = [
     ...formIssues({ ...form, status: "published" }),
     ...pagesIssues,
+    ...(!external &&
+    form.bumpOffer &&
+    !choices.isPending &&
+    !choices.isError &&
+    !choices.data?.some(
+      (item) =>
+        item.id === form.bumpOffer &&
+        item.id !== savedId &&
+        item.status === "published" &&
+        item.kind === "paid" &&
+        item.currency === form.currency,
+    )
+      ? [
+          {
+            step: "next" as const,
+            field: "Optional checkout extra",
+            message:
+              "Choose a published paid native offer in the same currency.",
+          },
+        ]
+      : []),
   ];
 
   function showIssues(list: OfferIssue[], summary: string) {
@@ -692,7 +734,16 @@ function OfferForm({
     }
   }
 
+  const bumpChoice = choices.data?.find(
+    (item) =>
+      item.id === form.bumpOffer &&
+      item.status === "published" &&
+      item.kind === "paid" &&
+      item.currency === form.currency,
+  );
   const previewOffer: PublicOffer = {
+    bump_offer:
+      !external && bumpChoice ? { ...bumpChoice, kind: "paid" } : null,
     id: savedId || "preview",
     slug: form.slug,
     title: form.title || "Your offer title",
@@ -941,6 +992,7 @@ function OfferForm({
                 stage={effectiveStage}
                 device={device}
                 nextOffer={external ? null : selectedNextOffer.data}
+                downsellOffer={external ? null : selectedDownsell.data}
                 followUpWindowMinutes={Number(form.window) || 0}
               />
             </div>
@@ -1193,12 +1245,17 @@ function OfferForm({
               choices={choices.data}
               choicesPending={choices.isPending}
               choicesError={choices.isError}
-              previewError={selectedNextOffer.isError}
+              previewError={
+                selectedNextOffer.isError || selectedDownsell.isError
+              }
               nextChoice={nextChoice}
               qualifyingParents={qualifyingParents}
               onChange={patchForm}
               onRetryChoices={() => void choices.refetch()}
-              onRetryPreview={() => void selectedNextOffer.refetch()}
+              onRetryPreview={() => {
+                void selectedNextOffer.refetch();
+                void selectedDownsell.refetch();
+              }}
             />
             <OfferDeliveryStep
               active={step === "delivery"}

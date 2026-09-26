@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createPublicServerClient } from "./publicData.server";
-import type { PublicOffer } from "./offers";
+import type { PublicOffer, PublicBumpOffer } from "./offers";
 
 // Deliberately excludes private file paths, order data and funnel configuration.
 export const PUBLIC_OFFER_COLUMNS =
@@ -14,7 +14,8 @@ export const getPublishedOffer = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }) => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) return null;
-    const { data: offer, error } = await createPublicServerClient()
+    const client = createPublicServerClient();
+    const { data: offer, error } = await client
       .from("offers")
       .select(PUBLIC_OFFER_COLUMNS)
       .eq("slug", data.slug)
@@ -22,5 +23,15 @@ export const getPublishedOffer = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error)
       throw new Error("This offer could not be loaded. Please try again.");
-    return offer as PublicOffer | null;
+    if (!offer) return null;
+    if (offer.checkout_mode !== "native") return offer as PublicOffer;
+    // Optional bump failure cannot make the existing primary offer disappear.
+    const { data: bump, error: bumpError } = await client.rpc(
+      "offer_public_bump",
+      { _offer_id: offer.id },
+    );
+    return {
+      ...offer,
+      bump_offer: bumpError ? null : (bump as PublicBumpOffer | null),
+    } as PublicOffer;
   });

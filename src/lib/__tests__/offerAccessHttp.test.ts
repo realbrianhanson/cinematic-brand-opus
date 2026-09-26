@@ -74,22 +74,33 @@ const token = "a".repeat(64),
   original = "b".repeat(64);
 let currentOrder: Record<string, unknown> | null = null;
 let currentParent: Record<string, unknown> | null = null;
+let currentItems: Record<string, unknown>[] = [];
+let currentOffer: Record<string, unknown> = { thank_you_message: "" };
+let currentBump: Record<string, unknown> | null = null;
 let dueDeliveries: { id: string }[] = [];
 const limits: number[] = [];
 const from = vi.fn((table: string) => {
   const result = {
     data:
-      table === "offer_orders"
-        ? currentOrder
-        : table === "offer_access_deliveries"
-          ? dueDeliveries
-          : { thank_you_message: "" },
+      table === "offer_order_items"
+        ? currentItems
+        : table === "offer_orders"
+          ? currentOrder
+          : table === "offer_access_deliveries"
+            ? dueDeliveries
+            : currentOffer,
     error: null,
     count: 0,
   };
   const chain = {
     select: () => chain,
     eq: (column: string, value: unknown) => {
+      if (
+        table === "offers" &&
+        column === "id" &&
+        value === currentOffer.bump_offer_id
+      )
+        result.data = currentBump;
       if (
         table === "offer_orders" &&
         column === "id" &&
@@ -138,6 +149,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   currentOrder = null;
   currentParent = null;
+  currentItems = [];
+  currentOffer = { thank_you_message: "" };
+  currentBump = null;
   mocks.stripe.mockReturnValue({
     checkout: {
       sessions: {
@@ -486,8 +500,30 @@ describe("controlled checkout recovery HTTP adapter", () => {
   }
   it("requires an existing private link, fresh expanded Stripe read, and a successful transaction before creating a session", async () => {
     prepareRetry();
+    currentItems = [
+      {
+        order_id: currentOrder!.id,
+        role: "primary",
+        amount_minor: 2200,
+        currency: "usd",
+        title_snapshot: "Original toolkit",
+      },
+      {
+        order_id: currentOrder!.id,
+        role: "bump",
+        amount_minor: 500,
+        currency: "usd",
+        title_snapshot: "Original extra",
+      },
+    ];
     const response = await request({ action: "retry_checkout", token });
     expect(response.status).toBe(200);
+    expect(
+      mocks.createCheckout.mock.calls[0][0].line_items.map(
+        (item: { price_data: { unit_amount: number } }) =>
+          item.price_data.unit_amount,
+      ),
+    ).toEqual([2200, 500]);
     expect(await response.json()).toMatchObject({
       status: "pending",
       checkout_url: "https://checkout.stripe.com/retry",
@@ -559,4 +595,143 @@ describe("controlled checkout recovery HTTP adapter", () => {
     expect(mocks.retrieveCheckout).not.toHaveBeenCalled();
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
+});
+
+describe("immutable checkout basket HTTP access", () => {
+  it("signs only an owned basket item and never exposes storage paths in status", async () => {
+    currentOrder = {
+      id: "order",
+      offer_id: "primary",
+      status: "fulfilled",
+      title_snapshot: "Primary",
+      asset_path_snapshot: "private/primary.pdf",
+      asset_name_snapshot: "primary.pdf",
+      amount_minor: 2400,
+      currency: "usd",
+      next_offer_id: null,
+    };
+    currentItems = [
+      {
+        id: "00000000-0000-4000-8000-000000000099",
+        order_id: "order",
+        offer_id: "bump",
+        role: "bump",
+        title_snapshot: "Extra",
+        asset_path_snapshot: "private/extra.pdf",
+        asset_name_snapshot: "extra.pdf",
+        amount_minor: 500,
+        currency: "usd",
+      },
+    ];
+    mocks.signed.mockResolvedValue({
+      data: { signedUrl: "https://files.example.com/signed" },
+      error: null,
+    });
+    const status = await request({ action: "status", token });
+    const body = await status.json();
+    expect(body.items[0]).toMatchObject({
+      title: "Extra",
+      asset_name: "extra.pdf",
+      role: "bump",
+    });
+    expect(JSON.stringify(body)).not.toContain("private/");
+    const download = await request({
+      action: "download",
+      token,
+      item_id: currentItems[0].id,
+    });
+    expect(download.status).toBe(200);
+    expect(mocks.signed).toHaveBeenCalledWith("private/extra.pdf", 300, {
+      download: "extra.pdf",
+    });
+    mocks.signed.mockClear();
+    expect(
+      (
+        await request({
+          action: "download",
+          token,
+          item_id: "00000000-0000-4000-8000-000000000098",
+        })
+      ).status,
+    ).toBe(403);
+    currentOrder.status = "refunded";
+    expect(
+      (
+        await request({
+          action: "download",
+          token,
+          item_id: currentItems[0].id,
+        })
+      ).status,
+    ).toBe(403);
+    expect(mocks.signed).not.toHaveBeenCalled();
+  });
+  it("binds a decline to the offer the visitor actually saw", async () => {
+    currentOrder = { id: "order", status: "fulfilled" };
+    const offerId = "00000000-0000-4000-8000-000000000099";
+    expect(
+      (await request({ action: "decline", token, offer_id: offerId })).status,
+    ).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledWith("offer_decline_next", {
+      _token_hash: original,
+      _offer_id: offerId,
+    });
+  });
+});
+
+it("refuses a paid extra on a free offer before reserving when payment configuration is missing", async () => {
+  mocks.resolve.mockResolvedValue(null);
+  const id = "11111111-1111-4111-8111-111111111111";
+  const bump = "22222222-2222-4222-8222-222222222222";
+  currentOffer = {
+    id,
+    kind: "free",
+    checkout_mode: "native",
+    bump_offer_id: bump,
+  };
+  const response = await request({
+    action: "claim",
+    token,
+    offer_id: id,
+    bump_offer_id: bump,
+    email: "buyer@example.com",
+  });
+  expect(response.status).toBe(503);
+  expect(mocks.rpc).not.toHaveBeenCalled();
+  expect(mocks.createCheckout).not.toHaveBeenCalled();
+});
+
+it("allows an authenticated draft preview to show only the eligible extra description", async () => {
+  currentOffer = {
+    id: "11111111-1111-4111-8111-111111111111",
+    status: "draft",
+    checkout_mode: "native",
+    currency: "usd",
+    bump_offer_id: "22222222-2222-4222-8222-222222222222",
+  };
+  currentBump = {
+    id: currentOffer.bump_offer_id,
+    slug: "extra",
+    title: "Extra",
+    summary: "Useful files",
+    cover_url: null,
+    kind: "paid",
+    amount_minor: 500,
+    currency: "usd",
+    asset_path: "private/secret.pdf",
+  };
+  const response = await request({
+    action: "preview",
+    offer_id: currentOffer.id,
+  });
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.offer.bump_offer).toMatchObject({
+    id: currentBump.id,
+    title: "Extra",
+    amount_minor: 500,
+  });
+  expect(body.offer.bump_offer_id).toBeUndefined();
+  expect(JSON.stringify(body)).not.toContain("private/");
+  expect(mocks.requireAdmin).toHaveBeenCalledOnce();
 });

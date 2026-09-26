@@ -18,6 +18,7 @@ import {
 } from "@/lib/conversions";
 import QueryNotice from "./QueryNotice";
 import ExternalConversionPanel from "./ExternalConversionPanel";
+import ExternalPaymentSetup from "./ExternalPaymentSetup";
 import OfferJourneyMetrics from "./OfferJourneyMetrics";
 
 const number = (value: number) => value.toLocaleString("en-US");
@@ -727,6 +728,7 @@ export default function ConversionDashboard({
       )}
       <OfferJourneyMetrics days={days} />
       <ExternalConversionPanel days={days} />
+      <ExternalPaymentSetup days={days} />
     </div>
   );
 }

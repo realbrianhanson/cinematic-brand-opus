@@ -24,6 +24,11 @@ for (const file of [
   "20260923171000_measure_about_page.sql",
   "20260925110000_first_ai_build_measurement.sql",
   "20260925160000_offer_journey_measurement.sql",
+  "20260923090000_offer_builder.sql",
+  "20260919210000_offer_access_delivery.sql",
+  "20260925120000_offer_checkout_recovery.sql",
+  "20260926170000_offer_bumps_downsells.sql",
+  "20260926210000_downsell_measurement.sql",
 ])
   await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 const token = "a".repeat(64);
@@ -425,5 +430,49 @@ for (const role of ["anon", "authenticated"]) {
 }
 console.log(
   "PASS: follow-up identities/privacy, published relationship checks, real prior views, immutable child-order binding, consent cohorts, live/free/test/refund/currency outcomes, revocation, retention, and admin/service grants.",
+);
+// A persisted declined upsell exposes the downsell without treating its click as payment.
+await db.exec("RESET ROLE");
+const downsell = await offer("less-support");
+await db.query("UPDATE offers SET downsell_offer_id=$1 WHERE id=$2", [
+  downsell,
+  parent,
+]);
+const downsellSession = crypto.randomUUID();
+assert.equal(
+  await record(downsellSession, [event("upsell_view", { offer_id: downsell })]),
+  true,
+  "configured downsell can be viewed",
+);
+const downParent = await order(parent);
+await db.query("UPDATE offer_orders SET downsell_offer_id=$1 WHERE id=$2", [
+  downsell,
+  downParent,
+]);
+const downChild = await order(downsell, downParent, 500);
+assert.equal(
+  await bind(downChild, downsellSession),
+  false,
+  "cannot bind downsell before persisted decline",
+);
+await db.query(
+  "UPDATE offer_orders SET upsell_declined_at=clock_timestamp() WHERE id=$1",
+  [downParent],
+);
+assert.equal(
+  await bind(downChild, downsellSession),
+  true,
+  "declined upsell routes to snapshotted downsell",
+);
+await pay(downChild);
+await db.exec(`SET ROLE authenticated; SET test.user_id='${admin}'`);
+const downsellReport = (
+  await one("SELECT admin_offer_journey_snapshot(30) data")
+).data;
+assert.equal(
+  downsellReport.steps.find((step) => step.offer_id === downsell)
+    .paid_order_sessions,
+  1,
+  "verified downsell appears in its own pair report",
 );
 await db.close();

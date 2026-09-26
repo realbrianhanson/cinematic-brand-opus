@@ -16,6 +16,18 @@ export class OfferError extends Error {
   }
 }
 
+export interface OfferOrderItem {
+  id: string;
+  order_id: string;
+  offer_id: string;
+  role: "primary" | "bump";
+  title_snapshot: string;
+  asset_path_snapshot: string;
+  asset_name_snapshot: string;
+  amount_minor: number;
+  currency: string;
+}
+
 export interface OfferOrder {
   id: string;
   offer_id: string;
@@ -29,6 +41,9 @@ export interface OfferOrder {
   amount_minor: number;
   currency: string;
   next_offer_id: string | null;
+  downsell_offer_id?: string | null;
+  upsell_declined_at?: string | null;
+  items?: OfferOrderItem[];
   next_offer_deadline: string | null;
   declined_at: string | null;
   stripe_session_id: string | null;
@@ -165,6 +180,52 @@ export function publicOrder(order: OfferOrder) {
   };
 }
 
+export function publicOrderItems(order: OfferOrder) {
+  return (
+    order.items?.length
+      ? order.items
+      : [{ ...order, id: null, role: "primary" }]
+  ).map((item) => ({
+    id: item.id,
+    offer_id: item.offer_id,
+    role: item.role,
+    title: item.title_snapshot,
+    asset_name: item.asset_name_snapshot,
+    amount_minor: item.amount_minor,
+    currency: item.currency,
+  }));
+}
+
+/** A private order capability authorizes only that order's immutable files. */
+export function authorizedOrderItem(order: OfferOrder, itemId?: unknown) {
+  if (order.status !== "fulfilled")
+    throw new OfferError(
+      403,
+      "download_unavailable",
+      "This download is not available for this order.",
+    );
+  if (itemId === undefined || itemId === null)
+    return order.items?.find((item) => item.role === "primary") ?? order;
+  if (typeof itemId !== "string" || !OFFER_ID.test(itemId))
+    throw new OfferError(400, "invalid_item", "Choose a valid download.");
+  const item = order.items?.find(
+    (candidate) => candidate.id === itemId && candidate.order_id === order.id,
+  );
+  if (!item)
+    throw new OfferError(
+      403,
+      "download_unavailable",
+      "This download is not available for this order.",
+    );
+  return item;
+}
+
+export function effectiveFollowUpId(order: OfferOrder): string | null {
+  return order.upsell_declined_at
+    ? (order.downsell_offer_id ?? null)
+    : order.next_offer_id;
+}
+
 export function nextOfferAvailable(
   order: OfferOrder,
   hasChild: boolean,
@@ -172,7 +233,7 @@ export function nextOfferAvailable(
 ): boolean {
   return (
     order.status === "fulfilled" &&
-    !!order.next_offer_id &&
+    !!effectiveFollowUpId(order) &&
     !order.declined_at &&
     !hasChild &&
     (!order.next_offer_deadline || Date.parse(order.next_offer_deadline) > now)
@@ -218,21 +279,37 @@ export function checkoutRequest(
       ? { offer_checkout_attempt: String(order.checkout_attempt) }
       : {}),
   };
+  const items = order.items?.length ? order.items : [order];
+  if (
+    items.length > 2 ||
+    items.some(
+      (item) =>
+        !Number.isSafeInteger(item.amount_minor) ||
+        item.amount_minor < 0 ||
+        item.currency !== order.currency ||
+        ("order_id" in item && item.order_id !== order.id),
+    ) ||
+    items.reduce((total, item) => total + item.amount_minor, 0) !==
+      order.amount_minor
+  )
+    throw new OfferError(
+      409,
+      "invalid_basket",
+      "This checkout basket needs to be reviewed.",
+    );
   return {
     mode: "payment" as const,
     payment_method_types: ["card" as const],
     client_reference_id: order.id,
     customer_email: order.email,
-    line_items: [
-      {
-        price_data: {
-          currency: order.currency,
-          unit_amount: order.amount_minor,
-          product_data: { name: order.title_snapshot },
-        },
-        quantity: 1,
+    line_items: items.map((item) => ({
+      price_data: {
+        currency: order.currency,
+        unit_amount: item.amount_minor,
+        product_data: { name: item.title_snapshot },
       },
-    ],
+      quantity: 1,
+    })),
     metadata,
     payment_intent_data: { metadata },
     success_url: accessUrl(origin, token),

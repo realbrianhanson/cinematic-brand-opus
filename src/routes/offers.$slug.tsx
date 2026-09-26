@@ -4,7 +4,7 @@ import { absoluteUrl } from "@/config/site";
 import { getPublishedOffer } from "@/lib/offers.functions";
 import { getRelatedShopOffers } from "@/lib/shop.functions";
 import { buildPageHead } from "@/lib/seoHead";
-import OfferLanding from "@/pages/OfferLanding";
+import ExperimentOffer from "@/components/offers/ExperimentOffer";
 import { readPresentation } from "@/lib/offerBuilder";
 import { offerSeoText } from "@/lib/offersSeo";
 import PublicRouteError from "@/components/PublicRouteError";
@@ -49,6 +49,10 @@ export const Route = createFileRoute("/offers/$slug")({
 function OfferRoute() {
   const { offer, relatedOffers } = Route.useLoaderData();
   return (
-    <OfferLanding key={offer.id} offer={offer} relatedOffers={relatedOffers} />
+    <ExperimentOffer
+      key={offer.id}
+      offer={offer}
+      relatedOffers={relatedOffers}
+    />
   );
 }

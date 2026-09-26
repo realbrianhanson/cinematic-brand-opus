@@ -1,5 +1,6 @@
 import { useState } from "react";
 import OfferLanding from "@/pages/OfferLanding";
+import OfferBumpChoice from "./OfferBumpChoice";
 import OfferSections from "./OfferSections";
 import { safeExternalOfferUrl, type PublicOffer } from "@/lib/offers";
 import { offerPreviewPrice } from "@/lib/offerCta";
@@ -39,6 +40,16 @@ export function UpsellPreview({ offer }: { offer: PublicOffer }) {
         {offerPreviewPrice(offer)}
         {offer.kind === "paid" ? " · one payment" : ""}
       </p>
+      {offer.bump_offer && (
+        <div className="mt-5">
+          <OfferBumpChoice
+            offer={offer.bump_offer}
+            selected={false}
+            disabled
+            onChange={() => {}}
+          />
+        </div>
+      )}
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
@@ -71,7 +82,13 @@ export function UpsellPreview({ offer }: { offer: PublicOffer }) {
   );
 }
 
-function ThanksPreview({ offer }: { offer: PublicOffer }) {
+function ThanksPreview({
+  offer,
+  includeBump = false,
+}: {
+  offer: PublicOffer;
+  includeBump?: boolean;
+}) {
   const page = readPresentation(offer.presentation)?.thankYou;
   return (
     <section className="p-6 text-white md:p-10">
@@ -91,6 +108,20 @@ function ThanksPreview({ offer }: { offer: PublicOffer }) {
       >
         Download file · preview
       </button>
+      {includeBump && offer.bump_offer && (
+        <div className="mt-5">
+          <p className="text-white/75">
+            Optional extra purchased: {offer.bump_offer.title}
+          </p>
+          <button
+            type="button"
+            disabled
+            className="mt-3 rounded border border-white/30 px-5 py-3"
+          >
+            Download {offer.bump_offer.title} · preview
+          </button>
+        </div>
+      )}
       {page?.firstStep && (
         <div className="mt-8 rounded-lg border border-white/20 p-5">
           <h3 className="font-semibold">Your first step</h3>
@@ -110,6 +141,7 @@ export default function OfferBuilderPreview({
   stage = "landing",
   device = "desktop",
   nextOffer = null,
+  downsellOffer = null,
   followUpWindowMinutes = 0,
 }: {
   offer: PublicOffer;
@@ -117,12 +149,15 @@ export default function OfferBuilderPreview({
   stage?: OfferPreviewStage;
   device?: "desktop" | "phone";
   nextOffer?: PublicOffer | null;
+  downsellOffer?: PublicOffer | null;
   followUpWindowMinutes?: number;
 }) {
   type Simulation =
     | "page"
     | "purchase"
     | "next"
+    | "basket"
+    | "ended"
     | "declined"
     | "expired"
     | "pending"
@@ -130,7 +165,11 @@ export default function OfferBuilderPreview({
   const external = offer.checkout_mode === "external";
   const followUp =
     !external && nextOffer?.checkout_mode !== "external" ? nextOffer : null;
-  const previewKey = `${offer.id}:${offer.checkout_mode}:${offer.kind}:${stage}:${followUp?.id || ""}:${followUpWindowMinutes > 0}`;
+  const alternative =
+    followUp && downsellOffer?.checkout_mode === "native"
+      ? downsellOffer
+      : null;
+  const previewKey = `${offer.id}:${offer.checkout_mode}:${offer.kind}:${stage}:${followUp?.id || ""}:${alternative?.id || ""}:${offer.bump_offer?.id || ""}:${followUpWindowMinutes > 0}`;
   const [selected, setSelected] = useState<{ key: string; value: Simulation }>({
     key: previewKey,
     value: "page",
@@ -152,6 +191,12 @@ export default function OfferBuilderPreview({
               ["next", "Follow-up"],
               ["declined", "Declined"],
             ] as [Simulation, string][])
+          : []),
+        ...(alternative
+          ? ([["ended", "Decline both"]] as [Simulation, string][])
+          : []),
+        ...(offer.bump_offer
+          ? ([["basket", "With checkout extra"]] as [Simulation, string][])
           : []),
         ...(followUp && followUpWindowMinutes > 0
           ? ([["expired", "Expired"]] as [Simulation, string][])
@@ -250,8 +295,30 @@ export default function OfferBuilderPreview({
             </div>
           ) : (
             <>
-              <ThanksPreview offer={draft} />
-              {simulation === "declined" && (
+              <ThanksPreview
+                offer={draft}
+                includeBump={simulation === "basket"}
+              />
+              {simulation === "declined" &&
+                alternative &&
+                alternative.status === "published" && (
+                  <>
+                    <p className="px-6 text-white/75">
+                      The first follow-up was declined. This optional
+                      alternative uses the same original deadline.
+                    </p>
+                    <UpsellPreview offer={alternative} />
+                  </>
+                )}
+              {simulation === "declined" &&
+                alternative &&
+                alternative.status !== "published" && (
+                  <p className="px-6 text-amber-200">
+                    The alternative is not published and will not appear for
+                    visitors.
+                  </p>
+                )}
+              {(simulation === "ended" || simulation === "declined") && (
                 <p className="px-6 pb-8 text-white/75">
                   Follow-up offer declined. Your original download is still
                   available.
