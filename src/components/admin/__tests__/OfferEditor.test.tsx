@@ -598,7 +598,12 @@ describe("offer builder save and upload safety", () => {
         files: [new File(["pdf"], "late.pdf", { type: "application/pdf" })],
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Cancel upload" }));
+    const cancel = screen.getByRole("button", { name: "Cancel upload" });
+    expect(cancel.matches(":disabled")).toBe(false);
+    expect(
+      screen.getByLabelText(/Upload the resource/).matches(":disabled"),
+    ).toBe(true);
+    fireEvent.click(cancel);
     await screen.findByText(/may still finish in storage/);
     await act(async () => {
       finish({ error: null });

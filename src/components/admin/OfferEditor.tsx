@@ -748,6 +748,15 @@ function OfferForm({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {uploading && (
+            <button
+              type="button"
+              className="admin-btn-secondary"
+              onClick={() => uploadController.current?.abort()}
+            >
+              Cancel upload
+            </button>
+          )}
           <button
             type="button"
             className="admin-btn-secondary"
@@ -1158,7 +1167,6 @@ function OfferForm({
               health={health}
               onChange={patchForm}
               onUpload={(file) => void upload(file)}
-              onCancelUpload={() => uploadController.current?.abort()}
               actionLabel={
                 builder.presentation.landing.ctaText || form.externalButtonText
               }

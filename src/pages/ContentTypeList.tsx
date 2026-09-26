@@ -100,7 +100,8 @@ export default function ContentTypeList({
         {data && (
           <>
             <p className="mb-6 text-sm text-white/75">
-              Page {page} · {data.pages.length} resources on this page
+              Page {page} · {data.pages.length}{" "}
+              {data.pages.length === 1 ? "resource" : "resources"} on this page
             </p>
             <div className="grid gap-6 md:grid-cols-2">
               {data.pages.map((item) => (

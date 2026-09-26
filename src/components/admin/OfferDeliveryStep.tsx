@@ -15,7 +15,6 @@ export default function OfferDeliveryStep({
   health,
   onChange,
   onUpload,
-  onCancelUpload,
   actionLabel,
   onActionLabelChange,
 }: {
@@ -28,7 +27,6 @@ export default function OfferDeliveryStep({
   health: { isPending: boolean; isError: boolean; data?: OfferHealth };
   onChange: (changes: Partial<Form>) => void;
   onUpload: (file?: File) => void;
-  onCancelUpload: () => void;
   actionLabel: string;
   onActionLabelChange: (label: string) => void;
 }) {
@@ -202,13 +200,6 @@ export default function OfferDeliveryStep({
                   <Loader2 size={16} className="animate-spin" /> Uploading
                   privately…
                 </p>
-                <button
-                  type="button"
-                  className="admin-btn-secondary"
-                  onClick={onCancelUpload}
-                >
-                  Cancel upload
-                </button>
               </div>
             )}
             <label className="block text-sm font-medium">

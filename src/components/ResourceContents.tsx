@@ -4,32 +4,70 @@ import { useEffect, useState } from "react";
 export default function ResourceContents({ revision }: { revision: unknown }) {
   const [items, setItems] = useState<Array<{ id: string; label: string }>>([]);
   useEffect(() => {
-    const headings = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        "#resource-reading-body h2, #resource-reading-body h3",
-      ),
-    );
-    const next = headings
-      .filter((heading) => heading.textContent?.trim())
-      .map((heading, index) => {
-        if (!heading.id) {
-          const base = `resource-section-${index + 1}`;
-          let id = base;
-          let suffix = 1;
-          while (document.getElementById(id)) id = `${base}-${suffix++}`;
-          heading.id = id;
+    const body = document.getElementById("resource-reading-body");
+    if (!body) return;
+    let restoredLocation = false;
+    const refresh = () => {
+      const headings = Array.from(body.querySelectorAll<HTMLElement>("h2, h3"));
+      for (const heading of headings) {
+        if (heading.dataset.resourceAnchor === heading.id) heading.id = "";
+      }
+      const next = headings
+        .filter((heading) => heading.textContent?.trim())
+        .map((heading) => {
+          const label = heading.textContent!.trim();
+          // React may reuse a heading node when a renderer filters its cards.
+          // Rebuild generated anchors from the label, preserving authored IDs.
+          if (!heading.id || heading.dataset.resourceAnchor === heading.id) {
+            const base = `resource-section-${
+              label
+                .toLowerCase()
+                .replace(/[^\p{L}\p{N}]+/gu, "-")
+                .replace(/^-|-$/g, "")
+                .slice(0, 100) || "heading"
+            }`;
+            let id = base;
+            let suffix = 2;
+            while (
+              document.getElementById(id) &&
+              document.getElementById(id) !== heading
+            )
+              id = `${base}-${suffix++}`;
+            heading.id = id;
+            heading.dataset.resourceAnchor = id;
+          }
+          return { id: heading.id, label };
+        });
+      setItems((previous) =>
+        previous.length === next.length &&
+        previous.every(
+          (item, index) =>
+            item.id === next[index].id && item.label === next[index].label,
+        )
+          ? previous
+          : next,
+      );
+      // A direct URL may arrive before generated anchors are hydrated.
+      if (!restoredLocation) {
+        try {
+          const id = decodeURIComponent(window.location.hash.slice(1));
+          if (id && next.some((item) => item.id === id)) {
+            document.getElementById(id)?.scrollIntoView?.({ block: "start" });
+            restoredLocation = true;
+          }
+        } catch {
+          /* An invalid incoming hash must not interrupt reading. */
         }
-        return { id: heading.id, label: heading.textContent!.trim() };
-      });
-    setItems(next);
-    // A direct URL may arrive before these generated anchors are hydrated.
-    try {
-      const id = decodeURIComponent(window.location.hash.slice(1));
-      if (id && next.some((item) => item.id === id))
-        document.getElementById(id)?.scrollIntoView?.({ block: "start" });
-    } catch {
-      /* An invalid incoming hash must not interrupt reading. */
-    }
+      }
+    };
+    refresh();
+    const observer = new MutationObserver(refresh);
+    observer.observe(body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    return () => observer.disconnect();
   }, [revision]);
   if (items.length < 2) return null;
   return (

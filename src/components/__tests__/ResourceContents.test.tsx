@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import ResourceContents from "../ResourceContents";
 afterEach(() => {
   cleanup();
@@ -28,7 +28,7 @@ it("links to actual unique headings and preserves authored anchors without Inter
     ).not.toBeNull();
 });
 it("restores a shared section location after generated headings become available", () => {
-  window.history.replaceState(null, "", "/#resource-section-2");
+  window.history.replaceState(null, "", "/#resource-section-second");
   const scroll = vi.fn();
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
@@ -44,4 +44,40 @@ it("restores a shared section location after generated headings become available
     </>,
   );
   expect(scroll).toHaveBeenCalledWith({ block: "start" });
+});
+
+it("updates links and anchors when a renderer filters or replaces headings", async () => {
+  const view = (labels: string[]) => (
+    <>
+      <ResourceContents revision="same" />
+      <div id="resource-reading-body">
+        {labels.map((label, index) => (
+          <h3 key={index}>{label}</h3>
+        ))}
+      </div>
+    </>
+  );
+  const { rerender } = render(view(["First", "Second", "Third"]));
+  const third = screen
+    .getByRole("link", { name: "Third" })
+    .getAttribute("href");
+  rerender(view(["Second", "Third"]));
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: "First" })).toBeNull(),
+  );
+  expect(screen.getByRole("link", { name: "Third" }).getAttribute("href")).toBe(
+    third,
+  );
+  for (const link of screen.getAllByRole("link"))
+    expect(
+      document.getElementById(
+        decodeURIComponent(link.getAttribute("href")!.slice(1)),
+      )?.textContent,
+    ).toBe(link.textContent);
+  rerender(view([]));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("navigation", { name: "On this page" }),
+    ).toBeNull(),
+  );
 });
