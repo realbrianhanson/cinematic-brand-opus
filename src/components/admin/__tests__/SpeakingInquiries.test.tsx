@@ -11,10 +11,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tables } from "@/integrations/supabase/types";
-const { update, eq, result } = vi.hoisted(() => ({
+const { update, eq, result, blocker, back } = vi.hoisted(() => ({
+  blocker: vi.fn(),
+  back: vi.fn(),
   update: vi.fn(),
   eq: vi.fn(),
   result: vi.fn(),
+}));
+vi.mock("@tanstack/react-router", () => ({
+  useBlocker: (options: unknown) => blocker(options),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -63,17 +68,33 @@ function renderDetail() {
         })
       }
     >
-      <InquiryDetail inquiry={inquiry} back={() => {}} />
+      <InquiryDetail inquiry={inquiry} back={back} />
     </QueryClientProvider>,
   );
 }
 beforeEach(() => {
+  back.mockReset();
+  blocker.mockReset();
   update.mockReset();
   eq.mockReset();
   result.mockReset();
 });
 afterEach(cleanup);
 describe("speaking inbox details", () => {
+  it("protects unsaved notes both when returning to the inbox and leaving the route", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderDetail();
+    fireEvent.change(screen.getByLabelText("Private notes"), {
+      target: { value: "Keep this next step" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Back to inbox" }));
+    expect(back).not.toHaveBeenCalled();
+    expect(blocker.mock.lastCall![0].shouldBlockFn()).toBe(true);
+    expect(blocker.mock.lastCall![0].enableBeforeUnload).toBe(true);
+    vi.mocked(window.confirm).mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Back to inbox" }));
+    expect(back).toHaveBeenCalledOnce();
+  });
   it("renders submitted text safely and lets the owner reply without changing the status", () => {
     renderDetail();
     expect(screen.getByText(/<script>bad/)).toBeInTheDocument();

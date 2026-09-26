@@ -8,6 +8,7 @@ import {
   inquiryStatusLabels,
   type InquiryStatus,
 } from "@/lib/speakingInquiries";
+import { useAdminDraftGuard } from "./useAdminDraftGuard";
 import QueryNotice from "./QueryNotice";
 import SpeakingNotifications, {
   SpeakingDeliveryStatus,
@@ -46,6 +47,10 @@ export function InquiryDetail({
     status: inquiry.status,
     notes: inquiry.admin_notes,
   });
+  const guard = useAdminDraftGuard(
+    { status, notes },
+    `speaking-inquiry:${inquiry.id}`,
+  );
   const changed = status !== baseline.status || notes !== baseline.notes;
   const save = useMutation({
     mutationFn: async () => {
@@ -74,6 +79,7 @@ export function InquiryDetail({
     onSuccess: (data) => {
       setVersion(data.updated_at);
       setBaseline({ status, notes });
+      guard.markSaved({ status, notes });
       setSaved(true);
       void client.invalidateQueries({ queryKey: ["speaking-inquiries"] });
       void client.invalidateQueries({ queryKey: ["admin-post-stats"] });
@@ -86,7 +92,20 @@ export function InquiryDetail({
       aria-labelledby="inquiry-detail-heading"
     >
       <div className="border-b border-border p-5 sm:p-6">
-        <button type="button" onClick={back} className="admin-btn-ghost mb-4">
+        <button
+          type="button"
+          disabled={save.isPending}
+          onClick={() => {
+            if (
+              !guard.dirty ||
+              window.confirm(
+                "Discard your unsaved inquiry notes and return to the inbox?",
+              )
+            )
+              back();
+          }}
+          className="admin-btn-ghost mb-4"
+        >
           <ArrowLeft size={15} /> Back to inbox
         </button>
         <p className="admin-eyebrow">

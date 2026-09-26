@@ -2,6 +2,7 @@
 import React from "react";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -52,11 +53,15 @@ vi.mock("@/lib/offerBuilderClient", () => ({
 }));
 vi.mock("../offers/OfferCopyAssistant", () => ({ default: () => null }));
 vi.mock("../offers/OfferProofLibrary", () => ({
-  default: () => (
+  default: ({
+    onStateChange,
+  }: {
+    onStateChange: (state: { dirty: boolean; busy: boolean }) => void;
+  }) => (
     <div>
       <label>
         Evidence title
-        <input />
+        <input onChange={() => onStateChange({ dirty: true, busy: false })} />
       </label>
     </div>
   ),
@@ -529,6 +534,81 @@ describe("offer builder save and upload safety", () => {
       "A stronger promise",
     );
     expect(mock.navigate).not.toHaveBeenCalled();
+  });
+  it("includes unsaved evidence in navigation protection and refuses to navigate after saving the offer alone", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    mount();
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "A draft quote" },
+    });
+    const guard = mock.blocker.mock.lastCall![0];
+    expect(guard.shouldBlockFn()).toBe(true);
+    expect(guard.enableBeforeUnload()).toBe(true);
+    draft();
+    expect(screen.getByText(/Evidence is saved separately/)).toBeTruthy();
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("releases the editor after a stalled upload and ignores its late completion", async () => {
+    let finish: (value: { error: null }) => void = () => {};
+    mock.upload.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    mount();
+    navigateStep("Delivery");
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(screen.getByLabelText(/Upload the resource/), {
+        target: {
+          files: [new File(["pdf"], "late.pdf", { type: "application/pdf" })],
+        },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61000);
+      });
+      expect(screen.getByText(/upload.*timed out/i)).toBeTruthy();
+      expect(
+        screen
+          .getByRole("button", { name: "Save draft" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+      const guard = mock.blocker.mock.lastCall![0];
+      expect(guard.shouldBlockFn()).toBe(false);
+      await act(async () => {
+        finish({ error: null });
+      });
+      expect(screen.queryByText(/File uploaded privately/)).toBeNull();
+      expect(mock.upload).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("lets the owner cancel waiting for an upload without accepting a late file", async () => {
+    let finish: (value: { error: null }) => void = () => {};
+    mock.upload.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    mount();
+    navigateStep("Delivery");
+    fireEvent.change(screen.getByLabelText(/Upload the resource/), {
+      target: {
+        files: [new File(["pdf"], "late.pdf", { type: "application/pdf" })],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel upload" }));
+    await screen.findByText(/may still finish in storage/);
+    await act(async () => {
+      finish({ error: null });
+    });
+    expect(screen.queryByText(/File uploaded privately/)).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Save draft" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
   });
   it("rejects unsupported and oversized files before private storage calls", async () => {
     mount();

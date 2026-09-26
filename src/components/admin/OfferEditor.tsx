@@ -25,6 +25,7 @@ import {
   type Offer,
   type OfferHandoff,
 } from "./offerEditorState";
+import { waitForUpload } from "@/lib/uploadWait";
 import { errorMessage, isErrorCode } from "@/lib/errorMessage";
 import {
   invokeOfferApi,
@@ -216,6 +217,13 @@ function OfferForm({
   );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const uploadController = useRef<AbortController | null>(null);
+  const [evidenceState, setEvidenceState] = useState({
+    dirty: false,
+    busy: false,
+  });
+  const evidenceCurrent = useRef(evidenceState);
+  evidenceCurrent.current = evidenceState;
   const [confirmPublish, setConfirmPublish] = useState(false);
   const busy = useRef(false);
   const leaving = useRef(false);
@@ -226,7 +234,8 @@ function OfferForm({
   const [manualSlug, setManualSlug] = useState(!!initial && !!form.slug);
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const dirty = serialize(form, builder) !== baseline.current;
+  const dirty =
+    serialize(form, builder) !== baseline.current || evidenceState.dirty;
   const external = form.checkoutMode === "external";
   const effectiveStage = external ? "landing" : stage;
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
@@ -239,26 +248,30 @@ function OfferForm({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      uploadController.current?.abort();
     };
   }, []);
   useBlocker({
     shouldBlockFn: () => {
       if (leaving.current) return false;
-      if (busy.current) {
+      if (busy.current || evidenceCurrent.current.busy) {
         window.alert(
           "Wait for the current save or upload to finish before leaving.",
         );
         return true;
       }
       return (
-        serialize(current.current, currentBuilder.current) !==
-          baseline.current &&
+        (evidenceCurrent.current.dirty ||
+          serialize(current.current, currentBuilder.current) !==
+            baseline.current) &&
         !window.confirm("Leave this offer? Your unsaved changes will be lost.")
       );
     },
     enableBeforeUnload: () =>
       !leaving.current &&
       (busy.current ||
+        evidenceCurrent.current.busy ||
+        evidenceCurrent.current.dirty ||
         serialize(current.current, currentBuilder.current) !==
           baseline.current),
   });
@@ -392,6 +405,13 @@ function OfferForm({
 
   async function save(publish = false) {
     if (busy.current) return;
+    if (evidenceCurrent.current.busy || evidenceCurrent.current.dirty) {
+      setError(
+        "Save or discard your evidence edits in Strategy before saving this offer. Evidence is saved separately.",
+      );
+      setStep("strategy");
+      return;
+    }
     setError("");
     setIssues([]);
     setNotice("");
@@ -611,11 +631,18 @@ function OfferForm({
     }
     busy.current = true;
     setUploading(true);
+    const controller = new AbortController();
+    uploadController.current = controller;
     try {
       const path = `${ensureId()}/${crypto.randomUUID()}.${extension}`;
-      const { error } = await supabase.storage
-        .from("offer-files")
-        .upload(path, file, { contentType, upsert: false });
+      const { error } = await waitForUpload(
+        supabase.storage
+          .from("offer-files")
+          .upload(path, file, { contentType, upsert: false }),
+        controller.signal,
+      );
+      if (controller.signal.aborted || uploadController.current !== controller)
+        return;
       if (error) throw error;
       if (mounted.current) {
         setForm((old) => ({
@@ -630,9 +657,13 @@ function OfferForm({
     } catch (failure) {
       if (mounted.current) setError(errorMessage(failure));
     } finally {
-      busy.current = false;
-      if (mounted.current) setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      if (uploadController.current === controller) {
+        uploadController.current = null;
+        controller.abort();
+        busy.current = false;
+        if (mounted.current) setUploading(false);
+        if (fileRef.current) fileRef.current.value = "";
+      }
     }
   }
 
@@ -901,6 +932,8 @@ function OfferForm({
                 }
               />
               <OfferProofLibrary
+                recoveryKey={initial?.id || "new-offer"}
+                onStateChange={setEvidenceState}
                 selectedIds={builder.proofIds}
                 onChange={(proofIds) =>
                   setBuilder((old) => ({ ...old, proofIds }))
@@ -1125,6 +1158,7 @@ function OfferForm({
               health={health}
               onChange={patchForm}
               onUpload={(file) => void upload(file)}
+              onCancelUpload={() => uploadController.current?.abort()}
               actionLabel={
                 builder.presentation.landing.ctaText || form.externalButtonText
               }

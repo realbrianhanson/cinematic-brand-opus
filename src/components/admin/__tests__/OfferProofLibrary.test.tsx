@@ -22,6 +22,9 @@ vi.mock("@/lib/offerBuilderClient", () => ({
   saveOfferProof: (input: unknown) => mock.save(input),
   deleteOfferProof: (id: string) => mock.remove(id),
 }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "proof-owner" } }),
+}));
 import OfferProofLibrary from "../offers/OfferProofLibrary";
 
 const proof = (id: string, title: string): OfferProof => ({
@@ -39,6 +42,7 @@ const proof = (id: string, title: string): OfferProof => ({
 const scrolls: unknown[] = [];
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   scrolls.length = 0;
   Element.prototype.scrollIntoView = function (this: Element) {
     scrolls.push(this);
@@ -70,6 +74,95 @@ function renderInsideOfferForm() {
 }
 
 describe("proof library editing", () => {
+  it("keeps unsaved evidence when switching items or cancelling is declined", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderInsideOfferForm();
+    await screen.findByText("Item 0");
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "Keep my quote" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(
+      within(screen.getByText("Item 3").closest("article")!).getByRole(
+        "button",
+        { name: "Edit evidence" },
+      ),
+    );
+    expect(
+      (screen.getByLabelText("Evidence title") as HTMLInputElement).value,
+    ).toBe("Keep my quote");
+    expect(window.confirm).toHaveBeenCalledTimes(3);
+  });
+  it("offers recovery of unsaved evidence after remount without saving or inserting it", async () => {
+    renderInsideOfferForm();
+    await screen.findByText("Item 0");
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "Recover my quote" },
+    });
+    cleanup();
+    renderInsideOfferForm();
+    await screen.findByRole("button", { name: "Restore working copy" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore working copy" }),
+    );
+    expect(
+      (screen.getByLabelText("Evidence title") as HTMLInputElement).value,
+    ).toBe("Recover my quote");
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("backs up new evidence even when the library read is unavailable", async () => {
+    mock.list.mockRejectedValue(new Error("offline"));
+    renderInsideOfferForm();
+    await screen.findByText(/proof library could not be loaded/);
+    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "Offline draft" },
+    });
+    cleanup();
+    renderInsideOfferForm();
+    await screen.findByRole("button", { name: "Restore working copy" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore working copy" }),
+    );
+    expect(
+      (screen.getByLabelText("Evidence title") as HTMLInputElement).value,
+    ).toBe("Offline draft");
+  });
+  it("offers comparison instead of restoring evidence over a newer library version", async () => {
+    renderInsideOfferForm();
+    await screen.findByText("Item 0");
+    fireEvent.click(
+      within(screen.getByText("Item 0").closest("article")!).getByRole(
+        "button",
+        { name: "Edit evidence" },
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("Evidence title"), {
+      target: { value: "Older working copy" },
+    });
+    cleanup();
+    mock.list.mockResolvedValue([
+      {
+        ...proof(
+          "00000000-0000-4000-a000-000000000000",
+          "New authoritative evidence",
+        ),
+        updated_at: "2026-09-25T00:00:00Z",
+      },
+    ]);
+    renderInsideOfferForm();
+    await screen.findByText(/saved version has changed/);
+    expect(
+      screen.queryByRole("button", { name: "Restore working copy" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Download working copy" }),
+    ).toBeTruthy();
+    expect(mock.save).not.toHaveBeenCalled();
+  });
   it("locks a new evidence save synchronously so a rapid repeat cannot insert it twice", async () => {
     mock.save.mockReturnValue(new Promise(() => {}));
     renderInsideOfferForm();

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { withTimeout } from "@/lib/withTimeout";
+import { errorMessage } from "@/lib/errorMessage";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Trash2 } from "lucide-react";
@@ -18,6 +20,8 @@ export default function BriansNotesWidget() {
   const [note, setNote] = useState("");
   const [hint, setHint] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
+  const savingLock = useRef(false);
+  const editRevision = useRef(0);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
@@ -36,25 +40,37 @@ export default function BriansNotesWidget() {
   }, []);
 
   const save = async () => {
-    if (!note.trim()) return;
+    if (!note.trim() || savingLock.current) return;
+    savingLock.current = true;
+    const submittedRevision = editRevision.current;
     setSaving(true);
-    const { error } = await supabase.from("expert_notes").insert({
-      note: note.trim(),
-      topic_hint: hint || null,
-    });
-    setSaving(false);
-    if (error) {
+    try {
+      const { error } = await withTimeout(
+        Promise.resolve(
+          supabase.from("expert_notes").insert({
+            note: note.trim(),
+            topic_hint: hint || null,
+          }),
+        ),
+        20000,
+      );
+      if (error) throw error;
+      if (editRevision.current === submittedRevision) {
+        setNote("");
+        setHint("");
+      }
+      toast({ title: "Note saved" });
+      void load();
+    } catch (error) {
       toast({
-        title: "Save failed",
-        description: error.message,
+        title: "Save not confirmed",
+        description: errorMessage(error),
         variant: "destructive",
       });
-      return;
+    } finally {
+      savingLock.current = false;
+      setSaving(false);
     }
-    setNote("");
-    setHint("");
-    toast({ title: "Note saved" });
-    load();
   };
 
   const del = async (id: string) => {
@@ -113,7 +129,10 @@ export default function BriansNotesWidget() {
       <textarea
         aria-label="Expert note"
         value={note}
-        onChange={(e) => setNote(e.target.value)}
+        onChange={(e) => {
+          editRevision.current += 1;
+          setNote(e.target.value);
+        }}
         placeholder="Share a real observation, lesson, or result from your work. Include the context and evidence."
         rows={3}
         style={{
@@ -132,7 +151,10 @@ export default function BriansNotesWidget() {
         <select
           aria-label="Note topic"
           value={hint}
-          onChange={(e) => setHint(e.target.value)}
+          onChange={(e) => {
+            editRevision.current += 1;
+            setHint(e.target.value);
+          }}
           style={{
             padding: "8px 10px",
             fontSize: 12,
