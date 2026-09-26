@@ -57,7 +57,7 @@ export default function OfferDeliveryStep({
         </label>
         <p className="admin-help">
           {external
-            ? "Send visitors to your sales page, a Stripe Payment Link, or another provider's product. No Stripe keys or uploaded file are needed here."
+            ? "Send visitors to your application, calendar, training, sales page or checkout. Configure any qualification rules, bookings and recurring billing in that provider. No Stripe keys or uploaded file are needed here."
             : "Collect an opt-in for a free download, or use your site's Stripe Checkout for a paid download. You can add a follow-up offer after delivery."}
         </p>
       </section>
@@ -78,8 +78,9 @@ export default function OfferDeliveryStep({
                 onChange={(event) => update("externalUrl", event.target.value)}
               />
               <span className="admin-help block mt-2">
-                Paste the full HTTPS link, including any affiliate or tracking
-                parameters.
+                Paste the full HTTPS link for this page's next action. Use
+                campaign or affiliate parameters when needed; do not include a
+                customer's email, phone number or access token in a shared link.
               </span>
             </label>
             <label className="block text-sm font-medium">

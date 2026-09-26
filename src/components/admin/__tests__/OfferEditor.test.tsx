@@ -12,6 +12,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyBuilder, newSection } from "@/lib/offerBuilder";
+import { draftPayload, toForm, type Offer } from "../offerEditorState";
 import type {
   OfferBuilderDocument,
   OfferBuilderSaveInput,
@@ -231,6 +232,187 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("offer builder save and upload safety", () => {
+  it("opens external delivery setup from the blueprint without switching fulfillment", async () => {
+    existing();
+    await loaded();
+    navigateStep("Strategy");
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Use this page layout",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Configure external delivery" }),
+    );
+    const delivery = within(
+      screen.getByRole("navigation", { name: "Offer builder steps" }),
+    ).getByRole("button", { name: /Delivery/ });
+    expect(delivery.getAttribute("aria-current")).toBe("step");
+    expect(document.activeElement).toBe(delivery);
+    expect(
+      (
+        screen.getByLabelText(
+          "Checkout or delivery method",
+        ) as HTMLSelectElement
+      ).value,
+    ).toBe("native");
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it("saves an applied blueprint through the normal private draft flow while preserving every other field", async () => {
+    let sectionId = 0;
+    vi.mocked(crypto.randomUUID).mockImplementation(
+      () => `22222222-2222-4222-a222-${String(++sectionId).padStart(12, "0")}`,
+    );
+    const builder = emptyBuilder();
+    builder.strategy.audience = "Independent consultants";
+    builder.strategy.outcome = "Choose a useful next step";
+    builder.strategy.evidence = "Private notes remain private";
+    builder.strategy.adMessage = "Original campaign promise";
+    builder.proofIds = ["11111111-1111-4111-a111-111111111111"];
+    builder.presentation.landing = {
+      ...builder.presentation.landing,
+      headline: "Original invitation",
+      ctaText: "Original page action",
+      sections: [
+        {
+          ...newSection("proof"),
+          body: "Original approved proof",
+          proofId: builder.proofIds[0],
+        },
+      ],
+    };
+    builder.presentation.upsell.headline = "Existing upsell";
+    builder.presentation.thankYou.body = "Existing thank-you";
+    const initial = {
+      ...row,
+      checkout_mode: "external",
+      external_url: "https://example.com/application?source=campaign",
+      external_button_text: "Existing destination label",
+      kind: "paid",
+      amount_minor: 4900,
+      body: "Original source description",
+      is_affiliate: true,
+      affiliate_disclosure: "Existing disclosure",
+      cover_url: "https://example.com/original.webp",
+      show_in_shop: true,
+      shop_category: "training",
+      presentation: builder.presentation,
+    };
+    const expectedOffer = draftPayload(toForm(initial as Offer)).values;
+    mock.load.mockResolvedValue({
+      draft: {
+        document: { offer: expectedOffer, builder },
+        version: 3,
+        base_offer_updated_at: initial.updated_at,
+      },
+      history: [],
+    });
+    existing(initial);
+    await loaded();
+    navigateStep("Strategy");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.change(
+      screen.getByLabelText("Page to build from this blueprint"),
+      { target: { value: "membership" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use this page layout" }),
+    );
+    expect(confirm).toHaveBeenCalledOnce();
+    confirm.mockRestore();
+    expect(mock.save).not.toHaveBeenCalled();
+    expect(
+      (screen.getByLabelText("Presentation") as HTMLSelectElement).value,
+    ).toBe("landing");
+    expect(
+      (screen.getByLabelText("Page headline") as HTMLTextAreaElement).value,
+    ).toBe(initial.title);
+    const pages = within(
+      screen.getByRole("navigation", { name: "Offer builder steps" }),
+    ).getByRole("button", { name: /Pages/ });
+    expect(document.activeElement).toBe(pages);
+    expect(
+      screen.getByText(
+        /Membership alternative page layout added to your working copy/,
+      ),
+    ).toBeTruthy();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    const input = mock.save.mock.calls[0][0] as OfferBuilderSaveInput;
+    expect(input.publish).toBe(false);
+    expect(input.expectedDraftVersion).toBe(3);
+    expect(input.document.offer).toEqual(expectedOffer);
+    expect(input.document.builder.strategy).toEqual(builder.strategy);
+    expect(input.document.builder.proofIds).toEqual(builder.proofIds);
+    expect(input.document.builder.presentation.upsell).toEqual(
+      builder.presentation.upsell,
+    );
+    expect(input.document.builder.presentation.thankYou).toEqual(
+      builder.presentation.thankYou,
+    );
+    expect(input.document.builder.presentation.landing).not.toEqual(
+      builder.presentation.landing,
+    );
+    expect(input.document.builder.presentation.landing.ctaText).not.toBe(
+      "Original page action",
+    );
+  });
+  it("keeps the original landing page when blueprint replacement is cancelled", async () => {
+    const builder = emptyBuilder();
+    builder.presentation.landing.headline = "Keep this landing page";
+    existing({
+      ...row,
+      checkout_mode: "external",
+      external_url: "https://example.com/application",
+      presentation: builder.presentation,
+    });
+    await loaded();
+    navigateStep("Strategy");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use this page layout" }),
+    );
+    confirm.mockRestore();
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "Keep this landing page",
+    );
+    expect(mock.save).not.toHaveBeenCalled();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(
+      mock.save.mock.calls[0][0].document.builder.presentation.landing,
+    ).toEqual(builder.presentation.landing);
+  });
+  it("saves a blueprint with no provider URL privately and still prevents publishing", async () => {
+    let sectionId = 0;
+    vi.mocked(crypto.randomUUID).mockImplementation(
+      () => `22222222-2222-4222-a222-${String(++sectionId).padStart(12, "0")}`,
+    );
+    existing({ ...row, checkout_mode: "external", external_url: null });
+    await loaded();
+    navigateStep("Strategy");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use this page layout" }),
+    );
+    confirm.mockRestore();
+    expect(
+      screen.getByText(
+        /Before publishing, connect the destination in Delivery to/,
+      ),
+    ).toBeTruthy();
+    draft();
+    await screen.findByText(/Draft saved privately/);
+    expect(mock.save.mock.calls[0][0].publish).toBe(false);
+    expect(mock.save.mock.calls[0][0].document.offer.external_url).toBeNull();
+    publish();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "valid HTTPS destination URL",
+    );
+    expect(mock.save).toHaveBeenCalledOnce();
+  });
   it.each(["native", "external"] as const)(
     "inserts an image at the selection and saves only on request for %s offers",
     async (checkoutMode) => {

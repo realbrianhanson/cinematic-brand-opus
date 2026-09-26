@@ -267,8 +267,8 @@ function ExternalOfferLanding({
           </h2>
           <p className="text-sm leading-relaxed mt-3 text-white/80">
             {offer.kind === "free"
-              ? "Continue to the provider’s website for access and availability"
-              : "See what’s included and the current terms, then buy on the linked website"}
+              ? "Continue to the linked page for details and next steps"
+              : "Review what’s included, current pricing and available next steps on the linked website"}
           </p>
           {disclosure && (
             <p className="mt-6 rounded border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-4 text-sm leading-relaxed text-white/90 whitespace-pre-line">
