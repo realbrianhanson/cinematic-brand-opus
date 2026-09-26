@@ -140,7 +140,10 @@ const PublicCTA = ({
         <div>
           <p
             className="font-body font-bold mb-1"
-            style={{ fontSize: 18, color: "rgba(255,255,255,0.9)" }}
+            style={{
+              fontSize: 18,
+              color: "var(--site-text-90, rgba(255,255,255,0.9))",
+            }}
           >
             {headline}
           </p>
@@ -149,7 +152,7 @@ const PublicCTA = ({
               className="font-body"
               style={{
                 fontSize: 14,
-                color: "rgba(255,255,255,0.75)",
+                color: "var(--site-text-75, rgba(255,255,255,0.75))",
                 lineHeight: 1.5,
               }}
             >
@@ -190,7 +193,8 @@ const PublicCTA = ({
         className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-10"
         style={{
           height: 56,
-          background: "rgba(var(--brand-backdrop-rgb),0.95)",
+          background:
+            "var(--site-nav-scrolled, rgba(var(--brand-backdrop-rgb),0.95))",
           borderTop: "1px solid rgba(var(--brand-accent-rgb),0.15)",
           backdropFilter: "blur(12px)",
           animation: "slideUp 0.3s ease-out",
@@ -199,7 +203,10 @@ const PublicCTA = ({
         <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
         <p
           className="font-body truncate mr-4"
-          style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}
+          style={{
+            fontSize: 13,
+            color: "var(--site-text-80, rgba(255,255,255,0.8))",
+          }}
         >
           {headline} →
         </p>
@@ -228,7 +235,7 @@ const PublicCTA = ({
             onClick={() => setDismissed(true)}
             aria-label="Dismiss notification"
             style={{
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -258,7 +265,7 @@ const PublicCTA = ({
           className="font-body mb-6 mx-auto"
           style={{
             fontSize: 15,
-            color: "rgba(255,255,255,0.8)",
+            color: "var(--site-text-80, rgba(255,255,255,0.8))",
             lineHeight: 1.6,
             maxWidth: 480,
           }}
@@ -289,7 +296,10 @@ const PublicCTA = ({
       {!offerCopy && settings?.cta_social_proof && (
         <p
           className="font-body mt-5"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+          style={{
+            fontSize: 12,
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
+          }}
         >
           {settings.cta_social_proof}
         </p>

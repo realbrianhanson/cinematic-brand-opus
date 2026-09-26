@@ -53,7 +53,7 @@ const SiloNavigation = ({ nicheId, initialPages }: SiloNavigationProps) => {
       style={{
         marginTop: 64,
         paddingTop: 40,
-        borderTop: "1px solid rgba(255,255,255,0.08)",
+        borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
       }}
     >
       <h2 className="font-display" style={{ fontSize: 28, marginBottom: 28 }}>
@@ -68,7 +68,7 @@ const SiloNavigation = ({ nicheId, initialPages }: SiloNavigationProps) => {
               fontWeight: 600,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "hsl(var(--accent))",
+              color: "var(--site-accent-ink, hsl(var(--accent)))",
               marginBottom: 12,
             }}
           >
@@ -92,15 +92,17 @@ const SiloNavigation = ({ nicheId, initialPages }: SiloNavigationProps) => {
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.65)",
+                      color: "var(--site-text-65, rgba(255,255,255,0.65))",
                       textDecoration: "none",
                       transition: "color 0.2s",
                     }}
                     onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "hsl(var(--accent))")
+                      (e.currentTarget.style.color =
+                        "var(--site-accent-ink, hsl(var(--accent)))")
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "rgba(255,255,255,0.65)")
+                      (e.currentTarget.style.color =
+                        "var(--site-text-65, rgba(255,255,255,0.65))")
                     }
                   >
                     → {pg.title}

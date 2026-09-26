@@ -42,9 +42,12 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
   return (
     <section
       id="hero"
-      className="relative isolate flex min-h-[min(900px,100svh)] items-center overflow-hidden bg-[var(--brand-backdrop)]"
+      className="relative isolate flex min-h-[min(900px,100svh)] items-center overflow-hidden bg-[var(--site-surface,var(--brand-backdrop))]"
     >
-      <div className="absolute inset-0 -z-20" aria-hidden="true">
+      <div
+        className="hero-background-media absolute inset-0 -z-20"
+        aria-hidden="true"
+      >
         {hero.posterSrc && (
           <img
             src={hero.posterSrc}
@@ -75,11 +78,11 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
       </div>
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.96)_0%,rgba(var(--brand-backdrop-rgb),.83)_40%,rgba(var(--brand-backdrop-rgb),.2)_100%)] max-md:bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.92),rgba(var(--brand-backdrop-rgb),.7))]"
+        className="hero-background-scrim absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.96)_0%,rgba(var(--brand-backdrop-rgb),.83)_40%,rgba(var(--brand-backdrop-rgb),.2)_100%)] max-md:bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.92),rgba(var(--brand-backdrop-rgb),.7))]"
       />
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-gradient-to-t from-[var(--brand-backdrop)] to-transparent"
+        className="hero-background-fade absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-gradient-to-t from-[var(--brand-backdrop)] to-transparent"
       />
       <div className="mx-auto w-full max-w-[1440px] px-6 pb-24 pt-36 lg:px-14 lg:pb-32 lg:pt-44">
         {hero.overline && (

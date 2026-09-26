@@ -75,7 +75,7 @@ export default function ResourceContents({ revision }: { revision: unknown }) {
       className="mb-8 rounded-lg border border-white/20 bg-white/[0.025] p-5"
       data-print-hide
     >
-      <summary className="cursor-pointer text-base font-medium text-[var(--brand-accent)]">
+      <summary className="cursor-pointer text-base font-medium text-[var(--site-accent-ink,var(--brand-accent))]">
         On this page
       </summary>
       <nav aria-label="On this page" className="mt-4">

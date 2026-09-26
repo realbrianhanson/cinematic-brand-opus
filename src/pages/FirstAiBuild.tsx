@@ -119,7 +119,10 @@ function BuildNewsletter() {
           </p>
         </form>
       )}
-      <p role="status" className="mt-3 text-sm text-[var(--brand-accent)]">
+      <p
+        role="status"
+        className="mt-3 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
+      >
         {result?.message}
       </p>
     </section>
@@ -258,7 +261,7 @@ function PlanResult({
         </div>
         <div
           role="status"
-          className="mt-3 space-y-1 text-sm text-[var(--brand-accent)]"
+          className="mt-3 space-y-1 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
         >
           {copyState === "copied" && (
             <p>Build prompt copied. Paste it into your app builder to begin.</p>
@@ -296,7 +299,7 @@ function PlanResult({
             {plan.firstVersion.map((item) => (
               <li key={item} className="flex gap-3 text-white/80">
                 <Check
-                  className="mt-1 shrink-0 text-[var(--brand-accent)]"
+                  className="mt-1 shrink-0 text-[var(--site-accent-ink,var(--brand-accent))]"
                   size={17}
                   aria-hidden="true"
                 />
@@ -321,7 +324,7 @@ function PlanResult({
           >
             <Rows3
               size={20}
-              className="text-[var(--brand-accent)]"
+              className="text-[var(--site-accent-ink,var(--brand-accent))]"
               aria-hidden="true"
             />
             What you’ll build
@@ -329,7 +332,7 @@ function PlanResult({
           <ol className="mt-6 space-y-6">
             {plan.screens.map((screen, index) => (
               <li key={screen.name} className="flex gap-4">
-                <span className="font-display text-xl text-[var(--brand-accent)]">
+                <span className="font-display text-xl text-[var(--site-accent-ink,var(--brand-accent))]">
                   0{index + 1}
                 </span>
                 <div>
@@ -358,7 +361,7 @@ function PlanResult({
             </p>
           </div>
           <div className="border-t border-white/20 bg-[var(--brand-accent)]/5 p-5 sm:p-7 md:border-l md:border-t-0">
-            <h3 className="text-sm font-semibold text-[var(--brand-accent)]">
+            <h3 className="text-sm font-semibold text-[var(--site-accent-ink,var(--brand-accent))]">
               What it should produce
             </h3>
             <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-white/85">
@@ -407,7 +410,7 @@ function PlanResult({
               key={test.action}
               className="grid gap-2 py-5 sm:grid-cols-[2rem_1fr]"
             >
-              <span className="font-display text-2xl text-[var(--brand-accent)]">
+              <span className="font-display text-2xl text-[var(--site-accent-ink,var(--brand-accent))]">
                 {index + 1}.
               </span>
               <div>
@@ -560,7 +563,7 @@ export default function FirstAiBuild({
     ]);
   }
   return (
-    <div className="min-h-screen bg-[var(--brand-backdrop)] font-body text-white">
+    <div className="min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] font-body text-white">
       <Nav />
       <main
         id="main-content"
@@ -585,7 +588,7 @@ export default function FirstAiBuild({
                 <h1 className="mt-5 font-display text-[clamp(2.7rem,6.5vw,5rem)] leading-[1.02] tracking-tight">
                   One useful idea.
                   <br />
-                  <span className="italic text-[var(--brand-accent)]">
+                  <span className="italic text-[var(--site-accent-ink,var(--brand-accent))]">
                     A clear way to build it.
                   </span>
                 </h1>
@@ -598,7 +601,7 @@ export default function FirstAiBuild({
                   <span className="inline-flex items-center gap-2">
                     <Check
                       size={15}
-                      className="text-[var(--brand-accent)]"
+                      className="text-[var(--site-accent-ink,var(--brand-accent))]"
                       aria-hidden="true"
                     />
                     No coding experience needed
@@ -606,7 +609,7 @@ export default function FirstAiBuild({
                   <span className="inline-flex items-center gap-2">
                     <Check
                       size={15}
-                      className="text-[var(--brand-accent)]"
+                      className="text-[var(--site-accent-ink,var(--brand-accent))]"
                       aria-hidden="true"
                     />
                     No email required
@@ -635,7 +638,7 @@ export default function FirstAiBuild({
                     "Sample data and a three-point test plan",
                   ].map((item, index) => (
                     <li className="flex gap-4 py-3" key={item}>
-                      <span className="text-[var(--brand-accent)]">
+                      <span className="text-[var(--site-accent-ink,var(--brand-accent))]">
                         0{index + 1}
                       </span>
                       <span className="text-white/80">{item}</span>
@@ -663,7 +666,9 @@ export default function FirstAiBuild({
               </p>
               <fieldset className="mt-9">
                 <legend className="text-lg font-semibold">
-                  <span className="mr-3 text-[var(--brand-accent)]">01</span>
+                  <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
+                    01
+                  </span>
                   Which task would you like to make easier?
                 </legend>
                 <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -698,8 +703,10 @@ export default function FirstAiBuild({
               </fieldset>
               <fieldset className="mt-9">
                 <legend className="text-lg font-semibold">
-                  <span className="mr-3 text-[var(--brand-accent)]">02</span>Who
-                  are you building for?
+                  <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
+                    02
+                  </span>
+                  Who are you building for?
                 </legend>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   {(
@@ -776,7 +783,7 @@ export default function FirstAiBuild({
               {error && (
                 <p
                   role="alert"
-                  className="mt-5 text-sm text-[var(--brand-accent)]"
+                  className="mt-5 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
                 >
                   {error}
                 </p>

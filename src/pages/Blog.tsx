@@ -29,6 +29,7 @@ const TypographicCover = ({
   return (
     <div
       aria-hidden="true"
+      data-theme-media
       className="relative w-full flex items-end p-6"
       style={{
         height: 200,
@@ -87,36 +88,45 @@ const CardSkeleton = () => (
   <div
     className="animate-pulse"
     style={{
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "#14141b",
+      border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+      background: "var(--site-surface, #14141b)",
       display: "flex",
       flexDirection: "column",
     }}
   >
-    <div style={{ height: 200, background: "rgba(255,255,255,0.04)" }} />
+    <div
+      style={{
+        height: 200,
+        background: "rgba(var(--site-ink-rgb,255,255,255),0.04)",
+      }}
+    />
     <div className="p-6 flex flex-col gap-3">
       <div
-        style={{ height: 10, width: 90, background: "rgba(255,255,255,0.06)" }}
+        style={{
+          height: 10,
+          width: 90,
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.06)",
+        }}
       />
       <div
         style={{
           height: 22,
           width: "85%",
-          background: "rgba(255,255,255,0.08)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.08)",
         }}
       />
       <div
         style={{
           height: 14,
           width: "100%",
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.05)",
         }}
       />
       <div
         style={{
           height: 14,
           width: "70%",
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.05)",
         }}
       />
     </div>
@@ -150,7 +160,10 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
   return (
     <div
       className="public-site min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
       <header
@@ -163,13 +176,15 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
           style={{
             fontSize: 12,
             letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.75)",
+            color: "var(--site-text-75, rgba(255,255,255,0.75))",
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--brand-accent)")
+            (e.currentTarget.style.color =
+              "var(--site-accent-ink, var(--brand-accent))")
           }
           onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "rgba(255,255,255,0.75)")
+            (e.currentTarget.style.color =
+              "var(--site-text-75, rgba(255,255,255,0.75))")
           }
         >
           <ArrowLeft size={14} />
@@ -180,7 +195,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
             lineHeight: 1.1,
-            color: "#fff",
+            color: "var(--site-ink, #fff)",
           }}
         >
           Articles &amp; Playbooks
@@ -189,7 +204,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
           className="font-body mt-4"
           style={{
             fontSize: 17,
-            color: "rgba(255,255,255,0.85)",
+            color: "var(--site-text-85, rgba(255,255,255,0.85))",
             maxWidth: 560,
             lineHeight: 1.6,
           }}
@@ -212,7 +227,10 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
           <p
             role="alert"
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+            style={{
+              color: "var(--site-text-75, rgba(255,255,255,0.75))",
+              fontSize: 15,
+            }}
           >
             {posts.length
               ? "These articles could not be refreshed."
@@ -229,7 +247,10 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
         {!isLoading && !isError && posts.length === 0 && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+            style={{
+              color: "var(--site-text-75, rgba(255,255,255,0.75))",
+              fontSize: 15,
+            }}
           >
             No posts published yet. Check back soon
           </p>
@@ -247,8 +268,8 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
               key={post.id}
               className="group block h-full"
               style={{
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "#14141b",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                background: "var(--site-surface, #14141b)",
                 transition: "border-color 0.3s, transform 0.3s",
                 display: "flex",
                 flexDirection: "column",
@@ -259,7 +280,8 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                 e.currentTarget.style.transform = "translateY(-4px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.borderColor =
+                  "rgba(var(--site-ink-rgb,255,255,255),0.08)";
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
@@ -268,7 +290,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                   style={{
                     height: 200,
                     overflow: "hidden",
-                    background: "#0a0a14",
+                    background: "var(--site-surface, #0a0a14)",
                     flexShrink: 0,
                   }}
                 >
@@ -294,7 +316,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                       style={{
                         fontSize: 12,
                         letterSpacing: "0.15em",
-                        color: "var(--brand-accent)",
+                        color: "var(--site-accent-ink, var(--brand-accent))",
                       }}
                     >
                       {post.categories.name}
@@ -302,15 +324,22 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                   )}
                   <span
                     className="font-body flex items-center gap-1"
-                    style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                    style={{
+                      fontSize: 12,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     <Clock size={11} />
                     {post.reading_time ?? 1} min
                   </span>
                 </div>
                 <h2
-                  className="font-display mb-3 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
-                  style={{ fontSize: 22, lineHeight: 1.3, color: "#fff" }}
+                  className="font-display mb-3 transition-colors duration-300 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
+                  style={{
+                    fontSize: 22,
+                    lineHeight: 1.3,
+                    color: "var(--site-ink, #fff)",
+                  }}
                 >
                   {post.title}
                 </h2>
@@ -319,7 +348,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                     className="font-body"
                     style={{
                       fontSize: 15,
-                      color: "rgba(255,255,255,0.85)",
+                      color: "var(--site-text-85, rgba(255,255,255,0.85))",
                       lineHeight: 1.6,
                       display: "-webkit-box",
                       WebkitLineClamp: 3,
@@ -331,11 +360,11 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
                   </p>
                 )}
                 <div
-                  className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="flex items-center gap-1 mt-auto pt-5 font-body uppercase transition-colors duration-300 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.15em",
-                    color: "rgba(255,255,255,0.75)",
+                    color: "var(--site-text-75, rgba(255,255,255,0.75))",
                   }}
                 >
                   Read article <ArrowRight size={12} />
@@ -381,7 +410,7 @@ const Blog = ({ initialPage, category = "", page = 1 }: BlogProps = {}) => {
             style={{
               fontSize: 12,
               letterSpacing: "0.2em",
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
             }}
           >
             — End of articles —

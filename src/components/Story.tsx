@@ -5,7 +5,7 @@ export default function Story() {
   return (
     <section
       id="story"
-      className="border-y border-white/10 bg-[#101015] py-20 lg:py-28"
+      className="border-y border-white/10 bg-[var(--site-surface,#101015)] py-20 lg:py-28"
     >
       <div className="mx-auto grid max-w-[1440px] gap-12 px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:px-14">
         <div>

@@ -7,7 +7,10 @@ const NotFound = () => {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <PageHead
         title="Page Not Found"
@@ -24,7 +27,7 @@ const NotFound = () => {
           style={{
             fontSize: 12,
             letterSpacing: "0.2em",
-            color: "hsl(var(--accent))",
+            color: "var(--site-accent-ink, hsl(var(--accent)))",
           }}
         >
           404
@@ -39,7 +42,7 @@ const NotFound = () => {
           className="font-body mb-10"
           style={{
             fontSize: 15,
-            color: "rgba(255,255,255,0.7)",
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
             maxWidth: 420,
             lineHeight: 1.6,
           }}
@@ -71,8 +74,8 @@ const NotFound = () => {
               fontSize: 12,
               letterSpacing: "0.12em",
               fontWeight: 500,
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.1)",
+              color: "var(--site-text-60, rgba(255,255,255,0.6))",
               textDecoration: "none",
             }}
           >
@@ -85,7 +88,7 @@ const NotFound = () => {
               fontSize: 12,
               letterSpacing: "0.12em",
               fontWeight: 500,
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
               textDecoration: "none",
             }}
           >

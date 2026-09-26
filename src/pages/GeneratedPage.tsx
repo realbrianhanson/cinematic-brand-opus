@@ -224,9 +224,12 @@ const GeneratedPage = ({
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.7)" }}>
+        <p
+          className="font-body"
+          style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
+        >
           Loading...
         </p>
       </div>
@@ -237,18 +240,21 @@ const GeneratedPage = ({
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-4"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
         <p
           className="font-display italic text-2xl"
-          style={{ color: "rgba(255,255,255,0.7)" }}
+          style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
         >
           Page not found
         </p>
         <Link
           to="/resources"
           className="font-body underline"
-          style={{ color: "var(--brand-accent)", fontSize: 14 }}
+          style={{
+            color: "var(--site-accent-ink, var(--brand-accent))",
+            fontSize: 14,
+          }}
         >
           ← Back to Resources
         </Link>
@@ -259,7 +265,10 @@ const GeneratedPage = ({
   return (
     <div
       className="resource-page min-h-screen"
-      style={{ background: "#0b0b10", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, #0b0b10)",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       {!isPublished && (
         <PageHead
@@ -285,8 +294,8 @@ const GeneratedPage = ({
           className="flex-1 min-w-0 mx-auto"
           style={{
             maxWidth: 800,
-            background: "#14141b",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--site-surface, #14141b)",
+            border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
             padding: "40px clamp(20px, 4vw, 48px)",
           }}
         >
@@ -307,7 +316,7 @@ const GeneratedPage = ({
               style={{
                 background: "rgba(var(--brand-accent-rgb),0.12)",
                 border: "1px solid rgba(var(--brand-accent-rgb),0.3)",
-                color: "var(--brand-accent)",
+                color: "var(--site-accent-ink, var(--brand-accent))",
               }}
             >
               ⚠ This page is in <strong>{page.status}</strong> mode and is only
@@ -324,7 +333,10 @@ const GeneratedPage = ({
 
           <div
             className="flex items-center gap-4 flex-wrap mb-2"
-            style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}
+            style={{
+              fontSize: 13,
+              color: "var(--site-text-75, rgba(255,255,255,0.75))",
+            }}
           >
             {settings?.author_name && (
               <span className="font-body">By {settings.author_name}</span>
@@ -368,10 +380,11 @@ const GeneratedPage = ({
                 aria-label={label}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 transition-colors hover:text-[var(--brand-accent)]"
+                className="p-2 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                 style={{
-                  color: "rgba(255,255,255,0.7)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  border:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                 }}
               >
                 <Icon size={14} />
@@ -379,10 +392,10 @@ const GeneratedPage = ({
             ))}
             <button
               onClick={handleCopyLink}
-              className="p-2 transition-colors hover:text-[var(--brand-accent)] font-body flex items-center gap-1"
+              className="p-2 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))] font-body flex items-center gap-1"
               style={{
-                color: "rgba(255,255,255,0.7)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                 fontSize: 12,
                 cursor: "pointer",
                 background: "none",
@@ -404,7 +417,7 @@ const GeneratedPage = ({
                 className="font-body"
                 style={{
                   fontSize: 18,
-                  color: "rgba(255,255,255,0.92)",
+                  color: "var(--site-text-92, rgba(255,255,255,0.92))",
                   lineHeight: 1.75,
                 }}
               >
@@ -427,7 +440,8 @@ const GeneratedPage = ({
                   width: "100%",
                   height: "auto",
                   display: "block",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
                 }}
               />
             </figure>
@@ -446,7 +460,7 @@ const GeneratedPage = ({
                 style={{
                   fontSize: 12,
                   letterSpacing: "0.18em",
-                  color: "var(--brand-accent)",
+                  color: "var(--site-accent-ink, var(--brand-accent))",
                   marginBottom: 10,
                 }}
               >
@@ -456,7 +470,7 @@ const GeneratedPage = ({
                 className="font-body"
                 style={{
                   fontSize: 16,
-                  color: "rgba(255,255,255,0.9)",
+                  color: "var(--site-text-90, rgba(255,255,255,0.9))",
                   lineHeight: 1.7,
                   fontStyle: "italic",
                 }}
@@ -466,7 +480,10 @@ const GeneratedPage = ({
               {settings?.author_name && (
                 <p
                   className="font-body mt-3"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  }}
                 >
                   — {settings.author_name}
                 </p>
@@ -500,11 +517,16 @@ const GeneratedPage = ({
 
           <div
             className="mt-16 p-8 text-center"
-            style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+            }}
           >
             <p
               className="font-body mb-4"
-              style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+              style={{
+                fontSize: 15,
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
+              }}
             >
               Was this helpful?
             </p>
@@ -520,11 +542,11 @@ const GeneratedPage = ({
                   borderColor:
                     feedback === "up"
                       ? "var(--brand-accent)"
-                      : "rgba(255,255,255,0.1)",
+                      : "rgba(var(--site-ink-rgb,255,255,255),0.1)",
                   color:
                     feedback === "up"
-                      ? "var(--brand-accent)"
-                      : "rgba(255,255,255,0.4)",
+                      ? "var(--site-accent-ink, var(--brand-accent))"
+                      : "var(--site-text-40, rgba(255,255,255,0.4))",
                   background:
                     feedback === "up"
                       ? "rgba(var(--brand-accent-rgb),0.08)"
@@ -545,11 +567,11 @@ const GeneratedPage = ({
                   borderColor:
                     feedback === "down"
                       ? "var(--brand-accent)"
-                      : "rgba(255,255,255,0.1)",
+                      : "rgba(var(--site-ink-rgb,255,255,255),0.1)",
                   color:
                     feedback === "down"
-                      ? "var(--brand-accent)"
-                      : "rgba(255,255,255,0.4)",
+                      ? "var(--site-accent-ink, var(--brand-accent))"
+                      : "var(--site-text-40, rgba(255,255,255,0.4))",
                   background:
                     feedback === "down"
                       ? "rgba(var(--brand-accent-rgb),0.08)"
@@ -564,7 +586,10 @@ const GeneratedPage = ({
               <p
                 role="status"
                 className="font-body mt-3"
-                style={{ fontSize: 12, color: "var(--brand-accent)" }}
+                style={{
+                  fontSize: 12,
+                  color: "var(--site-accent-ink, var(--brand-accent))",
+                }}
               >
                 Thanks for your feedback!
               </p>
@@ -625,7 +650,10 @@ const FAQAccordion = ({
         return (
           <div
             key={i}
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+            style={{
+              borderBottom:
+                "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+            }}
           >
             <button
               onClick={() => {
@@ -651,7 +679,9 @@ const FAQAccordion = ({
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                color: isOpen ? "var(--brand-accent)" : "rgba(255,255,255,0.7)",
+                color: isOpen
+                  ? "var(--site-accent-ink, var(--brand-accent))"
+                  : "var(--site-text-70, rgba(255,255,255,0.7))",
                 fontSize: 15,
                 fontWeight: 500,
               }}
@@ -681,7 +711,7 @@ const FAQAccordion = ({
                 className="faq-answer font-body pb-5"
                 style={{
                   fontSize: 14,
-                  color: "rgba(255,255,255,0.7)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
                   lineHeight: 1.7,
                 }}
               >
@@ -712,7 +742,7 @@ const SourcesSection = ({ sources }: { sources: unknown }) => {
         className="font-body"
         style={{
           fontSize: 13,
-          color: "rgba(255,255,255,0.7)",
+          color: "var(--site-text-70, rgba(255,255,255,0.7))",
           lineHeight: 1.8,
           listStyle: "disc",
           paddingLeft: "1.25rem",
@@ -724,7 +754,10 @@ const SourcesSection = ({ sources }: { sources: unknown }) => {
               href={s.url}
               target="_blank"
               rel="noopener"
-              style={{ color: "var(--brand-accent)", wordBreak: "break-word" }}
+              style={{
+                color: "var(--site-accent-ink, var(--brand-accent))",
+                wordBreak: "break-word",
+              }}
             >
               {s.title || s.url}
             </a>
@@ -751,7 +784,7 @@ const AuthorBox = ({
     <aside
       className="mt-16 p-6"
       style={{
-        border: "1px solid rgba(255,255,255,0.08)",
+        border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
         background: "rgba(var(--brand-accent-rgb),0.02)",
       }}
     >
@@ -760,7 +793,10 @@ const AuthorBox = ({
       </h2>
       <p
         className="font-body mb-2"
-        style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}
+        style={{
+          fontSize: 14,
+          color: "var(--site-text-85, rgba(255,255,255,0.85))",
+        }}
       >
         <strong>{settings.author_name}</strong>
         {settings.author_title ? `, ${settings.author_title}` : ""}
@@ -770,7 +806,7 @@ const AuthorBox = ({
           className="font-body mb-3"
           style={{
             fontSize: 14,
-            color: "rgba(255,255,255,0.6)",
+            color: "var(--site-text-60, rgba(255,255,255,0.6))",
             lineHeight: 1.7,
           }}
         >
@@ -780,9 +816,14 @@ const AuthorBox = ({
       {creds.length > 0 && (
         <p
           className="font-body mb-3"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+          style={{
+            fontSize: 12,
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
+          }}
         >
-          <strong style={{ color: "rgba(255,255,255,0.65)" }}>
+          <strong
+            style={{ color: "var(--site-text-65, rgba(255,255,255,0.65))" }}
+          >
             Credentials:
           </strong>{" "}
           {creds.join(", ")}
@@ -793,13 +834,20 @@ const AuthorBox = ({
           {social.map(([k, v], i) => (
             <span key={k}>
               {i > 0 && (
-                <span style={{ color: "rgba(255,255,255,0.7)" }}> · </span>
+                <span
+                  style={{
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  }}
+                >
+                  {" "}
+                  ·{" "}
+                </span>
               )}
               <a
                 href={v}
                 target="_blank"
                 rel="noopener"
-                style={{ color: "var(--brand-accent)" }}
+                style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
               >
                 {k}
               </a>

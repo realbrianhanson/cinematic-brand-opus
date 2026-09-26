@@ -22,7 +22,7 @@ const NewsletterStatus = () => {
   return (
     <main
       className="min-h-screen flex items-center justify-center px-6"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <div className="text-center max-w-md">
         <h1
@@ -30,14 +30,17 @@ const NewsletterStatus = () => {
           style={{
             fontSize: "clamp(2rem, 5vw, 3.5rem)",
             lineHeight: 1.1,
-            color: "#fff",
+            color: "var(--site-ink, #fff)",
           }}
         >
           {msg.headline}
         </h1>
         <p
           className="font-body mb-10"
-          style={{ fontSize: "1.05rem", color: "rgba(255,255,255,0.75)" }}
+          style={{
+            fontSize: "1.05rem",
+            color: "var(--site-text-75, rgba(255,255,255,0.75))",
+          }}
         >
           {msg.line}
         </p>

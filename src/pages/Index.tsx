@@ -34,7 +34,7 @@ export default function Index({
     return () => window.clearTimeout(timer);
   }, []);
   return (
-    <div className="public-site min-h-screen bg-[var(--brand-backdrop)]">
+    <div className="public-site min-h-screen bg-[var(--site-surface,var(--brand-backdrop))]">
       <Nav />
       <main id="main-content">
         <Hero />

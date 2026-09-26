@@ -28,7 +28,10 @@ export function renderInlineMarkdown(text: unknown): ReactNode {
           href={href}
           target="_blank"
           rel="noopener nofollow"
-          style={{ color: "var(--brand-accent)", textDecoration: "underline" }}
+          style={{
+            color: "var(--site-accent-ink, var(--brand-accent))",
+            textDecoration: "underline",
+          }}
         >
           {label}
         </a>,
@@ -38,7 +41,10 @@ export function renderInlineMarkdown(text: unknown): ReactNode {
         <Link
           key={`ml-${key++}`}
           to={href}
-          style={{ color: "var(--brand-accent)", textDecoration: "underline" }}
+          style={{
+            color: "var(--site-accent-ink, var(--brand-accent))",
+            textDecoration: "underline",
+          }}
         >
           {label}
         </Link>,

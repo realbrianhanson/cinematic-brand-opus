@@ -118,7 +118,7 @@ const RelatedResources = ({
               style={{
                 fontSize: 12,
                 letterSpacing: "0.12em",
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 marginBottom: 4,
               }}
             >
@@ -126,7 +126,10 @@ const RelatedResources = ({
             </span>
             <span
               className="font-body font-medium group-hover:text-accent transition-colors"
-              style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
+              style={{
+                fontSize: 15,
+                color: "var(--site-text-80, rgba(255,255,255,0.8))",
+              }}
             >
               {pillar.title}
             </span>
@@ -134,7 +137,7 @@ const RelatedResources = ({
           <ArrowRight
             size={16}
             className="shrink-0 group-hover:text-accent transition-colors"
-            style={{ color: "rgba(255,255,255,0.7)" }}
+            style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
           />
         </a>
       )}
@@ -154,7 +157,8 @@ const RelatedResources = ({
                   href={`/resources/${ctSlug}/${pg.slug}`}
                   className="group block p-5"
                   style={{
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    border:
+                      "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
                     transition: "border-color 0.3s, transform 0.3s",
                     textDecoration: "none",
                   }}
@@ -165,7 +169,7 @@ const RelatedResources = ({
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor =
-                      "rgba(255,255,255,0.06)";
+                      "rgba(var(--site-ink-rgb,255,255,255),0.06)";
                     e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
@@ -183,7 +187,7 @@ const RelatedResources = ({
                     className="font-body font-medium mb-2 transition-colors group-hover:text-accent"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.75)",
+                      color: "var(--site-text-75, rgba(255,255,255,0.75))",
                       lineHeight: 1.4,
                     }}
                   >
@@ -194,7 +198,7 @@ const RelatedResources = ({
                     style={{
                       fontSize: 12,
                       letterSpacing: "0.12em",
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                     }}
                   >
                     View <ArrowRight size={10} />
@@ -212,7 +216,7 @@ const RelatedResources = ({
           className="mt-10"
           style={{
             paddingTop: 24,
-            borderTop: "1px solid rgba(255,255,255,0.06)",
+            borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
           }}
         >
           <h3
@@ -234,14 +238,15 @@ const RelatedResources = ({
                 className="font-body flex items-center gap-2 transition-colors"
                 style={{
                   fontSize: 14,
-                  color: "rgba(255,255,255,0.6)",
+                  color: "var(--site-text-60, rgba(255,255,255,0.6))",
                   textDecoration: "none",
                 }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.color = "hsl(var(--accent))")
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+                  (e.currentTarget.style.color =
+                    "var(--site-text-60, rgba(255,255,255,0.6))")
                 }
               >
                 {post.title} <ArrowRight size={12} />

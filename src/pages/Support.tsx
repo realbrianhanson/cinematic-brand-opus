@@ -16,7 +16,10 @@ export default function Support() {
     >
       <div className="grid gap-5 md:grid-cols-2">
         <section className="rounded-xl border border-white/15 bg-white/[0.03] p-7">
-          <Download className="text-[var(--brand-accent)]" aria-hidden="true" />
+          <Download
+            className="text-[var(--site-accent-ink,var(--brand-accent))]"
+            aria-hidden="true"
+          />
           <h2 className="mt-5">Find a website download</h2>
           <p className="mt-4 text-white/75">
             Use the private access link from your confirmation page or access
@@ -25,7 +28,7 @@ export default function Support() {
           </p>
           <Link
             to="/offer-access?recover=1"
-            className="mt-6 inline-flex items-center gap-2 font-semibold text-[var(--brand-accent)] underline underline-offset-4"
+            className="mt-6 inline-flex items-center gap-2 font-semibold text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             Recover download access <ArrowRight size={16} aria-hidden="true" />
           </Link>
@@ -35,7 +38,7 @@ export default function Support() {
         </section>
         <section className="rounded-xl border border-white/15 bg-white/[0.03] p-7">
           <ExternalLink
-            className="text-[var(--brand-accent)]"
+            className="text-[var(--site-accent-ink,var(--brand-accent))]"
             aria-hidden="true"
           />
           <h2 className="mt-5">Bought on another website?</h2>
@@ -50,7 +53,7 @@ export default function Support() {
           </p>
           <Link
             to="/shop"
-            className="mt-6 inline-flex items-center gap-2 font-semibold text-[var(--brand-accent)] underline underline-offset-4"
+            className="mt-6 inline-flex items-center gap-2 font-semibold text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             Find the original listing{" "}
             <ArrowRight size={16} aria-hidden="true" />
@@ -58,7 +61,10 @@ export default function Support() {
         </section>
       </div>
       <section className="border-t border-white/15 pt-9">
-        <Mail className="mb-4 text-[var(--brand-accent)]" aria-hidden="true" />
+        <Mail
+          className="mb-4 text-[var(--site-accent-ink,var(--brand-accent))]"
+          aria-hidden="true"
+        />
         <h2>Still need a hand?</h2>
         <p className="mt-4 max-w-2xl text-white/75">
           Include the resource or product name, the email used at checkout, and
@@ -68,7 +74,7 @@ export default function Support() {
         {emailLink ? (
           <a
             href={emailLink}
-            className="mt-6 inline-block break-all font-semibold text-[var(--brand-accent)] underline underline-offset-4"
+            className="mt-6 inline-block break-all font-semibold text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             {config.identity.contactEmail}
           </a>

@@ -5,7 +5,10 @@ import { useSiteConfig } from "@/config/SiteConfigContext";
 export default function Speaking() {
   const { speaking } = useSiteConfig();
   return (
-    <section id="speaking" className="bg-[#0d0e14] py-16 lg:py-24">
+    <section
+      id="speaking"
+      className="bg-[var(--site-surface,#0d0e14)] py-16 lg:py-24"
+    >
       <div className="mx-auto grid max-w-[1440px] items-center gap-8 px-6 lg:grid-cols-[1.4fr_1fr] lg:gap-24 lg:px-14">
         <div>
           <p className="mb-5 flex items-center gap-3 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">

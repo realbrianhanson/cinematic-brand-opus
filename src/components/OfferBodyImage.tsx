@@ -36,7 +36,7 @@ export default function OfferBodyImage({
             </span>
           </button>
         </DialogTrigger>
-        <DialogContent className="block max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[1400px] overflow-hidden border-white/20 bg-[var(--brand-backdrop)] p-4 text-white sm:p-6">
+        <DialogContent className="block max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[1400px] overflow-hidden border-white/20 bg-[var(--site-surface,var(--brand-backdrop))] p-4 text-white sm:p-6">
           <div className="max-h-[calc(100dvh-5rem)] min-w-0 space-y-4 overflow-y-auto pr-6 [overflow-wrap:anywhere]">
             <DialogTitle className="leading-snug">{alt}</DialogTitle>
             <DialogDescription className="text-white/75">

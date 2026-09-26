@@ -33,7 +33,7 @@ function GroupedTestimonials({
     <section
       id="testimonials"
       aria-labelledby={headingId}
-      className="bg-[var(--brand-backdrop)] py-20 lg:py-28"
+      className="bg-[var(--site-surface,var(--brand-backdrop))] py-20 lg:py-28"
     >
       <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
         <header className="mb-12 grid gap-6 lg:mb-16 lg:grid-cols-2 lg:gap-24">
@@ -79,7 +79,7 @@ function FlatTestimonials({
     <section
       id="testimonials"
       aria-label={testimonials.heading}
-      className="bg-[var(--brand-backdrop)] py-20 lg:py-28"
+      className="bg-[var(--site-surface,var(--brand-backdrop))] py-20 lg:py-28"
     >
       <div className="mx-auto max-w-[1440px] px-6 lg:px-14">
         <header className="mb-12 grid gap-6 lg:grid-cols-2 lg:gap-24">

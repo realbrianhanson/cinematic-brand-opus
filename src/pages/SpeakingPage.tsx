@@ -9,12 +9,12 @@ export default function SpeakingPage() {
   const { speaking, identity, hero, proofBadges } = useSiteConfig();
   const emailBooking = /^mailto:/i.test(speaking.bookingCta?.href || "");
   return (
-    <div className="public-site min-h-screen bg-[var(--brand-backdrop)] text-white">
+    <div className="public-site min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] text-white">
       <Nav />
       <main id="main-content">
         <section className="mx-auto grid max-w-[1440px] items-center gap-10 px-6 pb-16 pt-32 lg:grid-cols-[1.15fr_.85fr] lg:gap-20 lg:px-14 lg:pb-24 lg:pt-40">
           <div>
-            <p className="mb-6 font-body text-xs font-semibold uppercase tracking-[.18em] text-[var(--brand-accent)]">
+            <p className="mb-6 font-body text-xs font-semibold uppercase tracking-[.18em] text-[var(--site-accent-ink,var(--brand-accent))]">
               {speaking.overline}
             </p>
             <h1
@@ -25,7 +25,7 @@ export default function SpeakingPage() {
               }}
             >
               {speaking.headingLead}{" "}
-              <em className="block text-[var(--brand-accent)]">
+              <em className="block text-[var(--site-accent-ink,var(--brand-accent))]">
                 {speaking.headingAccent}
               </em>
             </h1>
@@ -66,7 +66,7 @@ export default function SpeakingPage() {
             )}
           </div>
           {speaking.portraitSrc && (
-            <figure className="relative m-0">
+            <figure data-theme-media className="relative m-0">
               <img
                 src={speaking.portraitSrc}
                 alt={speaking.portraitAlt}
@@ -84,16 +84,18 @@ export default function SpeakingPage() {
             </figure>
           )}
         </section>
-        <section className="border-y border-white/10 bg-[#111116] py-16 lg:py-24">
+        <section className="border-y border-white/10 bg-[var(--site-surface,#111116)] py-16 lg:py-24">
           <div className="mx-auto grid max-w-[1440px] gap-10 px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-24 lg:px-14">
             <header>
-              <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">
+              <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--site-accent-ink,var(--brand-accent))]">
                 The conversation
               </p>
               <h2 className="font-display text-4xl leading-tight lg:text-5xl">
                 Ideas your audience
                 <br />
-                <em className="text-[var(--brand-accent)]">can put to work</em>
+                <em className="text-[var(--site-accent-ink,var(--brand-accent))]">
+                  can put to work
+                </em>
               </h2>
               <p className="mt-5 font-body text-base leading-relaxed text-white/65">
                 Share your audience, event format, and goals in your inquiry so
@@ -107,7 +109,7 @@ export default function SpeakingPage() {
                   className="grid grid-cols-[2rem_1fr] gap-5 py-7"
                 >
                   <span
-                    className="font-body text-sm text-[var(--brand-accent)]"
+                    className="font-body text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
                     aria-hidden="true"
                   >
                     {String(index + 1).padStart(2, "0")}
@@ -128,7 +130,7 @@ export default function SpeakingPage() {
             <div className="mb-7 flex items-center gap-3">
               <Play
                 size={20}
-                className="text-[var(--brand-accent)]"
+                className="text-[var(--site-accent-ink,var(--brand-accent))]"
                 aria-hidden="true"
               />
               <h2 className="font-display text-3xl">A look inside the room</h2>
@@ -140,6 +142,7 @@ export default function SpeakingPage() {
               playsInline
               preload="none"
               aria-label={`Event footage featuring ${identity.name}`}
+              data-theme-media
               className="aspect-video max-h-[650px] w-full border border-white/15 bg-black"
             >
               <a href={hero.videoSrc}>Watch event footage</a>
@@ -160,17 +163,19 @@ export default function SpeakingPage() {
         {speaking.bookingCta && emailBooking && (
           <section
             id="speaking-inquiry"
-            className="border-t border-white/10 bg-[#111116] py-16 lg:py-24"
+            className="border-t border-white/10 bg-[var(--site-surface,#111116)] py-16 lg:py-24"
           >
             <div className="mx-auto grid max-w-[1440px] gap-9 px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-24 lg:px-14">
               <header>
-                <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--brand-accent)]">
+                <p className="mb-4 font-body text-xs font-bold uppercase tracking-[.18em] text-[var(--site-accent-ink,var(--brand-accent))]">
                   Let's talk about your event
                 </p>
                 <h2 className="font-display text-4xl leading-tight lg:text-5xl">
                   Start the
                   <br />
-                  <em className="text-[var(--brand-accent)]">conversation</em>
+                  <em className="text-[var(--site-accent-ink,var(--brand-accent))]">
+                    conversation
+                  </em>
                 </h2>
                 <p className="mt-5 max-w-sm font-body text-base leading-relaxed text-white/65">
                   Tell us a little about your audience and what you have in

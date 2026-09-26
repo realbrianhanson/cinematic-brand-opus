@@ -55,14 +55,14 @@ function NextStepCard({ step }: { step: NextStep }) {
     "group flex h-full flex-col border border-white/15 bg-white/[0.025] p-7 transition-colors hover:border-[var(--brand-accent)]";
   const body = (
     <>
-      <p className="font-body text-label font-bold uppercase tracking-[0.16em] text-[var(--brand-accent)]">
+      <p className="font-body text-label font-bold uppercase tracking-[0.16em] text-[var(--site-accent-ink,var(--brand-accent))]">
         {step.eyebrow}
       </p>
       <h3 className="mt-4 font-display text-title text-white">{step.title}</h3>
       <p className="mt-3 flex-1 font-body text-body text-white/75">
         {step.text}
       </p>
-      <span className="mt-6 inline-flex items-center gap-2 font-body text-meta font-semibold text-[var(--brand-accent)]">
+      <span className="mt-6 inline-flex items-center gap-2 font-body text-meta font-semibold text-[var(--site-accent-ink,var(--brand-accent))]">
         {step.label}
         {step.external ? (
           <ArrowUpRight size={16} aria-hidden="true" />
@@ -105,7 +105,7 @@ export default function AboutPage({
   const title = settings?.author_title || identity.role;
 
   return (
-    <div className="public-site min-h-screen bg-[var(--brand-backdrop)] text-white">
+    <div className="public-site min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] text-white">
       <Nav />
       <main id="main-content">
         <section className="mx-auto grid max-w-[1440px] items-start gap-12 px-6 pb-16 pt-32 lg:grid-cols-[1.1fr_.9fr] lg:gap-20 lg:px-14 lg:pb-24 lg:pt-40">
@@ -113,12 +113,12 @@ export default function AboutPage({
             <Breadcrumbs
               items={[{ label: "Home", href: "/" }, { label: "About" }]}
             />
-            <p className="mb-6 mt-8 font-body text-label font-semibold uppercase tracking-[0.18em] text-[var(--brand-accent)]">
+            <p className="mb-6 mt-8 font-body text-label font-semibold uppercase tracking-[0.18em] text-[var(--site-accent-ink,var(--brand-accent))]">
               {title}
             </p>
             <h1 className="font-display text-display">
               {identity.name}
-              <em className="mt-2 block text-[var(--brand-accent)]">
+              <em className="mt-2 block text-[var(--site-accent-ink,var(--brand-accent))]">
                 {story.headingLead} {story.headingAccent}
               </em>
             </h1>
@@ -158,11 +158,11 @@ export default function AboutPage({
         {story.timeline.length > 0 && (
           <section
             aria-labelledby="about-story"
-            className="border-y border-white/10 bg-[#101015] py-16 lg:py-24"
+            className="border-y border-white/10 bg-[var(--site-surface,#101015)] py-16 lg:py-24"
           >
             <div className="mx-auto grid max-w-[1440px] gap-10 px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-24 lg:px-14">
               <header>
-                <p className="mb-4 font-body text-label font-bold uppercase tracking-[0.18em] text-[var(--brand-accent)]">
+                <p className="mb-4 font-body text-label font-bold uppercase tracking-[0.18em] text-[var(--site-accent-ink,var(--brand-accent))]">
                   {story.overline}
                 </p>
                 <h2
@@ -188,12 +188,12 @@ export default function AboutPage({
                   >
                     <span
                       aria-hidden="true"
-                      className="pt-1 font-body text-label text-[var(--brand-accent)]"
+                      className="pt-1 font-body text-label text-[var(--site-accent-ink,var(--brand-accent))]"
                     >
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <div>
-                      <p className="font-body text-label font-semibold uppercase tracking-[0.16em] text-[var(--brand-accent)]">
+                      <p className="font-body text-label font-semibold uppercase tracking-[0.16em] text-[var(--site-accent-ink,var(--brand-accent))]">
                         {entry.tag}
                       </p>
                       <h3 className="mt-2 font-display text-title text-white">

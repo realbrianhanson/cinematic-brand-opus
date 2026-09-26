@@ -15,7 +15,10 @@ const PublicRouteError = ({ message }: { message?: string }) => {
   return (
     <div
       className="public-site min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
       <main
@@ -32,7 +35,7 @@ const PublicRouteError = ({ message }: { message?: string }) => {
           className="font-body"
           style={{
             fontSize: 16,
-            color: "rgba(255,255,255,0.75)",
+            color: "var(--site-text-75, rgba(255,255,255,0.75))",
             maxWidth: 520,
           }}
         >
@@ -48,7 +51,7 @@ const PublicRouteError = ({ message }: { message?: string }) => {
               fontSize: 13,
               letterSpacing: "0.08em",
               border: "1.5px solid var(--brand-accent)",
-              color: "#fff",
+              color: "var(--site-ink, #fff)",
               background: "transparent",
               padding: "14px 28px",
               minHeight: 44,
@@ -63,7 +66,7 @@ const PublicRouteError = ({ message }: { message?: string }) => {
             style={{
               fontSize: 12,
               letterSpacing: "0.15em",
-              color: "var(--brand-accent)",
+              color: "var(--site-accent-ink, var(--brand-accent))",
               minHeight: 44,
               display: "inline-flex",
               alignItems: "center",

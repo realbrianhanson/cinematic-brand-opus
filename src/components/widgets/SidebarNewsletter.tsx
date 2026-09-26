@@ -28,20 +28,20 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
 
   const tone =
     state === "unavailable" || state === "rate_limited" || state === "error"
-      ? "#ff6b6b"
-      : "hsl(var(--accent))";
+      ? "var(--site-error-ink, #ff6b6b)"
+      : "var(--site-accent-ink, hsl(var(--accent)))";
 
   return (
     <div
       style={{
         padding: 24,
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+        background: "rgba(var(--site-ink-rgb,255,255,255),0.02)",
       }}
     >
       <h3
         className="font-display mb-2"
-        style={{ fontSize: 20, color: "var(--foreground)" }}
+        style={{ fontSize: 20, color: "var(--site-ink, var(--foreground))" }}
       >
         {config.title || "Stay Updated"}
       </h3>
@@ -77,9 +77,9 @@ const SidebarNewsletter = ({ config }: { config: WidgetConfig }) => {
             style={{
               padding: "8px 12px",
               fontSize: 13,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "#fff",
+              background: "rgba(var(--site-ink-rgb,255,255,255),0.05)",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.1)",
+              color: "var(--site-ink, #fff)",
             }}
           />
           <button

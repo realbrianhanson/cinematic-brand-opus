@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "./styles/public-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -1219,8 +1220,9 @@
 .resource-reading :is(h2, h3) {
   scroll-margin-top: 7rem;
 }
-.resource-reading :is(p, li, label)[style*="rgba(255,255,255,0."] {
-  color: rgba(255, 255, 255, 0.86) !important;
+.resource-reading :is(p, li, label)[style*="rgba(255,255,255,0."],
+.resource-reading :is(p, li, label)[style*="--site-text-"] {
+  color: var(--site-text-86, rgba(255, 255, 255, 0.86)) !important;
 }
 @media print {
   .resource-page,

@@ -126,8 +126,8 @@ const TemplateRenderer = ({
             <div
               key={i}
               style={{
-                border: "1px solid rgba(255,255,255,0.06)",
-                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+                background: "rgba(var(--site-ink-rgb,255,255,255),0.02)",
               }}
             >
               <div className="p-6">
@@ -136,7 +136,7 @@ const TemplateRenderer = ({
                     className="font-body font-semibold"
                     style={{
                       fontSize: 19,
-                      color: "rgba(255,255,255,0.95)",
+                      color: "var(--site-text-95, rgba(255,255,255,0.95))",
                       lineHeight: 1.35,
                     }}
                   >
@@ -148,7 +148,7 @@ const TemplateRenderer = ({
                     onClick={() => toggleExpand(i)}
                     className="shrink-0 p-1"
                     style={{
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       background: "none",
                       border: "none",
                       cursor: "pointer",
@@ -166,7 +166,7 @@ const TemplateRenderer = ({
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       lineHeight: 1.6,
                     }}
                   >
@@ -178,7 +178,7 @@ const TemplateRenderer = ({
                     className="font-body"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       lineHeight: 1.6,
                     }}
                   >
@@ -192,15 +192,16 @@ const TemplateRenderer = ({
                   <div
                     className="p-4 relative"
                     style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
+                      background: "rgba(var(--site-ink-rgb,255,255,255),0.03)",
+                      border:
+                        "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
                     }}
                   >
                     <pre
                       className="font-body whitespace-pre-wrap"
                       style={{
                         fontSize: 13,
-                        color: "rgba(255,255,255,0.7)",
+                        color: "var(--site-text-70, rgba(255,255,255,0.7))",
                         lineHeight: 1.7,
                       }}
                     >
@@ -213,10 +214,12 @@ const TemplateRenderer = ({
                         fontSize: 12,
                         color:
                           copiedIdx === i
-                            ? "var(--brand-accent)"
-                            : "rgba(255,255,255,0.3)",
-                        background: "rgba(0,0,0,0.3)",
-                        border: "1px solid rgba(255,255,255,0.08)",
+                            ? "var(--site-accent-ink, var(--brand-accent))"
+                            : "var(--site-text-30, rgba(255,255,255,0.3))",
+                        background:
+                          "var(--site-control-surface, rgba(0,0,0,0.3))",
+                        border:
+                          "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                         cursor: "pointer",
                       }}
                     >
@@ -238,7 +241,7 @@ const TemplateRenderer = ({
                         style={{
                           fontSize: 12,
                           letterSpacing: "0.12em",
-                          color: "var(--brand-accent)",
+                          color: "var(--site-accent-ink, var(--brand-accent))",
                         }}
                       >
                         Customization Tips
@@ -247,7 +250,7 @@ const TemplateRenderer = ({
                         className="font-body"
                         style={{
                           fontSize: 12,
-                          color: "rgba(255,255,255,0.7)",
+                          color: "var(--site-text-70, rgba(255,255,255,0.7))",
                           lineHeight: 1.5,
                         }}
                       >
@@ -286,8 +289,12 @@ const FilterBtn = ({
       fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
-      borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
-      color: active ? "var(--brand-accent)" : "rgba(255,255,255,0.35)",
+      borderColor: active
+        ? "var(--brand-accent)"
+        : "rgba(var(--site-ink-rgb,255,255,255),0.08)",
+      color: active
+        ? "var(--site-accent-ink, var(--brand-accent))"
+        : "var(--site-text-35, rgba(255,255,255,0.35))",
       background: active ? "rgba(var(--brand-accent-rgb),0.08)" : "transparent",
       cursor: "pointer",
     }}

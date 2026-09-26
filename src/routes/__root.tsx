@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminPreferencesProvider } from "@/contexts/AdminPreferencesProvider";
 import { AriaLiveAnnouncer } from "@/components/AriaLiveAnnouncer";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 import { recoverChunkError } from "@/lib/chunkRecovery";
@@ -22,6 +23,7 @@ import { siteConfig as fallbackConfig, type SiteConfig } from "@/config/site";
 import { configFromMatches } from "@/config/runtime";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { getSiteBranding } from "@/lib/branding.functions";
+import { SITE_THEME_BOOTSTRAP } from "@/lib/siteTheme";
 import appCss from "../styles.css?url";
 
 // getSiteBranding never throws on the server, but the server-function call
@@ -123,15 +125,17 @@ function RootComponent() {
     <SiteConfigContext.Provider value={siteConfig}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AriaLiveAnnouncer>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <Outlet />
-              <PublicMeasurement />
-              <PublicSiteChat />
-            </TooltipProvider>
-          </AriaLiveAnnouncer>
+          <AdminPreferencesProvider>
+            <AriaLiveAnnouncer>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <Outlet />
+                <PublicMeasurement />
+                <PublicSiteChat />
+              </TooltipProvider>
+            </AriaLiveAnnouncer>
+          </AdminPreferencesProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SiteConfigContext.Provider>
@@ -141,8 +145,9 @@ function RootComponent() {
 function RootShell({ children }: { children: React.ReactNode }) {
   const siteConfig = Route.useLoaderData()?.siteConfig ?? fallbackConfig;
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-site-theme="dark" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: SITE_THEME_BOOTSTRAP }} />
         <HeadContent />
       </head>
       <body style={brandStyles(siteConfig.brand)}>

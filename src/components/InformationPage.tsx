@@ -19,7 +19,7 @@ export default function InformationPage({
   return (
     <div
       className="min-h-screen text-white"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <Nav />
       <main
@@ -32,7 +32,7 @@ export default function InformationPage({
         >
           Home
         </Link>
-        <p className="mt-10 text-xs font-bold uppercase tracking-[0.2em] text-[var(--brand-accent)]">
+        <p className="mt-10 text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-accent-ink,var(--brand-accent))]">
           {eyebrow}
         </p>
         <h1 className="mt-4 font-display text-5xl leading-[1.05] md:text-7xl">

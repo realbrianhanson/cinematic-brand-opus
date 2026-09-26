@@ -106,7 +106,7 @@ export default function SiteChatPanel({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-label="Website AI assistant"
       aria-modal="false"
-      className="flex w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-white/15 bg-[var(--brand-backdrop)] shadow-2xl"
+      className="flex w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-white/15 bg-[var(--site-surface,var(--brand-backdrop))] shadow-2xl"
       style={{
         height:
           "min(34rem, calc(100dvh - 6rem - var(--mobile-bar-space, 0px)))",

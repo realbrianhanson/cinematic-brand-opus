@@ -65,7 +65,9 @@ function ResourceNavigation({
       <summary
         className={`list-none cursor-pointer flex items-center justify-between gap-2 [&::-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)] ${mobile ? "py-4 font-display italic text-[clamp(1.8rem,6vw,2.6rem)]" : "font-body font-medium uppercase text-xs tracking-[0.08em] py-3"}`}
         style={{
-          color: active ? "var(--brand-accent)" : "rgba(255,255,255,0.8)",
+          color: active
+            ? "var(--site-accent-ink, var(--brand-accent))"
+            : "rgba(var(--site-ink-rgb,255,255,255),0.8)",
         }}
       >
         {group.label}
@@ -79,7 +81,7 @@ function ResourceNavigation({
         className={
           mobile
             ? "pb-4 pl-4 grid gap-1"
-            : "absolute top-full left-0 mt-2 w-80 rounded-lg border border-white/15 bg-[var(--brand-backdrop)] p-2 shadow-2xl"
+            : "absolute top-full left-0 mt-2 w-80 rounded-lg border border-white/15 bg-[var(--site-surface,var(--brand-backdrop))] p-2 shadow-2xl"
         }
       >
         {group.children.map((link) => {
@@ -234,12 +236,16 @@ const Nav = ({ loaded = true }: NavProps) => {
       style: mobile
         ? {
             fontSize: "clamp(1.8rem, 6vw, 2.6rem)",
-            color: active ? brand.accent : "rgba(255,255,255,0.9)",
+            color: active
+              ? "var(--site-accent-ink, var(--brand-accent))"
+              : "rgba(var(--site-ink-rgb,255,255,255),0.9)",
           }
         : {
             fontSize: 12,
             letterSpacing: "0.08em",
-            color: active ? brand.accent : "rgba(255,255,255,0.8)",
+            color: active
+              ? "var(--site-accent-ink, var(--brand-accent))"
+              : "rgba(var(--site-ink-rgb,255,255,255),0.8)",
           },
     };
     const content = (
@@ -248,7 +254,7 @@ const Nav = ({ loaded = true }: NavProps) => {
         {mobile && (
           <ArrowRight
             size={22}
-            color="rgba(255,255,255,0.35)"
+            color="var(--site-text-35, rgba(255,255,255,0.35))"
             aria-hidden="true"
           />
         )}
@@ -302,8 +308,8 @@ const Nav = ({ loaded = true }: NavProps) => {
           zIndex: 50,
           height: scrolled ? 72 : 88,
           background: scrolled
-            ? "rgba(var(--brand-backdrop-rgb),0.94)"
-            : "rgba(var(--brand-backdrop-rgb),0.6)",
+            ? "var(--site-nav-scrolled, rgba(var(--brand-backdrop-rgb),0.94))"
+            : "var(--site-nav, rgba(var(--brand-backdrop-rgb),0.6))",
           backdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           WebkitBackdropFilter: scrolled ? "blur(30px) saturate(180%)" : "none",
           borderBottom: `1px solid ${scrolled ? "rgba(var(--brand-accent-rgb),0.06)" : "transparent"}`,
@@ -332,7 +338,11 @@ const Nav = ({ loaded = true }: NavProps) => {
             >
               <span
                 className="font-display italic"
-                style={{ fontSize: 16, color: brand.accent, lineHeight: 1 }}
+                style={{
+                  fontSize: 16,
+                  color: "var(--site-accent-ink, var(--brand-accent))",
+                  lineHeight: 1,
+                }}
               >
                 {identity.logoUrl ? (
                   <img
@@ -350,7 +360,7 @@ const Nav = ({ loaded = true }: NavProps) => {
               style={{
                 fontSize: 12,
                 letterSpacing: "0.18em",
-                color: "rgba(255,255,255,0.9)",
+                color: "var(--site-text-90, rgba(255,255,255,0.9))",
               }}
             >
               {identity.name}
@@ -366,7 +376,7 @@ const Nav = ({ loaded = true }: NavProps) => {
                   style={{
                     width: 1,
                     height: 20,
-                    background: "rgba(255,255,255,0.1)",
+                    background: "rgba(var(--site-ink-rgb,255,255,255),0.1)",
                   }}
                 />
                 <a
@@ -407,7 +417,10 @@ const Nav = ({ loaded = true }: NavProps) => {
             aria-controls="mobile-site-menu"
             style={{ minWidth: 44, minHeight: 44 }}
           >
-            <Menu size={24} color="rgba(255,255,255,0.7)" />
+            <Menu
+              size={24}
+              color="var(--site-text-70, rgba(255,255,255,0.7))"
+            />
           </button>
         </div>
       </nav>
@@ -433,7 +446,10 @@ const Nav = ({ loaded = true }: NavProps) => {
             aria-label="Site menu"
             id="mobile-site-menu"
             className="fixed inset-0 flex flex-col overflow-y-auto focus:outline-none"
-            style={{ zIndex: 100, background: brand.backdrop }}
+            style={{
+              zIndex: 100,
+              background: "var(--site-surface, var(--brand-backdrop))",
+            }}
           >
             <DialogPrimitive.Title className="sr-only">
               Site menu
@@ -445,7 +461,10 @@ const Nav = ({ loaded = true }: NavProps) => {
                 className="inline-flex items-center justify-center"
                 style={{ minWidth: 44, minHeight: 44 }}
               >
-                <X size={28} color="rgba(255,255,255,0.6)" />
+                <X
+                  size={28}
+                  color="var(--site-text-60, rgba(255,255,255,0.6))"
+                />
               </DialogPrimitive.Close>
             </div>
             <div className="flex-1 flex flex-col justify-center px-8 pb-8">

@@ -71,7 +71,7 @@ const FilmGrain = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-[1] pointer-events-none"
+      className="site-atmosphere fixed inset-0 z-[1] pointer-events-none"
       style={{
         width: "100%",
         height: "100%",

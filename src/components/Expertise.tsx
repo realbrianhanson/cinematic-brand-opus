@@ -12,7 +12,7 @@ export default function Expertise() {
   return (
     <section
       id="expertise"
-      className="bg-[var(--brand-backdrop)] py-20 lg:py-28"
+      className="bg-[var(--site-surface,var(--brand-backdrop))] py-20 lg:py-28"
     >
       <div className="mx-auto grid max-w-[1440px] gap-12 px-6 lg:grid-cols-[.85fr_1.15fr] lg:gap-24 lg:px-14">
         <header>

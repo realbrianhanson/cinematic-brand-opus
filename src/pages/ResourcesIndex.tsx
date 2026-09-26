@@ -151,7 +151,10 @@ const ResourcesIndex = ({
   return (
     <div
       className="min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
       <header
@@ -172,7 +175,7 @@ const ResourcesIndex = ({
           className="font-body mt-4"
           style={{
             fontSize: 16,
-            color: "rgba(255,255,255,0.7)",
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
             maxWidth: 560,
           }}
         >
@@ -320,7 +323,8 @@ const ResourcesIndex = ({
                       key={s.id}
                       className="group block p-8"
                       style={{
-                        border: "1px solid rgba(255,255,255,0.06)",
+                        border:
+                          "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
                         transition: "border-color 0.3s, transform 0.3s",
                       }}
                       onMouseEnter={(e) => {
@@ -330,20 +334,20 @@ const ResourcesIndex = ({
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor =
-                          "rgba(255,255,255,0.06)";
+                          "rgba(var(--site-ink-rgb,255,255,255),0.06)";
                         e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
                       <Icon
                         size={28}
                         style={{
-                          color: "var(--brand-accent)",
+                          color: "var(--site-accent-ink, var(--brand-accent))",
                           marginBottom: 16,
                         }}
                         strokeWidth={1.5}
                       />
                       <h2
-                        className="font-display mb-2 transition-colors group-hover:text-[var(--brand-accent)]"
+                        className="font-display mb-2 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                         style={{ fontSize: 22, lineHeight: 1.3 }}
                       >
                         {s.name}
@@ -353,7 +357,7 @@ const ResourcesIndex = ({
                           className="font-body mb-4"
                           style={{
                             fontSize: 13,
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                             lineHeight: 1.6,
                           }}
                         >
@@ -365,17 +369,18 @@ const ResourcesIndex = ({
                           className="font-body"
                           style={{
                             fontSize: 12,
-                            color: "rgba(255,255,255,0.65)",
+                            color:
+                              "var(--site-text-65, rgba(255,255,255,0.65))",
                           }}
                         >
                           {count} resource{count !== 1 ? "s" : ""} available
                         </span>
                         <span
-                          className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-[var(--brand-accent)]"
+                          className="font-body uppercase flex items-center gap-1 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                           style={{
                             fontSize: 12,
                             letterSpacing: "0.15em",
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                           }}
                         >
                           Browse <ArrowRight size={12} />

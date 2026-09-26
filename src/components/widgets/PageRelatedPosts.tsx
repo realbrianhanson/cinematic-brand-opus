@@ -50,7 +50,7 @@ const PageRelatedPosts = ({
             href={`/blog/${post.slug}`}
             className="group block"
             style={{
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
               textDecoration: "none",
               transition: "border-color 0.3s",
             }}
@@ -59,7 +59,8 @@ const PageRelatedPosts = ({
                 "rgba(var(--brand-accent-rgb),0.25)")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")
+              (e.currentTarget.style.borderColor =
+                "rgba(var(--site-ink-rgb,255,255,255),0.06)")
             }
           >
             {post.featured_image && (

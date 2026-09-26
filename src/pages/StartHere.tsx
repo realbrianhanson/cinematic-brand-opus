@@ -73,7 +73,7 @@ export default function StartHere({
       {owner && (
         <section className="grid gap-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-7 sm:p-9 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[var(--brand-accent)]">
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--site-accent-ink,var(--brand-accent))]">
               Free interactive tool
             </p>
             <h2 className="mt-4">Make your first app a useful one</h2>
@@ -95,7 +95,7 @@ export default function StartHere({
       {!owner && freeOffer && (
         <section className="grid gap-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/5 p-7 sm:p-9 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--brand-accent)]">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--site-accent-ink,var(--brand-accent))]">
               <Download size={16} aria-hidden="true" />A free place to begin
             </div>
             <h2 className="mt-4">{freeOffer.title}</h2>
@@ -118,7 +118,7 @@ export default function StartHere({
               key={href}
               className="flex flex-col rounded-xl border border-white/15 p-7"
             >
-              <div className="flex items-center justify-between text-[var(--brand-accent)]">
+              <div className="flex items-center justify-between text-[var(--site-accent-ink,var(--brand-accent))]">
                 <Icon size={22} aria-hidden="true" />
                 <span className="text-xs tracking-widest">0{i + 1}</span>
               </div>
@@ -132,7 +132,7 @@ export default function StartHere({
                     : undefined
                 }
                 data-conversion-placement="event"
-                className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-accent)] underline underline-offset-4"
+                className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
               >
                 {label}
                 <ArrowRight size={16} aria-hidden="true" />
@@ -152,7 +152,7 @@ export default function StartHere({
             href={summitHref(event.href, "start-here")}
             data-conversion-destination="summit"
             data-conversion-placement="event"
-            className="mt-5 inline-flex items-center gap-2 text-[var(--brand-accent)] underline underline-offset-4"
+            className="mt-5 inline-flex items-center gap-2 text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             {event.label}
             <ArrowRight size={16} aria-hidden="true" />
@@ -165,7 +165,7 @@ export default function StartHere({
           Find your download or get help with a purchase on the{" "}
           <Link
             to="/support"
-            className="text-[var(--brand-accent)] underline underline-offset-4"
+            className="text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             support page
           </Link>

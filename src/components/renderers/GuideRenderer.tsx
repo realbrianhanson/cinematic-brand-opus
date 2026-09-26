@@ -33,7 +33,7 @@ const GuideRenderer = ({
           <div key={i} id={`guide-section-${i}`} className="mb-12">
             <h2
               className="font-display mb-4"
-              style={{ fontSize: 22, color: "#fff" }}
+              style={{ fontSize: 22, color: "var(--site-ink, #fff)" }}
             >
               {section.title || section.heading}
             </h2>
@@ -42,7 +42,7 @@ const GuideRenderer = ({
                 className="font-body mb-4"
                 style={{
                   fontSize: 15,
-                  color: "rgba(255,255,255,0.7)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
                   lineHeight: 1.8,
                 }}
               >
@@ -57,12 +57,15 @@ const GuideRenderer = ({
                     className="font-body flex items-start gap-2"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       lineHeight: 1.6,
                     }}
                   >
                     <span
-                      style={{ color: "var(--brand-accent)", marginTop: 2 }}
+                      style={{
+                        color: "var(--site-accent-ink, var(--brand-accent))",
+                        marginTop: 2,
+                      }}
                     >
                       →
                     </span>{" "}
@@ -79,15 +82,16 @@ const GuideRenderer = ({
                     key={ii}
                     className="p-5"
                     style={{
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      background: "#181820",
+                      border:
+                        "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                      background: "var(--site-surface, #181820)",
                     }}
                   >
                     <h3
                       className="font-body font-semibold mb-2"
                       style={{
                         fontSize: 19,
-                        color: "rgba(255,255,255,0.95)",
+                        color: "var(--site-text-95, rgba(255,255,255,0.95))",
                         lineHeight: 1.35,
                       }}
                     >
@@ -98,7 +102,7 @@ const GuideRenderer = ({
                         className="font-body mb-2"
                         style={{
                           fontSize: 16,
-                          color: "rgba(255,255,255,0.85)",
+                          color: "var(--site-text-85, rgba(255,255,255,0.85))",
                           lineHeight: 1.6,
                         }}
                       >
@@ -110,7 +114,8 @@ const GuideRenderer = ({
                         className="font-body"
                         style={{
                           fontSize: 13,
-                          color: "var(--brand-accent-light)",
+                          color:
+                            "var(--site-accent-ink, var(--brand-accent-light))",
                         }}
                       >
                         {it.expected_impact}
@@ -121,7 +126,7 @@ const GuideRenderer = ({
                         className="font-body mt-2"
                         style={{
                           fontSize: 13,
-                          color: "rgba(255,255,255,0.6)",
+                          color: "var(--site-text-60, rgba(255,255,255,0.6))",
                           fontStyle: "italic",
                         }}
                       >
@@ -135,7 +140,7 @@ const GuideRenderer = ({
                           fontSize: 12,
                           letterSpacing: "0.1em",
                           background: "rgba(var(--brand-accent-rgb),0.14)",
-                          color: "var(--brand-accent)",
+                          color: "var(--site-accent-ink, var(--brand-accent))",
                           border: "1px solid rgba(var(--brand-accent-rgb),0.4)",
                         }}
                       >
@@ -154,14 +159,18 @@ const GuideRenderer = ({
                     key={ti}
                     className="p-4 flex items-start gap-3"
                     style={{
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      background: "rgba(255,255,255,0.02)",
+                      border:
+                        "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+                      background: "rgba(var(--site-ink-rgb,255,255,255),0.02)",
                     }}
                   >
                     <div>
                       <h4
                         className="font-body font-semibold"
-                        style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
+                        style={{
+                          fontSize: 15,
+                          color: "var(--site-text-90, rgba(255,255,255,0.9))",
+                        }}
                       >
                         {tool.name}
                       </h4>
@@ -170,7 +179,7 @@ const GuideRenderer = ({
                           className="font-body mt-1"
                           style={{
                             fontSize: 13,
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                           }}
                         >
                           {renderInlineMarkdown(tool.description)}
@@ -181,8 +190,12 @@ const GuideRenderer = ({
                           href={safeHref(tool.link)!}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-body mt-1 inline-block hover:text-[var(--brand-accent)] transition-colors"
-                          style={{ fontSize: 12, color: "var(--brand-accent)" }}
+                          className="font-body mt-1 inline-block hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                          style={{
+                            fontSize: 12,
+                            color:
+                              "var(--site-accent-ink, var(--brand-accent))",
+                          }}
                         >
                           Visit →
                         </a>
@@ -200,7 +213,7 @@ const GuideRenderer = ({
           <div className="mb-12">
             <h2
               className="font-display mb-6"
-              style={{ fontSize: 22, color: "#fff" }}
+              style={{ fontSize: 22, color: "var(--site-ink, #fff)" }}
             >
               Common Mistakes to Avoid
             </h2>
@@ -217,12 +230,15 @@ const GuideRenderer = ({
                   <AlertTriangle
                     size={16}
                     className="shrink-0 mt-0.5"
-                    style={{ color: "#F87171" }}
+                    style={{ color: "var(--site-error-ink, #F87171)" }}
                   />
                   <div>
                     <h4
                       className="font-body font-semibold mb-1"
-                      style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}
+                      style={{
+                        fontSize: 14,
+                        color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                      }}
                     >
                       {m.title || m.mistake}
                     </h4>
@@ -230,7 +246,7 @@ const GuideRenderer = ({
                       className="font-body"
                       style={{
                         fontSize: 13,
-                        color: "rgba(255,255,255,0.7)",
+                        color: "var(--site-text-70, rgba(255,255,255,0.7))",
                         lineHeight: 1.5,
                       }}
                     >

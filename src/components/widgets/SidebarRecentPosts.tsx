@@ -21,13 +21,18 @@ const SidebarRecentPosts = ({ config }: { config: WidgetConfig }) => {
   if (!posts?.length) return null;
 
   return (
-    <div style={{ padding: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div
+      style={{
+        padding: 24,
+        border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+      }}
+    >
       <h3
         className="font-body uppercase mb-4"
         style={{
           fontSize: 12,
           letterSpacing: "0.15em",
-          color: "hsl(var(--accent))",
+          color: "var(--site-accent-ink, hsl(var(--accent)))",
           fontWeight: 700,
         }}
       >
@@ -41,14 +46,16 @@ const SidebarRecentPosts = ({ config }: { config: WidgetConfig }) => {
             className="font-body block transition-colors"
             style={{
               fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
+              color: "var(--site-text-60, rgba(255,255,255,0.6))",
               textDecoration: "none",
             }}
             onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--accent))")
+              (e.currentTarget.style.color =
+                "var(--site-accent-ink, hsl(var(--accent)))")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+              (e.currentTarget.style.color =
+                "var(--site-text-60, rgba(255,255,255,0.6))")
             }
           >
             {post.title}

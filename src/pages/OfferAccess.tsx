@@ -212,7 +212,7 @@ export default function OfferAccess() {
       <div className="max-w-3xl mx-auto">
         <p
           className="text-sm font-bold tracking-widest uppercase mb-4"
-          style={{ color: "var(--brand-accent)" }}
+          style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
         >
           Your resources
         </p>

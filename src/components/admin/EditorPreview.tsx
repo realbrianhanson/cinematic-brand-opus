@@ -26,7 +26,7 @@ const EMBED_CLASSES =
 /**
  * Renders the working copy with the public article's pipeline: the same
  * sanitizer and heading handling (articleReading) and the same `.blog-content`
- * dark reading surface as src/pages/BlogPost.tsx.
+ * theme-aware reading surface as src/pages/BlogPost.tsx.
  */
 export function ArticlePreviewBody({
   title,
@@ -45,10 +45,10 @@ export function ArticlePreviewBody({
   return (
     <div
       data-testid="article-preview"
-      className="mx-auto w-full rounded-lg"
+      className="public-theme-preview mx-auto w-full rounded-lg"
       style={{
-        background: "#0b0b10",
-        color: "#fff",
+        background: "var(--site-surface, #0b0b10)",
+        color: "var(--site-ink, #fff)",
         maxWidth: mobile ? 390 : 820,
         padding: mobile ? 16 : 32,
       }}
@@ -62,15 +62,15 @@ export function ArticlePreviewBody({
       {excerpt && (
         <p
           className="font-body mb-6"
-          style={{ color: "rgba(255,255,255,0.7)" }}
+          style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
         >
           {excerpt}
         </p>
       )}
       <div
         style={{
-          background: "#14141b",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: "var(--site-surface, #14141b)",
+          border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
           padding: "clamp(16px, 4vw, 40px)",
         }}
       >
@@ -87,7 +87,7 @@ export function ArticlePreviewBody({
               style={{
                 fontSize: 11,
                 letterSpacing: "0.15em",
-                color: "var(--brand-accent)",
+                color: "var(--site-accent-ink, var(--brand-accent))",
               }}
             >
               TL;DR
@@ -96,7 +96,7 @@ export function ArticlePreviewBody({
               className="font-body"
               style={{
                 fontSize: 17,
-                color: "rgba(255,255,255,0.92)",
+                color: "var(--site-text-92, rgba(255,255,255,0.92))",
                 lineHeight: 1.7,
               }}
             >
@@ -117,7 +117,7 @@ export function ArticlePreviewBody({
           style={{
             fontSize: mobile ? 16 : 17,
             lineHeight: mobile ? 1.8 : 1.85,
-            color: "rgba(255,255,255,0.9)",
+            color: "var(--site-text-90, rgba(255,255,255,0.9))",
           }}
           dangerouslySetInnerHTML={{ __html: reading.html }}
         />
@@ -132,7 +132,10 @@ export function ArticlePreviewBody({
         >
           <h3
             className="font-display italic mb-5"
-            style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            style={{
+              fontSize: 22,
+              color: "var(--site-accent-ink, var(--brand-accent))",
+            }}
           >
             Key Takeaways
           </h3>
@@ -143,11 +146,16 @@ export function ArticlePreviewBody({
                 className="font-body flex items-start gap-3"
                 style={{
                   fontSize: 14,
-                  color: "rgba(255,255,255,0.55)",
+                  color: "var(--site-text-55, rgba(255,255,255,0.55))",
                   lineHeight: 1.6,
                 }}
               >
-                <span style={{ color: "var(--brand-accent)", marginTop: 2 }}>
+                <span
+                  style={{
+                    color: "var(--site-accent-ink, var(--brand-accent))",
+                    marginTop: 2,
+                  }}
+                >
                   →
                 </span>
                 {item}
@@ -160,7 +168,7 @@ export function ArticlePreviewBody({
         <div className="mt-14">
           <h3
             className="font-display italic mb-6"
-            style={{ fontSize: 22, color: "#fff" }}
+            style={{ fontSize: 22, color: "var(--site-ink, #fff)" }}
           >
             FAQ
           </h3>
@@ -169,17 +177,26 @@ export function ArticlePreviewBody({
               <div
                 key={i}
                 className="pb-6"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                style={{
+                  borderBottom:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+                }}
               >
                 <h4
                   className="font-body font-semibold mb-2"
-                  style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}
+                  style={{
+                    fontSize: 15,
+                    color: "var(--site-text-80, rgba(255,255,255,0.8))",
+                  }}
                 >
                   {faq.question}
                 </h4>
                 <p
                   className="faq-answer font-body"
-                  style={{ fontSize: 14, color: "rgba(255,255,255,0.45)" }}
+                  style={{
+                    fontSize: 14,
+                    color: "var(--site-text-45, rgba(255,255,255,0.45))",
+                  }}
                 >
                   {faq.answer}
                 </p>

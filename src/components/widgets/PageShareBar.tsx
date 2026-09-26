@@ -71,8 +71,9 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
                 onClick={handleCopy}
                 className="min-h-11 p-2 transition-colors font-body flex items-center gap-1 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
                 style={{
-                  color: "rgba(255,255,255,0.7)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  border:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                   background: "none",
                   cursor: "pointer",
                   fontSize: 12,
@@ -92,14 +93,16 @@ const PageShareBar = ({ config }: { config: WidgetConfig }) => {
               rel="noopener noreferrer"
               className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
               style={{
-                color: "rgba(255,255,255,0.7)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.color = "hsl(var(--accent))")
+                (e.currentTarget.style.color =
+                  "var(--site-accent-ink, hsl(var(--accent)))")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
+                (e.currentTarget.style.color =
+                  "var(--site-text-70, rgba(255,255,255,0.7))")
               }
             >
               <Icon size={14} aria-hidden="true" />

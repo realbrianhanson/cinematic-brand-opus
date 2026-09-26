@@ -75,7 +75,7 @@ const SiloSidebar = ({
           style={{
             fontSize: 12,
             letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.7)",
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
             marginBottom: 12,
           }}
         >
@@ -90,7 +90,7 @@ const SiloSidebar = ({
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "var(--brand-accent)",
+              color: "var(--site-accent-ink, var(--brand-accent))",
               textDecoration: "none",
               lineHeight: 1.4,
             }}
@@ -118,8 +118,8 @@ const SiloSidebar = ({
                 style={{
                   fontSize: 12,
                   color: isActive
-                    ? "var(--brand-accent)"
-                    : "rgba(255,255,255,0.45)",
+                    ? "var(--site-accent-ink, var(--brand-accent))"
+                    : "var(--site-text-45, rgba(255,255,255,0.45))",
                   fontWeight: isActive ? 500 : 400,
                   textDecoration: "none",
                   lineHeight: 1.4,
@@ -127,11 +127,13 @@ const SiloSidebar = ({
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive)
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                    e.currentTarget.style.color =
+                      "var(--site-text-70, rgba(255,255,255,0.7))";
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive)
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                    e.currentTarget.style.color =
+                      "var(--site-text-70, rgba(255,255,255,0.7))";
                 }}
               >
                 <ChevronRight
