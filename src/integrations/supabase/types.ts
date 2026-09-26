@@ -264,8 +264,8 @@ export type Database = {
           created_at: string
           destination: string | null
           id: string
-          parent_offer_id: string | null
           offer_id: string | null
+          parent_offer_id: string | null
           path: string
           placement: string | null
           project: string | null
@@ -276,8 +276,8 @@ export type Database = {
           created_at?: string
           destination?: string | null
           id: string
-          parent_offer_id?: string | null
           offer_id?: string | null
+          parent_offer_id?: string | null
           path: string
           placement?: string | null
           project?: string | null
@@ -288,8 +288,8 @@ export type Database = {
           created_at?: string
           destination?: string | null
           id?: string
-          parent_offer_id?: string | null
           offer_id?: string | null
+          parent_offer_id?: string | null
           path?: string
           placement?: string | null
           project?: string | null
@@ -298,15 +298,15 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "conversion_events_parent_offer_id_fkey"
-            columns: ["parent_offer_id"]
+            foreignKeyName: "conversion_events_offer_id_fkey"
+            columns: ["offer_id"]
             isOneToOne: false
             referencedRelation: "offers"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "conversion_events_offer_id_fkey"
-            columns: ["offer_id"]
+            foreignKeyName: "conversion_events_parent_offer_id_fkey"
+            columns: ["parent_offer_id"]
             isOneToOne: false
             referencedRelation: "offers"
             referencedColumns: ["id"]
@@ -322,18 +322,18 @@ export type Database = {
       }
       conversion_measurement_config: {
         Row: {
-          singleton: boolean
           journey_started_at: string
+          singleton: boolean
           started_at: string
         }
         Insert: {
-          singleton?: boolean
           journey_started_at?: string
+          singleton?: boolean
           started_at?: string
         }
         Update: {
-          singleton?: boolean
           journey_started_at?: string
+          singleton?: boolean
           started_at?: string
         }
         Relationships: []
@@ -2567,6 +2567,7 @@ export type Database = {
           ai_summary: string | null
           ai_title: string | null
           author: string | null
+          edit_version: string
           embedding: string | null
           engagement_score: number
           fetched_at: string
@@ -2588,6 +2589,7 @@ export type Database = {
           ai_summary?: string | null
           ai_title?: string | null
           author?: string | null
+          edit_version?: string
           embedding?: string | null
           engagement_score?: number
           fetched_at?: string
@@ -2609,6 +2611,7 @@ export type Database = {
           ai_summary?: string | null
           ai_title?: string | null
           author?: string | null
+          edit_version?: string
           embedding?: string | null
           engagement_score?: number
           fetched_at?: string
@@ -2891,7 +2894,6 @@ export type Database = {
       }
       admin_content_breakdown: { Args: never; Returns: Json }
       admin_conversion_snapshot: { Args: { _days?: number }; Returns: Json }
-      admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
       admin_external_conversion_snapshot: {
         Args: { _days?: number }
         Returns: Json
@@ -2911,6 +2913,7 @@ export type Database = {
         Returns: Json
       }
       admin_offer_copy_allow: { Args: never; Returns: boolean }
+      admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
       admin_overview_attention_item: {
         Args: {
           _count: number
