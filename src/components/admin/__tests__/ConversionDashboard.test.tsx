@@ -51,6 +51,7 @@ import { routeTree } from "@/routeTree.gen";
 vi.mock("../ExternalConversionPanel", () => ({ default: () => null }));
 vi.mock("../ExternalPaymentSetup", () => ({ default: () => null }));
 vi.mock("../OfferJourneyMetrics", () => ({ default: () => null }));
+vi.mock("../FunnelJourneyMetrics", () => ({ default: () => null }));
 import ConversionDashboard, {
   ConversionOverview,
 } from "../ConversionDashboard";

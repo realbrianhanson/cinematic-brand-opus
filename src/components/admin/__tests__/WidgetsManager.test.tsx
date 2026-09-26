@@ -28,6 +28,8 @@ const h = vi.hoisted(() => ({
   } as FakeState,
 }));
 
+vi.mock("@tanstack/react-router", () => ({ useBlocker: vi.fn() }));
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: h.toast }),
   toast: h.toast,
@@ -68,6 +70,7 @@ const widget = (over: Record<string, unknown>) => ({
   is_enabled: true,
   config: {},
   sort_order: 1,
+  updated_at: "2026-09-25T00:00:00Z",
   ...over,
 });
 const rows = [
@@ -97,7 +100,7 @@ const respond =
       return { data: { updated_at: "2026-09-25T00:00:00Z" }, error: null };
     if (op.action === "select") return { data: server, error: null };
     const id = op.filters.find((f) => f[0] === "eq")?.[2];
-    return { data: [{ id }], error: null };
+    return { data: [{ id, updated_at: "2026-09-25T00:00:01Z" }], error: null };
   };
 
 const wrap = () => {
@@ -114,6 +117,71 @@ const wrap = () => {
 const updates = () => h.state.ops.filter((op) => op.action === "update");
 
 describe("WidgetsManager", () => {
+  it("keeps the edited version across a background refresh and preserves a conflicting draft", async () => {
+    server = rows;
+    h.state.respond = respond((op) =>
+      op.action === "update" ? { data: [], error: null } : undefined,
+    );
+    const client = wrap();
+    fireEvent.click(await screen.findByRole("tab", { name: /Sidebar/ }));
+    vi.useFakeTimers();
+    const title = screen.getByLabelText("Title") as HTMLInputElement;
+    fireEvent.change(title, { target: { value: "My unsaved draft" } });
+    server = rows.map((row) =>
+      row.id === "w3"
+        ? {
+            ...row,
+            updated_at: "2026-09-25T00:00:09Z",
+            config: { title: "Other tab" },
+          }
+        : row,
+    );
+    await act(() => client.refetchQueries({ queryKey: ["admin-widgets"] }));
+    await act(async () => vi.advanceTimersByTimeAsync(WIDGET_SAVE_DELAY_MS));
+    expect(updates()[0].filters).toContainEqual([
+      "eq",
+      "updated_at",
+      "2026-09-25T00:00:00Z",
+    ]);
+    expect(title.value).toBe("My unsaved draft");
+    expect(screen.getByText("Not saved")).toBeTruthy();
+    fireEvent.change(title, { target: { value: "Still my draft" } });
+    await act(async () => vi.advanceTimersByTimeAsync(WIDGET_SAVE_DELAY_MS));
+    expect(updates()).toHaveLength(1);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved Newsletter Signup" }),
+    );
+    expect(title.value).toBe("Still my draft");
+    confirm.mockReturnValue(true);
+    h.state.respond = (op) =>
+      op.action === "select" &&
+      op.filters.some(([method]) => method === "maybeSingle")
+        ? { data: server.find((row) => row.id === "w3"), error: null }
+        : respond()(op);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved Newsletter Signup" }),
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(title.value).toBe("Other tab");
+    confirm.mockRestore();
+  });
+  it("keeps a dirty widget visible if a refresh reports it deleted", async () => {
+    server = rows;
+    h.state.respond = respond();
+    const client = wrap();
+    fireEvent.click(await screen.findByRole("tab", { name: /Sidebar/ }));
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Don't lose this" },
+    });
+    server = rows.filter((row) => row.id !== "w3");
+    await act(() => client.refetchQueries({ queryKey: ["admin-widgets"] }));
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Don't lose this",
+    );
+  });
+
   it("releases reorder controls even when the following refresh stalls", async () => {
     server = rows;
     let reads = 0;
@@ -174,7 +242,10 @@ describe("WidgetsManager", () => {
           storedTitle = (op.payload as { config: { title: string } }).config
             .title;
           version = "2026-09-25T00:00:01Z";
-          return { data: [{ id: "w3" }], error: null };
+          return {
+            data: [{ id: "w3", updated_at: "2026-09-25T00:00:01Z" }],
+            error: null,
+          };
         };
         if (first) {
           first = false;
@@ -203,6 +274,12 @@ describe("WidgetsManager", () => {
       vi.advanceTimersByTimeAsync(WIDGET_REQUEST_TIMEOUT_MS),
     );
     expect(firstSignal.aborted).toBe(true);
+    expect(updates()).toHaveLength(1);
+    // A timeout is uncertain, so another keystroke does not restart writes.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry saving Newsletter Signup" }),
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(updates()).toHaveLength(2);
     expect(storedTitle).toBe("Newest draft");
     expect(h.toast).toHaveBeenCalledWith(
@@ -283,7 +360,12 @@ describe("WidgetsManager", () => {
       await new Promise((resolve) => setTimeout(resolve, 700));
     });
     expect(updates()).toHaveLength(1);
-    await act(async () => finishFirst({ data: [{ id: "w3" }], error: null }));
+    await act(async () =>
+      finishFirst({
+        data: [{ id: "w3", updated_at: "2026-09-25T00:00:01Z" }],
+        error: null,
+      }),
+    );
     await waitFor(() => expect(updates()).toHaveLength(2));
     expect(updates()[1].payload).toEqual({ config: { title: "Final draft" } });
   });
@@ -357,7 +439,12 @@ describe("WidgetsManager", () => {
     expect((toggle as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(toggle);
     expect(updates()).toHaveLength(1);
-    await act(async () => finish({ data: [{ id: "w1" }], error: null }));
+    await act(async () =>
+      finish({
+        data: [{ id: "w1", updated_at: "2026-09-25T00:00:01Z" }],
+        error: null,
+      }),
+    );
     await waitFor(() =>
       expect((toggle as HTMLInputElement).disabled).toBe(false),
     );

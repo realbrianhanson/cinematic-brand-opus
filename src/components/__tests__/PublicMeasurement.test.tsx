@@ -33,6 +33,7 @@ import {
   measurementAllowed,
   setMeasurementChoice,
   recordMeasurement,
+  queueSupplementalMeasurement,
 } from "@/lib/measurement";
 const send = vi.fn();
 beforeEach(() => {
@@ -68,6 +69,51 @@ afterEach(() => {
 const payloads = () =>
   send.mock.calls.map(([, options]) => JSON.parse(options.body));
 describe("optional public measurement", () => {
+  it("allows a consented connected-journey session without a generic unsupported page event", async () => {
+    state.path = "/funnels/example";
+    history.replaceState(null, "", state.path);
+    render(<PublicMeasurement />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Allow measurement" }),
+    );
+    await waitFor(() => expect(measurementAllowed()).toBe(true));
+    const supplemental = vi.fn(async (_context: unknown) => true);
+    queueSupplementalMeasurement(supplemental);
+    await waitFor(() => expect(supplemental).toHaveBeenCalledTimes(1));
+    expect(supplemental.mock.calls[0][0]).toMatchObject({
+      session_id: expect.any(String),
+      session_token: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("withdrawal cancels queued journey work and erases after an in-flight collector finishes", async () => {
+    state.path = "/funnels/example";
+    history.replaceState(null, "", state.path);
+    render(<PublicMeasurement />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Allow measurement" }),
+    );
+    await waitFor(() => expect(measurementAllowed()).toBe(true));
+    let resolve: (accepted: boolean) => void = () => {};
+    const inFlight = vi.fn(
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        }),
+    );
+    const queued = vi.fn(async () => true);
+    queueSupplementalMeasurement(inFlight);
+    await waitFor(() => expect(inFlight).toHaveBeenCalledTimes(1));
+    queueSupplementalMeasurement(queued);
+    act(() => setMeasurementChoice("decline"));
+    expect(send).not.toHaveBeenCalled();
+    await act(async () => resolve(true));
+    await waitFor(() =>
+      expect(payloads().some((body) => body.action === "forget")).toBe(true),
+    );
+    expect(queued).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(MEASUREMENT_SESSION_KEY)).toBeNull();
+  });
   it("never transmits planner inputs, even if a caller adds them to an event", async () => {
     state.path = "/first-ai-build";
     history.replaceState(null, "", "/first-ai-build");

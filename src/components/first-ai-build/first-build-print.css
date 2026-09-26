@@ -1,0 +1,176 @@
+.first-build-print {
+  display: none;
+}
+
+@page first-build-plan {
+  size: auto;
+  margin: 17mm 16mm;
+}
+
+@media print {
+  html:has(.first-build-print),
+  body:has(.first-build-print) {
+    background: #fff !important;
+    color-scheme: light;
+    page: first-build-plan;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body:has(.first-build-print) > :not(.first-build-print) {
+    display: none !important;
+  }
+
+  body > .first-build-print {
+    display: block !important;
+    page: first-build-plan;
+    background: #fff !important;
+    color: #172b36 !important;
+    font:
+      10.5pt/1.55 Arial,
+      Helvetica,
+      sans-serif;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: none;
+    overflow-wrap: anywhere;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .first-build-print * {
+    box-sizing: border-box;
+    color: inherit;
+    text-shadow: none !important;
+  }
+
+  .first-build-print :is(h1, h2, h3, p, span, li, pre) {
+    color: inherit !important;
+  }
+
+  .first-build-print header {
+    border-bottom: 1.5pt solid #172b36;
+    padding-bottom: 12pt;
+  }
+
+  .first-build-print .first-build-print-kicker,
+  .first-build-print h2 span {
+    color: #08704f !important;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 1.2pt;
+  }
+
+  .first-build-print h1 {
+    font:
+      700 30pt/1.12 Georgia,
+      "Times New Roman",
+      serif;
+    margin: 10pt 0 14pt;
+    max-width: 90%;
+  }
+
+  .first-build-print h2 {
+    border-bottom: 0.6pt solid #cad5d8;
+    font:
+      700 18pt/1.25 Georgia,
+      "Times New Roman",
+      serif;
+    padding-bottom: 7pt;
+    margin: 24pt 0 12pt;
+    break-after: avoid;
+  }
+
+  .first-build-print h2 span {
+    margin-right: 8pt;
+  }
+  .first-build-print h3 {
+    font:
+      700 11pt/1.4 Arial,
+      Helvetica,
+      sans-serif;
+    margin: 14pt 0 6pt;
+    break-after: avoid;
+  }
+  .first-build-print p {
+    margin: 6pt 0;
+    orphans: 3;
+    widows: 3;
+  }
+  .first-build-print ul,
+  .first-build-print ol {
+    padding-left: 17pt;
+    margin: 8pt 0;
+  }
+  .first-build-print ul {
+    list-style: disc;
+  }
+  .first-build-print ol {
+    list-style: decimal;
+  }
+  .first-build-print li {
+    padding-left: 3pt;
+    margin-bottom: 7pt;
+    break-inside: avoid;
+  }
+  .first-build-print dl {
+    display: flex;
+    gap: 18pt;
+    margin: 16pt 0;
+  }
+  .first-build-print dl > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .first-build-print dt {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.8pt;
+    color: #49636e;
+  }
+  .first-build-print dd {
+    font-weight: 700;
+    margin: 4pt 0 0;
+  }
+  .first-build-print-summary {
+    font-size: 12pt;
+  }
+  .first-build-print-note {
+    color: #49636e !important;
+    font-size: 9pt;
+  }
+  .first-build-print-example {
+    white-space: pre-wrap;
+    border-left: 2pt solid #08704f;
+    padding-left: 12pt;
+    margin: 9pt 0 15pt;
+  }
+  .first-build-print section:not(.first-build-print-prompt-section) {
+    break-inside: avoid;
+  }
+  .first-build-print-prompt-section {
+    break-before: page;
+  }
+  .first-build-print-prompt {
+    font:
+      9pt/1.5 "Courier New",
+      Courier,
+      monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-top: 0.6pt solid #cad5d8;
+    padding-top: 12pt;
+    margin-top: 14pt;
+    orphans: 3;
+    widows: 3;
+  }
+  .first-build-print footer {
+    border-top: 0.6pt solid #cad5d8;
+    margin-top: 20pt;
+    padding-top: 10pt;
+    font-size: 8.5pt;
+    color: #49636e;
+  }
+}

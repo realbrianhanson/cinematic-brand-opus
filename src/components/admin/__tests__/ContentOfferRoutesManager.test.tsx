@@ -16,7 +16,11 @@ const h = vi.hoisted(() => ({
   from: vi.fn(),
   save: vi.fn(),
   remove: vi.fn(),
+  filters: [] as Array<[string, string]>,
+  readGate: null as Promise<void> | null,
 }));
+vi.mock("@tanstack/react-router", () => ({ useBlocker: vi.fn() }));
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: h.from },
 }));
@@ -24,8 +28,14 @@ import ContentOfferRoutesManager from "../ContentOfferRoutesManager";
 
 beforeEach(() => {
   h.rows = [];
+  h.filters = [];
+  h.readGate = null;
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   h.save.mockReset();
-  h.save.mockResolvedValue({ error: null });
+  h.save.mockImplementation(async (payload) => ({
+    data: [{ ...payload, id: "route-new", updated_at: "saved-version" }],
+    error: null,
+  }));
   h.remove.mockReset();
   h.from.mockReset();
   h.from.mockImplementation((table: string) => {
@@ -44,6 +54,8 @@ beforeEach(() => {
               ]
             : [{ name: "AI tools", slug: "ai-tools" }];
     let deleting = false;
+    let payload: unknown;
+    let writing = false;
     const result = { data: rows, error: null };
     const chain = {
       select: () => chain,
@@ -52,17 +64,33 @@ beforeEach(() => {
       limit: () => chain,
       eq: (key: string, value: string) => {
         if (deleting) h.remove(key, value);
+        h.filters.push([key, value]);
         return chain;
       },
       delete: () => {
         deleting = true;
         return chain;
       },
-      upsert: (payload: unknown, config: unknown) => {
-        return h.save(payload, config);
+      insert: (value: unknown) => {
+        writing = true;
+        payload = value;
+        return chain;
+      },
+      update: (value: unknown) => {
+        writing = true;
+        payload = value;
+        return chain;
       },
       then: (resolve: (data: typeof result) => unknown) =>
-        Promise.resolve(result).then(resolve),
+        Promise.resolve(
+          writing
+            ? h.save(payload)
+            : deleting
+              ? { data: [{ id: "removed" }], error: null }
+              : table === "content_offer_routes" && h.readGate
+                ? h.readGate.then(() => result)
+                : result,
+        ).then(resolve),
     };
     return chain;
   });
@@ -83,8 +111,122 @@ function show() {
   );
 }
 describe("editorial offer assignment", () => {
+  it("freezes all editing and saving while a deliberate reload is pending", async () => {
+    h.rows = [
+      {
+        id: "route-1",
+        scope: "default",
+        match_key: "*",
+        label: "Default content",
+        offer_id: "offer-1",
+        headline: "Saved",
+        subtext: "",
+        button_text: "",
+        updated_at: "loaded-version",
+      },
+    ];
+    h.save.mockResolvedValue({ data: [], error: null });
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Default content" }),
+    );
+    fireEvent.change(screen.getByLabelText("Headline (optional)"), {
+      target: { value: "Discard this after reload" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save offer assignment" }),
+    );
+    await screen.findByRole("alert");
+    let complete!: () => void;
+    h.readGate = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved assignments" }),
+    );
+    expect(screen.getByLabelText("Headline (optional)")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save offer assignment" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Start another assignment" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Headline (optional)")).toHaveValue(
+      "Discard this after reload",
+    );
+    await act(async () => {
+      complete();
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Headline (optional)")).toBeEnabled(),
+    );
+    expect(screen.getByLabelText("Headline (optional)")).toHaveValue("");
+  });
+
+  it("preserves a stale assignment draft instead of recreating a deleted rule", async () => {
+    h.rows = [
+      {
+        id: "route-1",
+        scope: "default",
+        match_key: "*",
+        label: "Default content",
+        offer_id: "offer-1",
+        headline: "Saved",
+        subtext: "",
+        button_text: "",
+        updated_at: "loaded-version",
+      },
+    ];
+    h.save.mockResolvedValue({ data: [], error: null });
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Default content" }),
+    );
+    fireEvent.change(screen.getByLabelText("Headline (optional)"), {
+      target: { value: "My draft" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save offer assignment" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "changed or was removed",
+    );
+    expect(screen.getByLabelText("Headline (optional)")).toHaveValue(
+      "My draft",
+    );
+    expect(h.filters).toContainEqual(["id", "route-1"]);
+    expect(h.filters).toContainEqual(["updated_at", "loaded-version"]);
+    vi.mocked(window.confirm).mockReturnValue(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved assignments" }),
+    );
+    expect(screen.getByLabelText("Headline (optional)")).toHaveValue(
+      "My draft",
+    );
+  });
+  it("reports a conflicting new assignment without overwriting it", async () => {
+    h.save.mockResolvedValue({
+      data: null,
+      error: { code: "23505", message: "duplicate" },
+    });
+    show();
+    fireEvent.change(await screen.findByLabelText("Apply to"), {
+      target: { value: "default" },
+    });
+    fireEvent.change(screen.getByLabelText("Recommended offer"), {
+      target: { value: "offer-1" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save offer assignment" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "already exists",
+    );
+    expect(screen.getByLabelText("Recommended offer")).toHaveValue("offer-1");
+  });
+
   it("freezes editable controls and actions until a slow save completes", async () => {
-    let complete!: (result: { error: null }) => void;
+    let complete!: (result: unknown) => void;
     h.save.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -136,7 +278,10 @@ describe("editorial offer assignment", () => {
     ).not.toBeInTheDocument();
     expect(h.save).toHaveBeenCalledTimes(1);
     await act(async () => {
-      complete({ error: null });
+      complete({
+        data: [{ id: "route-new", updated_at: "saved-version" }],
+        error: null,
+      });
     });
     await screen.findByText("Offer assignment saved.");
     expect(screen.getByLabelText("Headline (optional)")).toBeEnabled();
@@ -148,7 +293,6 @@ describe("editorial offer assignment", () => {
         headline: "Saved headline",
         offer_id: "offer-1",
       }),
-      expect.anything(),
     );
   });
   it("saves a published offer as the explicit default and keeps copy optional", async () => {
@@ -172,7 +316,6 @@ describe("editorial offer assignment", () => {
         subtext: "",
         button_text: "",
       }),
-      { onConflict: "scope,match_key" },
     );
   });
   it("saves the selected article identity instead of allowing an arbitrary destination URL", async () => {
@@ -200,7 +343,6 @@ describe("editorial offer assignment", () => {
           label: "Better follow-up",
           headline: "Put this into practice",
         }),
-        expect.anything(),
       ),
     );
     expect(screen.queryByLabelText(/destination URL/i)).not.toBeInTheDocument();

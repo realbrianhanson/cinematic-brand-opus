@@ -14,6 +14,10 @@ import {
   startFunnelJourney,
 } from "@/lib/funnelJourneysClient";
 import type { FunnelSession } from "@/lib/funnelJourneys";
+import { recordFunnelJourneyMeasurement } from "@/lib/funnelJourneyMeasurement";
+vi.mock("@/lib/funnelJourneyMeasurement", () => ({
+  recordFunnelJourneyMeasurement: vi.fn(),
+}));
 vi.mock("@/lib/funnelJourneysClient", () => ({
   startFunnelJourney: vi.fn(),
   advanceFunnelJourney: vi.fn(),
@@ -85,6 +89,12 @@ describe("public journey runner", () => {
       "follow-up",
     );
     expect(
+      vi
+        .mocked(recordFunnelJourneyMeasurement)
+        .mock.calls.flat(2)
+        .some((event) => event.step_id === "project"),
+    ).toBe(false);
+    expect(
       sessionStorage.getItem("journey:first-ai-build-next-step:follow-up"),
     ).toBe("a".repeat(64));
   });
@@ -144,6 +154,19 @@ describe("public journey runner", () => {
       expect.any(String),
       "independent",
     );
+    expect(recordFunnelJourneyMeasurement).toHaveBeenCalledWith([
+      { slug: "sample", revision: 2, step_id: "question", type: "step_view" },
+      {
+        slug: "sample",
+        revision: 2,
+        step_id: "question",
+        type: "step_continue",
+        option_id: "independent",
+      },
+    ]);
+    expect(
+      JSON.stringify(vi.mocked(recordFunnelJourneyMeasurement).mock.calls),
+    ).not.toContain("a".repeat(64));
     expect(screen.getByLabelText("Journey progress").textContent).toContain(
       "What help fits?",
     );
@@ -191,6 +214,15 @@ describe("public journey runner", () => {
       screen.getByText(/does not confirm a booking or payment/),
     ).toBeTruthy();
     fireEvent.click(link);
+    expect(recordFunnelJourneyMeasurement).toHaveBeenCalledWith([
+      { slug: "sample", revision: 2, step_id: "booking", type: "step_view" },
+      {
+        slug: "sample",
+        revision: 2,
+        step_id: "booking",
+        type: "provider_handoff",
+      },
+    ]);
     expect(advanceFunnelJourney).not.toHaveBeenCalled();
   });
   it("never links a retired offer and lets visitors continue without it", async () => {
@@ -220,6 +252,12 @@ describe("public journey runner", () => {
     fireEvent.click(await screen.findByRole("radio", { name: "Training" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByRole("alert");
+    expect(
+      vi
+        .mocked(recordFunnelJourneyMeasurement)
+        .mock.calls.flat(2)
+        .some((event) => event.type === "step_continue"),
+    ).toBe(false);
     fireEvent.click(
       screen.getByRole("button", { name: "Reload current step" }),
     );

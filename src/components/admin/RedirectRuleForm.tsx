@@ -12,6 +12,7 @@ type Props = {
   fromEditable: boolean;
   suggestionsId: string;
   busy: boolean;
+  pendingLabel?: string;
   serverError: string | null;
   onSubmit: (draft: RuleDraft) => void;
   onCancel: () => void;
@@ -22,6 +23,7 @@ export default function RedirectRuleForm({
   fromEditable,
   suggestionsId,
   busy,
+  pendingLabel = "Saving…",
   serverError,
   onSubmit,
   onCancel,
@@ -66,6 +68,7 @@ export default function RedirectRuleForm({
           <input
             id={`${id}-from`}
             ref={firstField}
+            disabled={busy}
             value={from}
             onChange={(event) => setFrom(event.target.value)}
             placeholder="/old-page"
@@ -90,6 +93,7 @@ export default function RedirectRuleForm({
         <input
           id={`${id}-to`}
           ref={targetField}
+          disabled={busy}
           value={to}
           onChange={(event) => setTo(event.target.value)}
           list={suggestionsId}
@@ -110,6 +114,7 @@ export default function RedirectRuleForm({
         </label>
         <select
           id={`${id}-status`}
+          disabled={busy}
           value={status}
           onChange={(event) =>
             setStatus(event.target.value === "302" ? 302 : 301)
@@ -128,6 +133,7 @@ export default function RedirectRuleForm({
         Note (optional)
         <input
           id={`${id}-note`}
+          disabled={busy}
           value={note}
           onChange={(event) => setNote(event.target.value)}
           className="admin-input mt-2 w-full"
@@ -141,7 +147,7 @@ export default function RedirectRuleForm({
       )}
       <div className="flex flex-wrap gap-2 sm:col-span-2">
         <button type="submit" className="admin-btn-primary" disabled={busy}>
-          {busy ? "Saving…" : "Save redirect"}
+          {busy ? pendingLabel : "Save redirect"}
         </button>
         <button
           type="button"

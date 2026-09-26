@@ -1,3 +1,4 @@
+import FunnelJourneyMetrics from "./FunnelJourneyMetrics";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ChartNoAxesCombined, RefreshCw } from "lucide-react";
@@ -728,6 +729,7 @@ export default function ConversionDashboard({
       )}
       <OfferJourneyMetrics days={days} />
       <ExternalConversionPanel days={days} />
+      <FunnelJourneyMetrics days={days} />
       <ExternalPaymentSetup days={days} />
     </div>
   );

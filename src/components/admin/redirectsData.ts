@@ -182,18 +182,39 @@ class RedirectWriteError extends Error {
   }
 }
 
-async function write(query: PromiseLike<{ error: DbError }>) {
-  const { error } = await withTimeout(Promise.resolve(query));
+async function write(
+  query: PromiseLike<{ error: DbError; data: unknown[] | null }>,
+) {
+  const { data, error } = await withTimeout(Promise.resolve(query));
   if (error) throw new RedirectWriteError(error);
+  if (!data || data.length !== 1)
+    throw new Error(
+      "This redirect changed or was removed in another session. Your draft is still here. Reload the saved rules before trying again.",
+    );
 }
 
 export const createRule = (draft: RuleDraft) =>
-  write(supabase.from("redirect_rules").insert(draft));
+  write(supabase.from("redirect_rules").insert(draft).select("id"));
 
 export const updateRule = (
-  id: string,
+  rule: Pick<RedirectRule, "id" | "updated_at">,
   patch: Partial<RuleDraft> & { is_active?: boolean },
-) => write(supabase.from("redirect_rules").update(patch).eq("id", id));
+) =>
+  write(
+    supabase
+      .from("redirect_rules")
+      .update(patch)
+      .eq("id", rule.id)
+      .eq("updated_at", rule.updated_at)
+      .select("id"),
+  );
 
-export const deleteRule = (id: string) =>
-  write(supabase.from("redirect_rules").delete().eq("id", id));
+export const deleteRule = (rule: Pick<RedirectRule, "id" | "updated_at">) =>
+  write(
+    supabase
+      .from("redirect_rules")
+      .delete()
+      .eq("id", rule.id)
+      .eq("updated_at", rule.updated_at)
+      .select("id"),
+  );

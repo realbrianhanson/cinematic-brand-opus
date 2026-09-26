@@ -15,7 +15,7 @@ begin
   perform pg_advisory_xact_lock(hashtext('member-empty-bootstrap'));
   -- Customer records and speaking inquiries can contain private information.
   -- Check them even when an inherited neutral-v1 marker would make this a no-op.
-  foreach table_name in array array['offers','offer_orders','offer_stripe_events','speaking_inquiries','transactional_email_suppressions','offer_access_deliveries','offer_access_grants','conversion_sessions','conversion_events','conversion_order_links','conversion_order_facts','external_conversion_outcomes','external_conversion_imports','generated_page_revisions','pillar_page_revisions','gsc_imports','gsc_import_rows','offer_checkout_attempts'] loop
+  foreach table_name in array array['offers','offer_orders','offer_stripe_events','speaking_inquiries','transactional_email_suppressions','offer_access_deliveries','offer_access_grants','conversion_sessions','conversion_events','conversion_order_links','conversion_order_facts','external_conversion_outcomes','external_conversion_imports','generated_page_revisions','pillar_page_revisions','gsc_imports','gsc_import_rows','offer_checkout_attempts','offer_order_items','funnel_journeys','funnel_journey_revisions','funnel_journey_sessions','funnel_journey_requests','funnel_journey_transitions','funnel_journey_measurement_events','external_payment_events','external_payments','external_payment_refreshes','offer_experiments','offer_experiment_assignments'] loop
     if to_regclass('public.'||table_name) is not null then
       execute format('select exists(select 1 from public.%I)',table_name) into populated;
       if populated then raise exception 'Refusing bootstrap: % already contains records. Use an empty remix.',table_name; end if;

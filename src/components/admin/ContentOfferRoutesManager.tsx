@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -7,6 +7,11 @@ import {
   type ContentOfferRouteInput,
   type ContentOfferScope,
 } from "@/lib/contentOfferRouting";
+import {
+  confirmDiscardAdminDraft,
+  useConfigurationDraftGuard,
+} from "./useConfigurationDraftGuard";
+import { withTimeout } from "@/lib/withTimeout";
 import { errorMessage } from "@/lib/errorMessage";
 import { Field, SectionCard } from "./site-settings/Field";
 
@@ -34,8 +39,12 @@ const emptyRule: ContentOfferRouteInput = {
 
 export default function ContentOfferRoutesManager() {
   const [open, setOpen] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const reloadingRef = useRef(false);
   const [form, setForm] = useState(emptyRule);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<ContentOfferRoute | null>(null);
+  const [savedForm, setSavedForm] = useState(emptyRule);
+  const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
   const [pageType, setPageType] = useState<PageType>("post");
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -44,20 +53,22 @@ export default function ContentOfferRoutesManager() {
     queryKey: ["admin-content-offer-routes"],
     enabled: open,
     queryFn: async () => {
-      const [rules, offers, types, niches] = await Promise.all([
-        contentRoutingClient
-          .from("content_offer_routes")
-          .select("*")
-          .order("updated_at", { ascending: false }),
-        supabase
-          .from("offers")
-          .select("id,title,slug")
-          .eq("status", "published")
-          .eq("funnel_only", false)
-          .order("title"),
-        supabase.from("content_schemas").select("name,slug").order("name"),
-        supabase.from("niches").select("name,slug").order("name"),
-      ]);
+      const [rules, offers, types, niches] = await withTimeout(
+        Promise.all([
+          contentRoutingClient
+            .from("content_offer_routes")
+            .select("*")
+            .order("updated_at", { ascending: false }),
+          supabase
+            .from("offers")
+            .select("id,title,slug")
+            .eq("status", "published")
+            .eq("funnel_only", false)
+            .order("title"),
+          supabase.from("content_schemas").select("name,slug").order("name"),
+          supabase.from("niches").select("name,slug").order("name"),
+        ]),
+      );
       for (const result of [rules, offers, types, niches])
         if (result.error) throw result.error;
       return {
@@ -101,32 +112,61 @@ export default function ContentOfferRoutesManager() {
       ) {
         throw new Error("Choose the content and a published offer first.");
       }
-      const { error } = await contentRoutingClient
-        .from("content_offer_routes")
-        .upsert(form, { onConflict: "scope,match_key" });
+      const query = editing
+        ? contentRoutingClient
+            .from("content_offer_routes")
+            .update(form)
+            .eq("id", editing.id)
+            .eq("updated_at", editing.updated_at)
+        : contentRoutingClient.from("content_offer_routes").insert(form);
+      const { data, error } = await withTimeout(
+        Promise.resolve(query.select("*")),
+      );
+      if (error?.code === "23505")
+        throw new Error(
+          "An assignment already exists for this content. Your draft is still here. Reload the saved assignments and edit the existing one.",
+        );
       if (error) throw error;
+      if (data?.length !== 1)
+        throw new Error(
+          "This assignment changed or was removed in another session. Your draft is still here. Reload the saved assignments before trying again.",
+        );
+      return data[0];
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
+      setEditing(saved);
+      setSavedForm(form);
       await refresh();
       setMessage("Offer assignment saved.");
     },
     onError: (error) => setMessage(errorMessage(error)),
   });
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await contentRoutingClient
-        .from("content_offer_routes")
-        .delete()
-        .eq("id", id);
+    mutationFn: async (rule: ContentOfferRoute) => {
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          contentRoutingClient
+            .from("content_offer_routes")
+            .delete()
+            .eq("id", rule.id)
+            .eq("updated_at", rule.updated_at)
+            .select("id"),
+        ),
+      );
       if (error) throw error;
+      if (data?.length !== 1)
+        throw new Error(
+          "This assignment changed or was removed in another session. Reload the saved assignments before removing it.",
+        );
     },
     onSuccess: async () => {
       await refresh();
       setMessage(
         "Assignment removed. The next matching rule or global CTA will be used.",
       );
-      setEditing(false);
+      setEditing(null);
       setForm(emptyRule);
+      setSavedForm(emptyRule);
     },
     onError: (error) => setMessage(errorMessage(error)),
   });
@@ -138,16 +178,41 @@ export default function ContentOfferRoutesManager() {
     setMessage("");
   };
   const edit = (rule: ContentOfferRoute) => {
+    if (dirty && !confirmDiscardAdminDraft()) return;
     const { id: _id, updated_at: _updated, ...input } = rule;
     setForm(input);
-    setEditing(true);
+    setEditing(rule);
+    setSavedForm(input);
     setMessage("");
   };
   const options =
     form.scope === "content_type"
       ? registry.data?.types
       : registry.data?.niches;
-  const busy = save.isPending || remove.isPending;
+  const busy = save.isPending || remove.isPending || reloading;
+  useConfigurationDraftGuard(dirty, busy);
+  const reloadSaved = async () => {
+    if (busy || reloadingRef.current || (dirty && !confirmDiscardAdminDraft()))
+      return;
+    reloadingRef.current = true;
+    setReloading(true);
+    try {
+      const result = await registry.refetch();
+      if (result.error) {
+        setMessage("Could not reload. Your draft is still here.");
+        return;
+      }
+      setEditing(null);
+      setForm(emptyRule);
+      setSavedForm(emptyRule);
+      setMessage("");
+      save.reset();
+      remove.reset();
+    } finally {
+      reloadingRef.current = false;
+      setReloading(false);
+    }
+  };
   return (
     <SectionCard
       title="Relevant offers for your content"
@@ -213,7 +278,10 @@ export default function ContentOfferRoutesManager() {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => remove.mutate(rule.id)}
+                          onClick={() => {
+                            if (!dirty || confirmDiscardAdminDraft())
+                              remove.mutate(rule);
+                          }}
                         >
                           Remove<span className="sr-only"> {rule.label}</span>
                         </button>
@@ -233,7 +301,9 @@ export default function ContentOfferRoutesManager() {
                       type="button"
                       disabled={busy}
                       onClick={() => {
-                        setEditing(false);
+                        if (dirty && !confirmDiscardAdminDraft()) return;
+                        setSavedForm(emptyRule);
+                        setEditing(null);
                         setForm(emptyRule);
                         setMessage("");
                       }}
@@ -430,15 +500,29 @@ export default function ContentOfferRoutesManager() {
                   {save.isPending ? "Saving…" : "Save offer assignment"}
                 </button>
                 <p className="text-sm text-muted-foreground">
-                  Saving replaces any assignment for the same content. Native
-                  offer links open in the current tab. A default rule applies to
-                  articles, resources and guides, including their content
-                  listings.
+                  Existing assignments must be opened with Edit. New assignments
+                  never replace another saved assignment. Native offer links
+                  open in the current tab. A default rule applies to articles,
+                  resources and guides, including their content listings.
                 </p>
               </fieldset>
             </>
           )}
-          {message && <p role="status">{message}</p>}
+          {message && (
+            <p role={save.error || remove.error ? "alert" : "status"}>
+              {message}
+            </p>
+          )}
+          {(save.error || remove.error) && (
+            <button
+              type="button"
+              className="admin-btn-secondary"
+              disabled={busy || registry.isFetching}
+              onClick={() => void reloadSaved()}
+            >
+              Reload saved assignments
+            </button>
+          )}
         </>
       )}
     </SectionCard>

@@ -45,6 +45,7 @@ export const Route = createFileRoute("/first-ai-build")({
 });
 
 function FirstAiBuildPage() {
-  const { offers } = Route.useLoaderData();
-  return <FirstAiBuild offers={offers} />;
+  const { config, offers } = Route.useLoaderData();
+  const recoveryScope = `${config.preset}|${config.identity.siteUrl}|${config.identity.name}`;
+  return <FirstAiBuild offers={offers} recoveryScope={recoveryScope} />;
 }

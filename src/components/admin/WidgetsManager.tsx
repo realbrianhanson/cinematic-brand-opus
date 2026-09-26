@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { withTimeout } from "@/lib/withTimeout";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import {
+  confirmDiscardAdminDraft,
+  useConfigurationDraftGuard,
+} from "./useConfigurationDraftGuard";
 import WidgetConfigFields from "./WidgetConfigFields";
 
 type Widget = {
@@ -16,10 +20,15 @@ type Widget = {
   is_enabled: boolean;
   config: WidgetConfig;
   sort_order: number;
+  updated_at: string | null;
 };
 type WidgetPatch = Partial<
   Pick<Widget, "config" | "is_enabled" | "sort_order">
 >;
+type SaveResult = {
+  error: Error | { message: string } | null;
+  version?: string | null;
+};
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 const QUERY_KEY = ["admin-widgets"];
@@ -45,58 +54,40 @@ const ZONES = [
 ] as const;
 type ZoneId = (typeof ZONES)[number]["id"];
 
-async function saveWidget(id: string, patch: WidgetPatch) {
+async function saveWidget(
+  id: string,
+  patch: WidgetPatch,
+  expectedVersion: string | null,
+): Promise<SaveResult> {
   const controller = new AbortController();
-  const timedOut = new Error(
-    "The save timed out before it could be confirmed. Your draft is still here. Retry to save the latest version.",
-  );
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<Error>((resolve) => {
-    timer = setTimeout(() => {
-      resolve(timedOut);
-      controller.abort();
-    }, WIDGET_REQUEST_TIMEOUT_MS);
-  });
   try {
-    return await Promise.race([
-      deadline,
-      (async () => {
-        const current = await supabase
-          .from("widget_config")
-          .select("updated_at")
-          .eq("id", id)
-          .abortSignal(controller.signal)
-          .maybeSingle();
-        if (controller.signal.aborted) return timedOut;
-        if (current.error) return current.error;
-        if (!current.data)
-          return new Error(
-            "This widget no longer exists or your access changed.",
-          );
-        // Abort cannot undo an already accepted database operation. A version
-        // predicate also prevents a delayed old write from replacing a newer one.
-        let update = supabase.from("widget_config").update(patch).eq("id", id);
-        update =
-          current.data.updated_at === null
-            ? update.is("updated_at", null)
-            : update.eq("updated_at", current.data.updated_at);
-        const { data, error } = await update
-          .select("id")
-          .abortSignal(controller.signal);
-        if (controller.signal.aborted) return timedOut;
-        if (error) return error;
-        if (!data?.length)
-          return new Error(
-            "The widget changed or your access changed before the save completed. Your draft is still here. Retry to save against the latest version.",
-          );
-        return null;
-      })(),
-    ]);
+    let query = supabase.from("widget_config").update(patch).eq("id", id);
+    query =
+      expectedVersion === null
+        ? query.is("updated_at", null)
+        : query.eq("updated_at", expectedVersion);
+    const { data, error } = await withTimeout(
+      Promise.resolve(
+        query.select("id,updated_at").abortSignal(controller.signal),
+      ),
+      WIDGET_REQUEST_TIMEOUT_MS,
+    );
+    if (error) return { error };
+    if (data?.length !== 1)
+      return {
+        error: new Error(
+          "This widget changed or was removed in another session. Your draft is still here. Reload the saved widget before editing again.",
+        ),
+      };
+    return { error: null, version: data[0].updated_at };
   } catch (error) {
-    if (controller.signal.aborted) return timedOut;
-    return error instanceof Error ? error : new Error(errorMessage(error));
+    return {
+      error: new Error(
+        `${errorMessage(error)} Your draft is still here. Reload the saved widget if the save could not be confirmed.`,
+      ),
+    };
   } finally {
-    clearTimeout(timer);
+    controller.abort();
   }
 }
 
@@ -104,10 +95,27 @@ const WidgetsManager = () => {
   const [activeTab, setActiveTab] = useState<ZoneId>("page");
   const [reordering, setReordering] = useState(false);
   const reorderingRef = useRef(false);
-  const saves = useRef(new Map<string, Promise<boolean>>());
+  const saves = useRef(new Map<string, Promise<SaveResult>>());
   const togglingRef = useRef(new Set<string>());
   const [toggling, setToggling] = useState(new Set<string>());
   const queryClient = useQueryClient();
+  const [dirtyWidgets, setDirtyWidgets] = useState(new Set<string>());
+  const [savingCount, setSavingCount] = useState(0);
+  const dirtyIds = useRef(dirtyWidgets);
+  dirtyIds.current = dirtyWidgets;
+  useConfigurationDraftGuard(
+    dirtyWidgets.size > 0,
+    savingCount > 0 || reordering || toggling.size > 0,
+  );
+  const markDirty = (id: string, dirty: boolean) =>
+    setDirtyWidgets((old) => {
+      if (old.has(id) === dirty) return old;
+      const next = new Set(old);
+      if (dirty) next.add(id);
+      else next.delete(id);
+      dirtyIds.current = next;
+      return next;
+    });
   const tabsId = useId();
 
   const {
@@ -116,6 +124,7 @@ const WidgetsManager = () => {
     error: loadError,
   } = useQuery({
     queryKey: QUERY_KEY,
+    refetchOnWindowFocus: false,
     retry: false,
     queryFn: async () => {
       const controller = new AbortController();
@@ -131,10 +140,19 @@ const WidgetsManager = () => {
           WIDGET_REQUEST_TIMEOUT_MS,
         );
         if (error) throw error;
-        return (data ?? []).map((w) => ({
+        const loaded = (data ?? []).map((w) => ({
           ...w,
           config: parseWidgetConfig(w.config),
         })) as Widget[];
+        const cached = queryClient.getQueryData<Widget[]>(QUERY_KEY) ?? [];
+        return [
+          ...loaded,
+          ...cached.filter(
+            (w) =>
+              dirtyIds.current.has(w.id) &&
+              !loaded.some((row) => row.id === w.id),
+          ),
+        ];
       } finally {
         controller.abort();
       }
@@ -142,30 +160,40 @@ const WidgetsManager = () => {
   });
 
   // Update only the saved row; a full refetch would overwrite newer drafts.
-  const patchCache = (id: string, patch: WidgetPatch) =>
+  const patchCache = (
+    id: string,
+    patch: WidgetPatch & { updated_at?: string | null },
+  ) =>
     queryClient.setQueryData<Widget[]>(QUERY_KEY, (old) =>
       old?.map((w) => (w.id === id ? { ...w, ...patch } : w)),
     );
 
-  const persist = (widget: Widget, patch: WidgetPatch) => {
+  const persist = (
+    widget: Widget,
+    patch: WidgetPatch,
+    expectedVersion = widget.updated_at,
+  ) => {
+    setSavingCount((count) => count + 1);
     // Keep writes ordered even when changing zones unmounts the editor card.
     const pending = (
-      saves.current.get(widget.id) ?? Promise.resolve(true)
+      saves.current.get(widget.id) ??
+      Promise.resolve({ error: null } as SaveResult)
     ).then(async () => {
-      const error = await saveWidget(widget.id, patch);
-      if (error) {
+      const result = await saveWidget(widget.id, patch, expectedVersion);
+      if (result.error) {
         toast({
           title: `Couldn't save ${widget.display_name}`,
-          description: errorMessage(error),
+          description: errorMessage(result.error),
           variant: "destructive",
         });
-        return false;
+        return result;
       }
-      patchCache(widget.id, patch);
-      return true;
+      patchCache(widget.id, { ...patch, updated_at: result.version });
+      return result;
     });
     saves.current.set(widget.id, pending);
     void pending.then(() => {
+      setSavingCount((count) => count - 1);
       if (saves.current.get(widget.id) === pending)
         saves.current.delete(widget.id);
     });
@@ -179,7 +207,7 @@ const WidgetsManager = () => {
     const is_enabled = !widget.is_enabled;
     patchCache(widget.id, { is_enabled });
     try {
-      if (!(await persist(widget, { is_enabled })))
+      if ((await persist(widget, { is_enabled })).error)
         patchCache(widget.id, { is_enabled: widget.is_enabled });
     } finally {
       togglingRef.current.delete(widget.id);
@@ -188,7 +216,8 @@ const WidgetsManager = () => {
   };
 
   const handleReorder = async (widget: Widget, direction: "up" | "down") => {
-    if (reorderingRef.current) return;
+    if (reorderingRef.current || dirtyIds.current.size || saves.current.size)
+      return;
     const inZone = (widgets || [])
       .filter((w) => w.widget_zone === widget.widget_zone)
       .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
@@ -353,9 +382,40 @@ const WidgetsManager = () => {
                   isFirst={idx === 0}
                   isLast={idx === group.widgets.length - 1}
                   reordering={reordering}
+                  orderLocked={
+                    reordering || savingCount > 0 || dirtyWidgets.size > 0
+                  }
                   toggling={toggling.has(widget.id)}
                   onToggle={() => handleToggle(widget)}
-                  onSaveConfig={(config) => persist(widget, { config })}
+                  onSaveConfig={(config, version) =>
+                    persist(widget, { config }, version)
+                  }
+                  onDirtyChange={(dirty) => markDirty(widget.id, dirty)}
+                  onReload={async () => {
+                    const { data, error } = await withTimeout(
+                      Promise.resolve(
+                        supabase
+                          .from("widget_config")
+                          .select("*")
+                          .eq("id", widget.id)
+                          .maybeSingle(),
+                      ),
+                      WIDGET_REQUEST_TIMEOUT_MS,
+                    );
+                    if (error) throw error;
+                    if (!data)
+                      throw new Error(
+                        "This widget no longer exists. Your draft is still here.",
+                      );
+                    const row = {
+                      ...data,
+                      config: parseWidgetConfig(data.config),
+                    } as Widget;
+                    queryClient.setQueryData<Widget[]>(QUERY_KEY, (old) =>
+                      old?.map((item) => (item.id === row.id ? row : item)),
+                    );
+                    return row;
+                  }}
                   onReorder={(dir) => handleReorder(widget, dir)}
                 />
               ))}
@@ -373,52 +433,111 @@ const WidgetsManager = () => {
  */
 function useWidgetDraft(
   widget: Widget,
-  onSave: (config: WidgetConfig) => Promise<boolean>,
+  onSave: (config: WidgetConfig, version: string | null) => Promise<SaveResult>,
+  onReload: () => Promise<Widget>,
+  onDirtyChange: (dirty: boolean) => void,
 ) {
   const [draft, setDraft] = useState<WidgetConfig>(widget.config);
   const [status, setStatus] = useState<SaveStatus>("idle");
+  const [reloading, setReloading] = useState(false);
   const edits = useRef({ made: 0, saved: 0 });
+  const baselineVersion = useRef(widget.updated_at);
+  const inFlight = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef({ draft, onSave });
-  latest.current = { draft, onSave };
+  const latest = useRef({ draft, onSave, onDirtyChange });
+  latest.current = { draft, onSave, onDirtyChange };
 
   const serverConfig = JSON.stringify(widget.config);
   useEffect(() => {
-    const clean = edits.current.made === edits.current.saved;
-    if (clean) setDraft(JSON.parse(serverConfig) as WidgetConfig);
-  }, [serverConfig]);
+    if (edits.current.made === edits.current.saved && !inFlight.current) {
+      setDraft(JSON.parse(serverConfig) as WidgetConfig);
+      baselineVersion.current = widget.updated_at;
+    }
+  }, [serverConfig, widget.updated_at]);
 
   const flush = async () => {
     timer.current = null;
+    if (inFlight.current) return;
     const version = edits.current.made;
+    inFlight.current = true;
     setStatus("saving");
-    const ok = await latest.current.onSave(latest.current.draft);
-    if (ok) edits.current.saved = Math.max(edits.current.saved, version);
-    const pending = edits.current.made !== version || timer.current;
-    if (!pending) setStatus(ok ? "saved" : "error");
+    const result = await latest.current.onSave(
+      latest.current.draft,
+      baselineVersion.current,
+    );
+    inFlight.current = false;
+    if (!result.error) {
+      edits.current.saved = version;
+      baselineVersion.current = result.version ?? null;
+    }
+    const dirty = edits.current.made !== edits.current.saved;
+    latest.current.onDirtyChange(dirty);
+    if (result.error) {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      setStatus("error");
+    } else if (dirty) {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => void flush(), WIDGET_SAVE_DELAY_MS);
+    } else setStatus("saved");
   };
 
-  // Save anything still pending when the card unmounts (e.g. tab switch);
-  // flush reads refs only, so the empty dependency list is intentional.
+  // Navigation is guarded at the manager; do not launch untracked writes from
+  // an unmounted editor after the user deliberately discarded its draft.
   useEffect(
     () => () => {
-      if (!timer.current) return;
-      clearTimeout(timer.current);
-      void flush();
+      if (timer.current) clearTimeout(timer.current);
     },
     [],
   );
-
   const change = (next: WidgetConfig) => {
     edits.current.made += 1;
     latest.current.draft = next;
     setDraft(next);
-    setStatus("idle");
+    latest.current.onDirtyChange(true);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void flush(), WIDGET_SAVE_DELAY_MS);
+    // A conflict must be resolved deliberately, never by another keystroke.
+    if (status !== "error") {
+      setStatus("idle");
+      timer.current = setTimeout(() => void flush(), WIDGET_SAVE_DELAY_MS);
+    }
   };
-
-  return { draft, status, change, retry: flush };
+  const reload = async () => {
+    if (inFlight.current || !confirmDiscardAdminDraft()) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    inFlight.current = true;
+    setReloading(true);
+    setStatus("saving");
+    try {
+      const row = await onReload();
+      baselineVersion.current = row.updated_at;
+      edits.current.saved = edits.current.made;
+      latest.current.draft = row.config;
+      setDraft(row.config);
+      latest.current.onDirtyChange(false);
+      setStatus("idle");
+    } catch (error) {
+      setStatus("error");
+      toast({
+        title: "Couldn't reload widget",
+        description: errorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      inFlight.current = false;
+      setReloading(false);
+    }
+  };
+  return {
+    draft,
+    status,
+    change,
+    retry: flush,
+    reload,
+    reloading,
+    dirty: edits.current.made !== edits.current.saved,
+  };
 }
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -433,26 +552,36 @@ const WidgetCard = ({
   isFirst,
   isLast,
   reordering,
+  orderLocked,
   toggling,
   onToggle,
   onSaveConfig,
+  onReload,
+  onDirtyChange,
   onReorder,
 }: {
   widget: Widget;
   isFirst: boolean;
   isLast: boolean;
   reordering: boolean;
+  orderLocked: boolean;
   toggling: boolean;
   onToggle: () => void;
-  onSaveConfig: (config: WidgetConfig) => Promise<boolean>;
+  onSaveConfig: (
+    config: WidgetConfig,
+    version: string | null,
+  ) => Promise<SaveResult>;
+  onReload: () => Promise<Widget>;
+  onDirtyChange: (dirty: boolean) => void;
   onReorder: (dir: "up" | "down") => void;
 }) => {
-  const { draft, status, change, retry } = useWidgetDraft(widget, onSaveConfig);
+  const { draft, status, change, retry, reload, reloading, dirty } =
+    useWidgetDraft(widget, onSaveConfig, onReload, onDirtyChange);
   const arrow = (dir: "up" | "down", disabled: boolean) => (
     <button
       type="button"
       onClick={() => onReorder(dir)}
-      disabled={disabled || reordering}
+      disabled={disabled || orderLocked}
       aria-label={`Move ${widget.display_name} ${dir}`}
       title={dir === "up" ? "Move up" : "Move down"}
       style={{
@@ -486,7 +615,7 @@ const WidgetCard = ({
         borderRadius: 6,
       }}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex flex-col">
             {arrow("up", isFirst)}
@@ -511,7 +640,7 @@ const WidgetCard = ({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span
             role="status"
             className="font-body"
@@ -520,22 +649,39 @@ const WidgetCard = ({
             {STATUS_TEXT[status]}
           </span>
           {status === "error" && (
-            <button
-              type="button"
-              className="admin-btn-ghost"
-              aria-label={`Retry saving ${widget.display_name}`}
-              onClick={() => void retry()}
-            >
-              Retry
-            </button>
+            <>
+              <button
+                type="button"
+                className="admin-btn-ghost"
+                aria-label={`Retry saving ${widget.display_name}`}
+                onClick={() => void retry()}
+              >
+                Retry
+              </button>
+            </>
           )}
+          <button
+            type="button"
+            className="admin-btn-ghost"
+            disabled={status === "saving" || toggling || reordering}
+            onClick={() => void reload()}
+            aria-label={`Reload saved ${widget.display_name}`}
+          >
+            Reload saved
+          </button>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
               role="switch"
               aria-label={`Show ${widget.display_name}`}
               checked={widget.is_enabled}
-              disabled={toggling}
+              disabled={
+                toggling ||
+                reloading ||
+                dirty ||
+                status === "saving" ||
+                reordering
+              }
               onChange={onToggle}
               className="sr-only peer"
             />
@@ -566,11 +712,13 @@ const WidgetCard = ({
           className="mt-4 pt-4"
           style={{ borderTop: "1px solid hsl(var(--admin-border))" }}
         >
-          <WidgetConfigFields
-            slug={widget.widget_slug}
-            config={draft}
-            onChange={change}
-          />
+          <fieldset disabled={reloading || toggling || reordering}>
+            <WidgetConfigFields
+              slug={widget.widget_slug}
+              config={draft}
+              onChange={change}
+            />
+          </fieldset>
         </div>
       )}
     </div>

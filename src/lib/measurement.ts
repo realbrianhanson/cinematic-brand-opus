@@ -56,6 +56,7 @@ let pending: Promise<void> = Promise.resolve();
 let generation = 0;
 let acceptedSession: string | null = null;
 let lastOutbound = { key: "", at: 0 };
+let supplementalPending = 0;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -300,6 +301,38 @@ export function recordMeasurement(
         acceptedSession = session.session_id;
     })
     .catch(() => {});
+}
+/** Share only the optional measurement session, never a functional capability.
+ * The same queue makes withdrawal wait for in-flight collectors before erasure. */
+export function queueSupplementalMeasurement(
+  send: (
+    context: MeasurementContext & { attribution: Attribution },
+    current: () => boolean,
+  ) => Promise<boolean>,
+): void {
+  if (supplementalPending >= 40) return;
+  const session = getSession();
+  if (!session) return;
+  const version = generation;
+  supplementalPending++;
+  pending = pending
+    .then(async () => {
+      if (version !== generation || !measurementAllowed()) return;
+      const accepted = await send(
+        {
+          session_id: session.session_id,
+          session_token: session.session_token,
+          attribution: session.attribution,
+        },
+        () => version === generation && measurementAllowed(),
+      );
+      if (accepted && version === generation)
+        acceptedSession = session.session_id;
+    })
+    .catch(() => {})
+    .finally(() => {
+      supplementalPending--;
+    });
 }
 export async function measurementForClaim(): Promise<
   MeasurementContext | undefined

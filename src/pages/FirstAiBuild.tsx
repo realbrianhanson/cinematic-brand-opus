@@ -6,9 +6,13 @@ import {
   Copy,
   Download,
   Pencil,
+  Printer,
   Rows3,
 } from "lucide-react";
 import Nav from "@/components/Nav";
+import { FirstBuildPrint } from "@/components/first-ai-build/FirstBuildPrint";
+import { FirstBuildRecoveryNotice } from "@/components/first-ai-build/FirstBuildRecoveryNotice";
+import { useFirstBuildRecovery } from "@/components/first-ai-build/useFirstBuildRecovery";
 import Footer from "@/components/Footer";
 import FormPrivacyLink from "@/components/FormPrivacyLink";
 import {
@@ -188,6 +192,9 @@ function PlanResult({
   const [downloadState, setDownloadState] = useState<
     "idle" | "started" | "error"
   >("idle");
+  const [printState, setPrintState] = useState<"idle" | "opened" | "error">(
+    "idle",
+  );
   const workshop = offers.find(
     (offer) => offer.slug === "app-building-workshop",
   );
@@ -249,8 +256,19 @@ function PlanResult({
       }
     }
   }
+  function printPlan() {
+    try {
+      if (typeof window.print !== "function")
+        throw new Error("Print unavailable");
+      window.print();
+      setPrintState("opened");
+    } catch {
+      setPrintState("error");
+    }
+  }
   return (
     <div className="mx-auto max-w-5xl">
+      <FirstBuildPrint plan={plan} />
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-6">
         <p className={`${eyebrow} flex items-center gap-2`}>
           <CheckCheck size={18} aria-hidden="true" />
@@ -283,7 +301,7 @@ function PlanResult({
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/65">
           {plan.whyThisFits}
         </p>
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-7 flex flex-col flex-wrap gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => void copyPrompt()}
@@ -300,11 +318,27 @@ function PlanResult({
             <Download size={18} aria-hidden="true" />
             Download full plan
           </button>
+          <button type="button" onClick={printPlan} className={secondaryButton}>
+            <Printer size={18} aria-hidden="true" />
+            Print / Save as PDF
+          </button>
         </div>
         <div
           role="status"
           className="mt-3 space-y-1 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
         >
+          {printState === "opened" && (
+            <p>
+              Choose “Save as PDF” in your browser’s print dialog to keep a PDF.
+              Printing includes the complete prompt, example, and checks.
+            </p>
+          )}
+          {printState === "error" && (
+            <p>
+              Printing is unavailable here. Download the full plan as a text
+              file, or use your browser’s Print command.
+            </p>
+          )}
           {copyState === "copied" && (
             <p>Build prompt copied. Paste it into your app builder to begin.</p>
           )}
@@ -325,9 +359,8 @@ function PlanResult({
           )}
         </div>
         <p className="mt-3 text-xs leading-relaxed text-white/60">
-          Save your plan before leaving. Your answers stay in this page and
-          reset when you reload. The app builder you choose may charge for
-          usage.
+          Keep a permanent copy with Download or Print / Save as PDF. The app
+          builder you choose may charge for usage.
         </p>
       </header>
 
@@ -561,15 +594,46 @@ function PlanResult({
 
 export default function FirstAiBuild({
   offers = [],
+  recoveryScope = "brian|https://brianhanson.com|Brian Hanson",
 }: {
   offers?: ShopOffer[];
+  recoveryScope?: string;
 }) {
-  const [project, setProject] = useState<ProjectId | "">("");
-  const [forWhom, setForWhom] = useState<FirstBuildInput["forWhom"] | "">("");
-  const [businessType, setBusinessType] = useState("");
-  const [audience, setAudience] = useState("");
+  return (
+    <FirstAiBuildSession
+      key={recoveryScope}
+      offers={offers}
+      recoveryScope={recoveryScope}
+    />
+  );
+}
+
+function FirstAiBuildSession({
+  offers,
+  recoveryScope,
+}: {
+  offers: ShopOffer[];
+  recoveryScope: string;
+}) {
+  const recovery = useFirstBuildRecovery(recoveryScope);
+  const { project, forWhom, businessType, audience } =
+    recovery.snapshot.answers;
+  const plan =
+    recovery.snapshot.view === "plan" && recovery.snapshot.generatedFrom
+      ? buildFirstAiPlan(recovery.snapshot.generatedFrom)
+      : null;
   const [error, setError] = useState("");
-  const [plan, setPlan] = useState<FirstAiPlan | null>(null);
+  const setAnswer = (
+    key: keyof typeof recovery.snapshot.answers,
+    value: string,
+  ) =>
+    recovery.update((previous) => ({
+      ...previous,
+      answers: { ...previous.answers, [key]: value },
+    }));
+  const needsRecoveryChoice = ["checking", "available", "invalid"].includes(
+    recovery.status,
+  );
   const formHeading = useRef<HTMLHeadingElement>(null);
   const editing = useRef(false);
   useEffect(() => {
@@ -578,9 +642,10 @@ export default function FirstAiBuild({
       formHeading.current?.scrollIntoView({ block: "start" });
       editing.current = false;
     }
-  }, [plan]);
+  }, [plan, recovery.snapshot]);
   function createPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (needsRecoveryChoice) return;
     const parsed = firstBuildInputSchema.safeParse({
       project,
       forWhom,
@@ -596,7 +661,11 @@ export default function FirstAiBuild({
       return;
     }
     setError("");
-    setPlan(buildFirstAiPlan(parsed.data));
+    recovery.update((previous) => ({
+      ...previous,
+      generatedFrom: parsed.data,
+      view: "plan",
+    }));
     recordMeasurement([
       {
         type: "build_plan_created",
@@ -612,13 +681,26 @@ export default function FirstAiBuild({
         id="main-content"
         className="mx-auto min-w-0 max-w-6xl px-5 pb-20 pt-32 [overflow-wrap:anywhere] sm:px-8 sm:pt-40"
       >
+        <FirstBuildRecoveryNotice
+          status={recovery.status}
+          hasAnswers={Object.values(recovery.snapshot.answers).some(Boolean)}
+          onRestore={() => {
+            editing.current = true;
+            recovery.restore();
+          }}
+          onReset={() => {
+            recovery.reset();
+            setError("");
+            editing.current = true;
+          }}
+        />
         {plan ? (
           <PlanResult
             plan={plan}
             offers={offers}
             onEdit={() => {
               editing.current = true;
-              setPlan(null);
+              recovery.update((previous) => ({ ...previous, view: "form" }));
             }}
           />
         ) : (
@@ -695,154 +777,167 @@ export default function FirstAiBuild({
               onSubmit={createPlan}
               className="border-t border-white/20 pt-9"
             >
-              <h2
-                ref={formHeading}
-                id="build-planner"
-                tabIndex={-1}
-                className={`${sectionTitle} scroll-mt-28 outline-none`}
+              <fieldset
+                disabled={needsRecoveryChoice}
+                className="min-w-0 disabled:opacity-60"
               >
-                Let’s find your starting point.
-              </h2>
-              <p className="mt-3 text-white/65">
-                Two choices. Add a little context if you want to make the plan
-                your own.
-              </p>
-              <fieldset className="mt-9">
-                <legend className="text-lg font-semibold">
-                  <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
-                    01
-                  </span>
-                  Which task would you like to make easier?
-                </legend>
-                <div className="mt-5 grid gap-3 md:grid-cols-3">
-                  {PROJECT_OPTIONS.map((option) => (
-                    <label
-                      key={option.id}
-                      className={`relative flex cursor-pointer gap-3 rounded-lg border p-5 transition-colors ${project === option.id ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-white/25 hover:border-white/50"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="project"
-                        value={option.id}
-                        required
-                        checked={project === option.id}
-                        onChange={() => {
-                          setProject(option.id);
-                          setError("");
-                        }}
-                        className="mt-1 h-4 w-4 shrink-0 accent-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
-                      />
-                      <span>
-                        <span className="block font-semibold">
-                          {option.title}
-                        </span>
-                        <span className="mt-2 block text-sm leading-relaxed text-white/70">
-                          {option.description}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <fieldset className="mt-9">
-                <legend className="text-lg font-semibold">
-                  <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
-                    02
-                  </span>
-                  Who are you building for?
-                </legend>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  {(
-                    [
-                      { value: "my-business", label: "My own business" },
-                      { value: "client", label: "A client or business I help" },
-                    ] as const
-                  ).map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-5 py-4 ${forWhom === option.value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-white/25 hover:border-white/50"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="forWhom"
-                        value={option.value}
-                        required
-                        checked={forWhom === option.value}
-                        onChange={() => {
-                          setForWhom(option.value);
-                          setError("");
-                        }}
-                        className="h-4 w-4 accent-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="mt-9 max-w-3xl rounded-lg border border-white/15 bg-white/[0.025] p-5 sm:p-6">
-                <h3 className="font-semibold">
-                  Make it yours{" "}
-                  <span className="font-normal text-white/60">(optional)</span>
-                </h3>
-                <div className="mt-4 grid gap-5 sm:grid-cols-2">
-                  <label
-                    htmlFor="build-business"
-                    className="text-sm font-medium"
-                  >
-                    Type of business
-                    <input
-                      id="build-business"
-                      type="text"
-                      autoComplete="off"
-                      maxLength={120}
-                      value={businessType}
-                      onChange={(event) => setBusinessType(event.target.value)}
-                      placeholder="e.g. a local landscaping business"
-                      className={inputStyle}
-                    />
-                  </label>
-                  <label
-                    htmlFor="build-audience"
-                    className="text-sm font-medium"
-                  >
-                    Who does it help?
-                    <input
-                      id="build-audience"
-                      type="text"
-                      autoComplete="off"
-                      maxLength={120}
-                      value={audience}
-                      onChange={(event) => setAudience(event.target.value)}
-                      placeholder="e.g. homeowners asking for a quote"
-                      className={inputStyle}
-                    />
-                  </label>
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-white/60">
-                  A general description is enough. Use sample details, not
-                  customer names or private information.
-                </p>
-              </div>
-              {error && (
-                <p
-                  role="alert"
-                  className="mt-5 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
+                <h2
+                  ref={formHeading}
+                  id="build-planner"
+                  tabIndex={-1}
+                  className={`${sectionTitle} scroll-mt-28 outline-none`}
                 >
-                  {error}
+                  Let’s find your starting point.
+                </h2>
+                <p className="mt-3 text-white/65">
+                  Two choices. Add a little context if you want to make the plan
+                  your own.
                 </p>
-              )}
-              <button
-                type="submit"
-                className={`${primaryButton} mt-7 w-full sm:w-auto`}
-              >
-                Create my free build plan
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
-              <p className="mt-4 max-w-2xl text-xs leading-relaxed text-white/60">
-                Built from three practical starter playbooks, tailored to your
-                choices. Your answers stay in this page. No account or payment
-                needed to get your plan.
-              </p>
+                <fieldset className="mt-9">
+                  <legend className="text-lg font-semibold">
+                    <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
+                      01
+                    </span>
+                    Which task would you like to make easier?
+                  </legend>
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {PROJECT_OPTIONS.map((option) => (
+                      <label
+                        key={option.id}
+                        className={`relative flex cursor-pointer gap-3 rounded-lg border p-5 transition-colors ${project === option.id ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-white/25 hover:border-white/50"}`}
+                      >
+                        <input
+                          type="radio"
+                          name="project"
+                          value={option.id}
+                          required
+                          checked={project === option.id}
+                          onChange={() => {
+                            setAnswer("project", option.id);
+                            setError("");
+                          }}
+                          className="mt-1 h-4 w-4 shrink-0 accent-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
+                        />
+                        <span>
+                          <span className="block font-semibold">
+                            {option.title}
+                          </span>
+                          <span className="mt-2 block text-sm leading-relaxed text-white/70">
+                            {option.description}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset className="mt-9">
+                  <legend className="text-lg font-semibold">
+                    <span className="mr-3 text-[var(--site-accent-ink,var(--brand-accent))]">
+                      02
+                    </span>
+                    Who are you building for?
+                  </legend>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    {(
+                      [
+                        { value: "my-business", label: "My own business" },
+                        {
+                          value: "client",
+                          label: "A client or business I help",
+                        },
+                      ] as const
+                    ).map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-5 py-4 ${forWhom === option.value ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-white/25 hover:border-white/50"}`}
+                      >
+                        <input
+                          type="radio"
+                          name="forWhom"
+                          value={option.value}
+                          required
+                          checked={forWhom === option.value}
+                          onChange={() => {
+                            setAnswer("forWhom", option.value);
+                            setError("");
+                          }}
+                          className="h-4 w-4 accent-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="mt-9 max-w-3xl rounded-lg border border-white/15 bg-white/[0.025] p-5 sm:p-6">
+                  <h3 className="font-semibold">
+                    Make it yours{" "}
+                    <span className="font-normal text-white/60">
+                      (optional)
+                    </span>
+                  </h3>
+                  <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                    <label
+                      htmlFor="build-business"
+                      className="text-sm font-medium"
+                    >
+                      Type of business
+                      <input
+                        id="build-business"
+                        type="text"
+                        autoComplete="off"
+                        maxLength={120}
+                        value={businessType}
+                        onChange={(event) =>
+                          setAnswer("businessType", event.target.value)
+                        }
+                        placeholder="e.g. a local landscaping business"
+                        className={inputStyle}
+                      />
+                    </label>
+                    <label
+                      htmlFor="build-audience"
+                      className="text-sm font-medium"
+                    >
+                      Who does it help?
+                      <input
+                        id="build-audience"
+                        type="text"
+                        autoComplete="off"
+                        maxLength={120}
+                        value={audience}
+                        onChange={(event) =>
+                          setAnswer("audience", event.target.value)
+                        }
+                        placeholder="e.g. homeowners asking for a quote"
+                        className={inputStyle}
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-white/60">
+                    A general description is enough. Use sample details, not
+                    customer names or private information.
+                  </p>
+                </div>
+                {error && (
+                  <p
+                    role="alert"
+                    className="mt-5 text-sm text-[var(--site-accent-ink,var(--brand-accent))]"
+                  >
+                    {error}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  className={`${primaryButton} mt-7 w-full sm:w-auto`}
+                >
+                  Create my free build plan
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+                <p className="mt-4 max-w-2xl text-xs leading-relaxed text-white/60">
+                  Built from three practical starter playbooks, tailored to your
+                  choices. No account or payment is needed to get your plan.
+                </p>
+              </fieldset>
             </form>
           </>
         )}

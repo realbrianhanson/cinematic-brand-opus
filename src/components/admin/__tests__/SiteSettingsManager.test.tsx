@@ -33,6 +33,10 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   },
 }));
 
+// This suite exercises the parent settings draft. Assignments have their own
+// independent navigation blocker, covered in ContentOfferRoutesManager tests.
+vi.mock("../ContentOfferRoutesManager", () => ({ default: () => null }));
+
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("@/lib/withTimeout", () => ({
   safeMutation: (run: () => unknown) => run(),

@@ -2,6 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -21,18 +22,29 @@ type Call = {
 const mock = vi.hoisted(() => ({
   calls: [] as Call[],
   tables: {} as Record<string, unknown[]>,
+  emptyWrite: false,
+  readGate: null as Promise<void> | null,
   writeError: null as null | { code: string; message: string },
 }));
+
+vi.mock("@tanstack/react-router", () => ({ useBlocker: vi.fn() }));
 
 vi.mock("@/integrations/supabase/client", () => {
   function from(table: string) {
     const call: Call = { table, op: "select", filters: [] };
     const run = () => {
       mock.calls.push(call);
-      if (call.op === "select")
-        return { data: mock.tables[table] ?? [], error: null };
+      if (call.op === "select") {
+        const result = { data: mock.tables[table] ?? [], error: null };
+        return table === "redirect_rules" && mock.readGate
+          ? mock.readGate.then(() => result)
+          : result;
+      }
       if (mock.writeError) return { data: null, error: mock.writeError };
-      return { data: call.payload ?? null, error: null };
+      return {
+        data: mock.emptyWrite ? [] : [{ id: "saved-rule" }],
+        error: null,
+      };
     };
     const builder: Record<string, unknown> = {
       select: () => builder,
@@ -128,6 +140,9 @@ const writes = (op: Call["op"]) =>
   mock.calls.filter((c) => c.op === op && c.table === "redirect_rules");
 
 beforeEach(() => {
+  mock.emptyWrite = false;
+  mock.readGate = null;
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   mock.calls = [];
   mock.writeError = null;
   mock.tables = {
@@ -148,6 +163,55 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("RedirectsManager", () => {
+  it("keeps the draft if an explicit saved-rules reload fails and freezes controls while it runs", async () => {
+    mount();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit rule for /my-story" }),
+    );
+    fireEvent.change(screen.getByLabelText("Send visitors to"), {
+      target: { value: "/shop" },
+    });
+    mock.emptyWrite = true;
+    fireEvent.click(screen.getByRole("button", { name: "Save redirect" }));
+    await screen.findByRole("alert");
+    let reject!: (error: Error) => void;
+    mock.readGate = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reload saved rules" }));
+    expect(screen.getByLabelText("Send visitors to")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reloading…" })).toBeDisabled();
+    await act(async () => reject(new Error("Network unavailable")));
+    expect(
+      await screen.findByText(/Could not reload saved rules/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Send visitors to")).toBeEnabled();
+    expect(screen.getByLabelText("Send visitors to")).toHaveValue("/shop");
+  });
+
+  it("keeps the redirect draft open when another tab changed or removed its row", async () => {
+    mount();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit rule for /my-story" }),
+    );
+    fireEvent.change(screen.getByLabelText("Send visitors to"), {
+      target: { value: "/shop" },
+    });
+    mock.emptyWrite = true;
+    fireEvent.click(screen.getByRole("button", { name: "Save redirect" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "changed or was removed",
+    );
+    expect(screen.getByLabelText("Send visitors to")).toHaveValue("/shop");
+    expect(writes("update")[0].filters).toContainEqual([
+      "updated_at",
+      RULES[0].updated_at,
+    ]);
+    vi.mocked(window.confirm).mockReturnValue(false);
+    fireEvent.click(screen.getByRole("button", { name: "Reload saved rules" }));
+    expect(screen.getByLabelText("Send visitors to")).toHaveValue("/shop");
+  });
+
   it("explains the automatic behaviour in plain English", async () => {
     mount();
     expect(
@@ -271,7 +335,10 @@ describe("RedirectsManager", () => {
     );
     await waitFor(() => expect(writes("update")).toHaveLength(1));
     expect(writes("update")[0].payload).toEqual({ is_active: false });
-    expect(writes("update")[0].filters).toEqual([["id", "r2"]]);
+    expect(writes("update")[0].filters).toEqual([
+      ["id", "r2"],
+      ["updated_at", "2026-09-23T00:00:00Z"],
+    ]);
   });
 
   it("edits a rule", async () => {
@@ -294,7 +361,10 @@ describe("RedirectsManager", () => {
       status_code: 302,
       note: null,
     });
-    expect(writes("update")[0].filters).toEqual([["id", "r1"]]);
+    expect(writes("update")[0].filters).toEqual([
+      ["id", "r1"],
+      ["updated_at", "2026-09-23T00:00:00Z"],
+    ]);
   });
 
   it("asks before deleting a rule", async () => {
@@ -309,7 +379,10 @@ describe("RedirectsManager", () => {
       within(dialog).getByRole("button", { name: "Delete rule" }),
     );
     await waitFor(() => expect(writes("delete")).toHaveLength(1));
-    expect(writes("delete")[0].filters).toEqual([["id", "r1"]]);
+    expect(writes("delete")[0].filters).toEqual([
+      ["id", "r1"],
+      ["updated_at", "2026-09-23T00:00:00Z"],
+    ]);
   });
 
   it("adds a rule for any old address", async () => {
