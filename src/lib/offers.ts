@@ -44,6 +44,7 @@ export interface OfferAccess {
   checkout_recovery?: { available: boolean; reason: string };
   order: {
     id: string;
+    offer_id?: string;
     title: string;
     status: "pending" | "fulfilled" | "failed" | "expired" | "refunded";
     kind: OfferKind;

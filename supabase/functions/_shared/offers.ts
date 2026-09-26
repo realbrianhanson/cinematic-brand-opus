@@ -154,6 +154,7 @@ export function safeCheckoutUrl(value: unknown): string | null {
 export function publicOrder(order: OfferOrder) {
   return {
     id: order.id,
+    offer_id: order.offer_id,
     title: order.title_snapshot,
     status: order.status,
     kind: order.amount_minor === 0 ? "free" : "paid",

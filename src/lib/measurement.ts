@@ -22,6 +22,9 @@ export interface MeasurementEvent {
     | "shop_view"
     | "offer_view"
     | "outbound_click"
+    | "upsell_view"
+    | "upsell_accept"
+    | "upsell_decline"
     | "build_plan_created"
     | "build_prompt_copied"
     | "build_plan_downloaded"
@@ -29,6 +32,7 @@ export interface MeasurementEvent {
   project?: "follow-up" | "inquiries" | "onboarding";
   path: string;
   offer_id?: string;
+  parent_offer_id?: string;
   placement?:
     | "nav"
     | "hero"
@@ -262,10 +266,14 @@ export function recordMeasurement(
       ...session,
       events: events
         .slice(0, 10)
-        .filter((e) => measurementPath(e.path))
+        .filter(
+          (e) =>
+            measurementPath(e.path) ||
+            (e.type.startsWith("upsell_") && e.path === "/offer-access"),
+        )
         .map((e) => ({
           ...e,
-          path: measurementPath(e.path),
+          path: e.type.startsWith("upsell_") ? e.path : measurementPath(e.path),
           id: crypto.randomUUID(),
         })),
     })?.events ?? [];

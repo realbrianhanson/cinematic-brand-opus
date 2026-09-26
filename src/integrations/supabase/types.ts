@@ -264,6 +264,7 @@ export type Database = {
           created_at: string
           destination: string | null
           id: string
+          parent_offer_id: string | null
           offer_id: string | null
           path: string
           placement: string | null
@@ -275,6 +276,7 @@ export type Database = {
           created_at?: string
           destination?: string | null
           id: string
+          parent_offer_id?: string | null
           offer_id?: string | null
           path: string
           placement?: string | null
@@ -286,6 +288,7 @@ export type Database = {
           created_at?: string
           destination?: string | null
           id?: string
+          parent_offer_id?: string | null
           offer_id?: string | null
           path?: string
           placement?: string | null
@@ -294,6 +297,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversion_events_parent_offer_id_fkey"
+            columns: ["parent_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversion_events_offer_id_fkey"
             columns: ["offer_id"]
@@ -313,14 +323,17 @@ export type Database = {
       conversion_measurement_config: {
         Row: {
           singleton: boolean
+          journey_started_at: string
           started_at: string
         }
         Insert: {
           singleton?: boolean
+          journey_started_at?: string
           started_at?: string
         }
         Update: {
           singleton?: boolean
+          journey_started_at?: string
           started_at?: string
         }
         Relationships: []
@@ -2878,6 +2891,7 @@ export type Database = {
       }
       admin_content_breakdown: { Args: never; Returns: Json }
       admin_conversion_snapshot: { Args: { _days?: number }; Returns: Json }
+      admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
       admin_external_conversion_snapshot: {
         Args: { _days?: number }
         Returns: Json

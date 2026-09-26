@@ -12,6 +12,9 @@ const TYPES = [
   "shop_view",
   "offer_view",
   "outbound_click",
+  "upsell_view",
+  "upsell_accept",
+  "upsell_decline",
   "build_plan_created",
   "build_prompt_copied",
   "build_plan_downloaded",
@@ -39,6 +42,7 @@ export type ConversionEvent = {
   type: (typeof TYPES)[number];
   path: string;
   offer_id?: string;
+  parent_offer_id?: string;
   project?: (typeof BUILD_PROJECTS)[number];
   placement?: (typeof PLACEMENTS)[number];
   destination?: (typeof DESTINATIONS)[number];
@@ -96,7 +100,7 @@ export function parseConversionRequest(
       !TYPES.includes(event.type as never) ||
       typeof event.path !== "string" ||
       event.path.length > 240 ||
-      !PUBLIC_PATH.test(event.path)
+      !(PUBLIC_PATH.test(event.path) || event.path === "/offer-access")
     )
       return null;
     if (
@@ -113,6 +117,24 @@ export function parseConversionRequest(
     if (
       event.destination !== undefined &&
       !DESTINATIONS.includes(event.destination as never)
+    )
+      return null;
+    const journeyAction =
+      typeof event.type === "string" && event.type.startsWith("upsell_");
+    if (
+      journeyAction &&
+      (event.path !== "/offer-access" ||
+        !event.offer_id ||
+        typeof event.parent_offer_id !== "string" ||
+        !CONVERSION_UUID.test(event.parent_offer_id) ||
+        event.parent_offer_id.toLowerCase() ===
+          String(event.offer_id).toLowerCase() ||
+        event.placement !== undefined)
+    )
+      return null;
+    if (
+      !journeyAction &&
+      (event.path === "/offer-access" || event.parent_offer_id !== undefined)
     )
       return null;
     const buildAction =
@@ -144,6 +166,9 @@ export function parseConversionRequest(
         : {}),
       ...(event.offer_id
         ? { offer_id: (event.offer_id as string).toLowerCase() }
+        : {}),
+      ...(journeyAction
+        ? { parent_offer_id: (event.parent_offer_id as string).toLowerCase() }
         : {}),
       ...(event.placement
         ? { placement: event.placement as ConversionEvent["placement"] }

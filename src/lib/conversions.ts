@@ -163,3 +163,61 @@ export function conversionLabel(value: string): string {
 export function campaignLabel(value: string | null): string {
   return !value || value === "none" ? "(no campaign)" : value;
 }
+
+const journeyIdentity = {
+  parent_offer_id: z.string().uuid(),
+  parent_title: z.string(),
+  offer_id: z.string().uuid(),
+  title: z.string(),
+};
+export const offerJourneyReportSchema = z.object({
+  generated_at: z.string().datetime({ offset: true }),
+  measurement_started_at: z.string().datetime({ offset: true }),
+  range: z.object({
+    start: z.string(),
+    end: z.string(),
+    timezone: z.literal("UTC"),
+  }),
+  steps: z.array(
+    z.object({
+      ...journeyIdentity,
+      view_sessions: count,
+      continue_sessions: count,
+      decline_sessions: count,
+      free_claim_sessions: count,
+      paid_order_sessions: count,
+    }),
+  ),
+  native_steps: z.array(
+    z.object({
+      ...journeyIdentity,
+      free_claims: count,
+      paid_orders: count,
+      test_paid_orders: count,
+      unknown_mode_paid_orders: count,
+      refunded_orders: count,
+      revenue_by_currency: z.array(
+        z.object({
+          currency: z.string().regex(/^[a-zA-Z]{3}$/),
+          amount_minor: count,
+        }),
+      ),
+    }),
+  ),
+});
+export type OfferJourneyReport = z.infer<typeof offerJourneyReportSchema>;
+export function offerJourneyQueryOptions(days: ConversionDays) {
+  return queryOptions({
+    queryKey: ["admin-offer-journey", days],
+    queryFn: async (): Promise<OfferJourneyReport> => {
+      const { data, error } = await supabase.rpc(
+        "admin_offer_journey_snapshot",
+        { _days: days },
+      );
+      if (error) throw new Error(error.message);
+      return offerJourneyReportSchema.parse(data);
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}

@@ -49,6 +49,7 @@ import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "@/routeTree.gen";
 // External reconciliation has its own provider/RPC tests.
 vi.mock("../ExternalConversionPanel", () => ({ default: () => null }));
+vi.mock("../OfferJourneyMetrics", () => ({ default: () => null }));
 import ConversionDashboard, {
   ConversionOverview,
 } from "../ConversionDashboard";
@@ -399,7 +400,10 @@ describe("conversion reporting", () => {
     const native = screen.getByRole("region", {
       name: "Confirmed native outcomes",
     });
-    expect(native).toHaveTextContent("could not be linked to a measured visit");
+    expect(native).toHaveTextContent(
+      "were not attributed to a measured offer landing-page view",
+    );
+    expect(native).toHaveTextContent("follow-up-only views");
     expect(native).not.toHaveTextContent("have no qualifying measured");
   });
   it("reserves the overview counts with skeletons while loading", () => {
