@@ -49,6 +49,7 @@ import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "@/routeTree.gen";
 // External reconciliation has its own provider/RPC tests.
 vi.mock("../ExternalConversionPanel", () => ({ default: () => null }));
+vi.mock("../ExternalPaymentSetup", () => ({ default: () => null }));
 vi.mock("../OfferJourneyMetrics", () => ({ default: () => null }));
 import ConversionDashboard, {
   ConversionOverview,

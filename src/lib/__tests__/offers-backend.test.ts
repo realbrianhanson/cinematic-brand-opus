@@ -3,6 +3,8 @@ import {
   accessUrl,
   canonicalOfferOrigin,
   checkoutRequest,
+  authorizedOrderItem,
+  effectiveFollowUpId,
   claimReservedOffer,
   hashOfferToken,
   nextOfferAvailable,
@@ -60,6 +62,92 @@ const paidEvent: StripeEventInput = {
 };
 
 describe("offer backend boundaries", () => {
+  it("charges immutable basket line items and rejects totals that do not match", () => {
+    const items = [
+      {
+        id: "20000000-0000-4000-8000-000000000001",
+        order_id: id,
+        offer_id: id,
+        role: "primary" as const,
+        title_snapshot: "Guide",
+        asset_path_snapshot: "private/guide.pdf",
+        asset_name_snapshot: "guide.pdf",
+        amount_minor: 1900,
+        currency: "usd",
+      },
+      {
+        id: "20000000-0000-4000-8000-000000000002",
+        order_id: id,
+        offer_id: "10000000-0000-4000-8000-000000000002",
+        role: "bump" as const,
+        title_snapshot: "Templates",
+        asset_path_snapshot: "private/templates.zip",
+        asset_name_snapshot: "templates.zip",
+        amount_minor: 500,
+        currency: "usd",
+      },
+    ];
+    const basket = { ...order, amount_minor: 2400, items };
+    const checkout = checkoutRequest(basket, token, "https://example.com", now);
+    expect(
+      checkout.line_items.map((item) => item.price_data.unit_amount),
+    ).toEqual([1900, 500]);
+    expect(
+      checkout.line_items.map((item) => item.price_data.product_data.name),
+    ).toEqual(["Guide", "Templates"]);
+    expect(() =>
+      checkoutRequest(
+        { ...basket, amount_minor: 1900 },
+        token,
+        "https://example.com",
+        now,
+      ),
+    ).toThrow("basket");
+    expect(() =>
+      checkoutRequest(
+        { ...basket, items: [{ ...items[0], currency: "eur" }, items[1]] },
+        token,
+        "https://example.com",
+        now,
+      ),
+    ).toThrow("basket");
+    expect(
+      authorizedOrderItem({ ...basket, status: "fulfilled" }, items[1].id)
+        .asset_path_snapshot,
+    ).toBe("private/templates.zip");
+    expect(() =>
+      authorizedOrderItem(
+        { ...basket, status: "fulfilled" },
+        "30000000-0000-4000-8000-000000000003",
+      ),
+    ).toThrow("not available");
+    expect(() =>
+      authorizedOrderItem({ ...basket, status: "refunded" }, items[1].id),
+    ).toThrow("not available");
+    expect(
+      authorizedOrderItem({ ...order, status: "fulfilled" })
+        .asset_path_snapshot,
+    ).toBe(order.asset_path_snapshot);
+  });
+  it("uses the persisted downsell stage without reviving a declined or expired path", () => {
+    const parent = {
+      ...order,
+      status: "fulfilled" as const,
+      downsell_offer_id: "20000000-0000-4000-8000-000000000001",
+      upsell_declined_at: new Date(now).toISOString(),
+    };
+    expect(effectiveFollowUpId(parent)).toBe(parent.downsell_offer_id);
+    expect(nextOfferAvailable(parent, false, now)).toBe(true);
+    expect(
+      nextOfferAvailable(
+        { ...parent, declined_at: new Date(now).toISOString() },
+        false,
+        now,
+      ),
+    ).toBe(false);
+    expect(nextOfferAvailable(parent, true, now)).toBe(false);
+    expect(nextOfferAvailable(parent, false, now + 3_600_000)).toBe(false);
+  });
   it("requires both valid-shaped server secrets without claiming connection verification", () => {
     expect(paymentReadiness()).toEqual({
       secret_configured: false,

@@ -37,6 +37,12 @@ export const adminNavigation = [
         icon: MousePointerClick,
       },
       { to: "/admin/offers", label: "Offers & shop", icon: ShoppingBag },
+      { to: "/admin/funnels", label: "Connected funnels", icon: Signpost },
+      {
+        to: "/admin/experiments",
+        label: "Offer experiments",
+        icon: ChartNoAxesCombined,
+      },
       { to: "/admin/inquiries", label: "Speaking inquiries", icon: Mic },
       { to: "/admin/audience", label: "Newsletter audience", icon: Mail },
       {

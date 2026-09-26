@@ -1294,3 +1294,161 @@ describe("explicit follow-up checkout restart", () => {
     },
   );
 });
+
+describe("optional checkout extras and alternative follow-ups", () => {
+  const bump = {
+    id: "22222222-2222-4222-8222-222222222222",
+    slug: "templates",
+    title: "Extra templates",
+    summary: "A second private download.",
+    cover_url: null,
+    kind: "paid" as const,
+    amount_minor: 500,
+    currency: "usd",
+  };
+  it("requires an explicit extra selection and sends the selected offer with the existing retry token", async () => {
+    invoke.mockImplementation(async (_name, { body }) =>
+      respond(
+        body.action === "get"
+          ? { offer: { ...offer, bump_offer: bump }, payments_ready: true }
+          : {
+              status: "pending",
+              checkout_url: "https://checkout.stripe.com/c/pay/test",
+            },
+      ),
+    );
+    render(<OfferLanding offer={{ ...offer, bump_offer: bump }} />);
+    const extra = screen.getByRole("checkbox", { name: /Add Extra templates/ });
+    expect((extra as HTMLInputElement).checked).toBe(false);
+    await waitFor(() =>
+      expect((extra as HTMLInputElement).disabled).toBe(false),
+    );
+    fireEvent.click(extra);
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "buyer@example.com" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Also send me/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Continue to checkout · \$5/ }),
+    );
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    expect(invoke).toHaveBeenCalledWith(
+      "offers-api",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          action: "claim",
+          bump_offer_id: bump.id,
+          email: "buyer@example.com",
+        }),
+      }),
+    );
+  });
+  it("reveals the downsell after a target-bound decline while keeping both purchased downloads", async () => {
+    openAccess();
+    const upsell = {
+      ...offer,
+      id: "33333333-3333-4333-8333-333333333333",
+      title: "Implementation course",
+    };
+    const downsell = {
+      ...offer,
+      id: "44444444-4444-4444-8444-444444444444",
+      title: "Quick reference",
+    };
+    const items = [
+      {
+        id: "primary-item",
+        offer_id: offer.id,
+        role: "primary" as const,
+        title: offer.title,
+        asset_name: "guide.pdf",
+        amount_minor: 0,
+        currency: "usd",
+      },
+      {
+        id: "bump-item",
+        offer_id: bump.id,
+        role: "bump" as const,
+        title: bump.title,
+        asset_name: "extras.pdf",
+        amount_minor: 500,
+        currency: "usd",
+      },
+    ];
+    let declined = false;
+    invoke.mockImplementation(async (_name, { body }) => {
+      if (body.action === "decline") {
+        declined = true;
+        return respond({ ok: true });
+      }
+      return respond({
+        ...access,
+        items,
+        next_offer: declined ? downsell : upsell,
+        follow_up_stage: declined ? "downsell" : "upsell",
+      });
+    });
+    render(<OfferAccessPage />);
+    await screen.findByText("Implementation course");
+    fireEvent.click(screen.getByRole("button", { name: "No thanks" }));
+    await screen.findByText("Quick reference");
+    expect(invoke).toHaveBeenCalledWith(
+      "offers-api",
+      expect.objectContaining({
+        body: { action: "decline", token, offer_id: upsell.id },
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: `Download ${offer.title}` }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: `Download ${bump.title}` }),
+    ).toBeTruthy();
+    expect(screen.getByText("An optional alternative")).toBeTruthy();
+  });
+});
+
+it("keeps the local preview extra in sync when an author adds, edits or removes it", () => {
+  const extra = {
+    id: "extra",
+    slug: "extra",
+    title: "First extra",
+    summary: "Extra files",
+    cover_url: null,
+    kind: "paid" as const,
+    amount_minor: 500,
+    currency: "usd",
+  };
+  const { rerender } = render(<OfferLanding offer={offer} preview />);
+  expect(
+    screen.queryByRole("checkbox", { name: /Add First extra/ }),
+  ).toBeNull();
+  rerender(<OfferLanding offer={{ ...offer, bump_offer: extra }} preview />);
+  expect(
+    (
+      screen.getByRole("checkbox", {
+        name: /Add First extra/,
+      }) as HTMLInputElement
+    ).disabled,
+  ).toBe(true);
+  rerender(
+    <OfferLanding
+      offer={{
+        ...offer,
+        bump_offer: { ...extra, title: "Replacement extra", amount_minor: 900 },
+      }}
+      preview
+    />,
+  );
+  expect(
+    screen.queryByRole("checkbox", { name: /Add First extra/ }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("checkbox", { name: /Add Replacement extra · \$9/ }),
+  ).toBeTruthy();
+  rerender(<OfferLanding offer={{ ...offer, bump_offer: null }} preview />);
+  expect(
+    screen.queryByRole("checkbox", { name: /Add Replacement extra/ }),
+  ).toBeNull();
+  expect(invoke).not.toHaveBeenCalled();
+});

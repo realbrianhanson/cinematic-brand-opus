@@ -7,6 +7,7 @@ import {
 } from "react";
 import { ArrowRight, ArrowUpRight, Download, LockKeyhole } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
+import OfferBumpChoice from "@/components/offers/OfferBumpChoice";
 import OfferSections from "@/components/offers/OfferSections";
 import { readPresentation } from "@/lib/offerBuilder";
 import type { ShopOffer } from "@/lib/shop";
@@ -311,6 +312,16 @@ function NativeOfferLanding({
   relatedOffers = [],
 }: OfferLandingProps) {
   const { footer, identity } = useSiteConfig();
+  const [liveBump, setBump] = useState(offer.bump_offer ?? null);
+  const bump = preview ? (offer.bump_offer ?? null) : liveBump;
+  const [bumpSelected, setBumpSelected] = useState(false);
+  const paidBasket = offer.kind === "paid" || (bumpSelected && !!bump);
+  const basketPrice = offerPrice({
+    kind: paidBasket ? "paid" : "free",
+    currency: offer.currency,
+    amount_minor:
+      offer.amount_minor + (bumpSelected && bump ? bump.amount_minor : 0),
+  });
   const [hydrated, setHydrated] = useState(false);
   const [readiness, setReadiness] = useState<
     "checking" | "ready" | "unavailable" | "error"
@@ -325,7 +336,7 @@ function NativeOfferLanding({
   }, []);
   useEffect(() => {
     if (preview) return;
-    if (offer.kind === "free") {
+    if (offer.kind === "free" && !offer.bump_offer) {
       setReadiness("ready");
       return;
     }
@@ -342,8 +353,11 @@ function NativeOfferLanding({
       .then((result) => {
         if (typeof result?.payments_ready !== "boolean")
           throw new Error("Availability could not be checked.");
-        if (active)
+        if (active) {
           setReadiness(result.payments_ready ? "ready" : "unavailable");
+          if (result.offer && !tokenRef.current)
+            setBump(result.offer.bump_offer ?? null);
+        }
       })
       .catch(() => {
         if (active) setReadiness("error");
@@ -354,14 +368,14 @@ function NativeOfferLanding({
     return () => {
       active = false;
     };
-  }, [offer.kind, offer.slug, preview, availabilityAttempt]);
+  }, [offer.kind, offer.slug, offer.bump_offer, preview, availabilityAttempt]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
       !hydrated ||
       busy ||
       preview ||
-      readiness !== "ready" ||
+      (paidBasket && readiness !== "ready") ||
       offer.funnel_only
     )
       return;
@@ -382,6 +396,7 @@ function NativeOfferLanding({
     try {
       const result = await requestOfferAccess({
         offerId: offer.id,
+        bumpOfferId: bumpSelected ? bump?.id : undefined,
         email,
         name,
         token,
@@ -437,7 +452,7 @@ function NativeOfferLanding({
             {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
           </h2>
           <p className="text-sm leading-relaxed mt-3 text-white/75">
-            {offer.kind === "free"
+            {!paidBasket
               ? "Enter your email and your download opens on the next page"
               : "One payment. Your access opens once the payment is confirmed"}
           </p>
@@ -470,6 +485,23 @@ function NativeOfferLanding({
                   disabled={!hydrated || busy || preview}
                 />
               </label>
+              {bump && (
+                <OfferBumpChoice
+                  offer={bump}
+                  selected={bumpSelected}
+                  disabled={
+                    !hydrated ||
+                    busy ||
+                    preview ||
+                    !!tokenRef.current ||
+                    readiness !== "ready"
+                  }
+                  onChange={setBumpSelected}
+                />
+              )}
+              {bumpSelected && bump && (
+                <p className="text-sm font-semibold">Total: {basketPrice}</p>
+              )}
               {offer.kind === "free" && (
                 <NewsletterConsent
                   owner={identity.name}
@@ -479,7 +511,12 @@ function NativeOfferLanding({
               <button
                 type="submit"
                 aria-label={preview ? "Preview only" : undefined}
-                disabled={!hydrated || busy || preview || readiness !== "ready"}
+                disabled={
+                  !hydrated ||
+                  busy ||
+                  preview ||
+                  (paidBasket && readiness !== "ready")
+                }
                 className="w-full inline-flex items-center justify-center gap-2 rounded px-4 py-4 font-bold text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                 style={{
                   background: "var(--brand-accent)",
@@ -488,9 +525,11 @@ function NativeOfferLanding({
               >
                 {busy
                   ? "Opening…"
-                  : offer.kind === "free"
-                    ? offerPrimaryCta(offer)
-                    : `${offerPrimaryCta(offer)} · ${preview ? offerPreviewPrice(offer) : offerPrice(offer)}`}
+                  : bumpSelected
+                    ? `Continue to checkout · ${basketPrice}`
+                    : offer.kind === "free"
+                      ? offerPrimaryCta(offer)
+                      : `${offerPrimaryCta(offer)} · ${preview ? offerPreviewPrice(offer) : offerPrice(offer)}`}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
               {readPresentation(offer.presentation)?.landing.ctaMicrocopy && (
@@ -503,31 +542,33 @@ function NativeOfferLanding({
                   Enable JavaScript to request this resource or start checkout
                 </p>
               </noscript>
-              {offer.kind === "paid" && !preview && readiness !== "ready" && (
-                <div className="text-sm text-white/75">
-                  <p role="status">
-                    {readiness === "checking"
-                      ? "Checking availability…"
-                      : readiness === "error"
-                        ? "We couldn’t check checkout availability. Your details are still here."
-                        : "Purchases are not available yet. Check back soon"}
-                  </p>
-                  {readiness === "error" && (
-                    <button
-                      type="button"
-                      className="mt-3 rounded border border-white/30 px-4 py-3 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                      onClick={() => {
-                        if (checkingAvailability.current) return;
-                        checkingAvailability.current = true;
-                        setReadiness("checking");
-                        setAvailabilityAttempt((attempt) => attempt + 1);
-                      }}
-                    >
-                      Check again
-                    </button>
-                  )}
-                </div>
-              )}
+              {(offer.kind === "paid" || bump) &&
+                !preview &&
+                readiness !== "ready" && (
+                  <div className="text-sm text-white/75">
+                    <p role="status">
+                      {readiness === "checking"
+                        ? "Checking availability…"
+                        : readiness === "error"
+                          ? "We couldn’t check checkout availability. Your details are still here."
+                          : "Purchases are not available yet. Check back soon"}
+                    </p>
+                    {readiness === "error" && (
+                      <button
+                        type="button"
+                        className="mt-3 rounded border border-white/30 px-4 py-3 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                        onClick={() => {
+                          if (checkingAvailability.current) return;
+                          checkingAvailability.current = true;
+                          setReadiness("checking");
+                          setAvailabilityAttempt((attempt) => attempt + 1);
+                        }}
+                      >
+                        Check again
+                      </button>
+                    )}
+                  </div>
+                )}
               {error && (
                 <p role="alert" className="text-sm text-red-300">
                   {error}
@@ -558,7 +599,7 @@ function NativeOfferLanding({
                   </>
                 )}
               </p>
-              {offer.kind === "paid" && (
+              {paidBasket && (
                 <p className="text-xs text-white/70 flex items-center gap-2">
                   <LockKeyhole size={13} aria-hidden="true" />
                   Payment is handled by Stripe

@@ -8,6 +8,9 @@ type Choice = {
   status: string;
   next_offer_id: string | null;
   funnel_only?: boolean;
+  kind?: string;
+  currency?: string;
+  amount_minor?: number;
 };
 
 /** Builder step 3: an optional follow-up after fulfillment. */
@@ -40,6 +43,7 @@ export default function OfferNextStep({
   onRetryChoices: () => void;
   onRetryPreview: () => void;
 }) {
+  const downsell = choices?.find((offer) => offer.id === form.downsellOffer);
   const update = <K extends keyof Form>(key: K, value: Form[K]) =>
     onChange({ [key]: value } as Partial<Form>);
   return (
@@ -82,11 +86,17 @@ export default function OfferNextStep({
                 ? `${nextChoice.title} (${nextChoice.status})`
                 : "Optional follow-up offer"}
           </li>
+          {!external && form.downsellOffer && (
+            <li className="rounded-lg border border-current/10 p-3">
+              4. After declining: {downsell?.title || "Selected alternative"} (
+              {downsell?.status || "unavailable"})
+            </li>
+          )}
         </ol>
         <p className="admin-help">
           {external
             ? "This page sends visitors to the provider. It does not create a local order or download."
-            : "Accept opens the follow-up checkout. No thanks ends the pitch and keeps the original download available; it does not route to a downsell."}
+            : "Accept opens a separate follow-up checkout. No thanks shows your optional alternative if configured; declining that ends the pitch. The original download stays available."}
         </p>
       </section>
       {external ? (
@@ -95,6 +105,46 @@ export default function OfferNextStep({
         </p>
       ) : (
         <>
+          <section className="admin-card p-5 md:p-6 space-y-4">
+            <h2 className="text-lg font-semibold">
+              Optional extra at checkout
+            </h2>
+            <p className="admin-help">
+              Visitors choose whether to add this download. It starts unchecked,
+              uses the same payment, and unlocks a separate file after payment.
+              Its own follow-up settings do not run for an extra.
+            </p>
+            <label className="block text-sm font-medium">
+              Checkout extra
+              <select
+                className="admin-input mt-2 w-full"
+                value={form.bumpOffer}
+                disabled={choicesPending || choicesError}
+                onChange={(event) => update("bumpOffer", event.target.value)}
+              >
+                <option value="">No checkout extra</option>
+                {choices
+                  ?.filter(
+                    (offer) =>
+                      offer.id === form.bumpOffer ||
+                      (offer.id !== savedId &&
+                        offer.kind === "paid" &&
+                        offer.currency === form.currency &&
+                        offer.status !== "archived"),
+                  )
+                  .map((offer) => (
+                    <option key={offer.id} value={offer.id}>
+                      {offer.title} ({offer.status})
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <p className="admin-help">
+              Choose a published paid offer in {form.currency.toUpperCase()}.
+              The public preview only shows an extra while it is published and
+              eligible.
+            </p>
+          </section>
           <section className="admin-card p-5 md:p-6 space-y-5">
             <h2 className="text-lg font-semibold">
               Offer a relevant next step
@@ -122,7 +172,15 @@ export default function OfferNextStep({
                 className="admin-input mt-2 w-full"
                 value={form.nextOffer}
                 disabled={choicesPending || choicesError}
-                onChange={(event) => update("nextOffer", event.target.value)}
+                onChange={(event) =>
+                  onChange({
+                    nextOffer: event.target.value,
+                    ...(!event.target.value ||
+                    event.target.value === form.downsellOffer
+                      ? { downsellOffer: "" }
+                      : {}),
+                  })
+                }
               >
                 <option value="">No follow-up</option>
                 {choices
@@ -155,6 +213,38 @@ export default function OfferNextStep({
                     presentation to change the pitch shown here.
                   </p>
                 </div>
+                <label className="block text-sm font-medium">
+                  Alternative after decline
+                  <select
+                    className="admin-input mt-2 w-full"
+                    value={form.downsellOffer}
+                    disabled={choicesPending || choicesError}
+                    onChange={(event) =>
+                      update("downsellOffer", event.target.value)
+                    }
+                  >
+                    <option value="">No alternative</option>
+                    {choices
+                      ?.filter(
+                        (offer) =>
+                          offer.id !== savedId &&
+                          offer.id !== form.nextOffer &&
+                          (offer.status !== "archived" ||
+                            offer.id === form.downsellOffer),
+                      )
+                      .map((offer) => (
+                        <option key={offer.id} value={offer.id}>
+                          {offer.title} ({offer.status})
+                        </option>
+                      ))}
+                  </select>
+                  <span className="admin-help block mt-2">
+                    Only appears after declining the first follow-up. Both
+                    invitations share the original deadline and can create at
+                    most one follow-up order. Edit the selected offer’s upsell
+                    presentation to change this pitch.
+                  </span>
+                </label>
                 <label className="block text-sm font-medium">
                   Time available after fulfillment, in minutes
                   <input

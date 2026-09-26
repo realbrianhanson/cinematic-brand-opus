@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Copy, Download, RefreshCw } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
 import OfferRecovery from "@/components/OfferRecovery";
+import OfferBumpChoice from "@/components/offers/OfferBumpChoice";
 import OfferSections from "@/components/offers/OfferSections";
 import { measurementForClaim, recordMeasurement } from "@/lib/measurement";
 import { readPresentation } from "@/lib/offerBuilder";
@@ -30,6 +31,7 @@ export default function OfferAccess() {
   const [parent, setParent] = useState("");
   const [recoveryToken, setRecoveryToken] = useState("");
   const [closedFollowUp, setClosedFollowUp] = useState(false);
+  const [bumpSelected, setBumpSelected] = useState(false);
   const [now, setNow] = useState(Date.now());
   const childToken = useRef<{ id: string; token: string } | null>(null);
   const currentToken = useRef("");
@@ -136,6 +138,10 @@ export default function OfferAccess() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [data?.next_offer_deadline]);
+  useEffect(() => {
+    setBumpSelected(false);
+    childToken.current = null;
+  }, [data?.next_offer?.id]);
   async function act(action: string, work: () => Promise<void>) {
     if (actionLock.current) return;
     const lock = {};
@@ -183,6 +189,9 @@ export default function OfferAccess() {
     const result = await invokeOfferApi<OfferClaim>({
       action: "claim",
       offer_id: next.id,
+      ...(bumpSelected && next.bump_offer
+        ? { bump_offer_id: next.bump_offer.id }
+        : {}),
       token: nextToken,
       parent_token: token,
       ...(measurement ? { measurement } : {}),
@@ -205,6 +214,28 @@ export default function OfferAccess() {
     !!data?.next_offer_deadline &&
     new Date(data.next_offer_deadline).getTime() <= now;
   const next = expiredNext || closedFollowUp ? null : data?.next_offer;
+  const nextPaid =
+    next?.kind === "paid" || (bumpSelected && !!next?.bump_offer);
+  const nextPrice = next
+    ? offerPrice({
+        kind: nextPaid ? "paid" : "free",
+        currency: next.currency,
+        amount_minor:
+          next.amount_minor +
+          (bumpSelected ? (next.bump_offer?.amount_minor ?? 0) : 0),
+      })
+    : "";
+  const downloads = data?.items?.length
+    ? data.items
+    : data
+      ? [
+          {
+            id: null,
+            title: data.order.title,
+            asset_name: data.order.asset_name,
+          },
+        ]
+      : [];
   const upsell = readPresentation(next?.presentation)?.upsell;
   const thanks = readPresentation(data?.presentation)?.thankYou;
   return (
@@ -256,37 +287,49 @@ export default function OfferAccess() {
                     </p>
                   </div>
                 )}
-                <p className="mt-4 text-sm text-white/70 break-words">
-                  {data.order.asset_name}
-                </p>
-                <button
-                  className={`${buttonClass} mt-6`}
-                  disabled={!!busy}
-                  style={{
-                    background: "var(--brand-accent)",
-                    color: "var(--brand-backdrop)",
-                  }}
-                  onClick={() =>
-                    void act("download", async () => {
-                      const file = await invokeOfferApi<{
-                        url: string;
-                        filename: string;
-                      }>({ action: "download", token });
-                      if (currentToken.current !== token) return;
-                      const link = document.createElement("a");
-                      link.href = safeOfferRedirect(file.url);
-                      link.download = file.filename;
-                      link.rel = "noreferrer noopener";
-                      link.target = "_blank";
-                      document.body.appendChild(link);
-                      link.click();
-                      link.remove();
-                    })
-                  }
-                >
-                  <Download size={18} aria-hidden="true" />
-                  {busy === "download" ? "Preparing…" : "Download file"}
-                </button>
+                {downloads.map((item) => (
+                  <div key={item.id ?? "primary"}>
+                    <p className="mt-4 text-sm text-white/70 break-words">
+                      {item.asset_name}
+                    </p>
+                    <button
+                      className={`${buttonClass} mt-6`}
+                      disabled={!!busy}
+                      style={{
+                        background: "var(--brand-accent)",
+                        color: "var(--brand-backdrop)",
+                      }}
+                      onClick={() =>
+                        void act("download", async () => {
+                          const file = await invokeOfferApi<{
+                            url: string;
+                            filename: string;
+                          }>({
+                            action: "download",
+                            token,
+                            ...(item.id ? { item_id: item.id } : {}),
+                          });
+                          if (currentToken.current !== token) return;
+                          const link = document.createElement("a");
+                          link.href = safeOfferRedirect(file.url);
+                          link.download = file.filename;
+                          link.rel = "noreferrer noopener";
+                          link.target = "_blank";
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                        })
+                      }
+                    >
+                      <Download size={18} aria-hidden="true" />
+                      {busy === "download"
+                        ? "Preparing…"
+                        : downloads.length > 1
+                          ? `Download ${item.title}`
+                          : "Download file"}
+                    </button>
+                  </div>
+                ))}
               </>
             ) : data.order.status === "pending" ? (
               <>
@@ -496,7 +539,10 @@ export default function OfferAccess() {
             data-conversion-parent-offer-id={data?.order.offer_id}
           >
             <p className="text-xs uppercase tracking-widest text-white/70">
-              {upsell?.eyebrow || "An optional next step"}
+              {upsell?.eyebrow ||
+                (data?.follow_up_stage === "downsell"
+                  ? "An optional alternative"
+                  : "An optional next step")}
             </p>
             <h2 className="font-display text-3xl mt-3">
               {upsell?.headline || next.title}
@@ -524,14 +570,26 @@ export default function OfferAccess() {
               />
             </div>
             <p className="font-bold text-xl mt-5">
-              {offerPrice(next)}
-              {next.kind === "paid" && (
+              {nextPrice}
+              {nextPaid && (
                 <span className="text-sm font-normal text-white/70">
                   {" "}
                   · one payment
                 </span>
               )}
             </p>
+            {next.bump_offer && (
+              <div className="mt-5">
+                <OfferBumpChoice
+                  offer={next.bump_offer}
+                  selected={bumpSelected}
+                  disabled={
+                    !!busy || !!childToken.current || !data?.payments_ready
+                  }
+                  onChange={setBumpSelected}
+                />
+              </div>
+            )}
             {data?.next_offer_deadline && (
               <p className="mt-3 text-sm text-white/75">
                 Start checkout by{" "}
@@ -547,23 +605,25 @@ export default function OfferAccess() {
                   background: "var(--brand-accent)",
                   color: "var(--brand-backdrop)",
                 }}
-                disabled={
-                  !!busy || (next.kind === "paid" && !data?.payments_ready)
-                }
+                disabled={!!busy || (nextPaid && !data?.payments_ready)}
                 onClick={() => void act("accept", acceptNext)}
               >
                 {busy === "accept"
                   ? "Opening…"
-                  : next.kind === "free"
+                  : !nextPaid
                     ? upsell?.ctaText || "Get this free resource"
-                    : `${upsell?.ctaText || "Continue to checkout"} · ${offerPrice(next)}`}
+                    : `${upsell?.ctaText || "Continue to checkout"} · ${nextPrice}`}
               </button>
               <button
                 className={buttonClass}
                 disabled={!!busy}
                 onClick={() =>
                   void act("decline", async () => {
-                    await invokeOfferApi({ action: "decline", token });
+                    await invokeOfferApi({
+                      action: "decline",
+                      token,
+                      offer_id: next.id,
+                    });
                     if (currentToken.current !== token) return;
                     if (data?.order.offer_id)
                       recordMeasurement([
@@ -574,10 +634,12 @@ export default function OfferAccess() {
                           parent_offer_id: data.order.offer_id,
                         },
                       ]);
-                    await refresh();
+                    const updated = await refresh();
                     if (currentToken.current !== token) return;
                     setNotice(
-                      "Follow-up offer declined. Your original download is still available",
+                      updated?.next_offer
+                        ? "Offer declined. An optional alternative is available below. Your original download is still available"
+                        : "Follow-up offer declined. Your original download is still available",
                     );
                   })
                 }
@@ -590,12 +652,12 @@ export default function OfferAccess() {
                 {upsell.ctaMicrocopy}
               </p>
             )}
-            {next.kind === "paid" && (
+            {nextPaid && (
               <p className="mt-3 text-sm text-white/75">
                 You will review and confirm this separate payment at checkout
               </p>
             )}
-            {next.kind === "paid" && !data?.payments_ready && (
+            {nextPaid && !data?.payments_ready && (
               <p className="mt-3 text-sm text-white/75">
                 This purchase is not available yet
               </p>

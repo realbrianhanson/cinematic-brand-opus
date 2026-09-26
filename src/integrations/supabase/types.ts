@@ -586,6 +586,306 @@ export type Database = {
         }
         Relationships: []
       }
+      external_payment_events: {
+        Row: {
+          account_id: string
+          event_id: string
+          event_type: string
+          inserted: number
+          mode: string
+          observed_at: string
+          payload_hash: string
+          payment_count: number
+          processed_at: string
+          provider: string
+          provider_created_at: string
+          received_at: string
+          refund_decreases: number
+          resolution: string
+          unchanged: number
+          updated: number
+        }
+        Insert: {
+          account_id: string
+          event_id: string
+          event_type: string
+          inserted?: number
+          mode: string
+          observed_at: string
+          payload_hash: string
+          payment_count: number
+          processed_at?: string
+          provider: string
+          provider_created_at: string
+          received_at?: string
+          refund_decreases?: number
+          resolution: string
+          unchanged?: number
+          updated?: number
+        }
+        Update: {
+          account_id?: string
+          event_id?: string
+          event_type?: string
+          inserted?: number
+          mode?: string
+          observed_at?: string
+          payload_hash?: string
+          payment_count?: number
+          processed_at?: string
+          provider?: string
+          provider_created_at?: string
+          received_at?: string
+          refund_decreases?: number
+          resolution?: string
+          unchanged?: number
+          updated?: number
+        }
+        Relationships: []
+      }
+      external_payment_refreshes: {
+        Row: {
+          account_id: string
+          fence: number
+          lease_until: string | null
+          mode: string
+          payment_id: string
+          provider: string
+        }
+        Insert: {
+          account_id: string
+          fence: number
+          lease_until?: string | null
+          mode: string
+          payment_id: string
+          provider: string
+        }
+        Update: {
+          account_id?: string
+          fence?: number
+          lease_until?: string | null
+          mode?: string
+          payment_id?: string
+          provider?: string
+        }
+        Relationships: []
+      }
+      external_payments: {
+        Row: {
+          account_id: string
+          amount_minor: number
+          charge_id: string
+          created_at: string
+          currency: string
+          destination: string
+          first_observed_at: string
+          last_observed_at: string
+          mode: string
+          occurred_at: string
+          payment_id: string
+          price_ids: string[]
+          provider: string
+          refunded_minor: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          amount_minor: number
+          charge_id: string
+          created_at?: string
+          currency: string
+          destination: string
+          first_observed_at: string
+          last_observed_at: string
+          mode: string
+          occurred_at: string
+          payment_id: string
+          price_ids: string[]
+          provider: string
+          refunded_minor: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          amount_minor?: number
+          charge_id?: string
+          created_at?: string
+          currency?: string
+          destination?: string
+          first_observed_at?: string
+          last_observed_at?: string
+          mode?: string
+          occurred_at?: string
+          payment_id?: string
+          price_ids?: string[]
+          provider?: string
+          refunded_minor?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      funnel_journey_requests: {
+        Row: {
+          created_at: string
+          input: Json
+          request_id: string
+          result: Json
+        }
+        Insert: {
+          created_at?: string
+          input: Json
+          request_id: string
+          result: Json
+        }
+        Update: {
+          created_at?: string
+          input?: Json
+          request_id?: string
+          result?: Json
+        }
+        Relationships: []
+      }
+      funnel_journey_revisions: {
+        Row: {
+          created_at: string
+          graph: Json
+          journey_id: string
+          published: boolean
+          slug: string
+          title: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          graph: Json
+          journey_id: string
+          published: boolean
+          slug: string
+          title: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          graph?: Json
+          journey_id?: string
+          published?: boolean
+          slug?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_journey_revisions_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "funnel_journeys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funnel_journey_sessions: {
+        Row: {
+          answers: Json
+          current_step: string
+          expires_at: string
+          journey_id: string
+          revision: number
+          token_hash: string
+          version: number
+          visited: Json
+        }
+        Insert: {
+          answers?: Json
+          current_step: string
+          expires_at?: string
+          journey_id: string
+          revision: number
+          token_hash: string
+          version?: number
+          visited?: Json
+        }
+        Update: {
+          answers?: Json
+          current_step?: string
+          expires_at?: string
+          journey_id?: string
+          revision?: number
+          token_hash?: string
+          version?: number
+          visited?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_journey_sessions_journey_id_revision_fkey"
+            columns: ["journey_id", "revision"]
+            isOneToOne: false
+            referencedRelation: "funnel_journey_revisions"
+            referencedColumns: ["journey_id", "version"]
+          },
+        ]
+      }
+      funnel_journey_transitions: {
+        Row: {
+          input: Json
+          request_id: string
+          result: Json
+          token_hash: string
+        }
+        Insert: {
+          input: Json
+          request_id: string
+          result: Json
+          token_hash: string
+        }
+        Update: {
+          input?: Json
+          request_id?: string
+          result?: Json
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_journey_transitions_token_hash_fkey"
+            columns: ["token_hash"]
+            isOneToOne: false
+            referencedRelation: "funnel_journey_sessions"
+            referencedColumns: ["token_hash"]
+          },
+        ]
+      }
+      funnel_journeys: {
+        Row: {
+          active: boolean
+          draft_graph: Json
+          id: string
+          published_version: number | null
+          slug: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          draft_graph: Json
+          id: string
+          published_version?: number | null
+          slug: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          draft_graph?: Json
+          id?: string
+          published_version?: number | null
+          slug?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       generated_page_revisions: {
         Row: {
           actor_id: string | null
@@ -1669,6 +1969,164 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_experiment_assignments: {
+        Row: {
+          assigned_at: string
+          experiment_id: string
+          exposed_at: string | null
+          session_id: string
+          variant: string
+        }
+        Insert: {
+          assigned_at?: string
+          experiment_id: string
+          exposed_at?: string | null
+          session_id: string
+          variant: string
+        }
+        Update: {
+          assigned_at?: string
+          experiment_id?: string
+          exposed_at?: string | null
+          session_id?: string
+          variant?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_experiment_assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "offer_experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_experiment_assignments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_experiments: {
+        Row: {
+          created_at: string
+          end_reason: string | null
+          ended_at: string | null
+          hypothesis: string
+          id: string
+          metric: string
+          minimum_days: number
+          minimum_per_variant: number
+          name: string
+          offer_id: string
+          source_updated_at: string
+          started_at: string | null
+          state: string
+          variant_a: Json
+          variant_b: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          hypothesis: string
+          id?: string
+          metric: string
+          minimum_days: number
+          minimum_per_variant: number
+          name: string
+          offer_id: string
+          source_updated_at: string
+          started_at?: string | null
+          state?: string
+          variant_a: Json
+          variant_b: Json
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          hypothesis?: string
+          id?: string
+          metric?: string
+          minimum_days?: number
+          minimum_per_variant?: number
+          name?: string
+          offer_id?: string
+          source_updated_at?: string
+          started_at?: string | null
+          state?: string
+          variant_a?: Json
+          variant_b?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_experiments_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_order_items: {
+        Row: {
+          amount_minor: number
+          asset_name_snapshot: string
+          asset_path_snapshot: string
+          created_at: string
+          currency: string
+          id: string
+          offer_id: string
+          order_id: string
+          role: string
+          title_snapshot: string
+        }
+        Insert: {
+          amount_minor: number
+          asset_name_snapshot: string
+          asset_path_snapshot: string
+          created_at?: string
+          currency: string
+          id?: string
+          offer_id: string
+          order_id: string
+          role: string
+          title_snapshot: string
+        }
+        Update: {
+          amount_minor?: number
+          asset_name_snapshot?: string
+          asset_path_snapshot?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          offer_id?: string
+          order_id?: string
+          role?: string
+          title_snapshot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_order_items_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "offer_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offer_orders: {
         Row: {
           amount_minor: number
@@ -1680,6 +2138,8 @@ export type Database = {
           checkout_retry_token_hash: string | null
           created_at: string
           currency: string
+          downsell_offer_id: string | null
+          upsell_declined_at: string | null
           declined_at: string | null
           email: string
           fulfilled_at: string | null
@@ -1707,6 +2167,8 @@ export type Database = {
           checkout_retry_token_hash?: string | null
           created_at?: string
           currency: string
+          downsell_offer_id?: string | null
+          upsell_declined_at?: string | null
           declined_at?: string | null
           email: string
           fulfilled_at?: string | null
@@ -1734,6 +2196,8 @@ export type Database = {
           checkout_retry_token_hash?: string | null
           created_at?: string
           currency?: string
+          downsell_offer_id?: string | null
+          upsell_declined_at?: string | null
           declined_at?: string | null
           email?: string
           fulfilled_at?: string | null
@@ -1752,6 +2216,13 @@ export type Database = {
           token_hash?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "offer_orders_downsell_offer_id_fkey"
+            columns: ["downsell_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offer_orders_next_offer_id_fkey"
             columns: ["next_offer_id"]
@@ -1838,6 +2309,8 @@ export type Database = {
           amount_minor: number
           asset_name: string | null
           asset_path: string | null
+          bump_offer_id: string | null
+          downsell_offer_id: string | null
           body: string
           checkout_mode: string
           cover_url: string | null
@@ -1868,6 +2341,8 @@ export type Database = {
           amount_minor?: number
           asset_name?: string | null
           asset_path?: string | null
+          bump_offer_id?: string | null
+          downsell_offer_id?: string | null
           body?: string
           checkout_mode?: string
           cover_url?: string | null
@@ -1898,6 +2373,8 @@ export type Database = {
           amount_minor?: number
           asset_name?: string | null
           asset_path?: string | null
+          bump_offer_id?: string | null
+          downsell_offer_id?: string | null
           body?: string
           checkout_mode?: string
           cover_url?: string | null
@@ -1924,6 +2401,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "offers_bump_offer_id_fkey"
+            columns: ["bump_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_downsell_offer_id_fkey"
+            columns: ["downsell_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offers_next_offer_id_fkey"
             columns: ["next_offer_id"]
@@ -2898,6 +3389,12 @@ export type Database = {
         Args: { _days?: number }
         Returns: Json
       }
+      admin_external_payment_snapshot: {
+        Args: {
+          _days?: number
+        }
+        Returns: Json
+      }
       admin_import_external_conversions: {
         Args: { _reference: string; _rows: Json }
         Returns: Json
@@ -2913,7 +3410,36 @@ export type Database = {
         Returns: Json
       }
       admin_offer_copy_allow: { Args: never; Returns: boolean }
-      admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
+      admin_offer_experiment_create: {
+        Args: {
+          _hypothesis: string
+          _minimum_days?: number
+          _minimum_per_variant?: number
+          _name: string
+          _offer_id: string
+          _request_id?: string
+          _variant_b: Json
+        }
+        Returns: string
+      }
+      admin_offer_experiment_transition: {
+        Args: {
+          _id: string
+          _state: string
+          _version: number
+        }
+        Returns: undefined
+      }
+      admin_offer_experiments: {
+        Args: never
+        Returns: Json
+      }
+      admin_offer_journey_snapshot: {
+        Args: {
+          _days?: number
+        }
+        Returns: Json
+      }
       admin_overview_attention_item: {
         Args: {
           _count: number
@@ -3068,9 +3594,98 @@ export type Database = {
         Args: { _order_id: string; _payment_mode: string }
         Returns: undefined
       }
+      external_payment_acquire_refresh: {
+        Args: {
+          _account_id: string
+          _mode: string
+          _payment_id: string
+          _provider: string
+        }
+        Returns: Json
+      }
+      external_payment_apply_event: {
+        Args: {
+          _event: Json
+          _payments: Json
+        }
+        Returns: Json
+      }
+      external_payment_event_status: {
+        Args: {
+          _account_id: string
+          _event_id: string
+          _mode: string
+          _payload_hash: string
+          _provider: string
+        }
+        Returns: Json
+      }
+      external_payment_release_refresh: {
+        Args: {
+          _account_id: string
+          _fence: string
+          _mode: string
+          _payment_id: string
+          _provider: string
+        }
+        Returns: boolean
+      }
       freeze_speaking_notification: {
         Args: { _id: string; _lease_id: string; _payload: Json }
         Returns: boolean
+      }
+      funnel_graph_validate: {
+        Args: {
+          g: Json
+          publishing?: boolean
+        }
+        Returns: undefined
+      }
+      funnel_journey_cleanup: {
+        Args: never
+        Returns: undefined
+      }
+      funnel_journey_save: {
+        Args: {
+          _active: boolean
+          _expected_version: number
+          _graph: Json
+          _id: string
+          _publish: boolean
+          _request_id: string
+          _slug: string
+          _title: string
+        }
+        Returns: Json
+      }
+      funnel_public_journey: {
+        Args: {
+          _slug: string
+        }
+        Returns: Json
+      }
+      funnel_session_advance: {
+        Args: {
+          _answer: string
+          _expected_version: number
+          _request_id: string
+          _step_id: string
+          _token_hash: string
+        }
+        Returns: Json
+      }
+      funnel_session_start: {
+        Args: {
+          _slug: string
+          _token_hash: string
+        }
+        Returns: Json
+      }
+      funnel_session_view: {
+        Args: {
+          _token_hash: string
+        }
+        Returns: Json
       }
       get_cron_invocation_secret: { Args: never; Returns: string }
       gsc_finish_import: {
@@ -3164,7 +3779,9 @@ export type Database = {
         Returns: Json
       }
       offer_builder_document_valid: {
-        Args: { _document: Json }
+        Args: {
+          _document: Json
+        }
         Returns: boolean
       }
       offer_builder_keys: {
@@ -3195,7 +3812,29 @@ export type Database = {
         Returns: boolean
       }
       offer_claim_access_delivery: { Args: { _id: string }; Returns: Json }
-      offer_decline_next: { Args: { _token_hash: string }; Returns: Json }
+      offer_decline_next: {
+        Args: {
+          _offer_id?: string
+          _token_hash: string
+        }
+        Returns: Json
+      }
+      offer_experiment_decide: {
+        Args: {
+          _expose_id?: string
+          _offer_id: string
+          _session_id: string
+          _token_hash: string
+          _variant?: string
+        }
+        Returns: Json
+      }
+      offer_experiment_valid_copy: {
+        Args: {
+          _copy: Json
+        }
+        Returns: boolean
+      }
       offer_finish_access_delivery: {
         Args: {
           _error?: string
@@ -3214,6 +3853,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      offer_order_snapshot: {
+        Args: {
+          _order_id: string
+        }
+        Returns: Json
+      }
       offer_prepare_access_delivery: {
         Args: { _email?: string; _order_id?: string }
         Returns: string
@@ -3226,6 +3871,12 @@ export type Database = {
           _payment_intent_id: string
           _session_id: string
           _token_hash: string
+        }
+        Returns: Json
+      }
+      offer_public_bump: {
+        Args: {
+          _offer_id: string
         }
         Returns: Json
       }
@@ -3255,6 +3906,7 @@ export type Database = {
       offer_requeue_access_delivery: { Args: { _id: string }; Returns: boolean }
       offer_reserve_order: {
         Args: {
+          _bump_offer_id?: string
           _email: string
           _name: string
           _offer_id: string

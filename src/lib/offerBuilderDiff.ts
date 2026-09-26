@@ -10,6 +10,8 @@ export type OfferChangeValues = {
   asset_path?: string | null;
   asset_name?: string | null;
   next_offer_id?: string | null;
+  bump_offer_id?: string | null;
+  downsell_offer_id?: string | null;
   next_offer_window_minutes?: number | null;
   external_url?: string | null;
 };
@@ -96,6 +98,21 @@ export function offerChanges(
     followUpText(before, offerTitle),
     followUpText(after, offerTitle),
   );
+  for (const [field, label] of [
+    ["bump_offer_id", "Optional checkout extra"],
+    ["downsell_offer_id", "Alternative after decline"],
+  ] as const) {
+    if ((before[field] ?? null) !== (after[field] ?? null))
+      changes.push({
+        label,
+        before: before[field]
+          ? offerTitle(before[field]!) || "Selected offer"
+          : "None",
+        after: after[field]
+          ? offerTitle(after[field]!) || "Selected offer"
+          : "None",
+      });
+  }
   return changes;
 }
 
@@ -114,6 +131,8 @@ const contentKeys = [
   "asset_name",
   "thank_you_message",
   "next_offer_id",
+  "bump_offer_id",
+  "downsell_offer_id",
   "next_offer_window_minutes",
   "funnel_only",
   "show_in_shop",

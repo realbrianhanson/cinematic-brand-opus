@@ -129,6 +129,48 @@ function BuildNewsletter() {
   );
 }
 
+function ConnectedBuildContinuation({ project }: { project: ProjectId }) {
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    let current = true;
+    // Optional continuation never blocks the immediate free plan.
+    void import("@/lib/funnelJourneysClient")
+      .then(({ getFunnelJourney }) =>
+        getFunnelJourney("first-ai-build-next-step"),
+      )
+      .then((journey) => {
+        if (current) setAvailable(!!journey);
+      })
+      .catch(() => {
+        /* An unpublished or unavailable journey leaves existing support links intact. */
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+  return available ? (
+    <div className="mt-6 rounded-md border border-white/20 p-4">
+      <p className="text-sm text-white/75">
+        Prefer help choosing? Choose the support you want for the project you’ve
+        already planned.
+      </p>
+      <a
+        href={`/funnels/first-ai-build-next-step?project=${project}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${secondaryButton} mt-3`}
+      >
+        Find my next step
+        <ArrowRight size={18} aria-hidden="true" />
+      </a>
+      <p className="mt-2 text-xs text-white/60">
+        Optional. Your plan is already yours; no email is required for these
+        questions.
+      </p>
+    </div>
+  ) : null;
+}
+
 function PlanResult({
   plan,
   offers,
@@ -510,6 +552,7 @@ function PlanResult({
             </span>
           </p>
         )}
+        <ConnectedBuildContinuation project={plan.projectId} />
       </section>
       <BuildNewsletter />
     </div>

@@ -27,6 +27,7 @@ export type OfferRequestResult =
  */
 export async function requestOfferAccess(input: {
   offerId: string;
+  bumpOfferId?: string;
   email: string;
   name?: string;
   token: string;
@@ -36,6 +37,7 @@ export async function requestOfferAccess(input: {
     action: "claim",
     measurement: await measurementForClaim(),
     offer_id: input.offerId,
+    ...(input.bumpOfferId ? { bump_offer_id: input.bumpOfferId } : {}),
     email: input.email,
     name: input.name ?? "",
     token: input.token,

@@ -12,6 +12,10 @@ import { buildFirstAiPlan, PROJECT_OPTIONS } from "@/lib/firstAiBuild";
 import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
 import { recordMeasurement } from "@/lib/measurement";
 import type { ShopOffer } from "@/lib/shop";
+import { getFunnelJourney } from "@/lib/funnelJourneysClient";
+vi.mock("@/lib/funnelJourneysClient", () => ({
+  getFunnelJourney: vi.fn().mockResolvedValue(null),
+}));
 
 vi.mock("@/lib/measurement", () => ({ recordMeasurement: vi.fn() }));
 vi.mock("@/components/Nav", () => ({ default: () => <nav /> }));
@@ -46,6 +50,7 @@ function createPlan() {
 }
 
 beforeEach(() => {
+  vi.mocked(getFunnelJourney).mockResolvedValue(null);
   vi.stubGlobal("scrollTo", vi.fn());
   Element.prototype.scrollIntoView = vi.fn();
   Object.defineProperty(navigator, "clipboard", {
@@ -63,7 +68,42 @@ afterEach(() => {
 });
 
 describe("Your First AI Build", () => {
-  it("delivers a task-specific plan without email, network requests, or storing business inputs", async () => {
+  it("shows the continuation only after publication and sends no planner inputs", async () => {
+    vi.mocked(getFunnelJourney).mockResolvedValue({
+      slug: "first-ai-build-next-step",
+      title: "Next step",
+      revision: 2,
+    });
+    render(<FirstAiBuild offers={[]} />);
+    createPlan();
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+    const link = await screen.findByRole("link", { name: "Find my next step" });
+    expect(link.getAttribute("href")).toBe(
+      "/funnels/first-ai-build-next-step?project=inquiries",
+    );
+    expect(getFunnelJourney).toHaveBeenCalledExactlyOnceWith(
+      "first-ai-build-next-step",
+    );
+    expect(link.getAttribute("href")).not.toContain(input.businessType);
+  });
+  it("keeps the immediate free output when the optional journey is unavailable", async () => {
+    vi.mocked(getFunnelJourney).mockRejectedValue(new Error("Not deployed"));
+    render(<FirstAiBuild offers={[]} />);
+    createPlan();
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+    await waitFor(() => expect(getFunnelJourney).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("link", { name: "Find my next step" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Copy build prompt" }),
+    ).toBeTruthy();
+  });
+  it("delivers a task-specific plan without email, waiting for a network response, or storing business inputs", async () => {
     const storage = vi.spyOn(Storage.prototype, "setItem");
     render(<FirstAiBuild offers={[]} />);
     createPlan();

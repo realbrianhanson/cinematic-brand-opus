@@ -321,3 +321,35 @@ describe("consistent landing and follow-up rendering", () => {
     expect(upsell).not.toContain("$0");
   });
 });
+
+it("simulates the persisted alternative and optional purchased file without running checkout", () => {
+  render(
+    <OfferBuilderPreview
+      offer={{
+        ...offer,
+        bump_offer: {
+          ...offer,
+          id: "bump",
+          title: "Extra files",
+          kind: "paid",
+        },
+      }}
+      builder={emptyBuilder()}
+      nextOffer={{ ...offer, id: "up", title: "Upgrade" }}
+      downsellOffer={{ ...offer, id: "down", title: "Smaller alternative" }}
+      followUpWindowMinutes={60}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Declined" }));
+  expect(screen.getByText("Smaller alternative")).toBeTruthy();
+  expect(screen.getByText(/same original deadline/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Decline both" }));
+  expect(screen.queryByText("Smaller alternative")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "With checkout extra" }));
+  expect(
+    screen
+      .getByRole("button", { name: "Download Extra files · preview" })
+      .hasAttribute("disabled"),
+  ).toBe(true);
+  expect(invoke).not.toHaveBeenCalled();
+});

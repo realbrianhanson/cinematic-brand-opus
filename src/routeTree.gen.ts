@@ -33,6 +33,8 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAudienceRouteImport } from './routes/admin.audience'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminConversionsRouteImport } from './routes/admin.conversions'
+import { Route as AdminExperimentsRouteImport } from './routes/admin.experiments'
+import { Route as AdminFunnelsRouteImport } from './routes/admin.funnels'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
 import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
 import { Route as AdminLibraryRouteImport } from './routes/admin.library'
@@ -49,6 +51,7 @@ import { Route as AdminResetPasswordRouteImport } from './routes/admin_.reset-pa
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as FunnelsSlugRouteImport } from './routes/funnels.$slug'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as NewsIndexRouteImport } from './routes/news.index'
 import { Route as NewsIdRouteImport } from './routes/news.$id'
@@ -200,6 +203,16 @@ const AdminConversionsRoute = AdminConversionsRouteImport.update({
   path: '/conversions',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminExperimentsRoute = AdminExperimentsRouteImport.update({
+  id: '/experiments',
+  path: '/experiments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFunnelsRoute = AdminFunnelsRouteImport.update({
+  id: '/funnels',
+  path: '/funnels',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminGenerateRoute = AdminGenerateRouteImport.update({
   id: '/generate',
   path: '/generate',
@@ -279,6 +292,11 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => BlogRoute,
+} as any)
+const FunnelsSlugRoute = FunnelsSlugRouteImport.update({
+  id: '/funnels/$slug',
+  path: '/funnels/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesSlugRoute = GuidesSlugRouteImport.update({
   id: '/guides/$slug',
@@ -454,6 +472,8 @@ export interface FileRoutesByFullPath {
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
+  '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
@@ -469,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
@@ -521,6 +542,8 @@ export interface FileRoutesByTo {
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
+  '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
@@ -536,6 +559,7 @@ export interface FileRoutesByTo {
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
@@ -592,6 +616,8 @@ export interface FileRoutesById {
   '/admin/audience': typeof AdminAudienceRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
+  '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/library': typeof AdminLibraryRoute
@@ -607,6 +633,7 @@ export interface FileRoutesById {
   '/admin_/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
   '/newsletter/confirmed': typeof NewsletterConfirmedRoute
@@ -665,6 +692,8 @@ export interface FileRouteTypes {
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
+    | '/admin/experiments'
+    | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
     | '/admin/library'
@@ -680,6 +709,7 @@ export interface FileRouteTypes {
     | '/admin/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
     | '/newsletter/confirmed'
@@ -732,6 +762,8 @@ export interface FileRouteTypes {
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
+    | '/admin/experiments'
+    | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
     | '/admin/library'
@@ -747,6 +779,7 @@ export interface FileRouteTypes {
     | '/admin/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
     | '/newsletter/confirmed'
@@ -802,6 +835,8 @@ export interface FileRouteTypes {
     | '/admin/audience'
     | '/admin/categories'
     | '/admin/conversions'
+    | '/admin/experiments'
+    | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
     | '/admin/library'
@@ -817,6 +852,7 @@ export interface FileRouteTypes {
     | '/admin_/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
     | '/newsletter/confirmed'
@@ -874,6 +910,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   ApiChatRoute: typeof ApiChatRoute
+  FunnelsSlugRoute: typeof FunnelsSlugRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
   NewsletterInvalidRoute: typeof NewsletterInvalidRoute
@@ -1055,6 +1092,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConversionsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/experiments': {
+      id: '/admin/experiments'
+      path: '/experiments'
+      fullPath: '/admin/experiments'
+      preLoaderRoute: typeof AdminExperimentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/funnels': {
+      id: '/admin/funnels'
+      path: '/funnels'
+      fullPath: '/admin/funnels'
+      preLoaderRoute: typeof AdminFunnelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/generate': {
       id: '/admin/generate'
       path: '/generate'
@@ -1166,6 +1217,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof BlogRoute
+    }
+    '/funnels/$slug': {
+      id: '/funnels/$slug'
+      path: '/funnels/$slug'
+      fullPath: '/funnels/$slug'
+      preLoaderRoute: typeof FunnelsSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/guides/$slug': {
       id: '/guides/$slug'
@@ -1377,6 +1435,8 @@ interface AdminRouteChildren {
   AdminAudienceRoute: typeof AdminAudienceRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminConversionsRoute: typeof AdminConversionsRoute
+  AdminExperimentsRoute: typeof AdminExperimentsRoute
+  AdminFunnelsRoute: typeof AdminFunnelsRoute
   AdminGenerateRoute: typeof AdminGenerateRoute
   AdminInquiriesRoute: typeof AdminInquiriesRoute
   AdminLibraryRoute: typeof AdminLibraryRoute
@@ -1409,6 +1469,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAudienceRoute: AdminAudienceRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminConversionsRoute: AdminConversionsRoute,
+  AdminExperimentsRoute: AdminExperimentsRoute,
+  AdminFunnelsRoute: AdminFunnelsRoute,
   AdminGenerateRoute: AdminGenerateRoute,
   AdminInquiriesRoute: AdminInquiriesRoute,
   AdminLibraryRoute: AdminLibraryRoute,
@@ -1514,6 +1576,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminResetPasswordRoute: AdminResetPasswordRoute,
   ApiChatRoute: ApiChatRoute,
+  FunnelsSlugRoute: FunnelsSlugRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,
   NewsletterInvalidRoute: NewsletterInvalidRoute,

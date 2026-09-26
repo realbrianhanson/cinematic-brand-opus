@@ -146,6 +146,8 @@ const row = {
   asset_name: null,
   thank_you_message: "Thank you",
   next_offer_id: null,
+  bump_offer_id: null,
+  downsell_offer_id: null,
   next_offer_window_minutes: 0,
   funnel_only: false,
   show_in_shop: false,

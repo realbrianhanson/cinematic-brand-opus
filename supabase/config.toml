@@ -121,3 +121,12 @@ verify_jwt = false
 
 [functions.process-speaking-notifications]
 verify_jwt = false
+
+[functions.offer-experiments]
+verify_jwt = false
+
+[functions.funnel-journey-api]
+verify_jwt = false
+
+[functions.external-stripe-webhook]
+verify_jwt = false

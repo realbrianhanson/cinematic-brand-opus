@@ -117,3 +117,20 @@ describe("same offer content", () => {
     ).toBe(false);
   });
 });
+
+it("reviews basket and decline links and treats their changes as a real content conflict", () => {
+  const updated = {
+    ...live,
+    bump_offer_id: "extra",
+    downsell_offer_id: "alternative",
+  };
+  expect(offerChanges(live, updated, { offerTitle: (id) => id })).toEqual([
+    { label: "Optional checkout extra", before: "None", after: "extra" },
+    {
+      label: "Alternative after decline",
+      before: "None",
+      after: "alternative",
+    },
+  ]);
+  expect(sameOfferContent({ ...live }, { ...updated })).toBe(false);
+});

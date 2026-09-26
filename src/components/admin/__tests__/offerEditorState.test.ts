@@ -375,3 +375,36 @@ describe("editor hand-off between routes", () => {
     expect(readOfferHandoff("a")).toBeNull();
   });
 });
+
+it("preserves commerce links in private drafts, validates alternatives, and clears native links for external checkout", () => {
+  const form = {
+    ...draft,
+    bumpOffer: "bump",
+    nextOffer: "up",
+    downsellOffer: "down",
+  };
+  expect(draftPayload(form).values).toMatchObject({
+    bump_offer_id: "bump",
+    next_offer_id: "up",
+    downsell_offer_id: "down",
+  });
+  expect(payload(form)).toMatchObject({
+    bump_offer_id: "bump",
+    downsell_offer_id: "down",
+  });
+  expect(formIssues({ ...form, nextOffer: "" })).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ field: "Alternative after decline" }),
+    ]),
+  );
+  expect(formIssues({ ...form, downsellOffer: "up" })).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ field: "Alternative after decline" }),
+    ]),
+  );
+  expect(payload({ ...form, checkoutMode: "external" })).toMatchObject({
+    bump_offer_id: null,
+    next_offer_id: null,
+    downsell_offer_id: null,
+  });
+});

@@ -30,6 +30,8 @@ export type Form = {
   assetName: string;
   thankYou: string;
   nextOffer: string;
+  bumpOffer: string;
+  downsellOffer: string;
   window: string;
   funnelOnly: boolean;
   showInShop: boolean;
@@ -56,6 +58,8 @@ export const empty: Form = {
   assetName: "",
   thankYou: "Thanks! Your download is ready below.",
   nextOffer: "",
+  bumpOffer: "",
+  downsellOffer: "",
   window: "0",
   funnelOnly: false,
   showInShop: false,
@@ -84,6 +88,8 @@ export function toForm(offer: Offer): Form {
     assetName: offer.asset_name || "",
     thankYou: offer.thank_you_message,
     nextOffer: offer.next_offer_id || "",
+    bumpOffer: offer.bump_offer_id || "",
+    downsellOffer: offer.downsell_offer_id || "",
     window: String(offer.next_offer_window_minutes),
     funnelOnly: offer.funnel_only,
     showInShop: offer.show_in_shop,
@@ -252,6 +258,16 @@ export function formIssues(form: Form): Issue[] {
       message:
         "Use a URL slug with lowercase letters, numbers, and single hyphens.",
     });
+  if (
+    !external &&
+    form.downsellOffer &&
+    (!form.nextOffer || form.downsellOffer === form.nextOffer)
+  )
+    issues.push({
+      step: "next",
+      field: "Alternative after decline",
+      message: "Choose a different alternative and a follow-up offer first.",
+    });
   issues.push(coverIssue(form.cover), priceIssue(form), windowIssue(form));
   issues.push(...publishedIssues(form));
   return issues.filter((issue): issue is Issue => !!issue);
@@ -285,6 +301,8 @@ function toRow(
     asset_name: external ? null : form.assetName || null,
     thank_you_message: external ? "" : form.thankYou.trim(),
     next_offer_id: external ? null : form.nextOffer || null,
+    bump_offer_id: external ? null : form.bumpOffer || null,
+    downsell_offer_id: external ? null : form.downsellOffer || null,
     next_offer_window_minutes: !external && form.nextOffer ? parts.window : 0,
     funnel_only: !external && form.funnelOnly,
     show_in_shop: form.showInShop,

@@ -6,7 +6,18 @@ export type OfferKind = "free" | "paid";
 export type OfferCheckoutMode = "native" | "external";
 export type OfferPriceDisplayMode = "fixed" | "provider";
 export type OfferCurrency = "usd" | "cad" | "eur" | "gbp" | "aud";
+export interface PublicBumpOffer {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  cover_url: string | null;
+  kind: "paid";
+  amount_minor: number;
+  currency: string;
+}
 export interface PublicOffer {
+  bump_offer?: PublicBumpOffer | null;
   id: string;
   slug: string;
   title: string;
@@ -41,6 +52,16 @@ export interface OfferHealth {
   delivery_needs_review?: number;
 }
 export interface OfferAccess {
+  items?: {
+    id: string | null;
+    offer_id: string;
+    role: "primary" | "bump";
+    title: string;
+    asset_name: string;
+    amount_minor: number;
+    currency: string;
+  }[];
+  follow_up_stage?: "upsell" | "downsell" | null;
   checkout_recovery?: { available: boolean; reason: string };
   order: {
     id: string;
