@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -94,7 +95,8 @@ describe("optional offer copy delivery", () => {
     await screen.findByText("Alternate title");
     expect(state.request).toHaveBeenCalledTimes(1);
     expect(screen.getByText("700")).toBeTruthy();
-    state.observers[0]([{ isIntersecting: true }]);
+    await waitFor(() => expect(state.observers).toHaveLength(1));
+    await act(async () => state.observers[0]([{ isIntersecting: true }]));
     await waitFor(() => expect(state.request).toHaveBeenCalledTimes(2));
     expect(state.request.mock.calls[1][3]).toEqual(decision);
   });
@@ -105,8 +107,8 @@ describe("optional offer copy delivery", () => {
     });
     render(<ExperimentOffer offer={offer} />);
     await screen.findByText("Alternate title");
-    state.observers[0]([{ isIntersecting: true }]);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => expect(state.observers).toHaveLength(1));
+    await act(async () => state.observers[0]([{ isIntersecting: true }]));
     expect(state.request).toHaveBeenCalledTimes(1);
   });
   it("preserves copy after a visitor begins interacting", async () => {
