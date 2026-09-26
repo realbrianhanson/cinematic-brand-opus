@@ -1,10 +1,12 @@
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { waitForUpload } from "@/lib/uploadWait";
+import { withTimeout } from "@/lib/withTimeout";
 import { errorMessage } from "@/lib/errorMessage";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Upload,
-  X,
   Loader2,
   Image as ImageIconLucide,
   FolderOpen,
@@ -37,24 +39,55 @@ const ImagePickerModal = ({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const generation = useRef(0);
+  const reads = useRef(0);
+  const uploadController = useRef<AbortController | null>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const close = () => {
+    generation.current += 1;
+    uploadController.current?.abort();
+    onClose();
+  };
+  useEffect(() => {
+    if (!open) {
+      setUploading(false);
+      setLoading(false);
+    }
+    return () => {
+      generation.current += 1;
+      uploadController.current?.abort();
+      uploadController.current = null;
+    };
+  }, [open]);
 
   const fetchImages = useCallback(async () => {
+    const current = generation.current;
+    const read = ++reads.current;
+    const active = () =>
+      current === generation.current && read === reads.current;
     setLoading(true);
     setLoadError(null);
     try {
-      const { data, error } = await supabase
-        .from("media")
-        .select("*")
-        .eq("type", "photo")
-        .order("created_at", { ascending: false });
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from("media")
+            .select("*")
+            .eq("type", "photo")
+            .order("created_at", { ascending: false }),
+        ),
+        15000,
+      );
+      if (!active()) return;
 
       if (error) throw error;
       setImages((data as MediaItem[]) || []);
     } catch (err) {
+      if (!active()) return;
       console.error("Failed to load library:", err);
       setLoadError(errorMessage(err));
     } finally {
-      setLoading(false);
+      if (active()) setLoading(false);
     }
   }, []);
 
@@ -83,58 +116,82 @@ const ImagePickerModal = ({
       return;
     }
 
+    if (uploadController.current) return;
+    const controller = new AbortController();
+    uploadController.current = controller;
+    const current = generation.current;
+    const active = () =>
+      current === generation.current && !controller.signal.aborted;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
-      const filePath = `photos/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("blog-images")
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("blog-images").getPublicUrl(filePath);
-
-      // Save to media table
-      const { error: dbError } = await supabase.from("media").insert({
-        name: file.name,
-        file_path: filePath,
-        url: publicUrl,
-        type: "photo",
-        size: file.size,
-        mime_type: file.type,
-      });
-      if (dbError) throw dbError;
-
+      const publicUrl = await waitForUpload(
+        (async () => {
+          const ext = file.name.split(".").pop();
+          const filePath = `photos/${crypto.randomUUID()}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("blog-images")
+            .upload(filePath, file);
+          if (!active()) return null;
+          if (uploadError) throw uploadError;
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("blog-images").getPublicUrl(filePath);
+          const { error: dbError } = await supabase.from("media").insert({
+            name: file.name,
+            file_path: filePath,
+            url: publicUrl,
+            type: "photo",
+            size: file.size,
+            mime_type: file.type,
+          });
+          if (dbError) throw dbError;
+          return publicUrl;
+        })(),
+        controller.signal,
+      );
+      if (!active() || !publicUrl) return;
       toast({ title: "Image uploaded" });
       onSelect(publicUrl);
-      onClose();
+      close();
     } catch (err) {
-      toast({
-        title: "Upload failed",
-        description: errorMessage(err),
-        variant: "destructive",
-      });
+      if (active())
+        toast({
+          title: "Upload not confirmed",
+          description: errorMessage(err),
+          variant: "destructive",
+        });
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (uploadController.current === controller) {
+        uploadController.current = null;
+        controller.abort();
+        if (current === generation.current) {
+          setUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      }
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-      onClick={onClose}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="admin-card flex flex-col"
+      <DialogContent
+        aria-describedby={undefined}
+        onOpenAutoFocus={() => {
+          returnFocus.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (returnFocus.current?.isConnected) returnFocus.current.focus();
+        }}
+        className="admin-shell admin-card !flex flex-col !p-0 !gap-0"
         style={{
           width: "90vw",
           maxWidth: 680,
@@ -150,7 +207,7 @@ const ImagePickerModal = ({
             borderBottom: "1px solid hsl(var(--admin-border))",
           }}
         >
-          <h3
+          <DialogTitle
             style={{
               color: "hsl(var(--admin-text))",
               fontSize: 16,
@@ -159,19 +216,7 @@ const ImagePickerModal = ({
             }}
           >
             Insert Image
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "hsl(var(--admin-text-soft))",
-              cursor: "pointer",
-              padding: 4,
-            }}
-          >
-            <X size={18} />
-          </button>
+          </DialogTitle>
         </div>
 
         {/* Tabs */}
@@ -188,6 +233,7 @@ const ImagePickerModal = ({
             { key: "upload" as const, label: "Upload New", icon: Upload },
           ].map((t) => (
             <button
+              type="button"
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
@@ -229,7 +275,6 @@ const ImagePickerModal = ({
                 padding: "48px 24px",
                 cursor: "pointer",
               }}
-              onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
                 <Loader2
@@ -262,7 +307,17 @@ const ImagePickerModal = ({
               >
                 Max 10 MB · JPG, PNG, GIF, WebP
               </p>
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Choose image file
+              </button>
               <input
+                aria-label="Image file"
+                disabled={uploading}
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
@@ -354,7 +409,7 @@ const ImagePickerModal = ({
                       }}
                       onClick={() => {
                         onSelect(img.url);
-                        onClose();
+                        close();
                       }}
                     >
                       <img
@@ -404,8 +459,8 @@ const ImagePickerModal = ({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

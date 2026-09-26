@@ -44,6 +44,7 @@ import WidgetRenderer from "@/components/WidgetRenderer";
 
 import IdeaListRenderer from "@/components/renderers/IdeaListRenderer";
 import ChecklistRenderer from "@/components/renderers/ChecklistRenderer";
+import ResourceContents from "@/components/ResourceContents";
 import GuideRenderer from "@/components/renderers/GuideRenderer";
 import ToolRoundupRenderer from "@/components/renderers/ToolRoundupRenderer";
 import TemplateRenderer from "@/components/renderers/TemplateRenderer";
@@ -255,31 +256,9 @@ const GeneratedPage = ({
     );
   }
 
-  // Extract section headings for the sticky TOC
-  const tocItems: { id: string; label: string }[] = (() => {
-    const sections =
-      (Array.isArray(content?.sections) && content.sections) ||
-      (Array.isArray(content?.categories) && content.categories) ||
-      (Array.isArray(content?.phases) && content.phases) ||
-      [];
-    const items: { id: string; label: string }[] = [];
-    sections.forEach((s, i) => {
-      const label = s?.title || s?.name || s?.heading;
-      if (typeof label === "string" && label.trim()) {
-        const id = `section-${i}-${label
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .slice(0, 40)}`;
-        items.push({ id, label });
-      }
-    });
-    return items;
-  })();
-  const showToc = tocItems.length >= 4;
-
   return (
     <div
-      className="min-h-screen"
+      className="resource-page min-h-screen"
       style={{ background: "#0b0b10", color: "#fff" }}
     >
       {!isPublished && (
@@ -495,13 +474,16 @@ const GeneratedPage = ({
             </aside>
           )}
 
-          {Renderer && (
-            <Renderer
-              contentJson={content}
-              nicheName={page.niche.name}
-              pageId={page.id}
-            />
-          )}
+          <ResourceContents revision={content} />
+          <div id="resource-reading-body" className="resource-reading">
+            {Renderer && (
+              <Renderer
+                contentJson={content}
+                nicheName={page.niche.name}
+                pageId={page.id}
+              />
+            )}
+          </div>
 
           <SourcesSection sources={content?.sources} />
 
@@ -599,108 +581,32 @@ const GeneratedPage = ({
             )}
           </div>
 
-          <WidgetRenderer zone="page" />
+          <div data-print-hide>
+            <WidgetRenderer zone="page" />
 
-          <RelatedResources
-            currentPageId={page.id}
-            nicheId={page.niche.id ?? ""}
-            nicheName={page.niche.name}
-            nicheContext={null}
-            contentSchemaId={page.schema.id}
-            contentTypeName={page.schema.name}
-          />
+            <RelatedResources
+              currentPageId={page.id}
+              nicheId={page.niche.id ?? ""}
+              nicheName={page.niche.name}
+              nicheContext={null}
+              contentSchemaId={page.schema.id}
+              contentTypeName={page.schema.name}
+            />
 
-          <PublicCTA
-            variant="end"
-            nicheSlug={page.niche.slug}
-            contentTypeSlug={contentType}
-            nicheName={page.niche.name}
-            pageId={page.id}
-            pageType="generated"
-          />
+            <PublicCTA
+              variant="end"
+              nicheSlug={page.niche.slug}
+              contentTypeSlug={contentType}
+              nicheName={page.niche.name}
+              pageId={page.id}
+              pageType="generated"
+            />
+          </div>
         </article>
-
-        {showToc && <StickyTOC items={tocItems} />}
       </div>
 
       <Footer />
     </div>
-  );
-};
-
-const StickyTOC = ({ items }: { items: { id: string; label: string }[] }) => {
-  const scrollToLabel = (label: string) => {
-    if (typeof document === "undefined") return;
-    // Find first h2/h3 whose text matches label
-    const headings = Array.from(
-      document.querySelectorAll<HTMLElement>("article h2, article h3"),
-    );
-    const target = headings.find(
-      (h) => h.textContent?.trim().toLowerCase() === label.toLowerCase(),
-    );
-    if (target) {
-      const y = target.getBoundingClientRect().top + window.scrollY - 100;
-      window.scrollTo({ top: y, behavior: "smooth" });
-    }
-  };
-  return (
-    <aside
-      className="hidden xl:block"
-      style={{
-        position: "sticky",
-        top: 100,
-        width: 200,
-        flexShrink: 0,
-        alignSelf: "flex-start",
-      }}
-    >
-      <span
-        className="font-body uppercase block"
-        style={{
-          fontSize: 12,
-          letterSpacing: "0.18em",
-          color: "var(--brand-accent)",
-          marginBottom: 14,
-        }}
-      >
-        On this page
-      </span>
-      <ul
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-          paddingLeft: 12,
-        }}
-      >
-        {items.map((it) => (
-          <li key={it.id}>
-            <button
-              onClick={() => scrollToLabel(it.label)}
-              className="font-body text-left transition-colors"
-              style={{
-                fontSize: 12,
-                lineHeight: 1.45,
-                color: "rgba(255,255,255,0.75)",
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.color = "var(--brand-accent)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "rgba(255,255,255,0.75)")
-              }
-            >
-              {it.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </aside>
   );
 };
 

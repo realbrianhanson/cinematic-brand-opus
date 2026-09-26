@@ -46,10 +46,32 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
 
 describe("mobile Summit bar", () => {
+  it("keeps chat above the bar when the viewport crosses the phone breakpoint", () => {
+    let phone = false;
+    vi.stubGlobal("matchMedia", () => ({ matches: phone }));
+    mount();
+    scrollPastFirstScreen();
+    const region = screen.getByRole("region", { name: "Free AI Summit" });
+    region.getBoundingClientRect = () => ({ height: 60 }) as DOMRect;
+    expect(
+      document.documentElement.style.getPropertyValue("--mobile-bar-space"),
+    ).toBe("0px");
+    phone = true;
+    fireEvent(window, new Event("resize"));
+    expect(
+      document.documentElement.style.getPropertyValue("--mobile-bar-space"),
+    ).toBe("60px");
+    phone = false;
+    fireEvent(window, new Event("resize"));
+    expect(
+      document.documentElement.style.getPropertyValue("--mobile-bar-space"),
+    ).toBe("0px");
+  });
   it.each(["/first-ai-build", "/first-ai-build/"])(
     "leaves the project planner's mobile controls clear on %s",
     (pathname) => {

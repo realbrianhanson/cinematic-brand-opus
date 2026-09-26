@@ -18,6 +18,7 @@ import {
 } from "@/lib/conversions";
 import QueryNotice from "./QueryNotice";
 import ExternalConversionPanel from "./ExternalConversionPanel";
+import OfferJourneyMetrics from "./OfferJourneyMetrics";
 
 const number = (value: number) => value.toLocaleString("en-US");
 
@@ -673,11 +674,12 @@ export default function ConversionDashboard({
             <p className="admin-help">
               {number(data.coverage.unattributed_free_claims)} free claims and{" "}
               {number(data.coverage.unattributed_paid_orders)} live paid orders
-              in this period could not be linked to a measured visit (the
-              visitor declined measurement, or the link failed).{" "}
-              {number(data.native_totals.test_paid_orders)} test paid orders and{" "}
-              {number(data.native_totals.unknown_mode_paid_orders)} paid orders
-              of unknown mode are excluded from live sales.
+              in this period were not attributed to a measured offer
+              landing-page view. This includes follow-up-only views, which have
+              their own report below, visitors declining measurement, and failed
+              links. {number(data.native_totals.test_paid_orders)} test paid
+              orders and {number(data.native_totals.unknown_mode_paid_orders)}{" "}
+              paid orders of unknown mode are excluded from live sales.
             </p>
             <p className="admin-help">
               A download link issued means the file was made available; it does
@@ -700,10 +702,12 @@ export default function ConversionDashboard({
                 can create new sessions.
               </p>
               <p>
-                Only qualifying offer views can receive credit for a native
-                claim or live payment. Confirmed order counts can exceed
-                converting sessions when one session claims or buys more than
-                once. Paid outcomes exclude orders that are currently refunded.
+                Only qualifying offer landing-page views receive credit in the
+                rates above. Follow-up steps have a separate report below. A
+                native claim or live payment must follow the view. Confirmed
+                order counts can exceed converting sessions when one session
+                claims or buys more than once. Paid outcomes exclude orders that
+                are currently refunded.
               </p>
               <p>
                 Measured session details are retained for{" "}
@@ -721,6 +725,7 @@ export default function ConversionDashboard({
           </details>
         </>
       )}
+      <OfferJourneyMetrics days={days} />
       <ExternalConversionPanel days={days} />
     </div>
   );

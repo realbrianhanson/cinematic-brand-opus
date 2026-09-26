@@ -1,3 +1,8 @@
+import {
+  resourceSearch,
+  resourceArchivePath,
+  RESOURCE_PAGE_SIZE,
+} from "../_shared/resourcePagination.ts";
 import { blogSearch, blogArchivePath } from "../_shared/blogPagination.ts";
 import { safeHref } from "../_shared/safeHref.ts";
 import sanitize from "npm:sanitize-html@2.17.7";
@@ -362,6 +367,7 @@ interface ShellArgs {
   settings: Settings;
   bodyHtml: string;
   status?: number;
+  robots?: string;
 }
 
 function renderShell(a: ShellArgs): Response {
@@ -386,6 +392,7 @@ function renderShell(a: ShellArgs): Response {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(a.title)}</title>
 <meta name="description" content="${esc(a.description)}">
+${a.robots ? `<meta name="robots" content="${esc(a.robots)}">` : ""}
 <link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(a.title)}">
 <meta property="og:description" content="${esc(a.description)}">
@@ -775,37 +782,55 @@ async function renderContentTypeList(
   settings: Settings,
   path: string,
   typeSlug: string,
+  search: { page: number; niche: string },
 ): Promise<Response> {
-  const { data: schema } = await supabase
+  const { data: schema, error: schemaError } = await supabase
     .from("content_schemas")
     .select("id, name, slug, description")
     .eq("slug", typeSlug)
     .eq("is_active", true)
     .maybeSingle();
+  if (schemaError) throw schemaError;
   if (!schema) return missingPage(settings, path, true);
-
-  const { data: pages } = await supabase
+  path = resourceArchivePath(typeSlug, search.page, search.niche);
+  let query = supabase
     .from("generated_pages")
-    .select("slug, title, seo_meta, updated_at")
+    .select("slug, title")
     .eq("content_schema_id", schema.id)
-    .eq("status", "published")
-    .order("title");
-  const items = pages ?? [];
-  const body = `
-<h1>${esc(schema.name)}</h1>
+    .eq("status", "published");
+  let missingNiche = false;
+  if (search.niche) {
+    const { data: niche, error } = await supabase
+      .from("niches")
+      .select("id")
+      .eq("slug", search.niche)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error) throw error;
+    missingNiche = !niche;
+    if (niche) query = query.eq("niche_id", niche.id);
+  }
+  const offset = (search.page - 1) * RESOURCE_PAGE_SIZE;
+  const { data: pages, error } = missingNiche
+    ? { data: [], error: null }
+    : await query
+        .order("title")
+        .order("id")
+        .range(offset, offset + RESOURCE_PAGE_SIZE);
+  if (error) throw error;
+  const items = (pages ?? []).slice(0, RESOURCE_PAGE_SIZE);
+  if (search.page > 1 && !items.length) return notFound(settings, path);
+  const hasNext = (pages?.length ?? 0) > RESOURCE_PAGE_SIZE;
+  const body = `<h1>${esc(schema.name)}${search.page > 1 ? ` — Page ${search.page}` : ""}</h1>
 ${schema.description ? `<p>${esc(schema.description)}</p>` : ""}
-<p>${items.length} published page${items.length === 1 ? "" : "s"}.</p>
-<ul>${items
-    .map(
-      (p: any) =>
-        `<li><a href="/resources/${esc(schema.slug)}/${esc(p.slug)}">${esc(p.title)}</a></li>`,
-    )
-    .join("")}</ul>`;
+<p>${items.length} resources on this page.</p>
+<ul>${items.map((item: { slug: string; title: string }) => `<li><a href="/resources/${esc(schema.slug)}/${esc(item.slug)}">${esc(item.title)}</a></li>`).join("")}</ul>
+<nav aria-label="Resource pages">${search.page > 1 ? `<a rel="prev" href="${esc(resourceArchivePath(typeSlug, search.page - 1, search.niche))}">Previous page</a> · ` : ""}Page ${search.page}${hasNext ? ` · <a rel="next" href="${esc(resourceArchivePath(typeSlug, search.page + 1, search.niche))}">Next page</a>` : ""}</nav>`;
   return renderShell({
     path,
     title:
-      `${schema.name} — ${settings.site_name || settings.publisher_name || ""}`.trim(),
-    description: schema.description || `All ${schema.name}.`,
+      `${schema.name}${search.page > 1 ? ` — Page ${search.page}` : ""} — ${settings.site_name || settings.publisher_name || ""}`.trim(),
+    description: schema.description || `Browse ${schema.name}.`,
     breadcrumbs: [
       { name: "Home", url: "/" },
       { name: "Resources", url: "/resources" },
@@ -813,6 +838,7 @@ ${schema.description ? `<p>${esc(schema.description)}</p>` : ""}
     ],
     settings,
     bodyHtml: body,
+    ...(!items.length ? { robots: "noindex, follow" } : {}),
   });
 }
 
@@ -1344,6 +1370,11 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   let path = url.searchParams.get("path") || "/";
   if (!path.startsWith("/")) path = "/" + path;
+  const resourceParams = resourceSearch(
+    Object.fromEntries(
+      new URLSearchParams(path.split("?")[1]?.split("#")[0] ?? ""),
+    ),
+  );
   const archiveSearch = blogSearch(
     Object.fromEntries(
       new URLSearchParams(path.split("?")[1]?.split("#")[0] ?? ""),
@@ -1367,7 +1398,7 @@ Deno.serve(async (req) => {
     if (parts[0] === "resources") {
       if (parts.length === 1) return renderResourcesIndex(settings, path);
       if (parts.length === 2)
-        return renderContentTypeList(settings, path, parts[1]);
+        return renderContentTypeList(settings, path, parts[1], resourceParams);
       if (parts.length === 3)
         return renderGeneratedPage(settings, path, parts[1], parts[2]);
     }

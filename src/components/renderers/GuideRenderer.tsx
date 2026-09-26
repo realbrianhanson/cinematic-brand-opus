@@ -6,7 +6,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { safeHref } from "@/lib/newsMarkdown";
 import { renderInlineMarkdown } from "@/lib/inlineMarkdown";
 import { getItemTitle } from "@/lib/itemTitle";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ProTips } from "./IdeaListRenderer";
 
@@ -25,91 +25,12 @@ const GuideRenderer = ({
   );
   const sections = contentJson?.sections || [];
   const mistakes = contentJson?.common_mistakes || [];
-  const [activeSection, setActiveSection] = useState(0);
-  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const idx = sectionRefs.current.indexOf(
-              entry.target as HTMLDivElement,
-            );
-            if (idx >= 0) setActiveSection(idx);
-          }
-        });
-      },
-      { rootMargin: "-30% 0px -60% 0px" },
-    );
-    sectionRefs.current.forEach((ref) => ref && observer.observe(ref));
-    return () => observer.disconnect();
-  }, [sections.length]);
-
   return (
-    <div className="lg:flex gap-10">
-      {/* TOC sidebar - desktop */}
-      <nav
-        className="hidden lg:block shrink-0"
-        style={{
-          width: 200,
-          position: "sticky",
-          top: 120,
-          alignSelf: "flex-start",
-          maxHeight: "calc(100vh - 160px)",
-          overflowY: "auto",
-        }}
-      >
-        <p
-          className="font-body uppercase mb-4"
-          style={{
-            fontSize: 12,
-            letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.7)",
-          }}
-        >
-          Contents
-        </p>
-        {sections.map((s, i) => (
-          <a
-            key={i}
-            href={`#guide-section-${i}`}
-            onClick={(e) => {
-              e.preventDefault();
-              sectionRefs.current[i]?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-            }}
-            className="block font-body py-1.5 transition-colors"
-            style={{
-              fontSize: 12,
-              color:
-                activeSection === i
-                  ? "var(--brand-accent)"
-                  : "rgba(255,255,255,0.3)",
-              borderLeft: "2px solid",
-              borderColor:
-                activeSection === i ? "var(--brand-accent)" : "transparent",
-              paddingLeft: 12,
-            }}
-          >
-            {s.title || s.heading || `Section ${i + 1}`}
-          </a>
-        ))}
-      </nav>
-
+    <div>
       {/* Content */}
       <div className="flex-1 min-w-0">
         {sections.map((section, i) => (
-          <div
-            key={i}
-            ref={(el) => {
-              sectionRefs.current[i] = el;
-            }}
-            id={`guide-section-${i}`}
-            className="mb-12"
-          >
+          <div key={i} id={`guide-section-${i}`} className="mb-12">
             <h2
               className="font-display mb-4"
               style={{ fontSize: 22, color: "#fff" }}

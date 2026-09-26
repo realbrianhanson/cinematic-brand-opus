@@ -1210,3 +1210,48 @@
     transform: none;
   }
 }
+
+/* Consistent reading rhythm across legacy resource formats. */
+.resource-reading :is(p, li, label) {
+  font-size: max(1rem, 1em) !important;
+  line-height: 1.75 !important;
+}
+.resource-reading :is(h2, h3) {
+  scroll-margin-top: 7rem;
+}
+.resource-reading :is(p, li, label)[style*="rgba(255,255,255,0."] {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+@media print {
+  .resource-page,
+  .resource-page article,
+  .resource-page article * {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+  .resource-page footer,
+  .resource-page aside,
+  .resource-page [data-print-hide] {
+    display: none !important;
+  }
+  .resource-page > div {
+    padding: 0 !important;
+    display: block !important;
+  }
+  .resource-page article {
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  .resource-page :is(h2, h3) {
+    break-after: avoid;
+  }
+  .resource-page :is(label, figure, blockquote) {
+    break-inside: avoid;
+  }
+  .resource-page img {
+    max-height: 12cm;
+    object-fit: contain;
+  }
+}

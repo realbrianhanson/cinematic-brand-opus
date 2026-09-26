@@ -82,13 +82,24 @@ export default function MobileSummitBar() {
 
   useEffect(() => {
     const root = document.documentElement;
-    const phone = window.matchMedia?.("(max-width: 767px)").matches ?? false;
-    const height = bar.current?.getBoundingClientRect().height ?? 0;
-    root.style.setProperty(
-      MOBILE_BAR_SPACE_VAR,
-      visible && phone ? `${height + (offset ?? 0)}px` : "0px",
-    );
+    const measure = () => {
+      const phone = window.matchMedia?.("(max-width: 767px)").matches ?? false;
+      const height = bar.current?.getBoundingClientRect().height ?? 0;
+      root.style.setProperty(
+        MOBILE_BAR_SPACE_VAR,
+        visible && phone ? `${height + (offset ?? 0)}px` : "0px",
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    if (bar.current) observer?.observe(bar.current);
     return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
       root.style.removeProperty(MOBILE_BAR_SPACE_VAR);
     };
   }, [visible, offset]);

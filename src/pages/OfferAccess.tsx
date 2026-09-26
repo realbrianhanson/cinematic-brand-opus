@@ -3,6 +3,7 @@ import { CheckCircle2, Copy, Download, RefreshCw } from "lucide-react";
 import OfferShell from "@/components/OfferShell";
 import OfferRecovery from "@/components/OfferRecovery";
 import OfferSections from "@/components/offers/OfferSections";
+import { measurementForClaim, recordMeasurement } from "@/lib/measurement";
 import { readPresentation } from "@/lib/offerBuilder";
 import {
   invokeOfferApi,
@@ -168,11 +169,23 @@ export default function OfferAccess() {
     }
     persistOfferToken(nextToken);
     setRecoveryToken(nextToken);
+    if (data?.order.offer_id)
+      recordMeasurement([
+        {
+          type: "upsell_accept",
+          path: "/offer-access",
+          offer_id: next.id,
+          parent_offer_id: data.order.offer_id,
+        },
+      ]);
+    const measurement = await measurementForClaim();
+    if (currentToken.current !== token) return;
     const result = await invokeOfferApi<OfferClaim>({
       action: "claim",
       offer_id: next.id,
       token: nextToken,
       parent_token: token,
+      ...(measurement ? { measurement } : {}),
     });
     if (currentToken.current !== token) return;
     if (["expired", "failed", "refunded"].includes(result.status)) {
@@ -479,6 +492,8 @@ export default function OfferAccess() {
             className="mt-8 rounded-lg border p-6 md:p-8"
             style={{ borderColor: "var(--brand-accent)" }}
             aria-label="Optional follow-up offer"
+            data-conversion-upsell-id={next.id}
+            data-conversion-parent-offer-id={data?.order.offer_id}
           >
             <p className="text-xs uppercase tracking-widest text-white/70">
               {upsell?.eyebrow || "An optional next step"}
@@ -549,6 +564,16 @@ export default function OfferAccess() {
                 onClick={() =>
                   void act("decline", async () => {
                     await invokeOfferApi({ action: "decline", token });
+                    if (currentToken.current !== token) return;
+                    if (data?.order.offer_id)
+                      recordMeasurement([
+                        {
+                          type: "upsell_decline",
+                          path: "/offer-access",
+                          offer_id: next.id,
+                          parent_offer_id: data.order.offer_id,
+                        },
+                      ]);
                     await refresh();
                     if (currentToken.current !== token) return;
                     setNotice(

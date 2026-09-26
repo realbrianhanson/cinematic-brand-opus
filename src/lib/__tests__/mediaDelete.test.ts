@@ -113,6 +113,93 @@ describe("usageNeedles", () => {
 });
 
 describe("findMediaUsage", () => {
+  it("protects media in historical content, source documents and SEO snapshots", async () => {
+    const { client } = fakeClient((table) => {
+      if (table === "generated_page_revisions")
+        return {
+          data: [
+            {
+              id: "r1",
+              snapshot: {
+                title: "Old workbook",
+                content_json: { sources: [{ screenshot: item.url }] },
+              },
+            },
+          ],
+          count: 1,
+          error: null,
+        };
+      if (table === "pillar_page_revisions")
+        return {
+          data: [
+            {
+              id: "r2",
+              snapshot: {
+                title: "Old guide",
+                seo_meta: { og_image: item.url },
+              },
+            },
+          ],
+          count: 1,
+          error: null,
+        };
+      return empty;
+    });
+    expect((await findMediaUsage(item, client)).references).toEqual([
+      {
+        kind: "generated_page_revision",
+        id: "r1",
+        title: "Old workbook (saved resource history)",
+      },
+      {
+        kind: "topic_guide_revision",
+        id: "r2",
+        title: "Old guide (saved guide history)",
+      },
+    ]);
+  });
+  it("fails closed when private history is unavailable, oversized or unexpectedly incomplete", async () => {
+    for (const result of [
+      { data: null, count: null, error: { message: "permission denied" } },
+      { data: [], count: 5001, error: null },
+      { data: [], count: 2, error: null },
+    ]) {
+      const { client } = fakeClient((table) =>
+        table === "pillar_page_revisions" ? result : empty,
+      );
+      await expect(findMediaUsage(item, client)).rejects.toThrow();
+    }
+  });
+  it("checks resource and guide history beyond the first page", async () => {
+    const { client, calls } = fakeClient((table, own) => {
+      if (table !== "generated_page_revisions") return empty;
+      const start = own.find((c) => c.op === "range")?.args[0];
+      return {
+        data:
+          start === 0
+            ? Array.from({ length: 200 }, (_, i) => ({
+                id: `rev-${i}`,
+                snapshot: {},
+              }))
+            : [
+                {
+                  id: "last",
+                  snapshot: { title: "Historical", image: item.url },
+                },
+              ],
+        count: 201,
+        error: null,
+      };
+    });
+    expect((await findMediaUsage(item, client)).titles).toEqual([
+      "Historical (saved resource history)",
+    ]);
+    expect(calls).toContainEqual({
+      table: "generated_page_revisions",
+      op: "range",
+      args: [200, 399],
+    });
+  });
   it("checks posts, SEO images, topic guides, generated pages, offers and news items", async () => {
     const { client, calls } = fakeClient(() => empty);
     const usage = await findMediaUsage(item, client);

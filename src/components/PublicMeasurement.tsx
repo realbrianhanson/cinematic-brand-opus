@@ -41,7 +41,11 @@ export default function PublicMeasurement() {
   const [opened, setOpened] = useState(false);
   const [privacySignal, setPrivacySignal] = useState(false);
   const previous = useRef("");
-  const path = measurementPath(pathname);
+  const publicPath = measurementPath(pathname);
+  // Private access routes never produce page views or outbound click events.
+  // Only the bounded, published offer pair in a visible follow-up qualifies.
+  const path =
+    publicPath ?? (pathname === "/offer-access" ? "/offer-access" : null);
   const eligible =
     ready &&
     !loading &&
@@ -83,7 +87,7 @@ export default function PublicMeasurement() {
       previous.current = "";
       return;
     }
-    if (previous.current !== path) {
+    if (publicPath && previous.current !== path) {
       previous.current = path;
       const events: Array<Omit<MeasurementEvent, "id">> = [
         { type: "page_view", path },
@@ -104,11 +108,68 @@ export default function PublicMeasurement() {
       ]);
       recorded = true;
     };
-    offerView();
-    const observer = new MutationObserver(offerView);
-    if (path.startsWith("/offers/") && !recorded)
-      observer.observe(document.body, { childList: true, subtree: true });
+    const seenPairs = new Set<string>();
+    const observedNodes = new WeakMap<Element, string>();
+    const visibility =
+      path === "/offer-access" && typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              if (
+                !entry.isIntersecting ||
+                !(entry.target instanceof HTMLElement) ||
+                !entry.target.isConnected
+              )
+                continue;
+              const offer_id = entry.target.dataset.conversionUpsellId;
+              const parent_offer_id =
+                entry.target.dataset.conversionParentOfferId;
+              if (!offer_id || !parent_offer_id) continue;
+              const pair = `${parent_offer_id}:${offer_id}`;
+              if (seenPairs.has(pair)) continue;
+              seenPairs.add(pair);
+              recordMeasurement([
+                {
+                  type: "upsell_view",
+                  path: "/offer-access",
+                  offer_id,
+                  parent_offer_id,
+                },
+              ]);
+            }
+          })
+        : null;
+    const scan = () => {
+      offerView();
+      if (!visibility) return;
+      document
+        .querySelectorAll<HTMLElement>(
+          "[data-conversion-upsell-id][data-conversion-parent-offer-id]",
+        )
+        .forEach((node) => {
+          const pair = `${node.dataset.conversionParentOfferId}:${node.dataset.conversionUpsellId}`;
+          if (observedNodes.get(node) !== pair) {
+            // A free claim can replace the offer in the same DOM element.
+            // Observe its new identity even when its geometry never changes.
+            if (observedNodes.has(node)) visibility.unobserve(node);
+            observedNodes.set(node, pair);
+            visibility.observe(node);
+          }
+        });
+    };
+    scan();
+    const observer = new MutationObserver(scan);
+    if (path.startsWith("/offers/") || path === "/offer-access")
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [
+          "data-conversion-upsell-id",
+          "data-conversion-parent-offer-id",
+        ],
+      });
     const click = (event: MouseEvent) => {
+      if (!publicPath) return;
       if (event.type === "auxclick" && event.button !== 1) return;
       const link =
         event.target instanceof Element
@@ -140,10 +201,11 @@ export default function PublicMeasurement() {
     document.addEventListener("auxclick", click, true);
     return () => {
       observer.disconnect();
+      visibility?.disconnect();
       document.removeEventListener("click", click, true);
       document.removeEventListener("auxclick", click, true);
     };
-  }, [eligible, privacySignal, choice, path, identity.siteUrl]);
+  }, [eligible, privacySignal, choice, path, publicPath, identity.siteUrl]);
 
   if (
     !ready ||

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { withTimeout } from "@/lib/withTimeout";
+import { errorMessage } from "@/lib/errorMessage";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Trash2 } from "lucide-react";
@@ -11,6 +13,8 @@ type Note = {
   used_in_post_id: string | null;
 };
 
+type NoteAttempt = { id: string; note: string; topic_hint: string | null };
+
 const LANES = ["", "ai_tools", "smb_marketing", "ai_training", "industry"];
 
 export default function BriansNotesWidget() {
@@ -18,6 +22,11 @@ export default function BriansNotesWidget() {
   const [note, setNote] = useState("");
   const [hint, setHint] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
+  const savingLock = useRef(false);
+  const editRevision = useRef(0);
+  // Retain uncertain attempts by their submitted content, even if the owner
+  // starts a different note and later returns to retry the original one.
+  const attempts = useRef(new Map<string, NoteAttempt>());
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
@@ -36,25 +45,71 @@ export default function BriansNotesWidget() {
   }, []);
 
   const save = async () => {
-    if (!note.trim()) return;
+    if (!note.trim() || savingLock.current) return;
+    savingLock.current = true;
+    const submittedRevision = editRevision.current;
+    const snapshot = { note: note.trim(), topic_hint: hint || null };
+    const fingerprint = JSON.stringify(snapshot);
+    const previous = attempts.current.get(fingerprint);
+    const attempt = previous ?? { id: crypto.randomUUID(), ...snapshot };
+    attempts.current.set(fingerprint, attempt);
+    const controller = new AbortController();
+    const reconcile = async () => {
+      const { data, error } = await supabase
+        .from("expert_notes")
+        .select("id,note,topic_hint")
+        .eq("id", attempt.id)
+        .maybeSingle();
+      controller.signal.throwIfAborted();
+      if (error) throw error;
+      if (!data) return false;
+      if (
+        data.id !== attempt.id ||
+        data.note !== attempt.note ||
+        data.topic_hint !== attempt.topic_hint
+      ) {
+        throw new Error(
+          "This note already exists with different content. Refresh your notes before deciding what to save; nothing was overwritten.",
+        );
+      }
+      return true;
+    };
     setSaving(true);
-    const { error } = await supabase.from("expert_notes").insert({
-      note: note.trim(),
-      topic_hint: hint || null,
-    });
-    setSaving(false);
-    if (error) {
+    try {
+      await withTimeout(
+        (async () => {
+          if (previous && (await reconcile())) return;
+          controller.signal.throwIfAborted();
+          const { error } = await supabase.from("expert_notes").insert(attempt);
+          controller.signal.throwIfAborted();
+          if (error) {
+            // The first request can commit between the retry's read and insert.
+            // A duplicate ID is success only after verifying the saved content.
+            if (error.code === "23505" && (await reconcile())) return;
+            throw error;
+          }
+        })(),
+        20000,
+      );
+      if (attempts.current.get(fingerprint) === attempt)
+        attempts.current.delete(fingerprint);
+      if (editRevision.current === submittedRevision) {
+        setNote("");
+        setHint("");
+      }
+      toast({ title: "Note saved" });
+      void load();
+    } catch (error) {
       toast({
-        title: "Save failed",
-        description: error.message,
+        title: "Save not confirmed",
+        description: errorMessage(error),
         variant: "destructive",
       });
-      return;
+    } finally {
+      controller.abort();
+      savingLock.current = false;
+      setSaving(false);
     }
-    setNote("");
-    setHint("");
-    toast({ title: "Note saved" });
-    load();
   };
 
   const del = async (id: string) => {
@@ -113,7 +168,10 @@ export default function BriansNotesWidget() {
       <textarea
         aria-label="Expert note"
         value={note}
-        onChange={(e) => setNote(e.target.value)}
+        onChange={(e) => {
+          editRevision.current += 1;
+          setNote(e.target.value);
+        }}
         placeholder="Share a real observation, lesson, or result from your work. Include the context and evidence."
         rows={3}
         style={{
@@ -132,7 +190,10 @@ export default function BriansNotesWidget() {
         <select
           aria-label="Note topic"
           value={hint}
-          onChange={(e) => setHint(e.target.value)}
+          onChange={(e) => {
+            editRevision.current += 1;
+            setHint(e.target.value);
+          }}
           style={{
             padding: "8px 10px",
             fontSize: 12,

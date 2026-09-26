@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { useLocalEditorRecovery } from "@/hooks/useLocalEditorRecovery";
+import LocalDraftRecoveryBanner from "../LocalDraftRecoveryBanner";
 import { useEffect, useRef, useState } from "react";
 import { validOfferUrl, type OfferProof } from "@/lib/offerBuilder";
 import {
@@ -8,12 +11,32 @@ import {
 
 export type OfferProofLibraryProps = {
   selectedIds: string[];
+  recoveryKey?: string;
+  onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
   onChange: (ids: string[]) => void;
   onInsert: (proof: OfferProof) => void;
 };
 type ProofInput = Omit<OfferProof, "id" | "created_at" | "updated_at"> & {
   id?: string;
 };
+const proofInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    title: z.string().max(200),
+    kind: z.enum(["testimonial", "demonstration", "fact"]),
+    content: z.string().max(6000),
+    attribution: z.string().max(500),
+    source_url: z.string().max(2048),
+    notes: z.string().max(3000),
+    approved: z.boolean(),
+  })
+  .strict();
+const proofRecoverySchema = z
+  .object({
+    editing: proofInputSchema.nullable(),
+    original: proofInputSchema.nullable(),
+  })
+  .strict();
 const blank: ProofInput = {
   title: "",
   kind: "testimonial",
@@ -26,17 +49,62 @@ const blank: ProofInput = {
 
 export default function OfferProofLibrary({
   selectedIds,
+  recoveryKey = "library",
+  onStateChange,
   onChange,
   onInsert,
 }: OfferProofLibraryProps) {
   const [items, setItems] = useState<OfferProof[]>([]);
   const [editing, setEditing] = useState<ProofInput | null>(null);
+  const [original, setOriginal] = useState<ProofInput | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolved, setResolved] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const dirty =
+    !!editing && JSON.stringify(editing) !== JSON.stringify(original);
+  const recovery = useLocalEditorRecovery({
+    documentKey: `offer-proof:${recoveryKey}`,
+    snapshot: { editing, original },
+    ready: resolved,
+    serverVersion: JSON.stringify(
+      items.map((item) => [item.id, item.updated_at]).sort(),
+    ),
+    schema: proofRecoverySchema,
+    onRestore: (value) => {
+      setEditing(value.editing);
+      setOriginal(value.original);
+    },
+  });
+  useEffect(() => {
+    onStateChange?.({ dirty, busy });
+  }, [dirty, busy, onStateChange]);
+  useEffect(
+    () => () => onStateChange?.({ dirty: false, busy: false }),
+    [onStateChange],
+  );
+  function chooseEditor(value: ProofInput | null) {
+    if (
+      dirty &&
+      !window.confirm(
+        "Discard your unsaved evidence edits? A saved offer does not save these changes.",
+      )
+    )
+      return;
+    if (!value) recovery.clearSaved({ editing: null, original: null });
+    setEditing(value);
+    setOriginal(value);
+    setError("");
+    setNotice("");
+  }
+  function finishEditing() {
+    recovery.clearSaved({ editing: null, original: null });
+    setEditing(null);
+    setOriginal(null);
+  }
   const mutationLocked = useRef(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const editorKey = editing ? editing.id || "new" : "";
@@ -58,7 +126,10 @@ export default function OfferProofLibrary({
         if (active) setLoadError(true);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setResolved(true);
+        }
       });
     return () => {
       active = false;
@@ -97,7 +168,7 @@ export default function OfferProofLibrary({
       ]);
       if (!saved.approved && selectedIds.includes(saved.id))
         onChange(selectedIds.filter((id) => id !== saved.id));
-      setEditing(null);
+      finishEditing();
       setNotice(
         "Evidence saved. Existing page snapshots keep their current wording until you replace them.",
       );
@@ -124,7 +195,7 @@ export default function OfferProofLibrary({
       await deleteOfferProof(item.id);
       setItems((current) => current.filter((proof) => proof.id !== item.id));
       onChange(selectedIds.filter((id) => id !== item.id));
-      if (editing?.id === item.id) setEditing(null);
+      if (editing?.id === item.id) finishEditing();
       setNotice(
         "Evidence removed from the library. Existing page snapshots are unchanged.",
       );
@@ -248,7 +319,7 @@ export default function OfferProofLibrary({
           type="button"
           className="admin-btn-ghost"
           disabled={busy || loading}
-          onClick={() => setEditing(null)}
+          onClick={() => chooseEditor(null)}
         >
           Cancel
         </button>
@@ -264,9 +335,7 @@ export default function OfferProofLibrary({
           className="admin-btn-secondary"
           disabled={busy || loading}
           onClick={() => {
-            setEditing({ ...blank });
-            setError("");
-            setNotice("");
+            chooseEditor({ ...blank });
           }}
         >
           Add evidence
@@ -277,6 +346,10 @@ export default function OfferProofLibrary({
         approved evidence for the copy assistant, or insert an approved item
         into the page.
       </p>
+      <LocalDraftRecoveryBanner
+        recovery={recovery}
+        disabled={busy || loading}
+      />
       {loading && (
         <p role="status" className="text-sm">
           Loading evidence…
@@ -374,8 +447,7 @@ export default function OfferProofLibrary({
                     updated_at: _updated,
                     ...input
                   } = item;
-                  setEditing(input);
-                  setError("");
+                  chooseEditor(input);
                 }}
               >
                 Edit evidence

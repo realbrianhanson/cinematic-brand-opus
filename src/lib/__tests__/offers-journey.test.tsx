@@ -14,6 +14,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OfferLanding from "@/pages/OfferLanding";
 import OfferAccessPage from "@/pages/OfferAccess";
+import * as measurement from "@/lib/measurement";
 import {
   type PublicOffer,
   type OfferAccess,
@@ -856,6 +857,108 @@ describe("offer visitor journey", () => {
       ).toBeTruthy();
     },
   );
+  it("records Continue as intent and waits for optional measurement before reserving the child", async () => {
+    openAccess();
+    const next = {
+      ...offer,
+      id: "22222222-2222-4222-8222-222222222222",
+      title: "Next resource",
+    };
+    const record = vi
+      .spyOn(measurement, "recordMeasurement")
+      .mockImplementation(() => {});
+    let finish!: (value: measurement.MeasurementContext) => void;
+    vi.spyOn(measurement, "measurementForClaim").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    invoke.mockImplementation((_name, { body }) =>
+      Promise.resolve(
+        respond(
+          body.action === "claim"
+            ? { status: "fulfilled", access_url: access.access_url }
+            : {
+                ...access,
+                order: { ...access.order, offer_id: offer.id },
+                next_offer: next,
+              },
+        ),
+      ),
+    );
+    render(<OfferAccessPage />);
+    const button = await screen.findByRole("button", {
+      name: "Get this free resource",
+    });
+    const section = screen.getByRole("region", {
+      name: "Optional follow-up offer",
+    });
+    expect(section.getAttribute("data-conversion-parent-offer-id")).toBe(
+      offer.id,
+    );
+    expect(section.getAttribute("data-conversion-upsell-id")).toBe(next.id);
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith([
+        {
+          type: "upsell_accept",
+          path: "/offer-access",
+          offer_id: next.id,
+          parent_offer_id: offer.id,
+        },
+      ]),
+    );
+    expect(
+      invoke.mock.calls.filter((call) => call[1].body.action === "claim"),
+    ).toHaveLength(0);
+    const identity = {
+      session_id: "33333333-3333-4333-8333-333333333333",
+      session_token: "b".repeat(64),
+    };
+    await act(async () => finish(identity));
+    await waitFor(() => expect(assign).toHaveBeenCalledOnce());
+    const claim = invoke.mock.calls.find(
+      (call) => call[1].body.action === "claim",
+    )![1].body;
+    expect(claim.measurement).toEqual(identity);
+    expect(JSON.stringify(record.mock.calls)).not.toContain(token);
+  });
+  it("records a decline only after its save succeeds", async () => {
+    openAccess();
+    const next = { ...offer, id: "22222222-2222-4222-8222-222222222222" };
+    const record = vi
+      .spyOn(measurement, "recordMeasurement")
+      .mockImplementation(() => {});
+    let succeed = false;
+    invoke.mockImplementation((_name, { body }) =>
+      body.action === "decline" && !succeed
+        ? Promise.reject(new Error("Offline"))
+        : Promise.resolve(
+            respond({
+              ...access,
+              order: { ...access.order, offer_id: offer.id },
+              next_offer: next,
+            }),
+          ),
+    );
+    render(<OfferAccessPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "No thanks" }));
+    await screen.findByRole("alert");
+    expect(record).not.toHaveBeenCalled();
+    succeed = true;
+    fireEvent.click(screen.getByRole("button", { name: "No thanks" }));
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith([
+        {
+          type: "upsell_decline",
+          path: "/offer-access",
+          offer_id: next.id,
+          parent_offer_id: offer.id,
+        },
+      ]),
+    );
+  });
   it("does not expose download controls for pending or refunded orders", async () => {
     openAccess();
     invoke.mockResolvedValue(

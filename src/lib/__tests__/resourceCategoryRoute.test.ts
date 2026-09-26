@@ -33,13 +33,14 @@ vi.mock("@tanstack/react-router", () => ({
   notFound: () => Object.assign(new Error("Not found"), { status: 404 }),
 }));
 vi.mock("@/pages/ContentTypeList", () => ({ default: () => null }));
+vi.mock("@/pages/NotFound", () => ({ default: () => null }));
 vi.mock("@/components/PublicRouteError", () => ({ default: () => null }));
 vi.mock("../publicData.server", () => ({
   SITE_SETTINGS_PUBLIC_COLUMNS: "site_title",
   createPublicServerClient: () => ({
     from: (table: string) => {
       const query: Record<string, unknown> = {};
-      for (const method of ["select", "eq", "limit"]) {
+      for (const method of ["select", "eq", "limit", "order", "range"]) {
         query[method] = (...args: unknown[]) => {
           mocks.calls.push([table, method, ...args]);
           return query;
@@ -49,7 +50,11 @@ vi.mock("../publicData.server", () => ({
         table === "content_schemas"
           ? { data: mocks.schema, error: mocks.schemaError }
           : { data: { site_title: "Example" }, error: null };
-      query.order = async () => ({ data: mocks.pages, error: null });
+      query.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({
+          data: table === "generated_pages" ? mocks.pages : [],
+          error: null,
+        }).then(resolve);
       return query;
     },
   }),
@@ -59,6 +64,7 @@ import { Route } from "../../routes/resources.$contentType.index";
 
 const load = Route.options.loader as (args: {
   params: { contentType: string };
+  deps: { page: number; niche: string };
 }) => Promise<unknown>;
 
 beforeEach(() => {
@@ -73,10 +79,17 @@ beforeEach(() => {
 
 describe("resource category route", () => {
   it("passes the route category through the actual server input validator and loads published pages", async () => {
-    const result = await load({ params: { contentType: "ideas-use-cases" } });
+    const result = await load({
+      params: { contentType: "ideas-use-cases" },
+      deps: { page: 1, niche: "" },
+    });
     expect(result).toEqual({
       schema: mocks.schema,
       pages: mocks.pages,
+      page: 1,
+      niche: "",
+      nextPage: null,
+      niches: [],
       settings: { site_title: "Example" },
     });
     expect(mocks.calls).toContainEqual([
@@ -102,14 +115,20 @@ describe("resource category route", () => {
   it("keeps an unknown category distinct from a failed database read", async () => {
     mocks.schema = null;
     await expect(
-      load({ params: { contentType: "missing-category" } }),
+      load({
+        params: { contentType: "missing-category" },
+        deps: { page: 1, niche: "" },
+      }),
     ).rejects.toMatchObject({ status: 404 });
     expect(mocks.calls.some(([table]) => table === "generated_pages")).toBe(
       false,
     );
     mocks.schemaError = { message: "Read unavailable" };
     await expect(
-      load({ params: { contentType: "ideas-use-cases" } }),
+      load({
+        params: { contentType: "ideas-use-cases" },
+        deps: { page: 1, niche: "" },
+      }),
     ).rejects.toThrow("Read unavailable");
   });
 });

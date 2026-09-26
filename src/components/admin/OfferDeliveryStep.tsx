@@ -195,10 +195,12 @@ export default function OfferDeliveryStep({
               </span>
             </label>
             {uploading && (
-              <p role="status" className="admin-help flex gap-2">
-                <Loader2 size={16} className="animate-spin" /> Uploading
-                privately…
-              </p>
+              <div className="space-y-2">
+                <p role="status" className="admin-help flex gap-2">
+                  <Loader2 size={16} className="animate-spin" /> Uploading
+                  privately…
+                </p>
+              </div>
             )}
             <label className="block text-sm font-medium">
               Confirmation message

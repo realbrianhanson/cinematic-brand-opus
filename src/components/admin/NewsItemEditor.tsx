@@ -12,6 +12,11 @@ import {
   newsSourceLabel,
 } from "../../../supabase/functions/_shared/newsQuality";
 import { safeHref } from "@/lib/newsMarkdown";
+import {
+  newsEditVersion,
+  NewsEditConflict,
+  updateNewsIfCurrent,
+} from "../../../supabase/functions/_shared/newsConcurrency";
 import { Loader2, X, Upload, ImageOff, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
@@ -26,6 +31,7 @@ import {
 
 type NewsItem = {
   id: string;
+  edit_version: string;
   title: string | null;
   ai_title: string | null;
   ai_summary: string | null;
@@ -124,6 +130,9 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [latest, setLatest] = useState<NewsItem | null>(null);
   const original = useRef("");
   const activeItemId = useRef(itemId);
   activeItemId.current = itemId;
@@ -136,6 +145,8 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     setLoadError(null);
     setItem(null);
     setConfirmDiscard(false);
+    setConflict(false);
+    setLatest(null);
     (async () => {
       try {
         const { data, error } = await supabase
@@ -149,8 +160,9 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
             "This news article no longer exists or your access changed.",
           );
         if (cancelled) return;
-        original.current = JSON.stringify(data);
-        setItem(data);
+        const loaded = { ...data, edit_version: newsEditVersion(data) };
+        original.current = JSON.stringify(loaded);
+        setItem(loaded);
         setSourceName((data.content_sources?.name as string) || "");
       } catch (error) {
         if (!cancelled) setLoadError(errorMessage(error));
@@ -167,6 +179,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     documentKey: `news:${itemId}`,
     snapshot: newsDraft(item),
     ready: !loading && item?.id === itemId && !loadError,
+    serverVersion: item?.edit_version,
     schema: newsRecoverySchema,
     onRestore: (draft) =>
       setItem((current) =>
@@ -183,6 +196,38 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
 
   const patch = (p: Partial<NewsItem>) =>
     setItem((prev) => (prev ? { ...prev, ...p } : prev));
+
+  const compareLatest = async () => {
+    if (comparing) return;
+    setComparing(true);
+    try {
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from("source_items")
+            .select("*, content_sources(name)")
+            .eq("id", itemId)
+            .maybeSingle(),
+        ),
+        15_000,
+      );
+      if (error) throw error;
+      if (!data)
+        throw new Error(
+          "This article no longer exists or your access changed.",
+        );
+      if (activeItemId.current !== itemId) return;
+      setLatest({ ...data, edit_version: newsEditVersion(data) });
+    } catch (error) {
+      toast({
+        title: "Couldn't load the latest version",
+        description: errorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setComparing(false);
+    }
+  };
 
   const uploadImage = async (file: File) => {
     if (uploadLock.current || saveLock.current) return;
@@ -215,7 +260,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
   };
 
   const save = async () => {
-    if (!item || saveLock.current || uploadLock.current) return;
+    if (!item || saveLock.current || uploadLock.current || conflict) return;
     const sourceUrl = safeHref(item.url);
     if (!sourceUrl || !/^https?:\/\//.test(sourceUrl)) {
       toast({
@@ -230,9 +275,11 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
     const submittedDraft = newsDraft(item);
     try {
       await safeMutation(async () => {
-        const { data: saved, error } = await supabase
-          .from("source_items")
-          .update({
+        await updateNewsIfCurrent(
+          { from: () => supabase.from("source_items") },
+          item.id,
+          item.edit_version,
+          {
             title: item.title,
             ai_title: item.ai_title,
             ai_summary: item.ai_summary,
@@ -244,13 +291,8 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
             topic_lane: item.topic_lane,
             published_at: item.published_at,
             status: item.status,
-          })
-          .eq("id", item.id)
-          .select("id")
-          .maybeSingle();
-        if (error) throw error;
-        if (!saved)
-          throw new Error("The article was not saved. Refresh and try again.");
+          },
+        );
       });
       if (activeItemId.current !== itemId) return;
       recovery.clearSaved(submittedDraft);
@@ -258,6 +300,8 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
       onSaved();
       onClose();
     } catch (e) {
+      if (e instanceof NewsEditConflict && activeItemId.current === itemId)
+        setConflict(true);
       toast({
         title: "Save failed",
         description: errorMessage(e),
@@ -361,6 +405,47 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 recovery={recovery}
                 disabled={saving || uploading}
               />
+              {conflict && (
+                <div className="admin-card p-4 space-y-3" role="alert">
+                  <p>
+                    This article changed since you opened it. Your edits are
+                    still here. Compare the saved article, then load it and copy
+                    across the edits you want to keep.
+                  </p>
+                  <button
+                    type="button"
+                    className="admin-btn-ghost"
+                    disabled={comparing}
+                    onClick={compareLatest}
+                  >
+                    {comparing
+                      ? "Loading latest version…"
+                      : "Compare latest saved version"}
+                  </button>
+                  {latest && (
+                    <>
+                      <details open>
+                        <summary>Latest saved article — read only</summary>
+                        <pre className="whitespace-pre-wrap break-words max-h-80 overflow-y-auto text-xs mt-3">
+                          {JSON.stringify(newsDraft(latest), null, 2)}
+                        </pre>
+                      </details>
+                      <p className="admin-help">
+                        Loading replaces the form. Your current edits remain in
+                        this device's working-copy backup for download and
+                        comparison.
+                      </p>
+                      <button
+                        type="button"
+                        className="admin-btn-secondary"
+                        onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+                      >
+                        Load latest saved version
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {(item.status === "pending" || newsFeedIssue(item)) && (
                 <div className="admin-card p-4" role="status">
                   <strong>Editorial review</strong>
@@ -690,7 +775,7 @@ export default function NewsItemEditor({ itemId, onClose, onSaved }: Props) {
                 </button>
                 <button
                   onClick={save}
-                  disabled={saving || uploading}
+                  disabled={saving || uploading || conflict}
                   style={{
                     padding: "10px 18px",
                     background: "hsl(var(--admin-accent))",

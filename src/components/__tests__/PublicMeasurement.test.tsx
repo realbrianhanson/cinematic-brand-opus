@@ -98,6 +98,102 @@ describe("optional public measurement", () => {
       /Secret business|Private prompt|businessType|buildPrompt/,
     );
   });
+  it("measures each visible follow-up pair once, without private page views or access tokens", async () => {
+    state.path = "/offer-access";
+    history.replaceState(null, "", "/offer-access#token=private-access-secret");
+    const callbacks: IntersectionObserverCallback[] = [];
+    const observe = vi.fn();
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          callbacks.push(callback);
+        }
+        observe = observe;
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    const child = "10000000-0000-4000-8000-000000000001";
+    const parent = "20000000-0000-4000-8000-000000000001";
+    const ui = (shown: boolean) => (
+      <>
+        <PublicMeasurement />
+        {shown && (
+          <section
+            data-testid="step"
+            data-conversion-upsell-id={child}
+            data-conversion-parent-offer-id={parent}
+          >
+            Optional training
+          </section>
+        )}
+      </>
+    );
+    const { rerender } = render(ui(false));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Allow measurement" }),
+    );
+    await act(async () => {});
+    expect(send).not.toHaveBeenCalled();
+    rerender(ui(true));
+    await waitFor(() => expect(observe).toHaveBeenCalled());
+    const node = screen.getByTestId("step");
+    const notify = (visible: boolean) =>
+      act(async () =>
+        callbacks.at(-1)!(
+          [
+            {
+              target: node,
+              isIntersecting: visible,
+            } as unknown as IntersectionObserverEntry,
+          ],
+          {} as IntersectionObserver,
+        ),
+      );
+    await notify(false);
+    expect(send).not.toHaveBeenCalled();
+    await notify(true);
+    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+    await notify(true);
+    expect(send).toHaveBeenCalledOnce();
+    expect(payloads()[0].events).toEqual([
+      {
+        id: expect.any(String),
+        type: "upsell_view",
+        path: "/offer-access",
+        offer_id: child,
+        parent_offer_id: parent,
+      },
+    ]);
+    recordMeasurement([{ type: "page_view", path: "/offer-access" }]);
+    recordMeasurement([
+      {
+        type: "upsell_accept",
+        path: "/offer-access",
+        offer_id: child,
+        parent_offer_id: parent,
+      },
+    ]);
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(payloads()[1].events[0].type).toBe("upsell_accept");
+    const second = "30000000-0000-4000-8000-000000000001";
+    await act(async () => {
+      node.dataset.conversionUpsellId = second;
+    });
+    await waitFor(() => expect(observe).toHaveBeenCalledTimes(2));
+    await notify(true);
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
+    expect(payloads()[2].events[0]).toMatchObject({
+      type: "upsell_view",
+      offer_id: second,
+      parent_offer_id: parent,
+    });
+    expect(await measurementForClaim()).toBeDefined();
+    expect(JSON.stringify(payloads())).not.toMatch(
+      /private-access-secret|page_view|#token/,
+    );
+  });
   it("first appears as a small bottom-left pill that keeps its explanation for screen readers", async () => {
     render(<PublicMeasurement />);
     const banner = await screen.findByRole("region", {
