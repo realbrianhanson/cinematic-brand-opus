@@ -8,7 +8,7 @@ A separate follow-up report in **Admin → Conversions** measures which exact na
 - `/offer-access` still rejects ordinary page views and outbound click events. An intersection observer records a displayed follow-up only when it enters the viewport, once per displayed parent/child pair for that route/consent lifecycle. Browsers without intersection observation produce no inferred view.
 - Event payloads contain a random event ID, one fixed action (`upsell_view`, `upsell_accept`, `upsell_decline`), the literal `/offer-access` path, and two published offer IDs. They contain no order IDs, emails, names, private access tokens/URLs, or free-text metadata.
 - Continue records intent to begin the child checkout/free claim. The child reservation waits up to the existing one-second measurement handoff bound; optional tracking failure never stops checkout. Decline records only after the server confirms the decline.
-- The collector requires both published native offers and their current parent → child relationship. Continue/decline require a previously recorded view. A removed/reconfigured public relationship can therefore leave an older legitimate access-page view unmeasured; it does not block fulfillment.
+- The collector requires both published native offers and either their current parent → child relationship or a fulfilled order's original relationship. This preserves measurement for older legitimate purchase links after you change the funnel. Continue/decline require a previously recorded view.
 - Order attribution uses the immutable preceding **order's** offer/next-offer snapshot, an actual prior view of that exact pair, and the short-lived session capability. A child offer's standalone landing view cannot stand in for seeing the follow-up step. Neither views nor order/session links are backfilled.
 
 ## Reports and denominators
@@ -17,7 +17,7 @@ The follow-up report groups consenting sessions that began in the selected UTC p
 
 A separate operational table counts follow-up orders **fulfilled** in the selected UTC period, independent of visitor consent/session dates. It separates live paid, free, test, unknown-mode, and now-refunded orders. Order value stays separated by currency and excludes tests, unknown modes and currently refunded orders. It is before fees, not net earnings, and must never be divided by the measured-session denominator.
 
-Existing landing-page rates continue to use qualifying offer landing views. Their un-attributed coverage counts include follow-up-only views; the dashboard explicitly explains this and directs the owner to the separate follow-up report. All-native operational totals already include follow-up orders, so do not add the two operational tables together.
+Existing landing-page rates continue to use qualifying offer landing views. Sessions containing only follow-up events are excluded from the public landing-page session denominator, source totals, and daily counts. Its un-attributed coverage counts include orders with follow-up-only views; the dashboard explicitly explains this and directs the owner to the separate follow-up report. All-native operational totals already include follow-up orders, so do not add the two operational tables together.
 
 ## Deployment and validation
 

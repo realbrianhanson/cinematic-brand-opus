@@ -12,6 +12,8 @@ ALTER TABLE public.conversion_events ADD CONSTRAINT conversion_events_journey_ch
   OR (type NOT LIKE 'upsell_%' AND path<>'/offer-access' AND parent_offer_id IS NULL)
 );
 CREATE INDEX conversion_events_journey_idx ON public.conversion_events(session_id,parent_offer_id,offer_id,created_at) WHERE type='upsell_view';
+CREATE INDEX conversion_events_parent_offer_idx ON public.conversion_events(parent_offer_id) WHERE parent_offer_id IS NOT NULL;
+CREATE INDEX offer_orders_fulfilled_journey_idx ON public.offer_orders(offer_id,next_offer_id) WHERE status='fulfilled' AND next_offer_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.conversion_record_events(_session_id uuid,_token_hash text,_events jsonb,_attribution jsonb DEFAULT '{}'::jsonb)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
@@ -43,7 +45,10 @@ BEGIN
       IF NOT FOUND OR ((e->>'type')='offer_view' AND (e->>'path')<>('/offers/'||item.slug)) OR ((e->>'destination')='external_offer' AND item.checkout_mode<>'external') THEN RETURN false; END IF;
     END IF;
     IF (e->>'type') LIKE 'upsell_%' AND (item.checkout_mode<>'native' OR NOT EXISTS(
-      SELECT 1 FROM offers WHERE id=(e->>'parent_offer_id')::uuid AND status='published' AND checkout_mode='native' AND next_offer_id=item.id
+      SELECT 1 FROM offers p WHERE p.id=(e->>'parent_offer_id')::uuid AND p.status='published' AND p.checkout_mode='native'
+        AND (p.next_offer_id=item.id OR EXISTS (
+          SELECT 1 FROM offer_orders prior WHERE prior.offer_id=p.id AND prior.next_offer_id=item.id AND prior.status='fulfilled'
+        ))
     )) THEN RETURN false; END IF;
   END LOOP;
   source_value:=CASE WHEN (_attribution->>'source') ~ '^[a-z0-9][a-z0-9_-]{0,63}$' THEN _attribution->>'source' ELSE 'direct' END;
@@ -162,3 +167,109 @@ GRANT EXECUTE ON FUNCTION public.admin_offer_journey_snapshot(integer) TO authen
 -- CREATE OR REPLACE preserves existing ACLs; restate collection/binding explicitly.
 REVOKE ALL ON FUNCTION public.conversion_record_events(uuid,text,jsonb,jsonb),public.conversion_bind_order(uuid,text,uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.conversion_record_events(uuid,text,jsonb,jsonb),public.conversion_bind_order(uuid,text,uuid,text) TO service_role;
+
+-- Follow-up-only visits do not dilute public landing-page session cohorts.
+CREATE OR REPLACE FUNCTION public.admin_conversion_snapshot(_days integer DEFAULT 30)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+DECLARE start_time timestamptz; end_time timestamptz:=clock_timestamp(); result jsonb;
+BEGIN
+  IF NOT public.is_admin(auth.uid()) THEN RAISE EXCEPTION 'Administrator access required' USING ERRCODE='42501'; END IF;
+  IF _days IS NULL OR _days NOT IN (7,30,90) THEN RAISE EXCEPTION 'Choose 7, 30 or 90 days'; END IF;
+  start_time:=(date_trunc('day',end_time AT TIME ZONE 'UTC')-make_interval(days=>_days-1)) AT TIME ZONE 'UTC';
+  WITH cohort AS MATERIALIZED (SELECT s.* FROM conversion_sessions s WHERE s.revoked_at IS NULL AND s.started_at>=start_time AND s.started_at<end_time AND EXISTS(SELECT 1 FROM conversion_events public_event WHERE public_event.session_id=s.id AND public_event.type NOT LIKE 'upsell_%' AND public_event.created_at<end_time)),
+  ev AS MATERIALIZED (SELECT e.* FROM conversion_events e JOIN cohort s ON s.id=e.session_id WHERE e.created_at<end_time AND e.type NOT LIKE 'upsell_%'),
+  native AS MATERIALIZED (
+    SELECT o.*,coalesce(f.payment_mode,'unknown') payment_mode FROM offer_orders o LEFT JOIN conversion_order_facts f ON f.order_id=o.id
+    WHERE o.fulfilled_at>=start_time AND o.fulfilled_at<end_time AND o.status IN ('fulfilled','refunded')
+  ),
+  qualified AS MATERIALIZED (
+    SELECT o.id,o.offer_id,o.amount_minor,l.session_id,o.fulfilled_at,coalesce(f.payment_mode,'unknown') payment_mode
+    FROM offer_orders o JOIN conversion_order_links l ON l.order_id=o.id JOIN conversion_sessions s ON s.id=l.session_id LEFT JOIN conversion_order_facts f ON f.order_id=o.id
+    WHERE s.revoked_at IS NULL AND o.status='fulfilled' AND o.fulfilled_at<end_time AND EXISTS(SELECT 1 FROM conversion_events e WHERE e.session_id=s.id AND e.type='offer_view' AND e.offer_id=o.offer_id AND e.created_at<=o.created_at)
+  ),
+  attributed AS MATERIALIZED (SELECT q.* FROM qualified q JOIN cohort s ON s.id=q.session_id),
+  attributed_sessions AS MATERIALIZED (
+    SELECT session_id,
+      count(*) FILTER(WHERE amount_minor=0) free_claims,
+      count(*) FILTER(WHERE amount_minor>0 AND payment_mode='live') paid_orders
+    FROM attributed GROUP BY session_id
+  ),
+  session_metrics AS MATERIALIZED (
+    SELECT s.*,
+      EXISTS(SELECT 1 FROM ev WHERE session_id=s.id AND type='shop_view') shop,
+      EXISTS(SELECT 1 FROM ev WHERE session_id=s.id AND type='offer_view') offer,
+      EXISTS(SELECT 1 FROM ev WHERE session_id=s.id AND type='outbound_click') outbound,
+      coalesce(a.free_claims,0) free_claims,
+      coalesce(a.paid_orders,0) paid_orders
+    FROM cohort s LEFT JOIN attributed_sessions a ON a.session_id=s.id
+  ),
+  event_offers AS MATERIALIZED (
+    SELECT offer_id,
+      count(DISTINCT session_id) FILTER(WHERE type='offer_view') view_sessions,
+      count(DISTINCT session_id) FILTER(WHERE type='outbound_click') outbound_sessions
+    FROM ev WHERE offer_id IS NOT NULL GROUP BY offer_id
+  ),
+  attributed_offers AS MATERIALIZED (
+    SELECT offer_id,
+      count(DISTINCT session_id) FILTER(WHERE amount_minor=0) free_claim_sessions,
+      count(DISTINCT session_id) FILTER(WHERE amount_minor>0 AND payment_mode='live') paid_order_sessions,
+      count(*) FILTER(WHERE amount_minor=0) free_claims,
+      count(*) FILTER(WHERE amount_minor>0 AND payment_mode='live') paid_orders
+    FROM attributed GROUP BY offer_id
+  ),
+  offer_metrics AS (
+    SELECT o.id offer_id,o.title,o.slug,o.checkout_mode,
+      coalesce(e.view_sessions,0) view_sessions,
+      coalesce(e.outbound_sessions,0) outbound_sessions,
+      coalesce(a.free_claim_sessions,0) free_claim_sessions,
+      coalesce(a.paid_order_sessions,0) paid_order_sessions,
+      coalesce(a.free_claims,0) free_claims,
+      coalesce(a.paid_orders,0) paid_orders
+    FROM offers o LEFT JOIN event_offers e ON e.offer_id=o.id LEFT JOIN attributed_offers a ON a.offer_id=o.id
+    WHERE e.offer_id IS NOT NULL OR a.offer_id IS NOT NULL
+  )
+  SELECT jsonb_build_object(
+    'generated_at',end_time,'measurement_started_at',(SELECT started_at FROM conversion_measurement_config WHERE singleton),
+    'range',jsonb_build_object('start',start_time,'end',end_time,'timezone','UTC'),
+    'summary',jsonb_build_object(
+      'measured_sessions',(SELECT count(*) FROM cohort),'page_views',(SELECT count(*) FROM ev WHERE type='page_view'),
+      'shop_sessions',(SELECT count(*) FROM session_metrics WHERE shop),'offer_sessions',(SELECT count(*) FROM session_metrics WHERE offer),
+      'outbound_sessions',(SELECT count(*) FROM session_metrics WHERE outbound),'attributed_free_claim_sessions',(SELECT count(*) FROM session_metrics WHERE free_claims>0),
+      'attributed_paid_order_sessions',(SELECT count(*) FROM session_metrics WHERE paid_orders>0)),
+    'first_ai_build',jsonb_build_object(
+      'visit_sessions',(SELECT count(DISTINCT session_id) FROM ev WHERE path='/first-ai-build' AND type='page_view'),
+      'plan_sessions',(SELECT count(DISTINCT session_id) FROM ev WHERE type='build_plan_created'),
+      'copy_sessions',(SELECT count(DISTINCT session_id) FROM ev WHERE type='build_prompt_copied'),
+      'download_sessions',(SELECT count(DISTINCT session_id) FROM ev WHERE type='build_plan_downloaded'),
+      'training_sessions',(SELECT count(DISTINCT session_id) FROM ev WHERE type='build_training_clicked')),
+    'native_totals',jsonb_build_object(
+      'free_claims',(SELECT count(*) FROM native WHERE status='fulfilled' AND amount_minor=0),
+      'paid_orders',(SELECT count(*) FROM native WHERE status='fulfilled' AND amount_minor>0 AND payment_mode='live'),
+      'test_paid_orders',(SELECT count(*) FROM native WHERE status='fulfilled' AND amount_minor>0 AND payment_mode='test'),
+      'unknown_mode_paid_orders',(SELECT count(*) FROM native WHERE status='fulfilled' AND amount_minor>0 AND payment_mode='unknown'),
+      'refunded_orders',(SELECT count(*) FROM native WHERE status='refunded'),
+      'download_links_issued',(SELECT count(*) FROM conversion_order_facts WHERE first_download_at>=start_time AND first_download_at<end_time),
+      'revenue_by_currency',coalesce((SELECT jsonb_agg(to_jsonb(r) ORDER BY currency) FROM (SELECT currency,sum(amount_minor)::bigint amount_minor FROM native WHERE status='fulfilled' AND amount_minor>0 AND payment_mode='live' GROUP BY currency) r),'[]'::jsonb)),
+    'coverage',jsonb_build_object('session_retention_days',90,
+      'unattributed_free_claims',(SELECT count(*) FROM native n WHERE status='fulfilled' AND amount_minor=0 AND NOT EXISTS(SELECT 1 FROM qualified q WHERE q.id=n.id)),
+      'unattributed_paid_orders',(SELECT count(*) FROM native n WHERE status='fulfilled' AND amount_minor>0 AND payment_mode='live' AND NOT EXISTS(SELECT 1 FROM qualified q WHERE q.id=n.id))),
+    'daily',coalesce((SELECT jsonb_agg(to_jsonb(d) ORDER BY date) FROM (
+      SELECT to_char(day,'YYYY-MM-DD') date,count(s.id) sessions,count(s.id) FILTER(WHERE outbound) outbound_sessions,count(s.id) FILTER(WHERE free_claims>0) free_claim_sessions,count(s.id) FILTER(WHERE paid_orders>0) paid_order_sessions
+      FROM generate_series(start_time AT TIME ZONE 'UTC',end_time AT TIME ZONE 'UTC',interval '1 day') day
+      LEFT JOIN session_metrics s ON (s.started_at AT TIME ZONE 'UTC')::date=day::date GROUP BY day
+    ) d),'[]'::jsonb),
+    'sources',coalesce((SELECT jsonb_agg(to_jsonb(r) ORDER BY sessions DESC,source,medium,campaign) FROM (
+      SELECT source,medium,campaign,count(*) sessions,count(*) FILTER(WHERE shop) shop_sessions,count(*) FILTER(WHERE offer) offer_sessions,count(*) FILTER(WHERE outbound) outbound_sessions,
+      count(*) FILTER(WHERE free_claims>0) free_claim_sessions,count(*) FILTER(WHERE paid_orders>0) paid_order_sessions,sum(free_claims)::bigint free_claims,sum(paid_orders)::bigint paid_orders
+      FROM session_metrics GROUP BY source,medium,campaign ORDER BY count(*) DESC,source,medium,campaign LIMIT 20
+    ) r),'[]'::jsonb),
+    'offers',coalesce((SELECT jsonb_agg(to_jsonb(r) ORDER BY view_sessions DESC,offer_id) FROM (SELECT * FROM offer_metrics ORDER BY view_sessions DESC,offer_id LIMIT 20) r),'[]'::jsonb),
+    'placements',coalesce((SELECT jsonb_agg(to_jsonb(r) ORDER BY clicks DESC,placement,destination) FROM (
+      SELECT coalesce(placement,'other') placement,destination,count(*) clicks,count(DISTINCT session_id) sessions FROM ev WHERE type='outbound_click'
+      GROUP BY coalesce(placement,'other'),destination ORDER BY count(*) DESC,coalesce(placement,'other'),destination LIMIT 20
+    ) r),'[]'::jsonb)
+  ) INTO result;
+  RETURN result;
+END $$;
+
+CREATE INDEX offer_orders_fulfilled_reporting_idx ON public.offer_orders(fulfilled_at) WHERE status IN ('fulfilled','refunded');

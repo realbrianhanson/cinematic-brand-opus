@@ -195,6 +195,15 @@ assert.equal(
 const early = await order(child, await order(parent), 1000);
 const lateSession = crypto.randomUUID();
 assert.equal(await record(lateSession, [event()]), true);
+// Explicit timestamps make the ordering test independent of clock resolution.
+await db.query(
+  "UPDATE offer_orders SET created_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+  [early],
+);
+await db.query(
+  "UPDATE conversion_sessions SET started_at=clock_timestamp()-interval '2 seconds' WHERE id=$1",
+  [lateSession],
+);
 assert.equal(
   await bind(early, lateSession),
   false,
@@ -209,6 +218,18 @@ assert.equal(
   await bind(firstChild),
   true,
   "historical snapshot retained after public graph edit",
+);
+assert.equal(
+  await record(session, [event()]),
+  true,
+  "the original fulfilled-order follow-up remains measurable after a public graph edit",
+);
+assert.equal(
+  await record(crypto.randomUUID(), [
+    event("upsell_view", { parent_offer_id: unrelated }),
+  ]),
+  false,
+  "historical relationship support does not admit arbitrary pairs",
 );
 await db.query("UPDATE offers SET next_offer_id=$1 WHERE id=$2", [
   child,
@@ -254,6 +275,17 @@ await assert.rejects(
 );
 const report = async (days = 30) =>
   (await one("SELECT admin_offer_journey_snapshot($1) report", [days])).report;
+const landingReport = (await one("SELECT admin_conversion_snapshot(30) report"))
+  .report;
+assert.equal(
+  landingReport.summary.measured_sessions,
+  1,
+  "follow-up-only sessions do not dilute public landing-page denominators",
+);
+assert.equal(
+  landingReport.sources.reduce((sum, row) => sum + row.sessions, 0),
+  1,
+);
 let result = await report();
 assert.equal(result.steps.length, 1);
 assert.deepEqual(result.steps[0], {
