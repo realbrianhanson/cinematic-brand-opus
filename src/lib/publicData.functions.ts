@@ -27,10 +27,12 @@ type PublicNiche = {
 };
 
 import { blogSearch } from "../../supabase/functions/_shared/blogPagination";
+import { resourceSearch } from "../../supabase/functions/_shared/resourcePagination";
 import {
   fetchBlogPage,
   fetchNewsPage,
   fetchGuideResources,
+  fetchResourcePage,
 } from "./publicLists";
 import {
   PUBLIC_GENERATED_PAGE_LIST_SELECT,
@@ -169,27 +171,30 @@ export const getPublicContentType = createServerFn({ method: "GET" })
     if (typeof contentType !== "string" || !contentType.trim()) {
       throw new Error("Invalid content type");
     }
-    return { contentType };
+    return { contentType, ...resourceSearch(input as Record<string, unknown>) };
   })
-  .handler(async ({ data: { contentType } }) => {
+  .handler(async ({ data: { contentType, page, niche } }) => {
     const supabase = createPublicServerClient();
     const { data: schema, error: schemaError } = await supabase
       .from("content_schemas")
       .select("*")
       .eq("slug", contentType)
+      .eq("is_active", true)
       .maybeSingle();
     if (schemaError) throw new Error(schemaError.message);
     if (!schema) return null;
 
-    const { data: pages, error: pagesError } = await supabase
-      .from("generated_pages")
-      .select(PUBLIC_GENERATED_PAGE_LIST_SELECT)
-      .eq("content_schema_id", schema.id)
-      .eq("status", "published")
-      .order("title");
-    if (pagesError) throw new Error(pagesError.message);
-
-    return { schema, pages: pages ?? [] };
+    const [listing, niches] = await Promise.all([
+      fetchResourcePage(supabase, schema.id, page, niche),
+      supabase
+        .from("niches")
+        .select("id, name, slug")
+        .eq("is_active", true)
+        .order("name")
+        .limit(1000),
+    ]);
+    if (niches.error) throw new Error(niches.error.message);
+    return { schema, ...listing, page, niche, niches: niches.data ?? [] };
   });
 
 export const getPublicGeneratedPage = createServerFn({ method: "GET" })

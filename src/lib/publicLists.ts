@@ -5,6 +5,44 @@ import {
 } from "../../supabase/functions/_shared/newsQuality";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { PUBLIC_GENERATED_PAGE_LIST_SELECT } from "./publicColumns";
+import { RESOURCE_PAGE_SIZE } from "../../supabase/functions/_shared/resourcePagination";
+
+export async function fetchResourcePage(
+  client: SupabaseClient<Database>,
+  schemaId: string,
+  page = 1,
+  niche = "",
+) {
+  let nicheId: string | undefined;
+  if (niche) {
+    const { data, error } = await client
+      .from("niches")
+      .select("id")
+      .eq("slug", niche)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return { pages: [], nextPage: null };
+    nicheId = data.id;
+  }
+  let query = client
+    .from("generated_pages")
+    .select(PUBLIC_GENERATED_PAGE_LIST_SELECT)
+    .eq("content_schema_id", schemaId)
+    .eq("status", "published");
+  if (nicheId) query = query.eq("niche_id", nicheId);
+  const offset = (page - 1) * RESOURCE_PAGE_SIZE;
+  const { data, error } = await query
+    .order("title")
+    .order("id")
+    .range(offset, offset + RESOURCE_PAGE_SIZE);
+  if (error) throw error;
+  return {
+    pages: (data ?? []).slice(0, RESOURCE_PAGE_SIZE),
+    nextPage: (data?.length ?? 0) > RESOURCE_PAGE_SIZE ? page + 1 : null,
+  };
+}
 
 export const BLOG_PAGE_SIZE = 12;
 export const NEWS_PAGE_SIZE = 18;
