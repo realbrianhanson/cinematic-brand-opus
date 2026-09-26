@@ -23,7 +23,7 @@ import {
 
 const { rpc, stored } = vi.hoisted(() => ({
   rpc: vi.fn(),
-  stored: { value: null as unknown },
+  stored: { value: null as unknown, updatedAt: null as string | null },
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -32,7 +32,9 @@ vi.mock("@/integrations/supabase/client", () => ({
         select: () => query,
         eq: () => query,
         maybeSingle: async () => ({
-          data: stored.value ? { settings: stored.value } : null,
+          data: stored.value
+            ? { settings: stored.value, updated_at: stored.updatedAt }
+            : null,
           error: null,
         }),
       };
@@ -90,6 +92,7 @@ function renderSetup() {
 
 beforeEach(() => {
   stored.value = null;
+  stored.updatedAt = null;
   rpc.mockReset();
   rpc.mockImplementation(async (name: string) =>
     name === "admin_read_site_settings"
@@ -167,6 +170,71 @@ describe("site setup change plan", () => {
 });
 
 describe("SiteSetup", () => {
+  it.each([
+    {
+      label: "absent branding row",
+      brandingExists: false,
+      brandingVersion: null,
+      settingsVersion: "2026-09-26T12:00:00Z",
+    },
+    {
+      label: "legacy null settings timestamp",
+      brandingExists: true,
+      brandingVersion: "2026-09-26T12:00:01Z",
+      settingsVersion: null,
+    },
+    {
+      label: "both null markers",
+      brandingExists: false,
+      brandingVersion: null,
+      settingsVersion: null,
+    },
+    {
+      label: "both populated markers",
+      brandingExists: true,
+      brandingVersion: "2026-09-26T12:00:01Z",
+      settingsVersion: "2026-09-26T12:00:00Z",
+    },
+  ])(
+    "serializes both required concurrency keys for $label",
+    async ({ brandingExists, brandingVersion, settingsVersion }) => {
+      stored.value = brandingExists ? setupDefaults(siteConfig) : null;
+      stored.updatedAt = brandingVersion;
+      rpc.mockImplementation(async (name: string) =>
+        name === "admin_read_site_settings"
+          ? { data: [{ ...liveRow, updated_at: settingsVersion }], error: null }
+          : { data: { saved: true }, error: null },
+      );
+      renderSetup();
+      await screen.findByLabelText("Name or brand");
+      fireEvent.click(screen.getByRole("button", { name: /Preview & launch/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Apply site setup" }));
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Apply these changes" }),
+      );
+      await waitFor(() =>
+        expect(rpc).toHaveBeenCalledWith(
+          "admin_save_site_branding",
+          expect.anything(),
+        ),
+      );
+      const args = rpc.mock.calls.find(
+        ([name]) => name === "admin_save_site_branding",
+      )?.[1];
+      // PostgREST chooses this RPC by argument names. An undefined value vanishes
+      // from the JSON body, while explicit null is a valid concurrency marker.
+      const body = JSON.parse(JSON.stringify(args)) as Record<string, unknown>;
+      for (const key of [
+        "_expected_branding_updated_at",
+        "_expected_settings_updated_at",
+      ]) {
+        expect(Object.hasOwn(body, key)).toBe(true);
+      }
+      expect(body._expected_branding_updated_at).toBe(brandingVersion);
+      expect(body._expected_settings_updated_at).toBe(settingsVersion);
+    },
+  );
+
   it("freezes the draft and apply controls while reloading a saved site identity", async () => {
     renderSetup();
     fireEvent.change(await screen.findByLabelText("Name or brand"), {

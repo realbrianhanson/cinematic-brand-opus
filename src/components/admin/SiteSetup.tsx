@@ -181,9 +181,10 @@ export default function SiteSetup() {
         Promise.resolve(
           supabase.rpc("admin_save_site_branding", {
             _value: value as unknown as Json,
-            // Generated types mark these non-null; null is valid SQL (no prior version).
-            _expected_branding_updated_at: (base.brandingVersion ?? undefined) as string,
-            _expected_settings_updated_at: (base.settingsVersion ?? undefined) as string,
+            // Type generation omits SQL argument nullability. Keep explicit null:
+            // these required RPC keys cannot be omitted or replaced by "".
+            _expected_branding_updated_at: base.brandingVersion as string,
+            _expected_settings_updated_at: base.settingsVersion as string,
           }),
         ),
       );
