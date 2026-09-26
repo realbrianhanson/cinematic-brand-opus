@@ -2138,9 +2138,8 @@ export type Database = {
           checkout_retry_token_hash: string | null
           created_at: string
           currency: string
-          downsell_offer_id: string | null
-          upsell_declined_at: string | null
           declined_at: string | null
+          downsell_offer_id: string | null
           email: string
           fulfilled_at: string | null
           id: string
@@ -2156,6 +2155,7 @@ export type Database = {
           stripe_session_id: string | null
           title_snapshot: string
           token_hash: string
+          upsell_declined_at: string | null
         }
         Insert: {
           amount_minor: number
@@ -2167,9 +2167,8 @@ export type Database = {
           checkout_retry_token_hash?: string | null
           created_at?: string
           currency: string
-          downsell_offer_id?: string | null
-          upsell_declined_at?: string | null
           declined_at?: string | null
+          downsell_offer_id?: string | null
           email: string
           fulfilled_at?: string | null
           id?: string
@@ -2185,6 +2184,7 @@ export type Database = {
           stripe_session_id?: string | null
           title_snapshot: string
           token_hash: string
+          upsell_declined_at?: string | null
         }
         Update: {
           amount_minor?: number
@@ -2196,9 +2196,8 @@ export type Database = {
           checkout_retry_token_hash?: string | null
           created_at?: string
           currency?: string
-          downsell_offer_id?: string | null
-          upsell_declined_at?: string | null
           declined_at?: string | null
+          downsell_offer_id?: string | null
           email?: string
           fulfilled_at?: string | null
           id?: string
@@ -2214,6 +2213,7 @@ export type Database = {
           stripe_session_id?: string | null
           title_snapshot?: string
           token_hash?: string
+          upsell_declined_at?: string | null
         }
         Relationships: [
           {
@@ -2309,13 +2309,13 @@ export type Database = {
           amount_minor: number
           asset_name: string | null
           asset_path: string | null
-          bump_offer_id: string | null
-          downsell_offer_id: string | null
           body: string
+          bump_offer_id: string | null
           checkout_mode: string
           cover_url: string | null
           created_at: string
           currency: string
+          downsell_offer_id: string | null
           external_button_text: string
           external_url: string | null
           funnel_only: boolean
@@ -2341,13 +2341,13 @@ export type Database = {
           amount_minor?: number
           asset_name?: string | null
           asset_path?: string | null
-          bump_offer_id?: string | null
-          downsell_offer_id?: string | null
           body?: string
+          bump_offer_id?: string | null
           checkout_mode?: string
           cover_url?: string | null
           created_at?: string
           currency?: string
+          downsell_offer_id?: string | null
           external_button_text?: string
           external_url?: string | null
           funnel_only?: boolean
@@ -2373,13 +2373,13 @@ export type Database = {
           amount_minor?: number
           asset_name?: string | null
           asset_path?: string | null
-          bump_offer_id?: string | null
-          downsell_offer_id?: string | null
           body?: string
+          bump_offer_id?: string | null
           checkout_mode?: string
           cover_url?: string | null
           created_at?: string
           currency?: string
+          downsell_offer_id?: string | null
           external_button_text?: string
           external_url?: string | null
           funnel_only?: boolean
@@ -3390,9 +3390,7 @@ export type Database = {
         Returns: Json
       }
       admin_external_payment_snapshot: {
-        Args: {
-          _days?: number
-        }
+        Args: { _days?: number }
         Returns: Json
       }
       admin_import_external_conversions: {
@@ -3423,23 +3421,11 @@ export type Database = {
         Returns: string
       }
       admin_offer_experiment_transition: {
-        Args: {
-          _id: string
-          _state: string
-          _version: number
-        }
+        Args: { _id: string; _state: string; _version: number }
         Returns: undefined
       }
-      admin_offer_experiments: {
-        Args: never
-        Returns: Json
-      }
-      admin_offer_journey_snapshot: {
-        Args: {
-          _days?: number
-        }
-        Returns: Json
-      }
+      admin_offer_experiments: { Args: never; Returns: Json }
+      admin_offer_journey_snapshot: { Args: { _days?: number }; Returns: Json }
       admin_overview_attention_item: {
         Args: {
           _count: number
@@ -3604,10 +3590,7 @@ export type Database = {
         Returns: Json
       }
       external_payment_apply_event: {
-        Args: {
-          _event: Json
-          _payments: Json
-        }
+        Args: { _event: Json; _payments: Json }
         Returns: Json
       }
       external_payment_event_status: {
@@ -3635,16 +3618,10 @@ export type Database = {
         Returns: boolean
       }
       funnel_graph_validate: {
-        Args: {
-          g: Json
-          publishing?: boolean
-        }
+        Args: { g: Json; publishing?: boolean }
         Returns: undefined
       }
-      funnel_journey_cleanup: {
-        Args: never
-        Returns: undefined
-      }
+      funnel_journey_cleanup: { Args: never; Returns: undefined }
       funnel_journey_save: {
         Args: {
           _active: boolean
@@ -3658,12 +3635,7 @@ export type Database = {
         }
         Returns: Json
       }
-      funnel_public_journey: {
-        Args: {
-          _slug: string
-        }
-        Returns: Json
-      }
+      funnel_public_journey: { Args: { _slug: string }; Returns: Json }
       funnel_session_advance: {
         Args: {
           _answer: string
@@ -3675,18 +3647,10 @@ export type Database = {
         Returns: Json
       }
       funnel_session_start: {
-        Args: {
-          _slug: string
-          _token_hash: string
-        }
+        Args: { _slug: string; _token_hash: string }
         Returns: Json
       }
-      funnel_session_view: {
-        Args: {
-          _token_hash: string
-        }
-        Returns: Json
-      }
+      funnel_session_view: { Args: { _token_hash: string }; Returns: Json }
       get_cron_invocation_secret: { Args: never; Returns: string }
       gsc_finish_import: {
         Args: { _expected_rows: number; _import_id: string }
@@ -3779,9 +3743,7 @@ export type Database = {
         Returns: Json
       }
       offer_builder_document_valid: {
-        Args: {
-          _document: Json
-        }
+        Args: { _document: Json }
         Returns: boolean
       }
       offer_builder_keys: {
@@ -3813,10 +3775,7 @@ export type Database = {
       }
       offer_claim_access_delivery: { Args: { _id: string }; Returns: Json }
       offer_decline_next: {
-        Args: {
-          _offer_id?: string
-          _token_hash: string
-        }
+        Args: { _offer_id?: string; _token_hash: string }
         Returns: Json
       }
       offer_experiment_decide: {
@@ -3829,12 +3788,7 @@ export type Database = {
         }
         Returns: Json
       }
-      offer_experiment_valid_copy: {
-        Args: {
-          _copy: Json
-        }
-        Returns: boolean
-      }
+      offer_experiment_valid_copy: { Args: { _copy: Json }; Returns: boolean }
       offer_finish_access_delivery: {
         Args: {
           _error?: string
@@ -3853,12 +3807,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      offer_order_snapshot: {
-        Args: {
-          _order_id: string
-        }
-        Returns: Json
-      }
+      offer_order_snapshot: { Args: { _order_id: string }; Returns: Json }
       offer_prepare_access_delivery: {
         Args: { _email?: string; _order_id?: string }
         Returns: string
@@ -3874,12 +3823,7 @@ export type Database = {
         }
         Returns: Json
       }
-      offer_public_bump: {
-        Args: {
-          _offer_id: string
-        }
-        Returns: Json
-      }
+      offer_public_bump: { Args: { _offer_id: string }; Returns: Json }
       offer_record_access_attempt: {
         Args: {
           _error?: string
