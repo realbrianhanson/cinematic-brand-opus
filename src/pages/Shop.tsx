@@ -52,7 +52,7 @@ export default function Shop({
   return (
     <div
       className="min-h-screen font-body text-white"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <Nav />
       <header className="mx-auto max-w-[1440px] px-6 lg:px-14 pt-32 pb-10 md:pb-14">
@@ -61,7 +61,7 @@ export default function Shop({
         />
         <p
           className="font-bold text-xs tracking-[0.22em] uppercase mt-7 mb-4"
-          style={{ color: "var(--brand-accent)" }}
+          style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
         >
           The shop · {identity.name}
         </p>
@@ -69,7 +69,10 @@ export default function Shop({
           <h1 className="font-display text-4xl md:text-6xl leading-[1.1] max-w-2xl">
             {owner ? "Tools and training" : "Good ideas"}
             <br />
-            <span className="italic" style={{ color: "var(--brand-accent)" }}>
+            <span
+              className="italic"
+              style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
+            >
               {owner ? "to build with AI" : "A place to start"}
             </span>
           </h1>
@@ -89,7 +92,7 @@ export default function Shop({
             Not sure which fits?{" "}
             <Link
               to="/start-here"
-              className="text-[var(--brand-accent)] underline underline-offset-4"
+              className="text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
             >
               Choose a starting point for your goal
             </Link>
@@ -219,7 +222,7 @@ export default function Shop({
               size={32}
               strokeWidth={1.4}
               className="mx-auto mb-5"
-              style={{ color: "var(--brand-accent)" }}
+              style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
               aria-hidden="true"
             />
             <h2 className="font-display text-3xl">

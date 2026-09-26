@@ -74,7 +74,10 @@ const HTMLSitemap = () => {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
       <main
@@ -90,7 +93,10 @@ const HTMLSitemap = () => {
         </h1>
         <p
           className="font-body mb-12"
-          style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+          style={{
+            fontSize: 15,
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
+          }}
         >
           A complete index of every page on this site.
         </p>
@@ -99,7 +105,10 @@ const HTMLSitemap = () => {
         <section className="mb-12">
           <h2
             className="font-display mb-4"
-            style={{ fontSize: 22, color: "var(--brand-accent)" }}
+            style={{
+              fontSize: 22,
+              color: "var(--site-accent-ink, var(--brand-accent))",
+            }}
           >
             Pages
           </h2>
@@ -116,7 +125,7 @@ const HTMLSitemap = () => {
               <li key={path}>
                 <Link
                   to={path}
-                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                 >
                   {label}
                 </Link>
@@ -126,7 +135,7 @@ const HTMLSitemap = () => {
               <li>
                 <Link
                   to="/about"
-                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                 >
                   About {config.identity.name}
                 </Link>
@@ -136,7 +145,7 @@ const HTMLSitemap = () => {
               <li>
                 <Link
                   to="/speaking"
-                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--brand-accent)]"
+                  className="font-body text-[15px] text-white/70 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                 >
                   Speaking & Workshops
                 </Link>
@@ -145,8 +154,11 @@ const HTMLSitemap = () => {
             <li>
               <Link
                 to="/"
-                className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                style={{
+                  fontSize: 15,
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                }}
               >
                 Home
               </Link>
@@ -154,8 +166,11 @@ const HTMLSitemap = () => {
             <li>
               <Link
                 to="/blog"
-                className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                style={{
+                  fontSize: 15,
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                }}
               >
                 Blog
               </Link>
@@ -163,8 +178,11 @@ const HTMLSitemap = () => {
             <li>
               <Link
                 to="/resources"
-                className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                style={{
+                  fontSize: 15,
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                }}
               >
                 Resources
               </Link>
@@ -172,8 +190,11 @@ const HTMLSitemap = () => {
             <li>
               <Link
                 to="/shop"
-                className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                style={{
+                  fontSize: 15,
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                }}
               >
                 Shop
               </Link>
@@ -193,7 +214,10 @@ const HTMLSitemap = () => {
           <section className="mb-12">
             <h2
               className="font-display mb-4"
-              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+              style={{
+                fontSize: 22,
+                color: "var(--site-accent-ink, var(--brand-accent))",
+              }}
             >
               Shop offers
             </h2>
@@ -202,8 +226,11 @@ const HTMLSitemap = () => {
                 <li key={offer.slug}>
                   <Link
                     to={`/offers/${offer.slug}`}
-                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                    style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                    className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                    style={{
+                      fontSize: 15,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {offer.title}
                   </Link>
@@ -218,7 +245,10 @@ const HTMLSitemap = () => {
           <section className="mb-12">
             <h2
               className="font-display mb-4"
-              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+              style={{
+                fontSize: 22,
+                color: "var(--site-accent-ink, var(--brand-accent))",
+              }}
             >
               Guides
             </h2>
@@ -227,8 +257,11 @@ const HTMLSitemap = () => {
                 <li key={p.id}>
                   <Link
                     to={`/guides/${p.slug}`}
-                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                    style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                    className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                    style={{
+                      fontSize: 15,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {p.title}
                   </Link>
@@ -243,7 +276,10 @@ const HTMLSitemap = () => {
           <section className="mb-12">
             <h2
               className="font-display mb-6"
-              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+              style={{
+                fontSize: 22,
+                color: "var(--site-accent-ink, var(--brand-accent))",
+              }}
             >
               Resources
             </h2>
@@ -254,7 +290,7 @@ const HTMLSitemap = () => {
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.12em",
-                    color: "rgba(255,255,255,0.7)",
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
                   }}
                 >
                   {group.name}
@@ -269,8 +305,11 @@ const HTMLSitemap = () => {
                     <li key={i}>
                       <Link
                         to={`/resources/${group.slug}/${page.pageSlug}`}
-                        className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                        style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}
+                        className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                        style={{
+                          fontSize: 14,
+                          color: "var(--site-text-60, rgba(255,255,255,0.6))",
+                        }}
                       >
                         {page.title}
                       </Link>
@@ -287,7 +326,10 @@ const HTMLSitemap = () => {
           <section className="mb-12">
             <h2
               className="font-display mb-4"
-              style={{ fontSize: 22, color: "var(--brand-accent)" }}
+              style={{
+                fontSize: 22,
+                color: "var(--site-accent-ink, var(--brand-accent))",
+              }}
             >
               Blog Articles
             </h2>
@@ -296,8 +338,11 @@ const HTMLSitemap = () => {
                 <li key={post.id}>
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="font-body hover:text-[var(--brand-accent)] transition-colors"
-                    style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}
+                    className="font-body hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                    style={{
+                      fontSize: 15,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {post.title}
                   </Link>

@@ -113,7 +113,7 @@ export default function MobileSummitBar() {
         ref={bar}
         role="region"
         aria-label="Free AI Summit"
-        className="public-site fixed inset-x-0 z-40 flex items-center gap-2 border-t border-[rgba(var(--brand-accent-rgb),0.3)] bg-[rgba(var(--brand-backdrop-rgb),0.96)] py-2 pl-4 pr-2 backdrop-blur md:hidden print:hidden"
+        className="public-site fixed inset-x-0 z-40 flex items-center gap-2 border-t border-[rgba(var(--brand-accent-rgb),0.3)] bg-[var(--site-nav-scrolled,rgba(var(--brand-backdrop-rgb),0.96))] py-2 pl-4 pr-2 backdrop-blur md:hidden print:hidden"
         style={{ bottom: offset ?? 0 }}
       >
         <a

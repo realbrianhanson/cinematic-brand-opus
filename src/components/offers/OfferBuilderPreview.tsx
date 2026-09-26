@@ -188,7 +188,7 @@ export default function OfferBuilderPreview({
         Preview only. Purchases, downloads, and outgoing links are disabled.
       </p>
       <div
-        className={`mx-auto overflow-hidden rounded-xl border border-white/15 bg-[#101011] ${device === "phone" ? "max-w-[390px]" : "w-full"}`}
+        className={`public-theme-preview mx-auto overflow-hidden rounded-xl border border-white/15 bg-[var(--site-surface,#101011)] ${device === "phone" ? "max-w-[390px]" : "w-full"}`}
       >
         <div className="public-site max-h-[75vh] overflow-y-auto [overflow-wrap:anywhere]">
           {simulation === "provider" ? (

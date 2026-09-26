@@ -178,7 +178,7 @@ const BlogPost = ({
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
         <p className="font-body text-body text-white/70">Loading…</p>
       </div>
@@ -189,12 +189,12 @@ const BlogPost = ({
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-6"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
         <p className="font-display text-title text-white">Post not found</p>
         <Link
           to="/blog"
-          className="font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]"
+          className="font-body text-label uppercase tracking-[0.15em] text-[var(--site-accent-ink,var(--brand-accent))]"
         >
           ← Back to Blog
         </Link>
@@ -203,7 +203,7 @@ const BlogPost = ({
   }
 
   return (
-    <div className="public-site min-h-screen bg-[#0b0b10] text-white">
+    <div className="public-site min-h-screen bg-[var(--site-surface,#0b0b10)] text-white">
       <Nav />
       <article
         id="main-content"
@@ -211,7 +211,7 @@ const BlogPost = ({
       >
         <Link
           to="/blog"
-          className="mb-12 inline-flex items-center gap-2 font-body text-label uppercase tracking-[0.18em] text-white/70 transition-colors duration-200 hover:text-[var(--brand-accent)]"
+          className="mb-12 inline-flex items-center gap-2 font-body text-label uppercase tracking-[0.18em] text-white/70 transition-colors duration-200 hover:text-[var(--site-accent-ink,var(--brand-accent))]"
         >
           <ArrowLeft size={14} aria-hidden="true" />
           Back to Blog
@@ -220,7 +220,7 @@ const BlogPost = ({
         {/* Meta */}
         <div className="mb-6 flex flex-wrap items-center gap-4">
           {post.categories?.name && (
-            <span className="font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]">
+            <span className="font-body text-label uppercase tracking-[0.15em] text-[var(--site-accent-ink,var(--brand-accent))]">
               {post.categories.name}
             </span>
           )}
@@ -253,11 +253,11 @@ const BlogPost = ({
 
         <ArticleContents headings={reading.headings} />
         {/* Reading surface wrapper */}
-        <div className="border border-white/[0.06] bg-[#14141b] p-[clamp(24px,4vw,40px)]">
+        <div className="border border-white/[0.06] bg-[var(--site-surface,#14141b)] p-[clamp(24px,4vw,40px)]">
           {/* TL;DR */}
           {post.tldr && (
             <div className="answer-block mb-10 border-l-[3px] border-[var(--brand-accent)] bg-[rgba(var(--brand-accent-rgb),0.06)] p-6">
-              <span className="mb-2 block font-body text-label uppercase tracking-[0.15em] text-[var(--brand-accent)]">
+              <span className="mb-2 block font-body text-label uppercase tracking-[0.15em] text-[var(--site-accent-ink,var(--brand-accent))]">
                 TL;DR
               </span>
               <p className="font-body text-lead text-white/90">{post.tldr}</p>
@@ -272,7 +272,7 @@ const BlogPost = ({
             >
               <h2
                 id="key-takeaways"
-                className="mb-5 font-display text-title text-[var(--brand-accent)]"
+                className="mb-5 font-display text-title text-[var(--site-accent-ink,var(--brand-accent))]"
               >
                 Key Takeaways
               </h2>
@@ -284,7 +284,7 @@ const BlogPost = ({
                   >
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 text-[var(--brand-accent)]"
+                      className="mt-0.5 text-[var(--site-accent-ink,var(--brand-accent))]"
                     >
                       →
                     </span>
@@ -392,20 +392,20 @@ const BlogPost = ({
                     <BookOpen
                       size={20}
                       aria-hidden="true"
-                      className="shrink-0 text-[var(--brand-accent)]"
+                      className="shrink-0 text-[var(--site-accent-ink,var(--brand-accent))]"
                     />
                     <div className="flex-1">
                       <span className="mb-1 block font-body text-label uppercase tracking-[0.12em] text-white/70">
                         Complete Guide{niche ? ` · ${niche.nicheName}` : ""}
                       </span>
-                      <span className="font-body text-body font-medium text-white/85 transition-colors group-hover:text-[var(--brand-accent)]">
+                      <span className="font-body text-body font-medium text-white/85 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]">
                         {p.title}
                       </span>
                     </div>
                     <ArrowRight
                       size={16}
                       aria-hidden="true"
-                      className="shrink-0 text-white/60 transition-colors group-hover:text-[var(--brand-accent)]"
+                      className="shrink-0 text-white/60 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                     />
                   </a>
                 );
@@ -420,10 +420,10 @@ const BlogPost = ({
                       href={`/resources/${pg.content_schemas?.slug}/${pg.slug}`}
                       className="group block border border-white/[0.08] p-4 no-underline transition-colors duration-300 hover:border-[rgba(var(--brand-accent-rgb),0.3)]"
                     >
-                      <h3 className="mb-1 font-body text-meta font-medium text-white/85 transition-colors group-hover:text-[var(--brand-accent)]">
+                      <h3 className="mb-1 font-body text-meta font-medium text-white/85 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]">
                         {pg.title}
                       </h3>
-                      <span className="flex items-center gap-1 font-body text-label uppercase tracking-[0.1em] text-white/70 transition-colors group-hover:text-[var(--brand-accent)]">
+                      <span className="flex items-center gap-1 font-body text-label uppercase tracking-[0.1em] text-white/70 transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]">
                         View <ArrowRight size={12} aria-hidden="true" />
                       </span>
                     </a>

@@ -29,7 +29,7 @@ export default function ContentTypeList({
   });
   const schema = data?.schema;
   return (
-    <div className="min-h-screen bg-[var(--brand-backdrop)] text-white">
+    <div className="min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] text-white">
       <Nav />
       <header className="mx-auto max-w-6xl px-6 pt-32 pb-8">
         <Breadcrumbs
@@ -61,7 +61,7 @@ export default function ContentTypeList({
                 key={niche}
                 name="niche"
                 defaultValue={niche}
-                className="rounded border border-white/25 bg-[var(--brand-backdrop)] px-3 py-3 text-white"
+                className="rounded border border-white/25 bg-[var(--site-surface,var(--brand-backdrop))] px-3 py-3 text-white"
               >
                 <option value="">All industries</option>
                 {data.niches.map((item) => (
@@ -71,7 +71,7 @@ export default function ContentTypeList({
                 ))}
               </select>
             </label>
-            <button className="rounded border border-[var(--brand-accent)] px-4 py-3 text-[var(--brand-accent)]">
+            <button className="rounded border border-[var(--brand-accent)] px-4 py-3 text-[var(--site-accent-ink,var(--brand-accent))]">
               Apply filter
             </button>
           </form>
@@ -111,14 +111,14 @@ export default function ContentTypeList({
                   className="group rounded-lg border border-white/15 bg-white/[0.025] p-6 transition-colors hover:border-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
                 >
                   {item.niches?.name && (
-                    <p className="mb-3 text-sm text-[var(--brand-accent)]">
+                    <p className="mb-3 text-sm text-[var(--site-accent-ink,var(--brand-accent))]">
                       {item.niches.name}
                     </p>
                   )}
                   <h2 className="font-display text-2xl leading-snug">
                     {item.title}
                   </h2>
-                  <p className="mt-5 text-base text-white/80 group-hover:text-[var(--brand-accent)]">
+                  <p className="mt-5 text-base text-white/80 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]">
                     Read resource →
                   </p>
                 </a>

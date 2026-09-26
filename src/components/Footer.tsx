@@ -7,7 +7,7 @@ import { useSiteConfig } from "@/config/SiteConfigContext";
 
 const linkStyle: React.CSSProperties = {
   fontSize: 15,
-  color: "rgba(255,255,255,0.82)",
+  color: "var(--site-text-82, rgba(255,255,255,0.82))",
   textAlign: "left",
   background: "none",
   border: "none",
@@ -41,16 +41,17 @@ const Footer = () => {
   };
 
   const hoverIn = (e: React.MouseEvent<HTMLElement>) =>
-    (e.currentTarget.style.color = brand.accent);
+    (e.currentTarget.style.color = `var(--site-accent-ink, ${brand.accent})`);
   const hoverOut = (e: React.MouseEvent<HTMLElement>) =>
-    (e.currentTarget.style.color = "rgba(255,255,255,0.82)");
+    (e.currentTarget.style.color =
+      "var(--site-text-82, rgba(255,255,255,0.82))");
 
   return (
     <footer
       className="relative py-16"
       style={{
-        background: "#050508",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
+        background: "var(--site-surface, #050508)",
+        borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
       }}
     >
       <div className="mx-auto px-6 lg:px-14" style={{ maxWidth: 1440 }}>
@@ -68,7 +69,11 @@ const Footer = () => {
               >
                 <span
                   className="font-display italic"
-                  style={{ fontSize: 14, color: brand.accent, lineHeight: 1 }}
+                  style={{
+                    fontSize: 14,
+                    color: "var(--site-accent-ink, var(--brand-accent))",
+                    lineHeight: 1,
+                  }}
                 >
                   {identity.logoUrl ? (
                     <img
@@ -86,7 +91,7 @@ const Footer = () => {
                 style={{
                   fontSize: 12,
                   letterSpacing: "0.22em",
-                  color: "rgba(255,255,255,0.85)",
+                  color: "var(--site-text-85, rgba(255,255,255,0.85))",
                 }}
               >
                 {identity.name}
@@ -95,7 +100,10 @@ const Footer = () => {
             {identity.tagline && (
               <p
                 className="font-body"
-                style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+                style={{
+                  fontSize: 13,
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                }}
               >
                 {identity.tagline}
               </p>
@@ -109,7 +117,7 @@ const Footer = () => {
               style={{
                 fontSize: 12,
                 letterSpacing: "0.2em",
-                color: brand.accent,
+                color: "var(--site-accent-ink, var(--brand-accent))",
               }}
             >
               Navigate
@@ -156,7 +164,7 @@ const Footer = () => {
                 style={{
                   fontSize: 12,
                   letterSpacing: "0.2em",
-                  color: brand.accent,
+                  color: "var(--site-accent-ink, var(--brand-accent))",
                 }}
               >
                 Help & contact
@@ -166,12 +174,16 @@ const Footer = () => {
                   href={`mailto:${identity.contactEmail}`}
                   data-hover
                   className="font-body block mb-2 transition-colors duration-200"
-                  style={{ fontSize: 15, color: "rgba(255,255,255,0.9)" }}
+                  style={{
+                    fontSize: 15,
+                    color: "var(--site-text-90, rgba(255,255,255,0.9))",
+                  }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = brand.accent)
+                    (e.currentTarget.style.color = `var(--site-accent-ink, ${brand.accent})`)
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "rgba(255,255,255,0.9)")
+                    (e.currentTarget.style.color =
+                      "var(--site-text-90, rgba(255,255,255,0.9))")
                   }
                 >
                   {identity.contactEmail}
@@ -180,7 +192,10 @@ const Footer = () => {
               {footer.contactNote && (
                 <p
                   className="font-body"
-                  style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+                  style={{
+                    fontSize: 13,
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  }}
                 >
                   {footer.contactNote}
                 </p>
@@ -194,11 +209,16 @@ const Footer = () => {
         {/* Bottom bar */}
         <div
           className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          style={{
+            borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+          }}
         >
           <span
             className="font-body"
-            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+            style={{
+              fontSize: 12,
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
+            }}
           >
             {copyrightLine(siteConfig)}
           </span>
@@ -211,12 +231,16 @@ const Footer = () => {
                   href={l.href}
                   data-hover
                   className="font-body transition-colors duration-200"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                  }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = brand.accent)
+                    (e.currentTarget.style.color = `var(--site-accent-ink, ${brand.accent})`)
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
+                    (e.currentTarget.style.color =
+                      "var(--site-text-70, rgba(255,255,255,0.7))")
                   }
                 >
                   {l.label}

@@ -74,7 +74,7 @@ const FAQRenderer = ({
         <Search
           size={14}
           className="absolute left-3 top-1/2 -translate-y-1/2"
-          style={{ color: "rgba(255,255,255,0.7)" }}
+          style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
         />
         <input
           aria-label="Search questions"
@@ -87,9 +87,9 @@ const FAQRenderer = ({
           placeholder="Search questions..."
           className="font-body w-full pl-9 pr-4 py-3"
           style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#fff",
+            background: "rgba(var(--site-ink-rgb,255,255,255),0.04)",
+            border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+            color: "var(--site-ink, #fff)",
             fontSize: 14,
             outline: "none",
           }}
@@ -132,7 +132,10 @@ const FAQRenderer = ({
           return (
             <div
               key={i}
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+              style={{
+                borderBottom:
+                  "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+              }}
             >
               <button
                 aria-expanded={isOpen}
@@ -147,8 +150,8 @@ const FAQRenderer = ({
                   border: "none",
                   cursor: "pointer",
                   color: isOpen
-                    ? "var(--brand-accent)"
-                    : "rgba(255,255,255,0.7)",
+                    ? "var(--site-accent-ink, var(--brand-accent))"
+                    : "var(--site-text-70, rgba(255,255,255,0.7))",
                   fontSize: 15,
                   fontWeight: 500,
                 }}
@@ -163,7 +166,7 @@ const FAQRenderer = ({
                   className="font-body"
                   style={{
                     fontSize: 14,
-                    color: "rgba(255,255,255,0.7)",
+                    color: "var(--site-text-70, rgba(255,255,255,0.7))",
                     lineHeight: 1.7,
                   }}
                 >
@@ -177,7 +180,7 @@ const FAQRenderer = ({
                         style={{
                           fontSize: 12,
                           letterSpacing: "0.12em",
-                          color: "rgba(255,255,255,0.7)",
+                          color: "var(--site-text-70, rgba(255,255,255,0.7))",
                         }}
                       >
                         Related
@@ -191,10 +194,10 @@ const FAQRenderer = ({
                             );
                             if (idx >= 0) setOpenIdx(idx);
                           }}
-                          className="block font-body transition-colors hover:text-[var(--brand-accent)]"
+                          className="block font-body transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                           style={{
                             fontSize: 12,
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                             background: "none",
                             border: "none",
                             cursor: "pointer",
@@ -216,7 +219,10 @@ const FAQRenderer = ({
       {filtered.length === 0 && (
         <p
           className="font-body mb-8"
-          style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+          style={{
+            fontSize: 13,
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
+          }}
         >
           No questions match your search.
         </p>
@@ -244,8 +250,12 @@ const FilterBtn = ({
       fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
-      borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
-      color: active ? "var(--brand-accent)" : "rgba(255,255,255,0.35)",
+      borderColor: active
+        ? "var(--brand-accent)"
+        : "rgba(var(--site-ink-rgb,255,255,255),0.08)",
+      color: active
+        ? "var(--site-accent-ink, var(--brand-accent))"
+        : "var(--site-text-35, rgba(255,255,255,0.35))",
       background: active ? "rgba(var(--brand-accent-rgb),0.08)" : "transparent",
       cursor: "pointer",
     }}

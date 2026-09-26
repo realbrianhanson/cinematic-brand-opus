@@ -37,7 +37,7 @@ export default function OfferArtwork({
       aria-hidden="true"
       className={`relative flex min-h-[270px] flex-col justify-between overflow-hidden ${compact ? "p-5" : "p-6 sm:min-h-[290px] sm:p-8"}`}
       style={{
-        color: "var(--brand-accent)",
+        color: "var(--site-accent-ink, var(--brand-accent))",
         background:
           "linear-gradient(130deg, rgba(var(--brand-accent-rgb),0.19), rgba(var(--brand-accent-rgb),0.035) 58%, rgba(var(--brand-accent-rgb),0.09))",
       }}

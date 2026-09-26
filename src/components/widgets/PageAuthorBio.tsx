@@ -23,8 +23,8 @@ const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
       className="flex gap-5 items-start"
       style={{
         padding: 24,
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+        background: "rgba(var(--site-ink-rgb,255,255,255),0.02)",
       }}
     >
       {config.show_image !== false && (
@@ -54,7 +54,7 @@ const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: "var(--foreground)",
+            color: "var(--site-ink, var(--foreground))",
           }}
         >
           {settings.author_name}
@@ -64,7 +64,7 @@ const PageAuthorBio = ({ config }: { config: WidgetConfig }) => {
             className="font-body"
             style={{
               fontSize: 12,
-              color: "hsl(var(--accent))",
+              color: "var(--site-accent-ink, hsl(var(--accent)))",
               marginBottom: 6,
             }}
           >

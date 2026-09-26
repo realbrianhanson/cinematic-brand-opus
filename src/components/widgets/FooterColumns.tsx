@@ -10,7 +10,7 @@ const FooterColumns = ({ config }: { config: WidgetConfig }) => {
       className="grid gap-8 py-8"
       style={{
         gridTemplateColumns: `repeat(${columns}, 1fr)`,
-        borderTop: "1px solid rgba(255,255,255,0.04)",
+        borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.04)",
       }}
     >
       {content.slice(0, columns).map((col, i) => (
@@ -21,7 +21,7 @@ const FooterColumns = ({ config }: { config: WidgetConfig }) => {
               style={{
                 fontSize: 12,
                 letterSpacing: "0.2em",
-                color: "hsl(var(--accent))",
+                color: "var(--site-accent-ink, hsl(var(--accent)))",
               }}
             >
               {col.title}
@@ -32,7 +32,7 @@ const FooterColumns = ({ config }: { config: WidgetConfig }) => {
               className="font-body"
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 lineHeight: 1.7,
               }}
             >

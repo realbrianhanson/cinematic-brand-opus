@@ -225,7 +225,7 @@ export default function PublicMeasurement() {
     <section
       aria-label="Website measurement preferences"
       data-measurement-pill=""
-      className={`fixed bottom-3 left-3 z-[90] max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-white/20 bg-[#121318] text-white shadow-2xl font-body ${
+      className={`fixed bottom-3 left-3 z-[90] max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-white/20 bg-[var(--site-surface,#121318)] text-white shadow-2xl font-body ${
         opened
           ? "w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl p-4"
           : "flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-3xl px-4 py-2"

@@ -16,17 +16,17 @@ const priorityColors: Record<
 > = {
   high: {
     bg: "rgba(184,150,46,0.18)",
-    color: "var(--brand-accent-dark)",
+    color: "var(--site-accent-ink, var(--brand-accent-dark))",
     border: "rgba(184,150,46,0.45)",
   },
   medium: {
     bg: "rgba(var(--brand-accent-rgb),0.14)",
-    color: "var(--brand-accent)",
+    color: "var(--site-accent-ink, var(--brand-accent))",
     border: "rgba(var(--brand-accent-rgb),0.4)",
   },
   low: {
     bg: "rgba(232,201,106,0.10)",
-    color: "var(--brand-accent-light)",
+    color: "var(--site-accent-ink, var(--brand-accent-light))",
     border: "rgba(232,201,106,0.35)",
   },
 };
@@ -77,7 +77,10 @@ const ChecklistRenderer = ({
         <div className="flex items-center justify-between mb-2">
           <span
             className="font-body"
-            style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+            style={{
+              fontSize: 13,
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
+            }}
           >
             {done} of {total} completed ({pct}%)
           </span>
@@ -85,12 +88,12 @@ const ChecklistRenderer = ({
             <button
               onClick={() => setChecked(new Set())}
               aria-label="Reset checklist"
-              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
+              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
               style={{
                 fontSize: 12,
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 background: "none",
-                border: "1px solid rgba(255,255,255,0.08)",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                 cursor: "pointer",
               }}
             >
@@ -100,12 +103,12 @@ const ChecklistRenderer = ({
               onClick={() => window.print()}
               aria-label="Print checklist"
               data-print-hide
-              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--brand-accent)]"
+              className="font-body flex items-center gap-1 px-3 py-1 transition-colors hover:text-[var(--site-accent-ink,var(--brand-accent))]"
               style={{
                 fontSize: 12,
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 background: "none",
-                border: "1px solid rgba(255,255,255,0.08)",
+                border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                 cursor: "pointer",
               }}
             >
@@ -116,7 +119,7 @@ const ChecklistRenderer = ({
         <div
           style={{
             height: 4,
-            background: "rgba(255,255,255,0.06)",
+            background: "rgba(var(--site-ink-rgb,255,255,255),0.06)",
             borderRadius: 2,
             overflow: "hidden",
           }}
@@ -138,7 +141,7 @@ const ChecklistRenderer = ({
         <div key={pi} className="mb-10">
           <h2
             className="font-display mb-2"
-            style={{ fontSize: 20, color: "#fff" }}
+            style={{ fontSize: 20, color: "var(--site-ink, #fff)" }}
           >
             {phase.title || phase.name || `Phase ${pi + 1}`}
           </h2>
@@ -147,7 +150,7 @@ const ChecklistRenderer = ({
               className="font-body mb-5"
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 lineHeight: 1.6,
               }}
             >
@@ -169,7 +172,7 @@ const ChecklistRenderer = ({
                     border: "1px solid",
                     borderColor: isChecked
                       ? "rgba(var(--brand-accent-rgb),0.2)"
-                      : "rgba(255,255,255,0.06)",
+                      : "rgba(var(--site-ink-rgb,255,255,255),0.06)",
                     background: isChecked
                       ? "rgba(var(--brand-accent-rgb),0.03)"
                       : "transparent",
@@ -188,7 +191,7 @@ const ChecklistRenderer = ({
                       className="font-body font-semibold mb-1"
                       style={{
                         fontSize: 18,
-                        color: "rgba(255,255,255,0.95)",
+                        color: "var(--site-text-95, rgba(255,255,255,0.95))",
                         textDecoration: isChecked ? "line-through" : "none",
                         lineHeight: 1.4,
                       }}
@@ -200,7 +203,7 @@ const ChecklistRenderer = ({
                         className="font-body"
                         style={{
                           fontSize: 16,
-                          color: "rgba(255,255,255,0.85)",
+                          color: "var(--site-text-85, rgba(255,255,255,0.85))",
                           lineHeight: 1.6,
                         }}
                       >
@@ -227,7 +230,7 @@ const ChecklistRenderer = ({
                           className="font-body"
                           style={{
                             fontSize: 12,
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                           }}
                         >
                           {step.estimated_time}

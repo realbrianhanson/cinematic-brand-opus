@@ -95,7 +95,7 @@ const Loader = ({ onComplete }: LoaderProps) => {
       aria-hidden="true"
       style={{
         zIndex: 200,
-        background: "var(--brand-backdrop)",
+        background: "var(--site-surface, var(--brand-backdrop))",
         clipPath: wiping ? "inset(0 0 100% 0)" : "inset(0 0 0 0)",
         transition: "clip-path 0.5s cubic-bezier(0.77, 0, 0.18, 1)",
       }}
@@ -113,7 +113,11 @@ const Loader = ({ onComplete }: LoaderProps) => {
       >
         <span
           className="font-display italic"
-          style={{ fontSize: 24, color: "var(--brand-accent)", lineHeight: 1 }}
+          style={{
+            fontSize: 24,
+            color: "var(--site-accent-ink, var(--brand-accent))",
+            lineHeight: 1,
+          }}
         >
           {siteConfig.identity.logoInitials}
         </span>

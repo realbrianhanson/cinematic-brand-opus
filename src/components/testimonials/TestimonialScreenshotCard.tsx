@@ -51,6 +51,7 @@ export default function TestimonialScreenshotCard({
             >
               <span
                 aria-hidden="true"
+                data-theme-media
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 font-body text-xs font-semibold text-white/85 transition-colors group-hover/card:border-[var(--brand-accent)] group-hover/card:text-white"
               >
                 <Maximize2
@@ -65,7 +66,7 @@ export default function TestimonialScreenshotCard({
         </div>
         <DialogContent
           {...(!item.context && { "aria-describedby": undefined })}
-          className="block max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[44rem] overflow-y-auto border-white/15 bg-[var(--brand-backdrop)] p-5 text-white sm:p-8"
+          className="block max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[44rem] overflow-y-auto border-white/15 bg-[var(--site-surface,var(--brand-backdrop))] p-5 text-white sm:p-8"
         >
           <DialogTitle className="pr-10 font-display text-2xl font-normal leading-tight tracking-normal text-white">
             {item.attribution}

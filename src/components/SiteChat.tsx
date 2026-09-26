@@ -36,7 +36,7 @@ export default function SiteChat() {
       {open && (
         <Suspense
           fallback={
-            <div className="rounded-sm border border-white/15 bg-[var(--brand-backdrop)] px-4 py-3 text-sm text-white/70">
+            <div className="rounded-sm border border-white/15 bg-[var(--site-surface,var(--brand-backdrop))] px-4 py-3 text-sm text-white/70">
               Opening chat...
             </div>
           }

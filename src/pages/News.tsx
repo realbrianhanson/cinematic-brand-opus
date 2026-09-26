@@ -33,6 +33,7 @@ const TypographicCover = ({
   return (
     <div
       aria-hidden="true"
+      data-theme-media
       className="relative w-full h-full flex items-end p-6"
       style={{
         background: `linear-gradient(${angle}deg, var(--brand-accent) 0%, var(--brand-accent-dark) 55%, #14141b 100%)`,
@@ -106,35 +107,42 @@ const NewsCardSkeleton = () => (
   <div
     className="grid grid-cols-1 gap-6 py-6 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] md:py-8 animate-pulse"
     style={{
-      borderBottom: "1px solid rgba(255,255,255,0.08)",
+      borderBottom: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
     }}
   >
     <div
-      style={{ aspectRatio: "4 / 3", background: "rgba(255,255,255,0.04)" }}
+      style={{
+        aspectRatio: "4 / 3",
+        background: "rgba(var(--site-ink-rgb,255,255,255),0.04)",
+      }}
     />
     <div className="flex flex-col justify-center gap-3">
       <div
-        style={{ height: 10, width: 80, background: "rgba(255,255,255,0.06)" }}
+        style={{
+          height: 10,
+          width: 80,
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.06)",
+        }}
       />
       <div
         style={{
           height: 22,
           width: "80%",
-          background: "rgba(255,255,255,0.08)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.08)",
         }}
       />
       <div
         style={{
           height: 14,
           width: "95%",
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.05)",
         }}
       />
       <div
         style={{
           height: 14,
           width: "60%",
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(var(--site-ink-rgb,255,255,255),0.05)",
         }}
       />
     </div>
@@ -266,7 +274,10 @@ const News = ({ initialPage }: NewsProps = {}) => {
   return (
     <div
       className="public-site min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
 
@@ -280,13 +291,15 @@ const News = ({ initialPage }: NewsProps = {}) => {
           style={{
             fontSize: 12,
             letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.75)",
+            color: "var(--site-text-75, rgba(255,255,255,0.75))",
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--brand-accent)")
+            (e.currentTarget.style.color =
+              "var(--site-accent-ink, var(--brand-accent))")
           }
           onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "rgba(255,255,255,0.75)")
+            (e.currentTarget.style.color =
+              "var(--site-text-75, rgba(255,255,255,0.75))")
           }
         >
           <ArrowLeft size={14} />
@@ -297,7 +310,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
             lineHeight: 1.1,
-            color: "#fff",
+            color: "var(--site-ink, #fff)",
           }}
         >
           Business Briefings
@@ -306,7 +319,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
           className="font-body mt-4"
           style={{
             fontSize: 17,
-            color: "rgba(255,255,255,0.85)",
+            color: "var(--site-text-85, rgba(255,255,255,0.85))",
             maxWidth: 640,
             lineHeight: 1.6,
           }}
@@ -334,7 +347,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   left: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
-                  color: "rgba(255,255,255,0.7)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 }}
               />
               <input
@@ -346,9 +359,10 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full font-body"
                 style={{
-                  background: "#14141b",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#fff",
+                  background: "var(--site-surface, #14141b)",
+                  border:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                  color: "var(--site-ink, #fff)",
                   padding: "12px 14px 12px 42px",
                   fontSize: 15,
                   outline: "none",
@@ -358,7 +372,8 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     "rgba(var(--brand-accent-rgb),0.5)")
                 }
                 onBlur={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")
+                  (e.currentTarget.style.borderColor =
+                    "rgba(var(--site-ink-rgb,255,255,255),0.08)")
                 }
               />
             </div>
@@ -380,13 +395,13 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     fontSize: 12,
                     letterSpacing: "0.15em",
                     padding: "8px 14px",
-                    border: `1px solid ${active ? "var(--brand-accent)" : "rgba(255,255,255,0.12)"}`,
+                    border: `1px solid ${active ? "var(--brand-accent)" : "rgba(var(--site-ink-rgb,255,255,255),0.12)"}`,
                     background: active
                       ? "rgba(var(--brand-accent-rgb),0.1)"
                       : "transparent",
                     color: active
-                      ? "var(--brand-accent)"
-                      : "rgba(255,255,255,0.75)",
+                      ? "var(--site-accent-ink, var(--brand-accent))"
+                      : "var(--site-text-75, rgba(255,255,255,0.75))",
                     cursor: "pointer",
                   }}
                 >
@@ -400,7 +415,9 @@ const News = ({ initialPage }: NewsProps = {}) => {
         {isLoading && (
           <div
             className="flex flex-col"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+            style={{
+              borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+            }}
           >
             {Array.from({ length: 5 }).map((_, i) => (
               <NewsCardSkeleton key={i} />
@@ -411,7 +428,10 @@ const News = ({ initialPage }: NewsProps = {}) => {
           <div
             role="alert"
             className="font-body mb-6"
-            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+            style={{
+              color: "var(--site-text-75, rgba(255,255,255,0.75))",
+              fontSize: 15,
+            }}
           >
             <p>
               {isFetchNextPageError
@@ -435,7 +455,10 @@ const News = ({ initialPage }: NewsProps = {}) => {
         {!isLoading && !isError && !hasNextPage && filtered.length === 0 && (
           <p
             className="font-body"
-            style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}
+            style={{
+              color: "var(--site-text-75, rgba(255,255,255,0.75))",
+              fontSize: 15,
+            }}
           >
             {searchTerm || lane !== "all"
               ? "No news matches your search"
@@ -454,7 +477,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 style={{
                   aspectRatio: "16 / 10",
                   overflow: "hidden",
-                  background: "#0a0a14",
+                  background: "var(--site-surface, #0a0a14)",
                 }}
               >
                 {featured.image_url ? (
@@ -485,17 +508,17 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.2em",
-                    color: "var(--brand-accent)",
+                    color: "var(--site-accent-ink, var(--brand-accent))",
                   }}
                 >
                   Featured · {laneLabel(featured.topic_lane)}
                 </span>
                 <h2
-                  className="font-display mb-4 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="font-display mb-4 transition-colors duration-300 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                   style={{
                     fontSize: "clamp(28px, 3.5vw, 44px)",
                     lineHeight: 1.15,
-                    color: "#fff",
+                    color: "var(--site-ink, #fff)",
                   }}
                 >
                   {featured.ai_title || featured.title}
@@ -505,7 +528,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     className="font-body mb-4"
                     style={{
                       fontSize: 16,
-                      color: "rgba(255,255,255,0.8)",
+                      color: "var(--site-text-80, rgba(255,255,255,0.8))",
                       lineHeight: 1.6,
                       display: "-webkit-box",
                       WebkitLineClamp: 3,
@@ -518,9 +541,16 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 )}
                 <div
                   className="flex items-center gap-3 flex-wrap font-body"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--site-text-60, rgba(255,255,255,0.6))",
+                  }}
                 >
-                  <span style={{ color: "rgba(255,255,255,0.85)" }}>
+                  <span
+                    style={{
+                      color: "var(--site-text-85, rgba(255,255,255,0.85))",
+                    }}
+                  >
                     {sourceName(featured)}
                   </span>
                   <span style={{ opacity: 0.5 }}>•</span>
@@ -542,7 +572,9 @@ const News = ({ initialPage }: NewsProps = {}) => {
 
         <div
           className="flex flex-col"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+          style={{
+            borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+          }}
         >
           {rest.map((n) => (
             <Link
@@ -550,13 +582,14 @@ const News = ({ initialPage }: NewsProps = {}) => {
               to={`/news/${n.id}`}
               className="group grid grid-cols-1 gap-6 py-6 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] md:py-8"
               style={{
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                borderBottom:
+                  "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
                 textDecoration: "none",
                 transition: "background-color 0.25s",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor =
-                  "rgba(255,255,255,0.02)";
+                  "rgba(var(--site-ink-rgb,255,255,255),0.02)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
@@ -566,7 +599,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 style={{
                   aspectRatio: "4 / 3",
                   overflow: "hidden",
-                  background: "#0a0a14",
+                  background: "var(--site-surface, #0a0a14)",
                 }}
               >
                 {n.image_url ? (
@@ -589,17 +622,17 @@ const News = ({ initialPage }: NewsProps = {}) => {
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.18em",
-                    color: "var(--brand-accent)",
+                    color: "var(--site-accent-ink, var(--brand-accent))",
                   }}
                 >
                   {laneLabel(n.topic_lane)}
                 </span>
                 <h3
-                  className="font-display mb-2 transition-colors duration-300 group-hover:text-[var(--brand-accent)]"
+                  className="font-display mb-2 transition-colors duration-300 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                   style={{
                     fontSize: "clamp(18px, 2.2vw, 24px)",
                     lineHeight: 1.25,
-                    color: "#fff",
+                    color: "var(--site-ink, #fff)",
                   }}
                 >
                   {n.ai_title || n.title}
@@ -609,7 +642,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     className="font-body mb-3"
                     style={{
                       fontSize: 15,
-                      color: "rgba(255,255,255,0.75)",
+                      color: "var(--site-text-75, rgba(255,255,255,0.75))",
                       lineHeight: 1.55,
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
@@ -622,9 +655,16 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 )}
                 <div
                   className="flex items-center gap-3 flex-wrap font-body"
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}
+                  style={{
+                    fontSize: 12,
+                    color: "var(--site-text-60, rgba(255,255,255,0.6))",
+                  }}
                 >
-                  <span style={{ color: "rgba(255,255,255,0.85)" }}>
+                  <span
+                    style={{
+                      color: "var(--site-text-85, rgba(255,255,255,0.85))",
+                    }}
+                  >
                     {sourceName(n)}
                   </span>
                   <span style={{ opacity: 0.5 }}>•</span>
@@ -669,7 +709,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
             style={{
               fontSize: 12,
               letterSpacing: "0.2em",
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
             }}
           >
             — No more news —

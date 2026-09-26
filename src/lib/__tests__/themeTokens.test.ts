@@ -51,3 +51,43 @@ describe("theme tokens", () => {
       expect(css).toContain(`:where(.public-site) .text-white\\/${alpha}`);
   });
 });
+
+describe("public light palette", () => {
+  const lightCss = readFileSync(
+    fileURLToPath(new URL("../../styles/public-theme.css", import.meta.url)),
+    "utf8",
+  );
+  const color = (token: string) => {
+    const value = lightCss.match(
+      new RegExp(`--${token}:\\s*(#[0-9a-f]{6});`),
+    )?.[1];
+    if (!value) throw new Error(`Missing light palette color: ${token}`);
+    return value;
+  };
+  const luminance = (hex: string) => {
+    const channels = [1, 3, 5].map((i) => {
+      const channel = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return channel <= 0.04045
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  };
+  it("uses pure white for the public canvas and cards", () => {
+    for (const token of ["site-surface", "background", "card", "popover"])
+      expect(color(token)).toBe("#ffffff");
+  });
+  it("keeps every body, muted and accent text color above 4.5:1 on white", () => {
+    const tokens = [
+      ...lightCss.matchAll(
+        /--(site-text-\d+|site-ink|site-accent-ink|site-error-ink|body-muted|label-muted):\s*#[0-9a-f]{6};/g,
+      ),
+    ].map((m) => m[1]);
+    expect(tokens.length).toBeGreaterThan(20);
+    for (const token of tokens)
+      expect(
+        1.05 / (luminance(color(token)) + 0.05),
+        token,
+      ).toBeGreaterThanOrEqual(4.5);
+  });
+});

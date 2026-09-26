@@ -32,7 +32,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
             target="_blank"
             rel="noopener noreferrer nofollow"
             style={{
-              color: "var(--brand-accent)",
+              color: "var(--site-accent-ink, var(--brand-accent))",
               textDecoration: "underline",
             }}
           >
@@ -53,7 +53,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
 const H_STYLE = {
   fontFamily: "'Instrument Serif', serif",
   fontStyle: "italic" as const,
-  color: "#fff",
+  color: "var(--site-ink, #fff)",
   margin: "2em 0 0.8em",
 };
 
@@ -74,7 +74,7 @@ export function renderNewsMarkdown(md: unknown): ReactNode {
           margin: "0 0 1.2em 0",
           fontSize: 17,
           lineHeight: 1.8,
-          color: "rgba(255,255,255,0.9)",
+          color: "var(--site-text-90, rgba(255,255,255,0.9))",
         }}
       >
         {renderInline(text, `p${k}`)}

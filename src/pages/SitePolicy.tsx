@@ -86,7 +86,7 @@ export default function SitePolicy({ kind }: { kind: "privacy" | "terms" }) {
         {email && (
           <a
             href={email}
-            className="mt-2 inline-block break-all text-[var(--brand-accent)] underline underline-offset-4"
+            className="mt-2 inline-block break-all text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             {config.identity.contactEmail}
           </a>
@@ -101,7 +101,7 @@ export default function SitePolicy({ kind }: { kind: "privacy" | "terms" }) {
         <p className="mt-5">
           <Link
             to="/support"
-            className="text-[var(--brand-accent)] underline underline-offset-4"
+            className="text-[var(--site-accent-ink,var(--brand-accent))] underline underline-offset-4"
           >
             Help with downloads and purchases
           </Link>

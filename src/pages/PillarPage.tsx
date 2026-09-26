@@ -141,9 +141,12 @@ const PillarPage = ({
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.7)" }}>
+        <p
+          className="font-body"
+          style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
+        >
           Loading...
         </p>
       </div>
@@ -154,9 +157,12 @@ const PillarPage = ({
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-6"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
-        <p className="font-display text-2xl" style={{ color: "#fff" }}>
+        <p
+          className="font-display text-2xl"
+          style={{ color: "var(--site-ink, #fff)" }}
+        >
           Guide not found
         </p>
         <Link
@@ -165,7 +171,7 @@ const PillarPage = ({
           style={{
             fontSize: 12,
             letterSpacing: "0.15em",
-            color: "var(--brand-accent)",
+            color: "var(--site-accent-ink, var(--brand-accent))",
           }}
         >
           ← Back to Home
@@ -183,7 +189,10 @@ const PillarPage = ({
   return (
     <div
       className="min-h-screen"
-      style={{ background: "var(--brand-backdrop)", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, var(--brand-backdrop))",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
       <article
@@ -212,7 +221,7 @@ const PillarPage = ({
 
         <div
           className="flex flex-wrap items-center gap-4 mb-10"
-          style={{ color: "rgba(255,255,255,0.65)" }}
+          style={{ color: "var(--site-text-65, rgba(255,255,255,0.65))" }}
         >
           <span className="font-body" style={{ fontSize: 12 }}>
             By {authorName}
@@ -245,7 +254,7 @@ const PillarPage = ({
           style={{
             fontSize: 16,
             lineHeight: 1.8,
-            color: "rgba(255,255,255,0.8)",
+            color: "var(--site-text-80, rgba(255,255,255,0.8))",
           }}
           dangerouslySetInnerHTML={{ __html: reading.html }}
         />
@@ -269,7 +278,7 @@ const PillarPage = ({
             style={{
               marginTop: 48,
               paddingTop: 32,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
             }}
           >
             <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
@@ -282,7 +291,8 @@ const PillarPage = ({
                   to={`/guides/${rp.slug}`}
                   className="group block p-5"
                   style={{
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    border:
+                      "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
                     textDecoration: "none",
                     transition: "border-color 0.3s",
                   }}
@@ -292,7 +302,7 @@ const PillarPage = ({
                   }
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.borderColor =
-                      "rgba(255,255,255,0.06)")
+                      "rgba(var(--site-ink-rgb,255,255,255),0.06)")
                   }
                 >
                   {rp.niches?.name && (
@@ -301,17 +311,17 @@ const PillarPage = ({
                       style={{
                         fontSize: 12,
                         letterSpacing: "0.12em",
-                        color: "var(--brand-accent)",
+                        color: "var(--site-accent-ink, var(--brand-accent))",
                       }}
                     >
                       {rp.niches.name}
                     </span>
                   )}
                   <h3
-                    className="font-body font-medium transition-colors group-hover:text-[var(--brand-accent)]"
+                    className="font-body font-medium transition-colors group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
                     style={{
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       lineHeight: 1.4,
                     }}
                   >
@@ -329,7 +339,7 @@ const PillarPage = ({
             style={{
               marginTop: 48,
               paddingTop: 32,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              borderTop: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
             }}
           >
             <h2 className="font-display mb-6" style={{ fontSize: 22 }}>
@@ -343,14 +353,16 @@ const PillarPage = ({
                   className="font-body flex items-center gap-2 transition-colors"
                   style={{
                     fontSize: 14,
-                    color: "rgba(255,255,255,0.6)",
+                    color: "var(--site-text-60, rgba(255,255,255,0.6))",
                     textDecoration: "none",
                   }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "hsl(var(--accent))")
+                    (e.currentTarget.style.color =
+                      "var(--site-accent-ink, hsl(var(--accent)))")
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+                    (e.currentTarget.style.color =
+                      "var(--site-text-60, rgba(255,255,255,0.6))")
                   }
                 >
                   {post.title} <ArrowRight size={12} />

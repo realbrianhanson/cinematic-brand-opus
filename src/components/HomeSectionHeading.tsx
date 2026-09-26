@@ -13,7 +13,7 @@ export default function HomeSectionHeading({
     <header className="max-w-3xl mb-10 lg:mb-12">
       <p
         className="font-body text-xs font-bold uppercase tracking-[0.18em] mb-4"
-        style={{ color: "var(--brand-accent)" }}
+        style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
       >
         {overline}
       </p>

@@ -9,7 +9,7 @@ const ProofBar = () => {
       id="proof"
       aria-label="Experience and community"
       className="relative py-6 md:py-7"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <div
         className="absolute inset-x-0 top-0 h-px"
@@ -30,7 +30,7 @@ const ProofBar = () => {
               className="font-body text-xs font-semibold uppercase leading-relaxed md:text-sm"
               style={{
                 letterSpacing: "0.09em",
-                color: "rgba(255,255,255,0.86)",
+                color: "var(--site-text-86, rgba(255,255,255,0.86))",
               }}
             >
               {item}

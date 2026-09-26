@@ -15,7 +15,7 @@ export default function OfferShell({
   return (
     <div
       className="min-h-screen font-body text-white"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <header className="mx-auto max-w-6xl px-6 py-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-4">
         <a

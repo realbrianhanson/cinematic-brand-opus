@@ -26,13 +26,20 @@ const StatItem = ({ stat }: { stat: ResultStat }) => {
       </div>
       <div
         className="font-body font-semibold uppercase mt-3"
-        style={{ fontSize: 14, letterSpacing: "0.1em", color: "#fff" }}
+        style={{
+          fontSize: 14,
+          letterSpacing: "0.1em",
+          color: "var(--site-ink, #fff)",
+        }}
       >
         {stat.label}
       </div>
       <div
         className="font-body mt-2 leading-relaxed"
-        style={{ fontSize: 14, color: "rgba(255,255,255,0.78)" }}
+        style={{
+          fontSize: 14,
+          color: "var(--site-text-78, rgba(255,255,255,0.78))",
+        }}
       >
         {stat.sub}
       </div>
@@ -49,7 +56,7 @@ const Stats = () => {
     <section
       id="results"
       className="relative py-14 md:py-16"
-      style={{ background: "var(--brand-backdrop)" }}
+      style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
     >
       <div
         className="absolute top-0 left-0 w-full h-px"

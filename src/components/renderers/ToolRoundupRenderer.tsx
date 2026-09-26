@@ -16,23 +16,23 @@ const verdictColors: Record<
 > = {
   "top-pick": {
     bg: "rgba(232,201,106,0.18)",
-    color: "var(--brand-accent-light)",
+    color: "var(--site-accent-ink, var(--brand-accent-light))",
     border: "rgba(232,201,106,0.45)",
   },
   "great-value": {
     bg: "rgba(var(--brand-accent-rgb),0.14)",
-    color: "var(--brand-accent)",
+    color: "var(--site-accent-ink, var(--brand-accent))",
     border: "rgba(var(--brand-accent-rgb),0.4)",
   },
   "best-for-beginners": {
     bg: "rgba(184,150,46,0.15)",
-    color: "var(--brand-accent-dark)",
+    color: "var(--site-accent-ink, var(--brand-accent-dark))",
     border: "rgba(184,150,46,0.4)",
   },
   "honorable-mention": {
-    bg: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.75)",
-    border: "rgba(255,255,255,0.15)",
+    bg: "rgba(var(--site-ink-rgb,255,255,255),0.06)",
+    color: "var(--site-text-75, rgba(255,255,255,0.75))",
+    border: "rgba(var(--site-ink-rgb,255,255,255),0.15)",
   },
 };
 
@@ -113,8 +113,8 @@ const ToolRoundupRenderer = ({
             style={{
               color:
                 viewMode === "cards"
-                  ? "var(--brand-accent)"
-                  : "rgba(255,255,255,0.2)",
+                  ? "var(--site-accent-ink, var(--brand-accent))"
+                  : "var(--site-text-20, rgba(255,255,255,0.2))",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -130,8 +130,8 @@ const ToolRoundupRenderer = ({
             style={{
               color:
                 viewMode === "table"
-                  ? "var(--brand-accent)"
-                  : "rgba(255,255,255,0.2)",
+                  ? "var(--site-accent-ink, var(--brand-accent))"
+                  : "var(--site-text-20, rgba(255,255,255,0.2))",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -153,8 +153,9 @@ const ToolRoundupRenderer = ({
                 key={i}
                 className="p-6 relative"
                 style={{
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "#181820",
+                  border:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                  background: "var(--site-surface, #181820)",
                 }}
               >
                 {tool.verdict && (
@@ -175,7 +176,7 @@ const ToolRoundupRenderer = ({
                   className="font-body font-semibold mb-2"
                   style={{
                     fontSize: 19,
-                    color: "rgba(255,255,255,0.95)",
+                    color: "var(--site-text-95, rgba(255,255,255,0.95))",
                     lineHeight: 1.35,
                   }}
                 >
@@ -185,7 +186,7 @@ const ToolRoundupRenderer = ({
                   className="font-body mb-3"
                   style={{
                     fontSize: 16,
-                    color: "rgba(255,255,255,0.85)",
+                    color: "var(--site-text-85, rgba(255,255,255,0.85))",
                     lineHeight: 1.6,
                   }}
                 >
@@ -194,7 +195,11 @@ const ToolRoundupRenderer = ({
                 {tool.pricing && (
                   <p
                     className="font-body mb-2"
-                    style={{ fontSize: 14, color: "var(--brand-accent-light)" }}
+                    style={{
+                      fontSize: 14,
+                      color:
+                        "var(--site-accent-ink, var(--brand-accent-light))",
+                    }}
                   >
                     {tool.pricing}
                   </p>
@@ -202,7 +207,10 @@ const ToolRoundupRenderer = ({
                 {tool.best_for && (
                   <p
                     className="font-body mb-3"
-                    style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}
+                    style={{
+                      fontSize: 13,
+                      color: "var(--site-text-75, rgba(255,255,255,0.75))",
+                    }}
                   >
                     Best for: {tool.best_for}
                   </p>
@@ -214,10 +222,19 @@ const ToolRoundupRenderer = ({
                         <div
                           key={pi}
                           className="font-body flex items-start gap-1.5 mb-1"
-                          style={{ fontSize: 13, color: "var(--brand-accent)" }}
+                          style={{
+                            fontSize: 13,
+                            color:
+                              "var(--site-accent-ink, var(--brand-accent))",
+                          }}
                         >
                           <Check size={13} className="shrink-0 mt-0.5" />{" "}
-                          <span style={{ color: "rgba(255,255,255,0.85)" }}>
+                          <span
+                            style={{
+                              color:
+                                "var(--site-text-85, rgba(255,255,255,0.85))",
+                            }}
+                          >
                             {p}
                           </span>
                         </div>
@@ -232,11 +249,16 @@ const ToolRoundupRenderer = ({
                           className="font-body flex items-start gap-1.5 mb-1"
                           style={{
                             fontSize: 13,
-                            color: "rgba(255,255,255,0.7)",
+                            color: "var(--site-text-70, rgba(255,255,255,0.7))",
                           }}
                         >
                           <X size={13} className="shrink-0 mt-0.5" />{" "}
-                          <span style={{ color: "rgba(255,255,255,0.85)" }}>
+                          <span
+                            style={{
+                              color:
+                                "var(--site-text-85, rgba(255,255,255,0.85))",
+                            }}
+                          >
                             {c}
                           </span>
                         </div>
@@ -252,7 +274,12 @@ const ToolRoundupRenderer = ({
         <div className="overflow-x-auto mb-12">
           <table className="w-full" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <tr
+                style={{
+                  borderBottom:
+                    "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                }}
+              >
                 {["Tool", "Pricing", "Best For", "Verdict"].map((h) => (
                   <th
                     key={h}
@@ -260,7 +287,7 @@ const ToolRoundupRenderer = ({
                     style={{
                       fontSize: 12,
                       letterSpacing: "0.12em",
-                      color: "rgba(255,255,255,0.7)",
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
                     }}
                   >
                     {h}
@@ -272,23 +299,35 @@ const ToolRoundupRenderer = ({
               {filtered.map((tool, i) => (
                 <tr
                   key={i}
-                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                  style={{
+                    borderBottom:
+                      "1px solid rgba(var(--site-ink-rgb,255,255,255),0.04)",
+                  }}
                 >
                   <td
                     className="font-body px-4 py-3"
-                    style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}
+                    style={{
+                      fontSize: 13,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {getItemTitle(tool)}
                   </td>
                   <td
                     className="font-body px-4 py-3"
-                    style={{ fontSize: 12, color: "var(--brand-accent)" }}
+                    style={{
+                      fontSize: 12,
+                      color: "var(--site-accent-ink, var(--brand-accent))",
+                    }}
                   >
                     {tool.pricing || "—"}
                   </td>
                   <td
                     className="font-body px-4 py-3"
-                    style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                    style={{
+                      fontSize: 12,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {tool.best_for || "—"}
                   </td>
@@ -298,7 +337,7 @@ const ToolRoundupRenderer = ({
                       style={{
                         fontSize: 12,
                         letterSpacing: "0.1em",
-                        color: "rgba(255,255,255,0.7)",
+                        color: "var(--site-text-70, rgba(255,255,255,0.7))",
                       }}
                     >
                       {tool.verdict?.replace(/-/g, " ") || "—"}
@@ -332,8 +371,12 @@ const FilterBtn = ({
       fontSize: 12,
       letterSpacing: "0.1em",
       border: "1px solid",
-      borderColor: active ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
-      color: active ? "var(--brand-accent)" : "rgba(255,255,255,0.35)",
+      borderColor: active
+        ? "var(--brand-accent)"
+        : "rgba(var(--site-ink-rgb,255,255,255),0.08)",
+      color: active
+        ? "var(--site-accent-ink, var(--brand-accent))"
+        : "var(--site-text-35, rgba(255,255,255,0.35))",
       background: active ? "rgba(var(--brand-accent-rgb),0.08)" : "transparent",
       cursor: "pointer",
     }}

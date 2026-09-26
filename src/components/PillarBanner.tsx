@@ -28,7 +28,7 @@ const PillarBanner = ({ nicheId }: { nicheId: string }) => {
         borderLeft: "4px solid hsl(var(--accent))",
         background: "rgba(var(--brand-accent-rgb),0.05)",
         fontSize: 13,
-        color: "rgba(255,255,255,0.7)",
+        color: "var(--site-text-70, rgba(255,255,255,0.7))",
         textDecoration: "none",
       }}
     >
@@ -44,7 +44,7 @@ const PillarBanner = ({ nicheId }: { nicheId: string }) => {
       <ArrowRight
         size={14}
         className="shrink-0 ml-3 group-hover:text-accent transition-colors"
-        style={{ color: "rgba(255,255,255,0.7)" }}
+        style={{ color: "var(--site-text-70, rgba(255,255,255,0.7))" }}
       />
     </a>
   );

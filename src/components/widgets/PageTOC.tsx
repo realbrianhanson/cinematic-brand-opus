@@ -34,8 +34,8 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
       aria-label="Article table of contents"
       style={{
         padding: 24,
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
+        background: "rgba(var(--site-ink-rgb,255,255,255),0.02)",
         marginBottom: 24,
       }}
     >
@@ -44,7 +44,7 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
         style={{
           fontSize: 12,
           letterSpacing: "0.15em",
-          color: "hsl(var(--accent))",
+          color: "var(--site-accent-ink, hsl(var(--accent)))",
           fontWeight: 700,
         }}
       >
@@ -58,15 +58,17 @@ const PageTOC = ({ config }: { config: WidgetConfig }) => {
             className="font-body transition-colors"
             style={{
               fontSize: 13,
-              color: "rgba(255,255,255,0.7)",
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
               textDecoration: "none",
               paddingLeft: h.level === 3 ? 16 : 0,
             }}
             onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "hsl(var(--accent))")
+              (e.currentTarget.style.color =
+                "var(--site-accent-ink, hsl(var(--accent)))")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.7)")
+              (e.currentTarget.style.color =
+                "var(--site-text-70, rgba(255,255,255,0.7))")
             }
           >
             {h.text}

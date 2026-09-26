@@ -7,11 +7,11 @@ export default function EventCTA() {
   return (
     <section
       id="event"
-      className="relative overflow-hidden border-y border-white/10 bg-[#111116] py-20 lg:py-28"
+      className="relative overflow-hidden border-y border-white/10 bg-[var(--site-surface,#111116)] py-20 lg:py-28"
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(var(--brand-accent-rgb),.09),transparent_70%)]"
+        className="site-atmosphere pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(var(--brand-accent-rgb),.09),transparent_70%)]"
       />
       <div className="relative mx-auto grid max-w-[1440px] gap-12 px-6 lg:grid-cols-[1fr_1fr] lg:gap-24 lg:px-14">
         <div className="self-start lg:sticky lg:top-28">

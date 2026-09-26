@@ -107,9 +107,12 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
-        <p className="font-body" style={{ color: "rgba(255,255,255,0.6)" }}>
+        <p
+          className="font-body"
+          style={{ color: "var(--site-text-60, rgba(255,255,255,0.6))" }}
+        >
           Loading article...
         </p>
       </div>
@@ -119,9 +122,12 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-6"
-        style={{ background: "var(--brand-backdrop)" }}
+        style={{ background: "var(--site-surface, var(--brand-backdrop))" }}
       >
-        <p className="font-display text-2xl" style={{ color: "#fff" }}>
+        <p
+          className="font-display text-2xl"
+          style={{ color: "var(--site-ink, #fff)" }}
+        >
           News item not found
         </p>
         <Link
@@ -130,7 +136,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           style={{
             fontSize: 12,
             letterSpacing: "0.15em",
-            color: "var(--brand-accent)",
+            color: "var(--site-accent-ink, var(--brand-accent))",
           }}
         >
           ← Back to News
@@ -160,7 +166,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "#0b0b10", color: "#fff" }}
+      style={{
+        background: "var(--site-surface, #0b0b10)",
+        color: "var(--site-ink, #fff)",
+      }}
     >
       <Nav />
 
@@ -175,7 +184,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           style={{
             fontSize: 12,
             letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.7)",
+            color: "var(--site-text-70, rgba(255,255,255,0.7))",
           }}
         >
           <ArrowLeft size={14} /> Back to News
@@ -200,14 +209,17 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             style={{
               fontSize: 12,
               letterSpacing: "0.15em",
-              color: "var(--brand-accent)",
+              color: "var(--site-accent-ink, var(--brand-accent))",
             }}
           >
             {laneLabel(item.topic_lane)}
           </span>
           <span
             className="font-body flex items-center gap-1"
-            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+            style={{
+              fontSize: 12,
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
+            }}
           >
             <Clock size={12} />
             {item.published_at
@@ -220,7 +232,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           </span>
           <span
             className="font-body min-w-0 [overflow-wrap:anywhere]"
-            style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+            style={{
+              fontSize: 12,
+              color: "var(--site-text-70, rgba(255,255,255,0.7))",
+            }}
           >
             Source: {src}
           </span>
@@ -239,7 +254,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             style={{
               fontSize: 19,
               lineHeight: 1.6,
-              color: "rgba(255,255,255,0.85)",
+              color: "var(--site-text-85, rgba(255,255,255,0.85))",
             }}
           >
             {summary}
@@ -248,8 +263,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
 
         <div
           style={{
-            background: "#14141b",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--site-surface, #14141b)",
+            border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.06)",
             padding: "clamp(24px, 4vw, 40px)",
           }}
         >
@@ -262,7 +277,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
               <p
                 className="font-body"
                 style={{
-                  color: "rgba(255,255,255,0.6)",
+                  color: "var(--site-text-60, rgba(255,255,255,0.6))",
                   fontSize: 14,
                   fontStyle: "italic",
                 }}
@@ -276,14 +291,17 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
           {item.url && (
             <div
               className="mt-10 pt-6"
-              style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+              style={{
+                borderTop:
+                  "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+              }}
             >
               <span
                 className="font-body uppercase block mb-2"
                 style={{
                   fontSize: 12,
                   letterSpacing: "0.18em",
-                  color: "rgba(255,255,255,0.7)",
+                  color: "var(--site-text-70, rgba(255,255,255,0.7))",
                 }}
               >
                 Reference
@@ -293,7 +311,10 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex max-w-full items-center gap-2 font-body"
-                style={{ color: "var(--brand-accent)", fontSize: 14 }}
+                style={{
+                  color: "var(--site-accent-ink, var(--brand-accent))",
+                  fontSize: 14,
+                }}
               >
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   Read the report on {src}
@@ -311,7 +332,7 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             style={{
               fontSize: 12,
               letterSpacing: "0.15em",
-              color: "rgba(255,255,255,0.6)",
+              color: "var(--site-text-60, rgba(255,255,255,0.6))",
             }}
           >
             <Share2 size={13} /> Share
@@ -323,8 +344,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             aria-label="Share on Twitter"
             className="p-2"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.15)",
+              color: "var(--site-ink, #fff)",
             }}
           >
             <Twitter size={14} />
@@ -336,8 +357,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             aria-label="Share on LinkedIn"
             className="p-2"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.15)",
+              color: "var(--site-ink, #fff)",
             }}
           >
             <Linkedin size={14} />
@@ -349,8 +370,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             aria-label="Share on Facebook"
             className="p-2"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.15)",
+              color: "var(--site-ink, #fff)",
             }}
           >
             <Facebook size={14} />
@@ -360,8 +381,8 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
             aria-label="Copy link"
             className="p-2"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
+              border: "1px solid rgba(var(--site-ink-rgb,255,255,255),0.15)",
+              color: "var(--site-ink, #fff)",
               background: "transparent",
             }}
           >
@@ -385,8 +406,9 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                   to={`/news/${r.id}`}
                   className="group block p-4"
                   style={{
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: "#14141b",
+                    border:
+                      "1px solid rgba(var(--site-ink-rgb,255,255,255),0.08)",
+                    background: "var(--site-surface, #14141b)",
                     textDecoration: "none",
                   }}
                 >
@@ -396,14 +418,17 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                       style={{
                         fontSize: 12,
                         letterSpacing: "0.15em",
-                        color: "var(--brand-accent)",
+                        color: "var(--site-accent-ink, var(--brand-accent))",
                       }}
                     >
                       {laneLabel(r.topic_lane)}
                     </span>
                     <span
                       className="font-body"
-                      style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                      style={{
+                        fontSize: 12,
+                        color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                      }}
                     >
                       {r.published_at
                         ? formatPublicDate(r.published_at, {
@@ -414,14 +439,21 @@ const NewsDetail = ({ initialItem }: NewsDetailProps = {}) => {
                     </span>
                   </div>
                   <h3
-                    className="font-display group-hover:text-[var(--brand-accent)] transition-colors"
-                    style={{ fontSize: 17, lineHeight: 1.35, color: "#fff" }}
+                    className="font-display group-hover:text-[var(--site-accent-ink,var(--brand-accent))] transition-colors"
+                    style={{
+                      fontSize: 17,
+                      lineHeight: 1.35,
+                      color: "var(--site-ink, #fff)",
+                    }}
                   >
                     {newsDisplay(r).title}
                   </h3>
                   <p
                     className="font-body mt-2 [overflow-wrap:anywhere]"
-                    style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                    style={{
+                      fontSize: 12,
+                      color: "var(--site-text-70, rgba(255,255,255,0.7))",
+                    }}
                   >
                     {sourceName(r)}
                   </p>

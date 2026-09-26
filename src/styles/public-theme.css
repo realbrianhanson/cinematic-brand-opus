@@ -1,0 +1,329 @@
+/* Public light palette. These rules never participate in the default dark theme.
+   Keep raw brand colors intact: they also paint buttons and original artwork. */
+html[data-site-theme="light"] body {
+  color-scheme: light;
+  color: #18202f;
+  --color-border: #dce1e8;
+  --site-surface: #ffffff;
+  --site-control-surface: #ffffff;
+  --site-ink: #18202f;
+  --site-ink-rgb: 24, 32, 47;
+  --site-text-20: #64748b;
+  --site-text-30: #64748b;
+  --site-text-35: #64748b;
+  --site-text-40: #64748b;
+  --site-text-45: #64748b;
+  --site-text-55: #64748b;
+  --site-text-60: #64748b;
+  --site-text-65: #475569;
+  --site-text-70: #475569;
+  --site-text-75: #475569;
+  --site-text-78: #475569;
+  --site-text-80: #475569;
+  --site-text-82: #334155;
+  --site-text-85: #334155;
+  --site-text-86: #334155;
+  --site-text-90: #18202f;
+  --site-text-92: #18202f;
+  --site-text-95: #18202f;
+  --site-accent-ink: #876417;
+  --site-error-ink: #b42318;
+  --site-nav: rgb(255 255 255 / 0.94);
+  --site-nav-scrolled: rgb(255 255 255 / 0.98);
+
+  --background: #ffffff;
+  --foreground: #18202f;
+  --card: #ffffff;
+  --card-foreground: #18202f;
+  --popover: #ffffff;
+  --popover-foreground: #18202f;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #dce1e8;
+  --input: #cbd5e1;
+  --ring: #876417;
+  --body-muted: #475569;
+  --label-muted: #64748b;
+  --card-border: #dce1e8;
+  --card-border-hover: #876417;
+  /* brandStyles places this alias inline on body. Do not change brand-backdrop:
+     it is also the dark lettering on gold buttons and the media overlay color. */
+  --bg-deep: #ffffff !important;
+  --color-white: #18202f;
+}
+
+/* Photographic overlays and generated covers keep their original contrast.
+   `initial` makes the semantic variable use its original, local dark fallback. */
+html[data-site-theme="light"] [data-theme-media] {
+  --color-white: #ffffff;
+  color: #ffffff;
+  --site-surface: initial;
+  --site-control-surface: initial;
+  --site-ink: #ffffff;
+  --site-ink-rgb: 255, 255, 255;
+  --site-text-20: initial;
+  --site-text-30: initial;
+  --site-text-35: initial;
+  --site-text-40: initial;
+  --site-text-45: initial;
+  --site-text-55: initial;
+  --site-text-60: initial;
+  --site-text-65: initial;
+  --site-text-70: initial;
+  --site-text-75: initial;
+  --site-text-78: initial;
+  --site-text-80: initial;
+  --site-text-82: initial;
+  --site-text-85: initial;
+  --site-text-86: initial;
+  --site-text-90: initial;
+  --site-text-92: initial;
+  --site-text-95: initial;
+  --site-accent-ink: var(--brand-accent);
+}
+
+/* The admin has its own complete palette. Its white icon utilities stay white. */
+html[data-site-theme="light"] .admin-shell {
+  --color-white: #ffffff;
+}
+
+html[data-site-theme="light"] .admin-shell .public-theme-preview {
+  --color-white: #18202f;
+  color: #18202f;
+}
+
+/* Legacy public utilities share the new palette, including portaled dialogs.
+   Solid text colors maintain contrast instead of fading charcoal into white. */
+html[data-site-theme="light"]
+  :is(
+    .text-white\/40,
+    .text-white\/45,
+    .text-white\/50,
+    .text-white\/55,
+    .text-white\/60
+  ):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: #64748b;
+}
+html[data-site-theme="light"]
+  :is(.text-white\/65, .text-white\/70, .text-white\/75, .text-white\/80):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: #475569;
+}
+html[data-site-theme="light"]
+  :is(.text-white\/85, .text-white\/90):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: #334155;
+}
+html[data-site-theme="light"]
+  :is(
+    .text-gold,
+    .text-gold-light,
+    [class~="text-[var(--brand-accent)]"],
+    [class~="text-[var(--brand-accent-light)]"]
+  ):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: var(--site-accent-ink);
+}
+html[data-site-theme="light"]
+  :is(
+    .placeholder\:text-white\/40,
+    .placeholder\:text-white\/45,
+    .placeholder\:text-white\/60
+  ):not(
+    :where(.admin-shell :not(.public-theme-preview, .public-theme-preview *))
+  )::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+html[data-site-theme="light"]
+  :is(
+    .bg-black\/10,
+    .bg-black\/15,
+    .bg-black\/20,
+    .bg-black\/25,
+    .bg-black\/30
+  ):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  background-color: #ffffff;
+}
+html[data-site-theme="light"]
+  :is(.hover\:text-white:hover, .group:hover .group-hover\:text-white):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: #18202f;
+}
+html[data-site-theme="light"]
+  :is(
+    [class~="hover:text-[var(--brand-accent)]"]:hover,
+    [class~="hover:text-[var(--brand-accent-light)]"]:hover
+  ):not(
+    :where(
+      [data-theme-media],
+      [data-theme-media] *,
+      .admin-shell,
+      .admin-shell :not(.public-theme-preview, .public-theme-preview *)
+    )
+  ) {
+  color: #705014;
+}
+html[data-site-theme="light"] .nav-link-underline:hover {
+  color: #705014 !important;
+}
+html[data-site-theme="light"]
+  :is(.text-red-100, .text-red-200, .text-red-300):not(
+    :where(.admin-shell :not(.public-theme-preview, .public-theme-preview *))
+  ) {
+  color: #b42318;
+}
+html[data-site-theme="light"]
+  :is(
+    .text-green-200,
+    .text-green-300,
+    .text-emerald-200,
+    .text-emerald-300
+  ):not(
+    :where(.admin-shell :not(.public-theme-preview, .public-theme-preview *))
+  ) {
+  color: #166534;
+}
+html[data-site-theme="light"]
+  :is(.text-amber-100, .text-amber-200, .text-amber-300):not(
+    :where(.admin-shell :not(.public-theme-preview, .public-theme-preview *))
+  ) {
+  color: #854d0e;
+}
+
+/* White canvas, controlled depth and an airy photographic hero. */
+html[data-site-theme="light"] .hero-background-media {
+  opacity: 0.35;
+}
+html[data-site-theme="light"] .hero-background-scrim {
+  background-image: linear-gradient(
+    90deg,
+    #fff 0%,
+    rgb(255 255 255 / 0.94) 35%,
+    rgb(255 255 255 / 0.2) 100%
+  );
+}
+html[data-site-theme="light"] .hero-background-fade {
+  background-image: linear-gradient(to top, #fff, transparent);
+}
+html[data-site-theme="light"] .site-atmosphere {
+  display: none;
+}
+html[data-site-theme="light"] #contact {
+  background-image: none;
+  background-color: #ffffff;
+}
+html[data-site-theme="light"] ::selection {
+  background: #ead7a5;
+  color: #18202f;
+}
+
+/* Editorial surfaces use the same readable ink as the rest of the site. */
+html[data-site-theme="light"] :is(.blog-content, .article-details) {
+  color: #334155;
+}
+html[data-site-theme="light"]
+  :is(.blog-content, .article-details)
+  :is(h1, h2, h3, h4, strong) {
+  color: #18202f;
+}
+html[data-site-theme="light"]
+  :is(
+    .blog-content a,
+    .article-details a,
+    .article-contents summary,
+    .public-secondary-action,
+    .public-discovery-card span
+  ) {
+  color: #876417;
+}
+html[data-site-theme="light"]
+  :is(.blog-content blockquote, .article-contents a, .public-discovery-card p) {
+  color: #475569;
+}
+html[data-site-theme="light"] .blog-content :is(pre, code) {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+html[data-site-theme="light"]
+  :is(.article-contents, .article-details, .public-discovery-card) {
+  border-color: #dce1e8;
+}
+html[data-site-theme="light"] .public-discovery-card {
+  background-color: #ffffff;
+  box-shadow: 0 6px 24px rgb(24 32 47 / 0.04);
+}
+html[data-site-theme="light"] .public-discovery-card:hover {
+  border-color: #876417;
+}
+html[data-site-theme="light"] .public-discovery-card h2 {
+  color: #18202f;
+}
+
+@media (max-width: 767px) {
+  html[data-site-theme="light"] .hero-background-scrim {
+    background-image: linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0.98),
+      rgb(255 255 255 / 0.8)
+    );
+  }
+}
+
+/* Keep keyboard focus and secondary hover states visible on white. */
+html[data-site-theme="light"]
+  [class~="focus-visible:outline-[var(--brand-accent)]"]:focus-visible {
+  outline-color: #876417;
+}
+html[data-site-theme="light"]
+  [class~="focus:ring-[var(--brand-accent)]"]:focus {
+  --tw-ring-color: #876417;
+}
+html[data-site-theme="light"]
+  .hover\:bg-black\/50:hover:not(
+    :where([data-theme-media], [data-theme-media] *)
+  ) {
+  background-color: #f1f5f9;
+}

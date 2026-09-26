@@ -12,7 +12,7 @@ const Breadcrumbs = ({ items }: { items: BreadcrumbItem[] }) => (
       style={{
         fontSize: 12,
         letterSpacing: "0.15em",
-        color: "rgba(255,255,255,0.7)",
+        color: "var(--site-text-70, rgba(255,255,255,0.7))",
         listStyle: "none",
         padding: 0,
         margin: 0,
@@ -33,7 +33,9 @@ const Breadcrumbs = ({ items }: { items: BreadcrumbItem[] }) => (
             <span
               style={{
                 color:
-                  i === items.length - 1 ? "rgba(255,255,255,0.85)" : undefined,
+                  i === items.length - 1
+                    ? "rgba(var(--site-ink-rgb,255,255,255),0.85)"
+                    : undefined,
               }}
             >
               {item.label}

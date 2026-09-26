@@ -59,7 +59,7 @@ function OfferIntro({
     >
       <p
         className="text-sm uppercase tracking-widest font-bold mb-4"
-        style={{ color: "var(--brand-accent)" }}
+        style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
       >
         {page?.eyebrow ||
           (offer.checkout_mode === "external"
@@ -260,7 +260,7 @@ function ExternalOfferLanding({
           <ArrowUpRight
             size={25}
             aria-hidden="true"
-            style={{ color: "var(--brand-accent)" }}
+            style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
           />
           <h2 className="font-display text-3xl mt-4">
             {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
@@ -431,7 +431,7 @@ function NativeOfferLanding({
           <Download
             size={25}
             aria-hidden="true"
-            style={{ color: "var(--brand-accent)" }}
+            style={{ color: "var(--site-accent-ink, var(--brand-accent))" }}
           />
           <h2 className="font-display text-3xl mt-4">
             {preview ? offerPreviewPrice(offer) : offerPrice(offer)}
