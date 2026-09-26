@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
 import { errorMessage } from "@/lib/errorMessage";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { withTimeout } from "@/lib/withTimeout";
 import {
   Loader2,
   Search,
@@ -93,6 +94,19 @@ const GenerationControls = () => {
   const [finishedJobs, setFinishedJobs] = useState<GenerationJob[]>([]);
   const [busyJobId, setBusyJobId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsChecked, setJobsChecked] = useState(false);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const jobsRequest = useRef(0);
+  const jobsMounted = useRef(false);
+  const jobsController = useRef<AbortController | null>(null);
+  const jobRevision = useRef(0);
+  const jobChanges = useRef(
+    new Map<string, { revision: number; row: GenerationJob }>(),
+  );
+  const rememberJob = useCallback((row: GenerationJob) => {
+    jobChanges.current.set(row.id, { revision: ++jobRevision.current, row });
+  }, []);
   const hasRunningJob = openJobs.some((j) => jobPhase(j, nowMs) === "active");
 
   useEffect(() => {
@@ -159,21 +173,67 @@ const GenerationControls = () => {
     },
   });
 
-  // Mark stalled jobs on the server first, so a dropped chain is released
-  // (the cron sweeper does the same every 10 minutes).
+  // A failed or late refresh must not erase known work or resurrect a job
+  // that completed through realtime while the snapshot was in flight.
   const loadJobs = useCallback(async () => {
-    await markStalledJobs().catch(() => undefined);
-    const { data } = await supabase
-      .from("generation_jobs")
-      .select("*")
-      .in("status", OPEN_STATUSES)
-      .order("created_at", { ascending: false });
-    setOpenJobs((data ?? []) as GenerationJob[]);
-    setNowMs(Date.now());
+    const request = ++jobsRequest.current;
+    const startedRevision = jobRevision.current;
+    jobsController.current?.abort();
+    const controller = new AbortController();
+    jobsController.current = controller;
+    setJobsLoading(true);
+    try {
+      const { data, error } = await withTimeout(
+        (async () => {
+          await markStalledJobs().catch(() => undefined);
+          if (controller.signal.aborted)
+            throw new Error("Job status check cancelled");
+          return await supabase
+            .from("generation_jobs")
+            .select("*")
+            .in("status", OPEN_STATUSES)
+            .order("created_at", { ascending: false })
+            .abortSignal(controller.signal);
+        })(),
+        12_000,
+      );
+      if (error) throw error;
+      if (!Array.isArray(data))
+        throw new Error("Missing generation job snapshot");
+      if (!jobsMounted.current || request !== jobsRequest.current) return;
+      const snapshot = new Map(
+        (data ?? []).map((row) => [row.id, row as GenerationJob]),
+      );
+      for (const { revision, row } of jobChanges.current.values()) {
+        if (revision <= startedRevision) continue;
+        if (OPEN_STATUSES.includes(row.status)) snapshot.set(row.id, row);
+        else snapshot.delete(row.id);
+      }
+      setOpenJobs([...snapshot.values()]);
+      setJobsChecked(true);
+      setJobsError(null);
+      setNowMs(Date.now());
+    } catch {
+      if (!jobsMounted.current || request !== jobsRequest.current) return;
+      setJobsError(
+        "Could not check generation jobs. Known jobs are still shown. Check again before starting another job.",
+      );
+    } finally {
+      controller.abort();
+      if (jobsMounted.current && request === jobsRequest.current)
+        setJobsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
+    jobsMounted.current = true;
+    const requestState = jobsRequest;
     void loadJobs();
+    return () => {
+      jobsMounted.current = false;
+      requestState.current++;
+      jobsController.current?.abort();
+    };
   }, [loadJobs]);
 
   // Subscribe to realtime updates on generation_jobs
@@ -185,7 +245,8 @@ const GenerationControls = () => {
         { event: "*", schema: "public", table: "generation_jobs" },
         (payload) => {
           const row = payload.new as GenerationJob;
-          if (!row?.id) return;
+          if (!jobsMounted.current || !row?.id) return;
+          rememberJob(row);
           setNowMs(Date.now());
           if (FINISHED_STATUSES.includes(row.status)) {
             setOpenJobs((prev) => prev.filter((j) => j.id !== row.id));
@@ -222,7 +283,7 @@ const GenerationControls = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast, qc, refetchBatches]);
+  }, [toast, qc, refetchBatches, rememberJob]);
 
   const filteredNiches = useMemo(() => {
     if (!niches) return [];
@@ -353,6 +414,7 @@ const GenerationControls = () => {
   };
 
   const runGeneration = (overrideDryRun?: boolean) => {
+    if (jobsLoading || !jobsChecked || jobsError) return;
     const isDry = overrideDryRun ?? dryRun;
     if (selectedNiches.size === 0) {
       toast({
@@ -380,8 +442,11 @@ const GenerationControls = () => {
   };
 
   const startGeneration = async () => {
+    if (jobsLoading || !jobsChecked || jobsError || hasRunningJob || generating)
+      return;
     setConfirmOpen(false);
     setGenerating(true);
+    const startedRevision = jobRevision.current;
     try {
       const { status, body } = await invokeAdminFunction("generate-content", {
         ...requestBody(),
@@ -412,7 +477,11 @@ const GenerationControls = () => {
         created_at: now,
         updated_at: now,
       };
-      setOpenJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
+      const observed = jobChanges.current.get(job.id);
+      if (!observed || observed.revision <= startedRevision) {
+        rememberJob(job);
+        setOpenJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
+      }
       setNowMs(Date.now());
       toast({
         title: "Generation started",
@@ -445,6 +514,7 @@ const GenerationControls = () => {
         return;
       }
       const cancelled = { ...job, status: "cancelled" };
+      rememberJob(cancelled);
       setOpenJobs((prev) => prev.filter((j) => j.id !== job.id));
       setFinishedJobs((prev) => [
         cancelled,
@@ -467,6 +537,7 @@ const GenerationControls = () => {
 
   const resumeJob = async (job: GenerationJob) => {
     setBusyJobId(job.id);
+    const startedRevision = jobRevision.current;
     try {
       const { status, body } = await invokeAdminFunction("generate-content", {
         resume_job_id: job.id,
@@ -474,13 +545,27 @@ const GenerationControls = () => {
       if (status !== 200)
         throw new Error(bodyError(body, "The job could not resume."));
       const now = new Date().toISOString();
-      setOpenJobs((prev) =>
-        prev.map((j) =>
-          j.id === job.id
-            ? { ...j, status: "running", error_message: null, updated_at: now }
-            : j,
-        ),
-      );
+      const observed = jobChanges.current.get(job.id);
+      if (!observed || observed.revision <= startedRevision) {
+        rememberJob({
+          ...job,
+          status: "running",
+          error_message: null,
+          updated_at: now,
+        });
+        setOpenJobs((prev) =>
+          prev.map((j) =>
+            j.id === job.id
+              ? {
+                  ...j,
+                  status: "running",
+                  error_message: null,
+                  updated_at: now,
+                }
+              : j,
+          ),
+        );
+      }
       setNowMs(Date.now());
       toast({
         title: "Job resumed",
@@ -498,6 +583,9 @@ const GenerationControls = () => {
   };
 
   const generateDisabled =
+    jobsLoading ||
+    !jobsChecked ||
+    !!jobsError ||
     generating ||
     hasRunningJob ||
     selectedNiches.size === 0 ||
@@ -530,6 +618,27 @@ const GenerationControls = () => {
         Create SEO-optimized pages automatically. Pick which industries you want
         to target and what type of content to create — the AI does the rest.
       </p>
+
+      <div className="mb-4 space-y-2">
+        {jobsError && (
+          <p role="alert" className="admin-notice admin-notice-error">
+            {jobsError}
+          </p>
+        )}
+        {jobsLoading && (
+          <p role="status" className="admin-help">
+            Checking generation jobs…
+          </p>
+        )}
+        <button
+          type="button"
+          className="admin-btn-ghost"
+          onClick={() => void loadJobs()}
+          disabled={jobsLoading}
+        >
+          {jobsError ? "Retry job status" : "Refresh job status"}
+        </button>
+      </div>
 
       <GenerationJobsPanel
         openJobs={openJobs}
@@ -602,7 +711,11 @@ const GenerationControls = () => {
               >
                 Cancel
               </button>
-              <button className="admin-btn-primary" onClick={startGeneration}>
+              <button
+                className="admin-btn-primary"
+                onClick={startGeneration}
+                disabled={generateDisabled}
+              >
                 Generate {estimatedPages} pages
               </button>
             </div>

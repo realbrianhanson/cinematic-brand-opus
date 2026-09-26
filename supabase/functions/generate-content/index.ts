@@ -25,6 +25,8 @@ import {
   type UsageTotals,
 } from "../_shared/generationLimits.ts";
 
+import { dispatchGenerationRequest } from "../_shared/generationDispatch.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -53,7 +55,9 @@ function runInBackground(promise: Promise<unknown>) {
       EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
     }
   ).EdgeRuntime;
-  if (runtime?.waitUntil) runtime.waitUntil(promise);
+  if (!runtime?.waitUntil) return false;
+  runtime.waitUntil(promise);
+  return true;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -462,61 +466,71 @@ Deno.serve(async (req) => {
       .clone()
       .json()
       .catch(() => ({}));
-    try {
-      await handleStepProcessing(
-        req,
-        supabase,
-        LOVABLE_API_KEY,
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY,
-      );
-      return jsonResponse({ ok: true });
-    } catch (err: any) {
-      console.error("Step processing error:", err);
-      // One bad item must not end the run: count it as failed and move on.
-      await recoverFromStepError(
-        supabase,
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY,
-        stepBody,
-        err,
-      );
-      return jsonResponse({ error: err.message }, 500);
-    }
+    const work = (async () => {
+      try {
+        await handleStepProcessing(
+          req,
+          supabase,
+          LOVABLE_API_KEY,
+          SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY,
+        );
+        return jsonResponse({ ok: true });
+      } catch (err: any) {
+        console.error("Step processing error:", err);
+        // One bad item must not end the run: count it as failed and move on.
+        await recoverFromStepError(
+          supabase,
+          SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY,
+          stepBody,
+          err,
+        );
+        return jsonResponse({ error: err.message }, 500);
+      }
+    })();
+    if (runInBackground(work)) return jsonResponse({ accepted: true }, 202);
+    return await work;
   }
 
   // ─── SETUP PROCESSOR: generates angles then kicks off step-by-step ───
   if (isSetupProcess) {
-    try {
-      await handleSetupProcessing(
-        req,
-        supabase,
-        LOVABLE_API_KEY,
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY,
-      );
-      return jsonResponse({ ok: true });
-    } catch (err: any) {
-      console.error("Setup processing error:", err);
+    const setupBody = await req
+      .clone()
+      .json()
+      .catch(() => ({}));
+    const work = (async () => {
       try {
-        const body = await req
-          .clone()
-          .json()
-          .catch(() => ({}));
-        if (body.job_id) {
-          await supabase
-            .from("generation_jobs")
-            .update({
-              status: "failed",
-              error_message: `Setup failed: ${err.message}`,
-            })
-            .eq("id", body.job_id);
+        await handleSetupProcessing(
+          req,
+          supabase,
+          LOVABLE_API_KEY,
+          SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY,
+        );
+        return jsonResponse({ ok: true });
+      } catch (err: any) {
+        console.error("Setup processing error:", err);
+        try {
+          const body = setupBody;
+          if (body.job_id) {
+            await supabase
+              .from("generation_jobs")
+              .update({
+                status: "failed",
+                error_message: `Setup failed: ${err.message}`,
+              })
+              .eq("id", body.job_id)
+              .eq("status", "running");
+          }
+        } catch (error) {
+          console.warn("Optional job metadata update failed", error);
         }
-      } catch (error) {
-        console.warn("Optional job metadata update failed", error);
+        return jsonResponse({ error: err.message }, 500);
       }
-      return jsonResponse({ error: err.message }, 500);
-    }
+    })();
+    if (runInBackground(work)) return jsonResponse({ accepted: true }, 202);
+    return await work;
   }
 
   // ─── NORMAL REQUEST: verify admin user, create job, kick off setup ───
@@ -680,25 +694,18 @@ Deno.serve(async (req) => {
     if (jobErr) throw new Error(`Failed to create job: ${jobErr.message}`);
 
     // Kick off setup (angles, then step-by-step) without holding this request.
-    const processUrl = `${SUPABASE_URL}/functions/v1/generate-content`;
-    runInBackground(
-      fetch(processUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-job-setup": "true",
-        },
-        body: JSON.stringify({
-          job_id: job.id,
-          batch_id,
-          niche_ids: niches.map((n: any) => n.id),
-          schema_ids: contentSchemas.map((s: any) => s.id),
-          count_per_combination,
-        }),
-      }).catch((e) =>
-        markJobStalled(supabase, job.id, `Could not start setup: ${e.message}`),
-      ),
+    dispatchJobRequest(
+      supabase,
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      {
+        job_id: job.id,
+        batch_id,
+        niche_ids: niches.map((n: any) => n.id),
+        schema_ids: contentSchemas.map((s: any) => s.id),
+        count_per_combination,
+      },
+      true,
     );
 
     return jsonResponse({
@@ -1598,24 +1605,60 @@ function triggerNextStep(
   serviceRoleKey: string,
   payload: any,
 ) {
-  const processUrl = `${supabaseUrl}/functions/v1/generate-content`;
+  dispatchJobRequest(supabase, supabaseUrl, serviceRoleKey, payload, false);
+}
+
+/** Capture a job version before dispatch and compare it before recording failure. */
+export function dispatchJobRequest(
+  supabase: any,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  payload: any,
+  setup: boolean,
+) {
   runInBackground(
-    fetch(processUrl, {
-      method: "POST",
+    dispatchGenerationRequest({
+      url: `${supabaseUrl}/functions/v1/generate-content`,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceRoleKey}`,
-        "x-job-step": "true",
+        [setup ? "x-job-setup" : "x-job-step"]: "true",
       },
-      body: JSON.stringify(payload),
-    }).catch(async (e) => {
-      console.error("Failed to trigger next step:", e);
-      await markJobStalled(
-        supabase,
-        payload.job_id,
-        `Stopped before item ${payload.current_index + 1}: ${e.message}. Resume to continue.`,
-      );
-    }),
+      payload,
+      expectedStatus: setup ? "pending" : "running",
+      expectedCompleted: setup ? 0 : payload.current_index,
+      label: setup ? "setup" : `item ${payload.current_index + 1}`,
+      readSnapshot: async (signal) => {
+        const { data, error } = await supabase
+          .from("generation_jobs")
+          .select("id, status, updated_at, completed_count")
+          .eq("id", payload.job_id)
+          .abortSignal(signal)
+          .maybeSingle();
+        if (error)
+          throw new Error(
+            "Could not check the generation job before dispatch.",
+          );
+        return data;
+      },
+      markStalled: async (snapshot, message, signal) => {
+        const { error } = await supabase
+          .from("generation_jobs")
+          .update({ status: "stalled", error_message: message })
+          .eq("id", snapshot.id)
+          .eq("status", snapshot.status)
+          .eq("updated_at", snapshot.updated_at)
+          .eq("completed_count", snapshot.completed_count)
+          .abortSignal(signal);
+        if (error)
+          throw new Error("Could not record the generation dispatch failure.");
+      },
+    }).catch((error) =>
+      console.error(
+        "Generation dispatch could not be confirmed:",
+        error.message,
+      ),
+    ),
   );
 }
 
