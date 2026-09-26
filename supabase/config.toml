@@ -130,3 +130,6 @@ verify_jwt = false
 
 [functions.external-stripe-webhook]
 verify_jwt = false
+
+[functions.funnel-journey-measurement]
+verify_jwt = false

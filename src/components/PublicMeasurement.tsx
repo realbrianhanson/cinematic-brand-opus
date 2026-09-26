@@ -42,10 +42,15 @@ export default function PublicMeasurement() {
   const [privacySignal, setPrivacySignal] = useState(false);
   const previous = useRef("");
   const publicPath = measurementPath(pathname);
+  const journeyPath = /^\/funnels\/[a-z][a-z0-9-]{0,79}$/.test(pathname)
+    ? pathname
+    : null;
   // Private access routes never produce page views or outbound click events.
   // Only the bounded, published offer pair in a visible follow-up qualifies.
   const path =
-    publicPath ?? (pathname === "/offer-access" ? "/offer-access" : null);
+    publicPath ??
+    journeyPath ??
+    (pathname === "/offer-access" ? "/offer-access" : null);
   const eligible =
     ready &&
     !loading &&

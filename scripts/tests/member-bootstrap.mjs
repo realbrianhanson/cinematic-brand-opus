@@ -142,6 +142,18 @@ for (const table of [
   "gsc_imports",
   "gsc_import_rows",
   "offer_checkout_attempts",
+  "offer_order_items",
+  "funnel_journeys",
+  "funnel_journey_revisions",
+  "funnel_journey_sessions",
+  "funnel_journey_requests",
+  "funnel_journey_transitions",
+  "funnel_journey_measurement_events",
+  "external_payment_events",
+  "external_payments",
+  "external_payment_refreshes",
+  "offer_experiments",
+  "offer_experiment_assignments",
 ]) {
   const inherited = new PGlite();
   await inherited.exec(fixture + `create table public.${table}(id uuid);`);

@@ -8,11 +8,13 @@ import {
   waitFor,
 } from "@testing-library/react";
 import FirstAiBuild from "@/pages/FirstAiBuild";
+import { renderToString } from "react-dom/server";
 import { buildFirstAiPlan, PROJECT_OPTIONS } from "@/lib/firstAiBuild";
 import { subscribeToNewsletter } from "@/lib/newsletterSubscribe";
 import { recordMeasurement } from "@/lib/measurement";
 import type { ShopOffer } from "@/lib/shop";
 import { getFunnelJourney } from "@/lib/funnelJourneysClient";
+import { firstBuildRecoveryKey } from "@/lib/firstAiBuildRecovery";
 vi.mock("@/lib/funnelJourneysClient", () => ({
   getFunnelJourney: vi.fn().mockResolvedValue(null),
 }));
@@ -50,6 +52,7 @@ function createPlan() {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   vi.mocked(getFunnelJourney).mockResolvedValue(null);
   vi.stubGlobal("scrollTo", vi.fn());
   Element.prototype.scrollIntoView = vi.fn();
@@ -103,7 +106,7 @@ describe("Your First AI Build", () => {
       screen.getByRole("button", { name: "Copy build prompt" }),
     ).toBeTruthy();
   });
-  it("delivers a task-specific plan without email, waiting for a network response, or storing business inputs", async () => {
+  it("delivers a task-specific plan without email or network waiting, keeping recovery local", async () => {
     const storage = vi.spyOn(Storage.prototype, "setItem");
     render(<FirstAiBuild offers={[]} />);
     createPlan();
@@ -119,7 +122,12 @@ describe("Your First AI Build", () => {
     ).toBeTruthy();
     expect(screen.getAllByText(plan.tests[0].action).length).toBeGreaterThan(0);
     expect(vi.mocked(subscribeToNewsletter)).not.toHaveBeenCalled();
-    expect(storage).not.toHaveBeenCalled();
+    expect(storage).toHaveBeenCalled();
+    expect(
+      storage.mock.calls.every(([key]) =>
+        key.startsWith("first-ai-build:recovery:v1:"),
+      ),
+    ).toBe(true);
     expect(window.location.search).toBe("");
     expect(recordMeasurement).toHaveBeenCalledWith([
       {
@@ -279,12 +287,239 @@ describe("Your First AI Build", () => {
     ]);
     unmount();
     render(<FirstAiBuild offers={[]} />);
-    createPlan();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Resume saved progress" }),
+    );
     expect(
       screen
         .getByRole("link", { name: "Read the free getting-started guide" })
         .getAttribute("href"),
     ).toBe("/guides/ai-for-small-business");
     expect(screen.queryByRole("link", { name: /Explore PushTen/ })).toBeNull();
+  });
+  it("offers explicit recovery after remount without creating a second measured plan", () => {
+    const first = render(<FirstAiBuild />);
+    createPlan();
+    first.unmount();
+    render(<FirstAiBuild />);
+    expect(
+      screen.queryByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeNull();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Create my free build plan",
+        }) as HTMLButtonElement
+      ).closest("fieldset")?.disabled,
+    ).toBe(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Resume saved progress" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+    expect(screen.getByText(/saved progress is restored/)).toBeTruthy();
+    expect(
+      vi
+        .mocked(recordMeasurement)
+        .mock.calls.filter(
+          ([events]) => events[0].type === "build_plan_created",
+        ),
+    ).toHaveLength(1);
+  });
+
+  it("restores unfinished edits instead of replacing them with the older generated plan", () => {
+    const first = render(<FirstAiBuild />);
+    createPlan();
+    fireEvent.click(screen.getByRole("button", { name: "Edit my answers" }));
+    fireEvent.change(screen.getByLabelText(/Type of business/), {
+      target: { value: "New draft business " },
+    });
+    fireEvent.click(
+      screen.getByRole("radio", { name: new RegExp(PROJECT_OPTIONS[2].title) }),
+    );
+    first.unmount();
+    render(<FirstAiBuild />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Resume saved progress" }),
+    );
+    expect(
+      (screen.getByLabelText(/Type of business/) as HTMLInputElement).value,
+    ).toBe("New draft business ");
+    expect(
+      (
+        screen.getByRole("radio", {
+          name: new RegExp(PROJECT_OPTIONS[2].title),
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Edit my answers" }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create my free build plan" }),
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: buildFirstAiPlan({ ...input, project: "onboarding" }).title,
+      }),
+    ).toBeTruthy();
+  });
+
+  it("confirms starting over and only removes the planner copy", () => {
+    localStorage.setItem("unrelated-setting", "keep");
+    render(<FirstAiBuild />);
+    createPlan();
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep my progress" }));
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear and start over" }),
+    );
+    expect(
+      (screen.getByLabelText(/Type of business/) as HTMLInputElement).value,
+    ).toBe("");
+    expect(
+      localStorage.getItem(
+        firstBuildRecoveryKey("brian|https://brianhanson.com|Brian Hanson"),
+      ),
+    ).toBeNull();
+    expect(localStorage.getItem("unrelated-setting")).toBe("keep");
+  });
+
+  it("keeps a temporary session usable when storage writes fail", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("full");
+    });
+    render(<FirstAiBuild />);
+    createPlan();
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Temporary session: browser saving is unavailable/),
+    ).toBeTruthy();
+  });
+
+  it("shows an actionable recovery notice for malformed storage without overwriting it", () => {
+    const key = firstBuildRecoveryKey(
+      "brian|https://brianhanson.com|Brian Hanson",
+    );
+    localStorage.setItem(key, "invalid");
+    render(<FirstAiBuild />);
+    expect(
+      screen.getByText(/different version or could not be read/),
+    ).toBeTruthy();
+    expect(localStorage.getItem(key)).toBe("invalid");
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear and start over" }),
+    );
+    createPlan();
+    expect(
+      screen.getByRole("heading", { name: buildFirstAiPlan(input).title }),
+    ).toBeTruthy();
+  });
+
+  it("does not replace an active draft when another tab updates saved progress", () => {
+    render(<FirstAiBuild />);
+    fireEvent.change(screen.getByLabelText(/Type of business/), {
+      target: { value: "My current draft" },
+    });
+    const key = firstBuildRecoveryKey(
+      "brian|https://brianhanson.com|Brian Hanson",
+    );
+    localStorage.setItem(key, "another-tab-value");
+    fireEvent.change(screen.getByLabelText(/Who does it help/), {
+      target: { value: "My audience" },
+    });
+    expect(screen.getByText(/Another tab changed the saved copy/)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(/Type of business/) as HTMLInputElement).value,
+    ).toBe("My current draft");
+    expect(localStorage.getItem(key)).toBe("another-tab-value");
+  });
+
+  it("does not restore another brand’s saved plan", () => {
+    const first = render(<FirstAiBuild recoveryScope="brand-a" />);
+    createPlan();
+    first.rerender(<FirstAiBuild recoveryScope="brand-b" />);
+    expect(
+      screen.queryByRole("button", { name: "Resume saved progress" }),
+    ).toBeNull();
+    expect(
+      (screen.getByLabelText(/Type of business/) as HTMLInputElement).value,
+    ).toBe("");
+  });
+
+  it("prints a full plan document with no optional promotion or email form", () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    render(<FirstAiBuild />);
+    createPlan();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Print / Save as PDF" }),
+    );
+    expect(print).toHaveBeenCalledOnce();
+    const document = window.document.querySelector(".first-build-print");
+    const plan = buildFirstAiPlan(input);
+    // Tailwind preflight hides [hidden] with !important, blanking print output.
+    expect(document?.hasAttribute("hidden")).toBe(false);
+    expect(document?.textContent).toContain(plan.buildPrompt);
+    expect(document?.textContent).toContain(plan.sample.input);
+    expect(document?.textContent).toContain(plan.sample.output);
+    expect(document?.textContent).toContain(plan.tests[2].expected);
+    expect(document?.querySelector("form, nav, button, a")).toBeNull();
+    expect(document?.textContent).not.toMatch(
+      /Keep building with Brian|PushTen|Subscribe/,
+    );
+    expect(screen.getByText(/Choose “Save as PDF”/)).toBeTruthy();
+    expect(screen.queryByText(/PDF saved/)).toBeNull();
+  });
+
+  it("keeps download available if the browser cannot print", () => {
+    vi.spyOn(window, "print").mockImplementation(() => {
+      throw new Error("unavailable");
+    });
+    render(<FirstAiBuild />);
+    createPlan();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Print / Save as PDF" }),
+    );
+    expect(screen.getByText(/Printing is unavailable here/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Download full plan" }),
+    ).toBeTruthy();
+  });
+  it("does not read recovery storage during server rendering", () => {
+    const read = vi.spyOn(Storage.prototype, "getItem");
+    const html = renderToString(<FirstAiBuild />);
+    expect(read).not.toHaveBeenCalled();
+    expect(html).toContain("Checking this browser for a saved plan");
+  });
+
+  it("does not claim that a denied browser clear removed the saved copy", () => {
+    render(<FirstAiBuild />);
+    createPlan();
+    const key = firstBuildRecoveryKey(
+      "brian|https://brianhanson.com|Brian Hanson",
+    );
+    const saved = localStorage.getItem(key);
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear and start over" }),
+    );
+    expect(
+      screen.getByText(/browser storage could not be cleared/),
+    ).toBeTruthy();
+    expect(
+      (screen.getByLabelText(/Type of business/) as HTMLInputElement).value,
+    ).toBe("");
+    expect(localStorage.getItem(key)).toBe(saved);
   });
 });

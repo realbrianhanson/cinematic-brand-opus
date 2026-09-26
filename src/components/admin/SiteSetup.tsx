@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { Link } from "@/lib/router-compat";
@@ -32,6 +32,11 @@ import { brandStyles } from "@/config/brandStyles";
 import type { Json } from "@/integrations/supabase/types";
 import QueryNotice from "./QueryNotice";
 import { toast } from "sonner";
+import { withTimeout } from "@/lib/withTimeout";
+import {
+  confirmDiscardAdminDraft,
+  useConfigurationDraftGuard,
+} from "./useConfigurationDraftGuard";
 const steps = ["Identity", "Brand & offer", "Preview & launch"];
 function ChangeList({ title, rows }: { title: string; rows: SetupChange[] }) {
   if (!rows.length) return null;
@@ -119,7 +124,14 @@ export default function SiteSetup() {
   const config = useSiteConfig();
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [reloading, setReloading] = useState(false);
+  const reloadingRef = useRef(false);
   const [draft, setDraft] = useState<SetupValues | null>(null);
+  const [draftBase, setDraftBase] = useState<{
+    brandingVersion: string | null;
+    settingsVersion: string | null;
+    values: SetupValues;
+  } | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [confirming, setConfirming] = useState<{
     value: SetupValues;
@@ -129,15 +141,18 @@ export default function SiteSetup() {
   const [memberConfirmText, setMemberConfirmText] = useState("");
   const settings = useQuery({
     queryKey: ["site-setup"],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      const [brand, identity] = await Promise.all([
-        supabase
-          .from("site_branding")
-          .select("settings")
-          .eq("id", true)
-          .maybeSingle(),
-        supabase.rpc("admin_read_site_settings"),
-      ]);
+      const [brand, identity] = await withTimeout(
+        Promise.all([
+          supabase
+            .from("site_branding")
+            .select("settings,updated_at")
+            .eq("id", true)
+            .maybeSingle(),
+          supabase.rpc("admin_read_site_settings"),
+        ]),
+      );
       if (brand.error) throw brand.error;
       if (identity.error) throw identity.error;
       const row = identity.data?.[0];
@@ -147,6 +162,8 @@ export default function SiteSetup() {
         storedMode: storedBrandingMode(stored),
         row,
         initialized: !!row,
+        brandingVersion: brand.data?.updated_at ?? null,
+        settingsVersion: row?.updated_at ?? null,
       };
     },
   });
@@ -155,35 +172,90 @@ export default function SiteSetup() {
   const preview = parsed.success ? buildRuntimeConfig(parsed.data) : config;
   const save = useMutation({
     mutationFn: async (value: SetupValues) => {
-      const { error } = await supabase.rpc("save_site_branding", {
-        value: value as unknown as Json,
-      });
+      const base = draftBase ?? settings.data;
+      if (!base)
+        throw new Error(
+          "Load the saved site settings before applying changes.",
+        );
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          supabase.rpc("admin_save_site_branding", {
+            _value: value as unknown as Json,
+            _expected_branding_updated_at: base.brandingVersion,
+            _expected_settings_updated_at: base.settingsVersion,
+          }),
+        ),
+      );
       if (error) throw error;
+      if (
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        data.saved !== true
+      )
+        throw new Error(
+          "The save could not be confirmed. Your draft is still here. Reload the saved version before applying again.",
+        );
     },
     onSuccess: async () => {
-      await router.invalidate();
+      await withTimeout(router.invalidate());
       await settings.refetch();
       setDraft(null);
+      setDraftBase(null);
       setConfirming(null);
       toast.success("Site identity and public branding updated");
     },
     onError: (e) => toast.error(e.message),
   });
-  const baseline = settings.data?.values || setupDefaults(config);
+  const baseline =
+    draftBase?.values ?? settings.data?.values ?? setupDefaults(config);
+  useConfigurationDraftGuard(!!draft, save.isPending || reloading);
+  const captureBase = () => {
+    if (!draftBase && settings.data) setDraftBase(settings.data);
+  };
+  const reloadSaved = async () => {
+    if (
+      save.isPending ||
+      reloadingRef.current ||
+      (draft && !confirmDiscardAdminDraft())
+    )
+      return;
+    reloadingRef.current = true;
+    setReloading(true);
+    try {
+      const result = await settings.refetch();
+      if (result.error) {
+        toast.error("Could not reload. Your draft is still here.");
+        return;
+      }
+      setDraft(null);
+      setDraftBase(null);
+      setConfirming(null);
+      save.reset();
+    } finally {
+      reloadingRef.current = false;
+      setReloading(false);
+    }
+  };
   const liveHost = confirmationHost(baseline.siteUrl);
   const switchToMember = () => {
+    captureBase();
     setMemberGuard(false);
     setMemberConfirmText("");
     setDraft({ ...setupDefaults(memberPreset), mode: "member" });
   };
-  const switchToOwner = () =>
+  const switchToOwner = () => {
+    captureBase();
     setDraft({
       ...(baseline.mode === "owner" ? baseline : setupDefaults(config)),
       mode: "owner",
       authorBio: baseline.authorBio,
     });
-  const change = (field: keyof SetupValues, value: string) =>
+  };
+  const change = (field: keyof SetupValues, value: string) => {
+    captureBase();
     setDraft({ ...values, [field]: value });
+  };
   const field = (
     key: keyof SetupValues,
     label: string,
@@ -195,6 +267,7 @@ export default function SiteSetup() {
       {multiline ? (
         <textarea
           className="admin-input min-h-28"
+          disabled={save.isPending || reloading}
           value={values[key]}
           onChange={(e) => change(key, e.target.value)}
         />
@@ -202,6 +275,7 @@ export default function SiteSetup() {
         <input
           className="admin-input"
           type={key === "accent" ? "color" : "text"}
+          disabled={save.isPending || reloading}
           value={values[key]}
           onChange={(e) => change(key, e.target.value)}
         />
@@ -218,12 +292,25 @@ export default function SiteSetup() {
           before applying them to the public website.
         </p>
       </header>
+      {(draft || save.error) && (
+        <button
+          type="button"
+          className="admin-btn-secondary"
+          disabled={save.isPending || reloading || settings.isFetching}
+          onClick={() => void reloadSaved()}
+        >
+          Reload saved site settings
+        </button>
+      )}
+      {save.error && (
+        <p role="alert">{save.error.message} Your draft has been kept.</p>
+      )}
       <QueryNotice
         loading={settings.isPending}
         error={settings.error}
         retry={() => settings.refetch()}
       />
-      {!settings.isPending && !settings.error && (
+      {!settings.isPending && (!settings.error || draft) && (
         <>
           <nav aria-label="Setup steps" className="flex flex-wrap gap-2">
             {steps.map((label, index) => (
@@ -232,6 +319,7 @@ export default function SiteSetup() {
                   step === index ? "admin-btn-primary" : "admin-btn-secondary"
                 }
                 aria-current={step === index ? "step" : undefined}
+                disabled={save.isPending || reloading}
                 onClick={() => setStep(index)}
                 key={label}
               >
@@ -242,6 +330,7 @@ export default function SiteSetup() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              if (save.isPending || reloadingRef.current) return;
               if (!parsed.success) {
                 setIssues(
                   parsed.error.issues.map(
@@ -251,6 +340,7 @@ export default function SiteSetup() {
                 return;
               }
               setIssues([]);
+              captureBase();
               if (step < 2) setStep(step + 1);
               else
                 setConfirming({
@@ -265,7 +355,10 @@ export default function SiteSetup() {
             }}
             className="admin-card p-6 space-y-6"
           >
-            <fieldset disabled={save.isPending} className="space-y-6">
+            <fieldset
+              disabled={save.isPending || reloading}
+              className="space-y-6"
+            >
               {step === 0 && (
                 <>
                   <label className="grid gap-2">
@@ -533,7 +626,7 @@ export default function SiteSetup() {
           </form>
           <ConfirmApply
             plan={confirming?.plan ?? null}
-            pending={save.isPending}
+            pending={save.isPending || reloading}
             onCancel={() => setConfirming(null)}
             onConfirm={() => confirming && save.mutate(confirming.value)}
           />

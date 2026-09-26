@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  recordFunnelJourneyMeasurement,
+  type FunnelMeasurementType,
+} from "@/lib/funnelJourneyMeasurement";
+import { MEASUREMENT_CHANGE, MEASUREMENT_CHOICE_KEY } from "@/lib/measurement";
+import { MeasurementPreferencesButton } from "@/components/PublicMeasurement";
+import {
   advanceFunnelJourney,
   loadFunnelSession,
   newFunnelToken,
@@ -46,6 +52,35 @@ function FunnelJourneySession({ slug, initialProject }: FunnelJourneyProps) {
     session: FunnelSession;
   } | null>(null);
   const generation = useRef(0);
+  const measure = (
+    value: FunnelSession,
+    type: FunnelMeasurementType,
+    option?: string,
+  ) => {
+    const identity = { slug, revision: value.revision, step_id: value.step.id };
+    recordFunnelJourneyMeasurement([
+      { ...identity, type: "step_view" },
+      ...(type === "step_view"
+        ? []
+        : [{ ...identity, type, ...(option ? { option_id: option } : {}) }]),
+    ]);
+  };
+  useEffect(() => {
+    if (!session || busy) return;
+    const view = () => measure(session, "step_view");
+    view();
+    const storage = (event: StorageEvent) => {
+      if (event.key === MEASUREMENT_CHOICE_KEY || event.key === null) view();
+    };
+    window.addEventListener(MEASUREMENT_CHANGE, view);
+    window.addEventListener("storage", storage);
+    return () => {
+      window.removeEventListener(MEASUREMENT_CHANGE, view);
+      window.removeEventListener("storage", storage);
+    };
+    // Tracking is keyed to the displayed immutable revision/step, not raw answers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, busy, slug]);
   useEffect(() => {
     const epoch = ++generation.current;
     let nextToken: string | null = null;
@@ -126,14 +161,14 @@ function FunnelJourneySession({ slug, initialProject }: FunnelJourneyProps) {
     };
     pending.current = request;
     try {
-      accept(
-        await advanceFunnelJourney(
-          token.current,
-          request.session,
-          request.id,
-          request.answer,
-        ),
+      const continued = await advanceFunnelJourney(
+        token.current,
+        request.session,
+        request.id,
+        request.answer,
       );
+      measure(request.session, "step_continue", request.answer);
+      accept(continued);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry this step.");
     } finally {
@@ -270,6 +305,10 @@ function FunnelJourneySession({ slug, initialProject }: FunnelJourneyProps) {
                     href={`/offers/${encodeURIComponent(session.offer.slug)}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => measure(session, "offer_handoff")}
+                    onAuxClick={(event) => {
+                      if (event.button === 1) measure(session, "offer_handoff");
+                    }}
                   >
                     View {session.offer.title}{" "}
                     <span className="text-sm">(opens a new tab)</span>
@@ -294,6 +333,11 @@ function FunnelJourneySession({ slug, initialProject }: FunnelJourneyProps) {
                     href={step.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => measure(session, "provider_handoff")}
+                    onAuxClick={(event) => {
+                      if (event.button === 1)
+                        measure(session, "provider_handoff");
+                    }}
                   >
                     Open the provider (new tab)
                   </a>
@@ -332,6 +376,9 @@ function FunnelJourneySession({ slug, initialProject }: FunnelJourneyProps) {
           expire after seven days; expired records are removed daily. No name,
           email or free-text answers are requested here.
         </p>
+        <div className="mt-4">
+          <MeasurementPreferencesButton />
+        </div>
       </div>
     </main>
   );

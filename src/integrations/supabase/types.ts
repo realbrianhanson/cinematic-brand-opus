@@ -322,16 +322,19 @@ export type Database = {
       }
       conversion_measurement_config: {
         Row: {
+          funnel_started_at: string
           journey_started_at: string
           singleton: boolean
           started_at: string
         }
         Insert: {
+          funnel_started_at?: string
           journey_started_at?: string
           singleton?: boolean
           started_at?: string
         }
         Update: {
+          funnel_started_at?: string
           journey_started_at?: string
           singleton?: boolean
           started_at?: string
@@ -851,6 +854,15 @@ export type Database = {
             referencedRelation: "funnel_journey_sessions"
             referencedColumns: ["token_hash"]
           },
+        ]
+      }
+      funnel_journey_measurement_events: {
+        Row: { id: string; session_id: string; journey_id: string; revision: number; step_id: string; type: string; option_id: string | null; next_step_id: string | null; created_at: string }
+        Insert: { id: string; session_id: string; journey_id: string; revision: number; step_id: string; type: string; option_id?: string | null; next_step_id?: string | null; created_at?: string }
+        Update: { id?: string; session_id?: string; journey_id?: string; revision?: number; step_id?: string; type?: string; option_id?: string | null; next_step_id?: string | null; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "funnel_journey_measurement_events_session_id_fkey"; columns: ["session_id"]; isOneToOne: false; referencedRelation: "conversion_sessions"; referencedColumns: ["id"] },
+          { foreignKeyName: "funnel_journey_measurement_events_journey_id_revision_fkey"; columns: ["journey_id", "revision"]; isOneToOne: false; referencedRelation: "funnel_journey_revisions"; referencedColumns: ["journey_id", "version"] }
         ]
       }
       funnel_journeys: {
@@ -3362,6 +3374,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_save_site_branding: {
+        Args: { _value: Json; _expected_branding_updated_at: string | null; _expected_settings_updated_at: string | null }
+        Returns: Json
+      }
+      admin_offer_order_support: {
+        Args: { _query?: string; _status?: string; _kind?: string; _page?: number }
+        Returns: Json
+      }
+      admin_funnel_journey_measurement: { Args: { _days?: number }; Returns: Json }
+      funnel_journey_record_measurement: {
+        Args: { _session_id: string; _token_hash: string; _events: Json; _attribution?: Json; _consent?: boolean }
+        Returns: boolean
+      }
       _offer_apply_stripe_event_v1: {
         Args: {
           _amount_minor: number

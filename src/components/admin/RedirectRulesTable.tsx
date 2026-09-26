@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -16,11 +16,18 @@ import RedirectRuleForm from "./RedirectRuleForm";
 import {
   createRule,
   deleteRule,
+  fetchRedirectRules,
   REDIRECT_KEYS,
   updateRule,
   type RedirectRule,
   type RuleDraft,
 } from "./redirectsData";
+import {
+  confirmDiscardAdminDraft,
+  useConfigurationDraftGuard,
+} from "./useConfigurationDraftGuard";
+import { withTimeout } from "@/lib/withTimeout";
+import { errorMessage } from "@/lib/errorMessage";
 import { formatRedirectDate } from "./redirectFormat";
 
 const NEW_RULE = "new";
@@ -34,44 +41,91 @@ export default function RedirectRulesTable({
   suggestionsId: string;
 }) {
   const client = useQueryClient();
+  const [reloading, setReloading] = useState(false);
+  const [reloadError, setReloadError] = useState("");
+  const reloadingRef = useRef(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingRule, setEditingRule] = useState<RedirectRule | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRule | null>(null);
   const refresh = () => {
     void client.invalidateQueries({ queryKey: REDIRECT_KEYS.rules });
     void client.invalidateQueries({ queryKey: REDIRECT_KEYS.missing });
   };
   const save = useMutation({
-    mutationFn: ({ id, draft }: { id: string | null; draft: RuleDraft }) =>
-      id ? updateRule(id, draft) : createRule(draft),
+    mutationFn: ({
+      rule,
+      draft,
+    }: {
+      rule: RedirectRule | null;
+      draft: RuleDraft;
+    }) => (rule ? updateRule(rule, draft) : createRule(draft)),
     onSuccess: () => {
       setEditing(null);
       refresh();
     },
   });
   const toggle = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
-      updateRule(id, { is_active: active }),
+    mutationFn: ({ rule, active }: { rule: RedirectRule; active: boolean }) =>
+      updateRule(rule, { is_active: active }),
     onSettled: refresh,
   });
   const remove = useMutation({
-    mutationFn: (id: string) => deleteRule(id),
+    mutationFn: (rule: RedirectRule) => deleteRule(rule),
     onSettled: refresh,
   });
-  const actionError = toggle.error?.message ?? remove.error?.message;
+  const actionError =
+    reloadError || toggle.error?.message || remove.error?.message;
 
+  const busy =
+    save.isPending || toggle.isPending || remove.isPending || reloading;
+  useConfigurationDraftGuard(!!editing, busy);
   const openForm = (key: string | null) => {
+    if (busy || (editing && !confirmDiscardAdminDraft())) return;
     save.reset();
+    setEditingRule(rules.find((rule) => rule.id === key) ?? null);
     setEditing(key);
+  };
+  const reloadSaved = async () => {
+    if (
+      busy ||
+      reloadingRef.current ||
+      (editing && !confirmDiscardAdminDraft())
+    )
+      return;
+    reloadingRef.current = true;
+    setReloading(true);
+    try {
+      await client.fetchQuery({
+        queryKey: REDIRECT_KEYS.rules,
+        queryFn: () => withTimeout(fetchRedirectRules()),
+        retry: false,
+      });
+      setEditing(null);
+      setEditingRule(null);
+      save.reset();
+      toggle.reset();
+      remove.reset();
+      setReloadError("");
+    } catch (error) {
+      setReloadError(
+        `Could not reload saved rules. Your draft is still here. ${errorMessage(error)}`,
+      );
+    } finally {
+      reloadingRef.current = false;
+      setReloading(false);
+    }
   };
   const form = (rule: RedirectRule | null) => (
     <RedirectRuleForm
+      key={editing}
       initial={rule ?? EMPTY_RULE}
       fromEditable={!rule}
       suggestionsId={suggestionsId}
-      busy={save.isPending}
+      busy={busy}
+      pendingLabel={reloading ? "Reloading…" : "Saving…"}
       serverError={save.error?.message ?? null}
-      onSubmit={(draft) => save.mutate({ id: rule?.id ?? null, draft })}
-      onCancel={() => setEditing(null)}
+      onSubmit={(draft) => save.mutate({ rule, draft })}
+      onCancel={() => openForm(null)}
     />
   );
 
@@ -80,12 +134,23 @@ export default function RedirectRulesTable({
       <button
         type="button"
         className="admin-btn-secondary"
+        disabled={busy}
         onClick={() => openForm(editing === NEW_RULE ? null : NEW_RULE)}
         aria-expanded={editing === NEW_RULE}
       >
         <Plus size={15} aria-hidden /> Add a rule
       </button>
-      {editing === NEW_RULE && form(null)}
+      {editing && form(editingRule)}
+      {(save.error || actionError) && (
+        <button
+          type="button"
+          className="admin-btn-secondary"
+          disabled={busy}
+          onClick={() => void reloadSaved()}
+        >
+          Reload saved rules
+        </button>
+      )}
       {actionError && (
         <p role="alert" className="text-sm text-destructive">
           {actionError}
@@ -132,10 +197,10 @@ export default function RedirectRulesTable({
                     <td>
                       <Switch
                         checked={rule.is_active}
-                        disabled={toggle.isPending}
+                        disabled={busy || !!editing}
                         aria-label={`Rule for ${rule.from_path} is ${rule.is_active ? "on" : "off"}`}
                         onCheckedChange={(active) =>
-                          toggle.mutate({ id: rule.id, active })
+                          toggle.mutate({ rule, active })
                         }
                       />
                     </td>
@@ -143,6 +208,7 @@ export default function RedirectRulesTable({
                       <button
                         type="button"
                         className="admin-btn-ghost"
+                        disabled={busy}
                         aria-label={`Edit rule for ${rule.from_path}`}
                         aria-expanded={editing === rule.id}
                         onClick={() =>
@@ -154,18 +220,19 @@ export default function RedirectRulesTable({
                       <button
                         type="button"
                         className="admin-btn-ghost"
+                        disabled={busy}
                         aria-label={`Delete rule for ${rule.from_path}`}
-                        onClick={() => setPendingDelete(rule)}
+                        onClick={() => {
+                          if (!editing || confirmDiscardAdminDraft()) {
+                            setEditing(null);
+                            setPendingDelete(rule);
+                          }
+                        }}
                       >
                         <Trash2 size={14} aria-hidden />
                       </button>
                     </td>
                   </tr>
-                  {editing === rule.id && (
-                    <tr>
-                      <td colSpan={7}>{form(rule)}</td>
-                    </tr>
-                  )}
                 </Fragment>
               ))}
             </tbody>
@@ -188,7 +255,7 @@ export default function RedirectRulesTable({
             <AlertDialogCancel>Keep rule</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (pendingDelete) remove.mutate(pendingDelete.id);
+                if (pendingDelete) remove.mutate(pendingDelete);
                 setPendingDelete(null);
               }}
             >

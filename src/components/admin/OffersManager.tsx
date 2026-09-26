@@ -14,6 +14,7 @@ import { invokeOfferApi, offerPrice } from "@/lib/offers";
 import { listUnpublishedDraftIds } from "@/lib/offerBuilderClient";
 import { statusChangeCopy } from "@/lib/offersStatus";
 import QueryNotice from "./QueryNotice";
+import AdminOfferOrders from "./AdminOfferOrders";
 import OfferStatusActions from "./OfferStatusActions";
 import OfferDeliveryHealth, {
   type OfferDeliveryHealthData,
@@ -21,11 +22,6 @@ import OfferDeliveryHealth, {
 import { shopCategories } from "./offerEditorState";
 
 const PAGE_SIZE = 25;
-const price = (amount: number, currency: string) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(amount / 100);
 const date = (value: string) => new Date(value).toLocaleDateString();
 /** True when any download email is stopped or still retrying after a problem */
 function deliveriesNeedAttention(health?: OfferDeliveryHealthData): boolean {
@@ -162,12 +158,9 @@ export default function OffersManager({
     navigate(next === "offers" ? "/admin/offers" : `/admin/offers?tab=${next}`);
   const [status, setStatus] = useState("all");
   const [shopFilter, setShopFilter] = useState("all");
-  const [orderStatus, setOrderStatus] = useState("all");
-  const [orderKind, setOrderKind] = useState("all");
   const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   const [page, setPage] = useState(0);
-  const [orderPage, setOrderPage] = useState(0);
   useEffect(() => {
     const timer = setTimeout(() => {
       setTerm(search.trim());
@@ -210,28 +203,6 @@ export default function OffersManager({
     enabled: tab === "offers" && offerIds.length > 0,
     queryFn: () => listUnpublishedDraftIds(offerIds),
   });
-  const orders = useQuery({
-    queryKey: ["admin-offer-orders", orderStatus, orderKind, orderPage],
-    enabled: tab === "orders",
-    queryFn: async () => {
-      let query = supabase
-        .from("offer_orders")
-        .select(
-          "id,offer_id,title_snapshot,name,email,status,amount_minor,currency,created_at,fulfilled_at",
-          { count: "exact" },
-        );
-      if (orderStatus !== "all") query = query.eq("status", orderStatus);
-      if (orderKind === "free") query = query.eq("amount_minor", 0);
-      if (orderKind === "paid") query = query.gt("amount_minor", 0);
-      const { data, count, error } = await query
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(orderPage * PAGE_SIZE, (orderPage + 1) * PAGE_SIZE - 1)
-        .abortSignal(AbortSignal.timeout(20000));
-      if (error) throw error;
-      return { items: data ?? [], total: count ?? 0 };
-    },
-  });
   const health = useQuery({
     queryKey: ["admin-offer-health"],
     queryFn: () =>
@@ -243,16 +214,9 @@ export default function OffersManager({
     1,
     Math.ceil((offers.data?.total ?? 0) / PAGE_SIZE),
   );
-  const orderPages = Math.max(
-    1,
-    Math.ceil((orders.data?.total ?? 0) / PAGE_SIZE),
-  );
   useEffect(() => {
     if (offers.data && page >= offerPages) setPage(offerPages - 1);
   }, [offers.data, page, offerPages]);
-  useEffect(() => {
-    if (orders.data && orderPage >= orderPages) setOrderPage(orderPages - 1);
-  }, [orders.data, orderPage, orderPages]);
   return (
     <div className="admin-page-stack">
       <header className="admin-page-header">
@@ -550,164 +514,7 @@ export default function OffersManager({
           )}
         </>
       )}
-      {tab === "orders" && (
-        <>
-          <p className="admin-help">
-            These contacts requested an offer; they are not automatically
-            newsletter subscribers. “Fulfilled” means download access is
-            available, not that the file was downloaded. External-link checkouts
-            and opt-ins are handled by their destination and do not appear here.
-          </p>
-          <div className="admin-filters">
-            <select
-              className="admin-input"
-              aria-label="Order status"
-              value={orderStatus}
-              onChange={(event) => {
-                setOrderStatus(event.target.value);
-                setOrderPage(0);
-              }}
-            >
-              <option value="all">All statuses</option>
-              {["pending", "fulfilled", "failed", "expired", "refunded"].map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {value.charAt(0).toUpperCase() + value.slice(1)}
-                  </option>
-                ),
-              )}
-            </select>
-            <select
-              className="admin-input"
-              aria-label="Order type"
-              value={orderKind}
-              onChange={(event) => {
-                setOrderKind(event.target.value);
-                setOrderPage(0);
-              }}
-            >
-              <option value="all">Free and paid</option>
-              <option value="free">Free downloads</option>
-              <option value="paid">Paid orders</option>
-            </select>
-            <button
-              className="admin-btn-ghost"
-              disabled={orders.isFetching}
-              onClick={() => {
-                void orders.refetch();
-              }}
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
-          </div>
-          <QueryNotice
-            loading={orders.isPending}
-            error={orders.error}
-            retry={() => orders.refetch()}
-          />
-          {orders.data && (
-            <p className="admin-help">
-              {orders.data.total} matching{" "}
-              {orders.data.total === 1 ? "record" : "records"}
-            </p>
-          )}
-          {orders.data?.items.length === 0 && (
-            <div className="admin-card p-8 text-center">
-              <h2 className="font-semibold">No orders or leads in this view</h2>
-              <p className="admin-help mt-2">
-                Real claims and checkouts will appear here. Creating an offer
-                does not create sample orders.
-              </p>
-            </div>
-          )}
-          {!!orders.data?.items.length && (
-            <div className="admin-card overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="p-4">Contact</th>
-                    <th className="p-4">Offer</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.data.items.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="p-4">
-                        <p className="font-medium">
-                          {order.name || "Name not supplied"}
-                        </p>
-                        <p className="admin-help break-all">{order.email}</p>
-                      </td>
-                      <td className="p-4">
-                        <Link
-                          className="hover:underline"
-                          to={`/admin/offers/${order.offer_id}/edit`}
-                        >
-                          {order.title_snapshot}
-                        </Link>
-                        <p className="admin-help mt-1 font-mono text-xs">
-                          {order.id.slice(0, 8)}
-                        </p>
-                      </td>
-                      <td className="p-4 whitespace-nowrap">
-                        {order.amount_minor === 0
-                          ? "Free"
-                          : price(order.amount_minor, order.currency)}
-                      </td>
-                      <td className="p-4">
-                        <span className="admin-badge capitalize">
-                          {order.status}
-                        </span>
-                        <p className="admin-help mt-1">
-                          {order.status === "fulfilled"
-                            ? order.amount_minor === 0
-                              ? "Free access granted"
-                              : "Payment confirmed"
-                            : order.status === "pending"
-                              ? "Payment not confirmed"
-                              : order.status === "refunded"
-                                ? "Access revoked"
-                                : "No download access"}
-                        </p>
-                      </td>
-                      <td className="p-4 whitespace-nowrap">
-                        {date(order.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {orderPages > 1 && (
-            <div className="flex justify-between items-center gap-3">
-              <button
-                className="admin-btn-secondary"
-                disabled={orderPage === 0 || orders.isFetching}
-                onClick={() => setOrderPage((value) => value - 1)}
-              >
-                Previous
-              </button>
-              <span className="admin-help">
-                Page {orderPage + 1} of {orderPages}
-              </span>
-              <button
-                className="admin-btn-secondary"
-                disabled={orderPage + 1 >= orderPages || orders.isFetching}
-                onClick={() => setOrderPage((value) => value + 1)}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
-      )}
+      {tab === "orders" && <AdminOfferOrders />}
     </div>
   );
 }

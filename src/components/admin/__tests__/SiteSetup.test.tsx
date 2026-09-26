@@ -2,6 +2,7 @@
 import React from "react";
 import "@testing-library/jest-dom/vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -41,6 +42,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@tanstack/react-router", () => ({
+  useBlocker: vi.fn(),
   useRouter: () => ({ invalidate: async () => {} }),
 }));
 vi.mock("@/lib/router-compat", () => ({
@@ -92,7 +94,7 @@ beforeEach(() => {
   rpc.mockImplementation(async (name: string) =>
     name === "admin_read_site_settings"
       ? { data: [liveRow], error: null }
-      : { data: null, error: null },
+      : { data: { saved: true }, error: null },
   );
 });
 afterEach(cleanup);
@@ -165,6 +167,78 @@ describe("site setup change plan", () => {
 });
 
 describe("SiteSetup", () => {
+  it("freezes the draft and apply controls while reloading a saved site identity", async () => {
+    renderSetup();
+    fireEvent.change(await screen.findByLabelText("Name or brand"), {
+      target: { value: "Draft to discard" },
+    });
+    let complete!: (value: unknown) => void;
+    rpc.mockImplementation((name: string) =>
+      name === "admin_read_site_settings"
+        ? new Promise((resolve) => {
+            complete = resolve;
+          })
+        : Promise.resolve({ data: { saved: true }, error: null }),
+    );
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved site settings" }),
+    );
+    expect(screen.getByLabelText("Name or brand")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Preview & launch/ }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Name or brand")).toHaveValue(
+      "Draft to discard",
+    );
+    await act(async () => complete({ data: [liveRow], error: null }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Name or brand")).toBeEnabled(),
+    );
+    expect(screen.getByLabelText("Name or brand")).not.toHaveValue(
+      "Draft to discard",
+    );
+    confirm.mockRestore();
+  });
+
+  it("sends the loaded identity version and retains a rejected draft", async () => {
+    rpc.mockImplementation(async (name: string) =>
+      name === "admin_read_site_settings"
+        ? { data: [{ ...liveRow, updated_at: "loaded-version" }], error: null }
+        : {
+            data: null,
+            error: { message: "Site settings changed in another session." },
+          },
+    );
+    renderSetup();
+    fireEvent.change(await screen.findByLabelText("Name or brand"), {
+      target: { value: "Unsaved name" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Preview & launch/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply site setup" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Apply these changes" }),
+    );
+    await waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith(
+        "admin_save_site_branding",
+        expect.objectContaining({
+          _expected_settings_updated_at: "loaded-version",
+        }),
+      ),
+    );
+    await screen.findByText(/Your draft has been kept/);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: /1. Identity/ }));
+    expect(screen.getByLabelText("Name or brand")).toHaveValue("Unsaved name");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload saved site settings" }),
+    );
+    expect(screen.getByLabelText("Name or brand")).toHaveValue("Unsaved name");
+    confirm.mockRestore();
+  });
+
   it("seeds from live settings and applies only after confirming the listed changes", async () => {
     renderSetup();
     expect(
@@ -184,14 +258,14 @@ describe("SiteSetup", () => {
     );
     expect(within(dialog).queryByText(/Article CTA/)).toBeNull();
     expect(rpc).not.toHaveBeenCalledWith(
-      "save_site_branding",
+      "admin_save_site_branding",
       expect.anything(),
     );
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(rpc).not.toHaveBeenCalledWith(
-      "save_site_branding",
+      "admin_save_site_branding",
       expect.anything(),
     );
 
@@ -200,16 +274,19 @@ describe("SiteSetup", () => {
       await screen.findByRole("button", { name: "Apply these changes" }),
     );
     await waitFor(() =>
-      expect(rpc).toHaveBeenCalledWith("save_site_branding", {
-        value: expect.objectContaining({
+      expect(rpc).toHaveBeenCalledWith("admin_save_site_branding", {
+        _expected_branding_updated_at: null,
+        _expected_settings_updated_at: null,
+        _value: expect.objectContaining({
           mode: "owner",
           authorBio: liveRow.author_bio,
           role: siteConfig.identity.role,
         }),
       }),
     );
-    const sent = rpc.mock.calls.find(([n]) => n === "save_site_branding")?.[1]
-      .value;
+    const sent = rpc.mock.calls.find(
+      ([n]) => n === "admin_save_site_branding",
+    )?.[1]._value;
     expect(sent).not.toHaveProperty("bylineTitle");
     expect(sent).not.toHaveProperty("ctaHeadline");
   });

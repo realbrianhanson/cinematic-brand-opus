@@ -12,7 +12,7 @@ Three choices keep the first version practical:
 - Inquiry organizer: add a request, update its status and next action, and keep records separate.
 - Client onboarding checklist: create a practice project, edit its tasks, and calculate progress from completed tasks.
 
-Visitors choose a task and whether they are building for themselves or a client. Optional business and audience descriptions personalize the brief. No email gate or payment is required. The result includes a first-version scope, screens, fictional example, full app-builder prompt, three acceptance checks, and three next steps. Copy and Markdown download deliver it immediately. Editing preserves the visitor's answers.
+Visitors choose a task and whether they are building for themselves or a client. Optional business and audience descriptions personalize the brief. No email gate or payment is required. The result includes a first-version scope, screens, fictional example, full app-builder prompt, three acceptance checks, and three next steps. Copy, Markdown download, and Print / Save as PDF deliver it immediately. Editing preserves the visitor's answers, and explicit same-browser recovery lets visitors resume after leaving.
 
 The supplied prompts build browser prototypes with fictional data. They explain working controls, validation, storage errors, accessibility, and acceptance checks. They do not call an AI service or automatically build/deploy an app. The visitor uses a builder of their choice; that builder may charge for usage.
 
@@ -28,16 +28,16 @@ The optional newsletter form explicitly subscribes to Brian's emails through the
 
 ## Data and dependencies
 
-- Planner answers and results stay in React state. No query strings, local storage, or analytics payloads contain those answers.
-- Copy/download export only after the visitor asks. React text rendering and escaped Markdown protect literal user context.
-- Reloading resets the plan; the page tells visitors to save it first.
+- Planner answers stay in browser state with a validated, brand-scoped local recovery copy available for seven days after the last edit. No query strings, analytics payloads, or backend requests contain those answers. The page explains same-browser/shared-device limits and offers confirmed Start over removal.
+- Copy/download/print export only after the visitor asks. React text rendering and escaped Markdown protect literal user context.
+- Reloading offers explicit Resume saved progress; malformed/expired/unavailable storage has visible recovery guidance. See [Planner recovery and print](PLANNER_RECOVERY_PRINT.md) for the complete persistence and print contract.
 - The planner itself needs no AI API or new dependency. Optional first-party measurement requires its coordinated database migration and collector deployment.
 - Optional offer recommendations require the existing anonymous public offer read. Optional newsletter signup requires its existing configured delivery service.
 - No real newsletter signup, payment, or paid AI request is part of verification.
 
 ## Verification
 
-Engine tests cover all three projects, both audiences, missing/invalid context, independent result objects, prompt requirements, and safe complete exports. UI tests cover generation without signup/storage, editing, clipboard fallback, complete downloads and URL cleanup, newsletter failures, and offer fallbacks. Integration tests cover owner gating, canonical metadata, sitemaps, discovery, published offer boundaries, and overlay suppression.
+Engine tests cover all three projects, both audiences, missing/invalid context, independent result objects, prompt requirements, and safe complete exports. UI tests cover generation without signup or network waiting, scoped local recovery and reset, editing, clipboard fallback, complete downloads and URL cleanup, print content/failure, newsletter failures, and offer fallbacks. Integration tests cover owner gating, canonical metadata, sitemaps, discovery, published offer boundaries, and overlay suppression.
 
 Manual browser checks cover desktop, 390px and 320px widths, all three project choices, editable answers, long single-word input, selectable expanded prompts, actual clipboard contents, and a downloaded Markdown file. The generated downstream apps were not built in a third-party AI builder during this verification.
 
