@@ -1,0 +1,1195 @@
+.cf-viewport {
+  container-name: cf-template;
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+.call-funnel {
+  --cf-bg: #0b1220;
+  --cf-card: #141e30;
+  --cf-soft: #19263b;
+  --cf-ink: #f7f9fc;
+  --cf-muted: #b9c5d6;
+  --cf-border: #35435a;
+  --cf-error: #ffb6b6;
+  background: var(--cf-bg);
+  color: var(--cf-ink);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-wrap: anywhere;
+  isolation: isolate;
+  color-scheme: dark;
+}
+.call-funnel[data-cf-theme="light"],
+html[data-site-theme="light"] .call-funnel[data-cf-theme="site"] {
+  --cf-bg: #fff;
+  --cf-card: #fff;
+  --cf-soft: #f1f5fa;
+  --cf-ink: #172338;
+  --cf-muted: #526076;
+  --cf-border: #c8d2df;
+  --cf-error: #ae1829;
+  color-scheme: light;
+}
+.call-funnel *,
+.call-funnel *::before,
+.call-funnel *::after {
+  box-sizing: border-box;
+}
+.call-funnel h1,
+.call-funnel h2,
+.call-funnel h3,
+.call-funnel p,
+.call-funnel figure,
+.call-funnel blockquote {
+  margin: 0;
+}
+.call-funnel h1,
+.call-funnel h2,
+.call-funnel h3 {
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--cf-ink);
+  font-weight: 750;
+  text-wrap: balance;
+  letter-spacing: -0.035em;
+}
+.call-funnel h1 {
+  font-size: 45px;
+  line-height: 1.15;
+}
+.call-funnel h2 {
+  font-size: 35px;
+  line-height: 1.22;
+}
+.call-funnel h3 {
+  font-size: 27px;
+  line-height: 1.25;
+}
+.call-funnel[data-cf-font="serif"] :is(h1, h2, h3) {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+.call-funnel[data-cf-font="brand"] :is(h1, h2, h3) {
+  font-family: var(--font-display, inherit);
+}
+.call-funnel :is(button, input, textarea) {
+  font: inherit;
+}
+.call-funnel button {
+  cursor: pointer;
+}
+.call-funnel button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+.call-funnel :is(a, button, input, textarea, summary):focus-visible {
+  outline: 3px solid var(--cf-ink);
+  outline-offset: 5px;
+}
+.call-funnel :is(h1, h2, h3)[tabindex="-1"]:focus {
+  outline: none;
+}
+.call-funnel a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.call-funnel .cf-muted {
+  color: var(--cf-muted);
+}
+.call-funnel .cf-small {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.call-funnel .cf-eyebrow {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+.call-funnel .cf-centered {
+  text-align: center;
+}
+.call-funnel .cf-prose {
+  white-space: pre-wrap;
+}
+.call-funnel .cf-content-width {
+  max-width: 1024px;
+  padding-inline: 32px;
+  margin-inline: auto;
+}
+.call-funnel .cf-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 100px;
+  padding: 28px 24px;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: 18px;
+  font-weight: 750;
+}
+.call-funnel .cf-brand .cf-small {
+  font-weight: 400;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-brand-divider {
+  display: block;
+  width: 1px;
+  height: 22px;
+  background: var(--cf-border);
+}
+.call-funnel .cf-invitation {
+  max-width: 1024px;
+  margin: auto;
+  padding: 64px 32px 0;
+  text-align: center;
+}
+.call-funnel .cf-invitation > .cf-eyebrow {
+  margin-bottom: 22px;
+}
+.call-funnel .cf-invitation h1 {
+  max-width: 940px;
+  margin-inline: auto;
+}
+.call-funnel .cf-lede {
+  max-width: 780px;
+  margin: 24px auto 0;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-watch-prompt {
+  margin: 34px auto 15px;
+  font-weight: 650;
+  font-size: 16px;
+}
+.call-funnel .cf-invitation > .cf-media-group {
+  margin-top: 30px;
+}
+.call-funnel .cf-watch-prompt + .cf-media-group {
+  margin-top: 0;
+}
+.call-funnel .cf-media-group {
+  max-width: 800px;
+  margin-inline: auto;
+  width: 100%;
+}
+.call-funnel .cf-original-video {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+}
+.call-funnel .cf-media {
+  aspect-ratio: 16/9;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #070e19;
+  border: 1px solid var(--cf-border);
+  box-shadow: 0 22px 60px #0000001c;
+}
+.call-funnel .cf-media :is(video, iframe) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #070e19;
+}
+.call-funnel .cf-media-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  background: radial-gradient(ellipse at 50% 100%, #233652 0%, #0a1424 72%);
+  background-position: center;
+  background-size: cover;
+  gap: 13px;
+}
+.call-funnel .cf-media-placeholder p {
+  font-size: 22px;
+  font-weight: 600;
+}
+.call-funnel .cf-media-placeholder small {
+  color: #cbd5e5;
+  max-width: 370px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.call-funnel .cf-media-placeholder a {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 16px;
+}
+.call-funnel .cf-play-mark {
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff30;
+  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  color: #c4d2e9;
+}
+.call-funnel .cf-promise {
+  max-width: 740px;
+  margin: 27px auto 22px;
+  font-size: 22px;
+  font-weight: 650;
+}
+.call-funnel .cf-cta-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 0;
+}
+.call-funnel .cf-button,
+.call-funnel .cf-secondary-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 13px 24px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.4;
+  text-decoration: none;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.call-funnel .cf-button {
+  background: var(--cf-accent);
+  color: var(--cf-accent-ink);
+  box-shadow: 0 4px 0 #00000020;
+}
+.call-funnel .cf-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 0 #00000020;
+}
+.call-funnel .cf-button-large {
+  font-size: 21px;
+  padding: 19px 35px;
+  min-height: 68px;
+  border-radius: 14px;
+  max-width: 650px;
+}
+.call-funnel .cf-button svg,
+.call-funnel .cf-secondary-button svg {
+  flex-shrink: 0;
+}
+.call-funnel .cf-secondary-button {
+  background: var(--cf-card);
+  color: var(--cf-ink);
+  border-color: var(--cf-border);
+  box-shadow: none;
+}
+.call-funnel .cf-secondary-button:not(:disabled):hover {
+  background: var(--cf-soft);
+}
+.call-funnel .cf-text-button {
+  padding: 7px 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: inherit;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  min-height: 36px;
+}
+.call-funnel .cf-reassurance {
+  max-width: 740px;
+  margin: 24px auto 0;
+  font-size: 16px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-proof-section {
+  padding-block: 72px;
+}
+.call-funnel .cf-proof-section > h2 {
+  text-align: center;
+  max-width: 780px;
+  margin: 0 auto 40px;
+}
+.call-funnel .cf-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.call-funnel .cf-proof-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 30px;
+  border-radius: 18px;
+  border: 1px solid var(--cf-border);
+  background: var(--cf-card);
+  text-align: center;
+}
+.call-funnel .cf-proof-portrait {
+  display: block;
+  border-radius: 50%;
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  margin-bottom: 24px;
+  border: 4px solid var(--cf-soft);
+}
+.call-funnel .cf-proof-card h3 {
+  margin-bottom: 20px;
+}
+.call-funnel .cf-proof-card blockquote {
+  font-size: 18px;
+  color: var(--cf-muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.call-funnel .cf-proof-card figcaption {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 22px;
+}
+.call-funnel .cf-proof-card > a {
+  margin-top: 8px;
+}
+.call-funnel .cf-proof-guidance {
+  border: 1px dashed var(--cf-border);
+  border-radius: 18px;
+  padding: 30px;
+  text-align: center;
+  margin-block: 56px;
+}
+.call-funnel .cf-proof-guidance > p + p {
+  margin-top: 10px;
+  font-size: 16px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-application-band {
+  padding: 56px 28px 64px;
+  margin-top: 68px;
+  background: var(--cf-accent);
+  color: var(--cf-accent-ink);
+  scroll-margin-top: 24px;
+}
+.call-funnel .cf-content-width:has(.cf-proof-section) + .cf-application-band,
+.call-funnel .cf-content-width:has(.cf-proof-guidance) + .cf-application-band {
+  margin-top: 0;
+}
+.call-funnel .cf-application-intro {
+  max-width: 760px;
+  margin: 0 auto 30px;
+  text-align: center;
+}
+.call-funnel .cf-application-intro h2 {
+  margin: 13px 0 17px;
+  color: inherit;
+}
+.call-funnel .cf-application-card {
+  max-width: 740px;
+  background: var(--cf-card);
+  color: var(--cf-ink);
+  border: 1px solid var(--cf-border);
+  border-radius: 18px;
+  box-shadow: 0 15px 50px #00000015;
+  padding: 36px;
+  margin-inline: auto;
+}
+.call-funnel .cf-application-card.cf-centered > svg {
+  margin: 0 auto 15px;
+}
+.call-funnel .cf-storage-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--cf-muted);
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--cf-border);
+  margin-bottom: 24px;
+}
+.call-funnel .cf-storage-notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.call-funnel .cf-progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-progress-track {
+  height: 5px;
+  border-radius: 10px;
+  background: var(--cf-border);
+  margin: 12px 0 30px;
+  overflow: hidden;
+}
+.call-funnel .cf-progress-track > span {
+  background: var(--cf-ink);
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+.call-funnel .cf-form-fields {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.call-funnel .cf-question h3 {
+  margin-bottom: 21px;
+}
+.call-funnel .cf-question > p {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+.call-funnel .cf-question > label,
+.call-funnel .cf-notes > label {
+  display: block;
+  font-size: 16px;
+  font-weight: 650;
+  margin-top: 20px;
+  margin-bottom: 9px;
+}
+.call-funnel .cf-optional {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--cf-muted);
+}
+.call-funnel
+  :is(input[type="text"], input[type="email"], input:not([type]), textarea) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--cf-border);
+  background: var(--cf-bg);
+  border-radius: 9px;
+  padding: 13px 15px;
+  color: var(--cf-ink);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.call-funnel textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+.call-funnel textarea::placeholder {
+  color: var(--cf-muted);
+  opacity: 0.85;
+}
+.call-funnel .cf-question > input + p {
+  margin-top: 15px;
+}
+.call-funnel .cf-choices {
+  display: grid;
+  gap: 12px;
+}
+.call-funnel .cf-choice {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  font-size: 17px;
+  cursor: pointer;
+  min-height: 58px;
+  background: var(--cf-bg);
+}
+.call-funnel .cf-choice.is-selected {
+  border-color: var(--cf-ink);
+  background: var(--cf-soft);
+  box-shadow: inset 0 0 0 1px var(--cf-ink);
+}
+.call-funnel .cf-choice input {
+  flex-shrink: 0;
+}
+.call-funnel .cf-choice-check {
+  margin-left: auto;
+  opacity: 0;
+  flex-shrink: 0;
+}
+.call-funnel .is-selected .cf-choice-check {
+  opacity: 1;
+}
+.call-funnel input[type="radio"],
+.call-funnel input[type="checkbox"] {
+  accent-color: var(--cf-ink);
+  width: 19px;
+  height: 19px;
+}
+.call-funnel .cf-form-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+.call-funnel .cf-form-actions > .cf-secondary-button {
+  margin-right: auto;
+}
+.call-funnel .cf-review {
+  margin: 0 0 25px;
+}
+.call-funnel .cf-review > div {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+.call-funnel .cf-review dt {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  font-size: 14px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-review dt button {
+  min-height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.call-funnel .cf-review dd {
+  margin: 7px 0 0;
+  font-size: 17px;
+  white-space: pre-wrap;
+}
+.call-funnel .cf-question > .cf-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 400;
+}
+.call-funnel .cf-consent input {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.call-funnel .cf-question > .cf-consent + p {
+  font-size: 12px;
+  margin: 15px 0;
+}
+.call-funnel .cf-error {
+  border: 1px solid currentColor;
+  color: var(--cf-error);
+  border-radius: 8px;
+  padding: 13px 15px;
+  font-size: 14px;
+  margin-top: 18px;
+}
+.call-funnel .cf-reset {
+  margin-top: 20px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-recovery > p {
+  margin-top: 18px;
+  font-size: 17px;
+}
+.call-funnel .cf-preview-note {
+  font-size: 12px;
+  color: var(--cf-muted);
+  margin-top: 22px;
+}
+.call-funnel .cf-host {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  align-items: center;
+  gap: 55px;
+  padding-block: 80px;
+}
+.call-funnel .cf-host:not(:has(img)) {
+  display: block;
+  max-width: 850px;
+}
+.call-funnel .cf-host img {
+  width: 100%;
+  border-radius: 16px;
+  height: 350px;
+  object-fit: cover;
+}
+.call-funnel .cf-host h2 {
+  margin: 10px 0;
+}
+.call-funnel .cf-host-role {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.call-funnel .cf-host .cf-prose {
+  font-size: 18px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-closing {
+  text-align: center;
+  padding-block: 64px 80px;
+  border-top: 1px solid var(--cf-border);
+}
+.call-funnel .cf-closing h2 {
+  max-width: 760px;
+  margin-inline: auto;
+}
+.call-funnel .cf-footer {
+  padding: 32px 24px;
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+}
+.call-funnel .cf-preview-bar {
+  padding: 18px 24px;
+  background: var(--cf-soft);
+  color: var(--cf-ink);
+  font-size: 13px;
+  text-align: center;
+  border-bottom: 1px solid var(--cf-border);
+}
+.call-funnel .cf-preview-bar > strong {
+  margin-right: 12px;
+}
+.call-funnel .cf-preview-bar nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.call-funnel .cf-preview-bar button {
+  background: var(--cf-card);
+  color: var(--cf-ink);
+  border: 1px solid var(--cf-border);
+  border-radius: 7px;
+  min-height: 36px;
+  padding: 5px 12px;
+}
+.call-funnel .cf-preview-bar button[aria-pressed="true"] {
+  background: var(--cf-ink);
+  color: var(--cf-bg);
+}
+.call-funnel .cf-post-page {
+  max-width: 864px;
+  padding: 64px 32px 80px;
+  margin-inline: auto;
+}
+.call-funnel .cf-post-heading {
+  text-align: center;
+  margin-bottom: 38px;
+}
+.call-funnel .cf-post-heading h1 {
+  margin: 17px 0 23px;
+}
+.call-funnel .cf-post-heading > p:last-child {
+  color: var(--cf-muted);
+}
+.call-funnel .cf-booking-card {
+  padding: 38px;
+  border-radius: 20px;
+  background: var(--cf-card);
+  border: 1px solid var(--cf-border);
+  text-align: center;
+}
+.call-funnel .cf-booking-icon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cf-accent);
+  color: var(--cf-accent-ink);
+  margin: 0 auto 18px;
+}
+.call-funnel .cf-duration {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--cf-muted);
+  font-size: 15px;
+  margin-bottom: 23px;
+}
+.call-funnel .cf-booking-card h2 {
+  font-size: 27px;
+  margin-bottom: 16px;
+}
+.call-funnel .cf-booking-card > p.cf-muted {
+  font-size: 18px;
+  margin-bottom: 27px;
+}
+.call-funnel .cf-booking-card > .cf-small {
+  margin-top: 12px;
+}
+.call-funnel .cf-refresh {
+  display: flex;
+  margin: 20px auto 0;
+  font-size: 15px;
+}
+.call-funnel .cf-application-reference {
+  margin-top: 26px;
+  padding-top: 23px;
+  border-top: 1px solid var(--cf-border);
+  font-size: 14px;
+}
+.call-funnel .cf-application-reference code {
+  display: block;
+  padding: 12px;
+  margin-block: 10px;
+  background: var(--cf-soft);
+  border-radius: 8px;
+  font-size: 13px;
+  user-select: all;
+}
+.call-funnel .cf-appointment {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  text-align: left;
+  background: var(--cf-soft);
+  padding: 23px;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  margin-bottom: 28px;
+}
+.call-funnel .cf-appointment > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.call-funnel .cf-appointment p {
+  font-size: 16px;
+  margin-top: 7px;
+}
+.call-funnel .cf-appointment .cf-small {
+  font-size: 12px;
+}
+.call-funnel .cf-inline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  margin-top: 13px;
+  font-size: 14px;
+}
+.call-funnel .cf-notice {
+  background: var(--cf-soft);
+  border: 1px solid var(--cf-border);
+  font-size: 15px;
+  padding: 16px;
+  border-radius: 10px;
+  margin-top: 23px;
+}
+.call-funnel .cf-transcript {
+  margin-top: 17px;
+  font-size: 15px;
+  text-align: left;
+}
+.call-funnel .cf-transcript summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  padding-block: 8px;
+}
+.call-funnel .cf-transcript > div {
+  color: var(--cf-muted);
+  padding: 18px;
+  background: var(--cf-soft);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+.call-funnel .cf-checklist {
+  margin-block: 42px;
+  padding: 30px;
+  background: var(--cf-card);
+  border: 1px solid var(--cf-border);
+  border-radius: 16px;
+}
+.call-funnel .cf-section-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+.call-funnel .cf-section-label h2 {
+  font-size: 26px;
+}
+.call-funnel .cf-section-label > span {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-checklist > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding-block: 20px;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: 17px;
+  cursor: pointer;
+}
+.call-funnel .cf-checklist > label:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.call-funnel .cf-checklist input {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.call-funnel .cf-progress-notice {
+  margin-top: 28px;
+}
+.call-funnel .cf-notes {
+  margin-block: 34px;
+}
+.call-funnel .cf-notes > label {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 15px;
+}
+.call-funnel .cf-notes > p {
+  margin-top: 13px;
+}
+.call-funnel .cf-return {
+  margin-top: 32px;
+}
+.call-funnel .cf-chapters {
+  display: grid;
+  gap: 8px;
+  margin-block: 18px;
+}
+.call-funnel .cf-chapters button {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--cf-card);
+  color: var(--cf-ink);
+  border: 1px solid var(--cf-border);
+  border-radius: 8px;
+  padding: 10px 15px;
+  text-align: left;
+  font-size: 15px;
+  min-height: 44px;
+}
+.call-funnel .cf-chapters button span {
+  font-size: 12px;
+  color: var(--cf-muted);
+  font-variant-numeric: tabular-nums;
+}
+.call-funnel .cf-chapter-outline {
+  text-align: left;
+  margin-top: 25px;
+}
+.call-funnel .cf-chapter-outline ol {
+  margin: 8px 0 0;
+  padding-left: 24px;
+  font-size: 16px;
+}
+.call-funnel .cf-chapter-outline span {
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+.call-funnel .cf-alternative-story {
+  margin: 38px auto;
+}
+.call-funnel .cf-benefits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-block: 40px;
+}
+.call-funnel .cf-benefits > div {
+  background: var(--cf-card);
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  padding: 28px;
+}
+.call-funnel .cf-benefit-check {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cf-accent);
+  color: var(--cf-accent-ink);
+  margin-bottom: 18px;
+}
+.call-funnel .cf-benefits h2 {
+  font-size: 24px;
+  margin-bottom: 14px;
+}
+.call-funnel .cf-benefits p {
+  font-size: 17px;
+  color: var(--cf-muted);
+}
+.call-funnel .cf-alternative-cta {
+  padding: 35px;
+  border-radius: 18px;
+  background: var(--cf-soft);
+  border: 1px solid var(--cf-border);
+  text-align: center;
+  margin-block: 40px;
+}
+.call-funnel .cf-offer-price {
+  font-size: 32px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+.call-funnel .cf-billing {
+  font-size: 15px;
+  color: var(--cf-muted);
+  margin: 12px 0 23px;
+  white-space: pre-wrap;
+}
+.call-funnel .cf-offer-price + .cf-button {
+  margin-top: 23px;
+}
+.call-funnel .cf-alternative-cta > .cf-small {
+  margin-top: 12px;
+}
+.call-funnel .cf-faq {
+  margin-top: 55px;
+}
+.call-funnel .cf-faq h2 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+.call-funnel .cf-faq details {
+  padding-block: 20px;
+  border-bottom: 1px solid var(--cf-border);
+}
+.call-funnel .cf-faq summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 650;
+}
+.call-funnel .cf-faq details p {
+  margin: 18px 0 2px;
+  color: var(--cf-muted);
+  font-size: 17px;
+  white-space: pre-wrap;
+}
+@container cf-template (max-width: 700px) {
+  .call-funnel {
+    font-size: 18px;
+  }
+  .call-funnel h1 {
+    font-size: 30px;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+  .call-funnel h2 {
+    font-size: 28px;
+  }
+  .call-funnel h3 {
+    font-size: 24px;
+  }
+  .call-funnel .cf-content-width {
+    padding-inline: 20px;
+  }
+  .call-funnel .cf-brand {
+    min-height: 78px;
+    padding: 22px 20px;
+    gap: 12px;
+    font-size: 16px;
+  }
+  .call-funnel .cf-brand > .cf-small {
+    display: none;
+  }
+  .call-funnel .cf-brand-divider {
+    display: none;
+  }
+  .call-funnel .cf-invitation {
+    padding: 42px 20px 0;
+  }
+  .call-funnel .cf-eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  .call-funnel .cf-invitation > .cf-eyebrow {
+    margin-bottom: 20px;
+  }
+  .call-funnel .cf-lede {
+    margin-top: 22px;
+  }
+  .call-funnel .cf-watch-prompt {
+    font-size: 14px;
+    margin-top: 28px;
+  }
+  .call-funnel .cf-media {
+    border-radius: 10px;
+  }
+  .call-funnel .cf-media-placeholder {
+    padding: 15px;
+    min-height: 0;
+    gap: 8px;
+  }
+  .call-funnel .cf-media-placeholder p {
+    font-size: 16px;
+  }
+  .call-funnel .cf-media-placeholder small {
+    font-size: 11px;
+    max-width: 260px;
+  }
+  .call-funnel .cf-play-mark {
+    width: 44px;
+    height: 44px;
+  }
+  .call-funnel .cf-play-mark svg {
+    width: 20px;
+    height: 20px;
+  }
+  .call-funnel .cf-promise {
+    font-size: 19px;
+    margin-top: 23px;
+  }
+  .call-funnel .cf-button-large {
+    width: 100%;
+    font-size: 18px;
+    padding: 17px 20px;
+    min-height: 61px;
+  }
+  .call-funnel .cf-reassurance {
+    font-size: 14px;
+  }
+  .call-funnel .cf-proof-section {
+    padding-block: 50px;
+  }
+  .call-funnel .cf-proof-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .call-funnel .cf-proof-card {
+    padding: 28px 24px;
+  }
+  .call-funnel .cf-proof-card h3 {
+    font-size: 27px;
+  }
+  .call-funnel .cf-proof-portrait {
+    width: 144px;
+    height: 144px;
+  }
+  .call-funnel .cf-application-band {
+    padding: 40px 16px 44px;
+    margin-top: 48px;
+  }
+  .call-funnel .cf-application-intro {
+    padding-inline: 4px;
+  }
+  .call-funnel .cf-application-card {
+    padding: 25px 20px;
+  }
+  .call-funnel .cf-storage-notice {
+    font-size: 11px;
+  }
+  .call-funnel .cf-choices {
+    gap: 10px;
+  }
+  .call-funnel .cf-choice {
+    font-size: 16px;
+    padding: 14px 12px;
+    gap: 9px;
+  }
+  .call-funnel .cf-form-actions {
+    gap: 10px;
+  }
+  .call-funnel .cf-form-actions .cf-button {
+    flex: 1;
+    padding-inline: 15px;
+  }
+  .call-funnel .cf-form-actions .cf-secondary-button {
+    padding-inline: 13px;
+    font-size: 15px;
+  }
+  .call-funnel .cf-form-actions .cf-secondary-button svg {
+    display: none;
+  }
+  .call-funnel .cf-review dt {
+    gap: 12px;
+    font-size: 13px;
+  }
+  .call-funnel .cf-review dd {
+    font-size: 16px;
+  }
+  .call-funnel .cf-host {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-block: 55px;
+  }
+  .call-funnel .cf-host img {
+    width: 220px;
+    height: 270px;
+  }
+  .call-funnel .cf-host > div {
+    width: 100%;
+  }
+  .call-funnel .cf-host-role {
+    margin-bottom: 16px;
+  }
+  .call-funnel .cf-closing {
+    padding-block: 45px 55px;
+  }
+  .call-funnel .cf-post-page {
+    padding: 40px 20px 55px;
+  }
+  .call-funnel .cf-booking-card {
+    padding: 28px 20px;
+  }
+  .call-funnel .cf-booking-card > .cf-button {
+    width: 100%;
+  }
+  .call-funnel .cf-checklist {
+    padding: 24px 20px;
+  }
+  .call-funnel .cf-section-label {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .call-funnel .cf-benefits {
+    grid-template-columns: 1fr;
+  }
+  .call-funnel .cf-alternative-cta {
+    padding: 28px 20px;
+  }
+  .call-funnel .cf-alternative-cta .cf-button {
+    width: 100%;
+  }
+  .call-funnel .cf-preview-bar {
+    padding: 15px;
+  }
+  .call-funnel .cf-preview-bar > span {
+    display: block;
+    margin-top: 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .call-funnel .cf-button,
+  .call-funnel .cf-secondary-button {
+    transition: none;
+  }
+  .call-funnel .cf-button:not(:disabled):hover {
+    transform: none;
+  }
+}

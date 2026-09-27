@@ -204,6 +204,20 @@ export default function AdminFunnels() {
           next page, never proof of a booking or payment.
         </p>
       </header>
+      <div className="admin-card flex flex-wrap items-center justify-between gap-4 p-5">
+        <div>
+          <h2 className="text-xl font-semibold">
+            Video + Application template
+          </h2>
+          <p className="mt-2">
+            Build the complete call journey with a video invitation, native
+            application, preparation, training and an alternate offer.
+          </p>
+        </div>
+        <a className="admin-btn-primary" href="/admin/call-funnels">
+          Build a call funnel
+        </a>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm">
           Journey{" "}

@@ -13,6 +13,8 @@ export default function PublicSiteChat() {
   if (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/offers/preview/") ||
+    pathname.startsWith("/calls/") ||
+    pathname.startsWith("/funnel-templates/") ||
     pathname.replace(/\/+$/, "") === "/first-ai-build"
   )
     return null;

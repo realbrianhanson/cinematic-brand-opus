@@ -172,9 +172,16 @@ export default function OfferBlueprintPicker({
           {qualifiedCallBlueprint.title}
         </h2>
         <p className="admin-help">{qualifiedCallBlueprint.description}</p>
+        <a href="/admin/call-funnels" className="admin-btn-primary">
+          Use the complete Video + Application template
+        </a>
         <p className="text-sm">
-          Build one page here; configure form branching, booking, reminders and
-          recurring billing in your provider.
+          Includes the native application, branching, call preparation,
+          training, alternate offer and private script workspace.
+        </p>
+        <p className="text-sm">
+          Or build one standalone page below; configure form branching, booking,
+          reminders and recurring billing in your provider.
         </p>
       </div>
       <div className="space-y-5 p-5">

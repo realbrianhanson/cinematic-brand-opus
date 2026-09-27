@@ -133,3 +133,9 @@ verify_jwt = false
 
 [functions.funnel-journey-measurement]
 verify_jwt = false
+
+[functions.call-funnel-api]
+verify_jwt = false
+
+[functions.call-funnel-events]
+verify_jwt = false
