@@ -10,10 +10,10 @@ Use the existing [Rival CI — Offer Captures spreadsheet](https://docs.google.c
 
 ## Project contexts
 
-| Task | Task ID | Project |
-| --- | --- | --- |
-| Build reusable Lovable funnel | `01a0dbc3-b04e-72a2-86b5-5b363e3db26f` | `book-a-call-flow`; Lovable `f18400bb-7a60-4a61-ba9a-ac412ecf8c0b` |
-| Improve offer funnel builder | `01a0cc92-a9ed-7c03-b0a7-5d4bf39d363b` | This repository, `cinematic-brand-opus`; Lovable `aad54f9f-2dc1-4e99-9396-88f3e07eb70c` |
+| Task                          | Task ID                                | Project                                                                                 |
+| ----------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
+| Build reusable Lovable funnel | `01a0dbc3-b04e-72a2-86b5-5b363e3db26f` | `book-a-call-flow`; Lovable `f18400bb-7a60-4a61-ba9a-ac412ecf8c0b`                      |
+| Improve offer funnel builder  | `01a0cc92-a9ed-7c03-b0a7-5d4bf39d363b` | This repository, `cinematic-brand-opus`; Lovable `aad54f9f-2dc1-4e99-9396-88f3e07eb70c` |
 
 ## Record observations separately from recommendations
 
