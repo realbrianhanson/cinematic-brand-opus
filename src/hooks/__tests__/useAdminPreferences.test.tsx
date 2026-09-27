@@ -33,6 +33,21 @@ function deferred<T>() {
   const promise = new Promise<T>((done) => (resolve = done));
   return { promise, resolve };
 }
+function preferOsTheme(theme: "light" | "dark") {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      media: query,
+      matches: query === `(prefers-color-scheme: ${theme})`,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    })),
+  );
+}
 function preferences() {
   return renderHook(
     () => ({ first: useAdminPreferences(), editor: useAdminPreferences() }),
@@ -50,10 +65,36 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("shared admin and public theme preferences", () => {
-  it("uses the saved theme on public pages without an account or database write", () => {
+  it.each(["fresh visitor", "new account"])(
+    "keeps a %s dark when the OS prefers light and no preference was saved",
+    async (visitor) => {
+      preferOsTheme("light");
+      if (visitor === "new account")
+        mocks.user = { id: "new-admin-no-preferences" };
+      expect(window.matchMedia("(prefers-color-scheme: light)").matches).toBe(
+        true,
+      );
+      new Function(SITE_THEME_BOOTSTRAP)();
+      expect(document.documentElement.dataset.siteTheme).toBe("dark");
+      const { result } = preferences();
+      await waitFor(() => expect(result.current.first.loaded).toBe(true));
+      expect(result.current.first.prefs.theme).toBe("dark");
+      expect(result.current.editor.prefs.theme).toBe("dark");
+      expect(document.documentElement.dataset.siteTheme).toBe("dark");
+      expect(localStorage.getItem("admin-theme")).toBeNull();
+      expect(mocks.maybeSingle).toHaveBeenCalledTimes(
+        visitor === "new account" ? 1 : 0,
+      );
+      expect(mocks.upsert).not.toHaveBeenCalled();
+    },
+  );
+
+  it("honors saved light mode on public pages even when the OS prefers dark, without a database write", () => {
+    preferOsTheme("dark");
     localStorage.setItem("admin-theme", "light");
     localStorage.setItem("admin-timezone", "invalid-zone");
     const { result } = preferences();
@@ -111,7 +152,8 @@ describe("shared admin and public theme preferences", () => {
     );
   });
 
-  it("applies the account preference after login and caches it for the next public visit", async () => {
+  it("applies saved account light mode despite an OS dark preference and caches it for the next public visit", async () => {
+    preferOsTheme("dark");
     mocks.maybeSingle.mockResolvedValue({
       data: { theme: "light", timezone: "Europe/London" },
       error: null,
