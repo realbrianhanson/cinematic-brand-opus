@@ -7,9 +7,41 @@ beforeEach(() => {
   document.documentElement.removeAttribute("data-site-theme");
   document.documentElement.className = "existing-class";
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("theme before first paint", () => {
+  it.each([
+    { saved: null, expected: "dark" },
+    { saved: "light", expected: "light" },
+  ])(
+    "uses $expected before first paint with an OS light preference and saved $saved",
+    ({ saved, expected }) => {
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn((query: string) => ({
+          media: query,
+          matches: query === "(prefers-color-scheme: light)",
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(() => true),
+        })),
+      );
+      if (saved !== null) localStorage.setItem("admin-theme", saved);
+      expect(window.matchMedia("(prefers-color-scheme: light)").matches).toBe(
+        true,
+      );
+      new Function(SITE_THEME_BOOTSTRAP)();
+      expect(document.documentElement.dataset.siteTheme).toBe(expected);
+      expect(localStorage.getItem("admin-theme")).toBe(saved);
+    },
+  );
+
   it.each([
     [null, "dark"],
     ["dark", "dark"],

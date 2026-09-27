@@ -233,16 +233,19 @@ html[data-site-theme="light"]
   color: #854d0e;
 }
 
-/* White canvas, controlled depth and an airy photographic hero. */
+/* Keep the footage at full strength. The directional white scrim protects the
+   copy without washing out the open right side of the hero. */
 html[data-site-theme="light"] .hero-background-media {
-  opacity: 0.35;
+  --hero-poster-opacity: 1;
 }
 html[data-site-theme="light"] .hero-background-scrim {
   background-image: linear-gradient(
     90deg,
     #fff 0%,
-    rgb(255 255 255 / 0.94) 35%,
-    rgb(255 255 255 / 0.2) 100%
+    rgb(255 255 255 / 0.94) 38%,
+    rgb(255 255 255 / 0.84) 55%,
+    rgb(255 255 255 / 0.08) 85%,
+    rgb(255 255 255 / 0.04) 100%
   );
 }
 html[data-site-theme="light"] .hero-background-fade {
@@ -302,11 +305,24 @@ html[data-site-theme="light"] .public-discovery-card h2 {
   color: #18202f;
 }
 
+/* On tablets the paragraph reaches farther across the frame than the heading. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  html[data-site-theme="light"] .hero-background-scrim {
+    background-image: linear-gradient(
+      90deg,
+      #fff 0%,
+      rgb(255 255 255 / 0.9) 58%,
+      rgb(255 255 255 / 0.82) 70%,
+      rgb(255 255 255 / 0.24) 100%
+    );
+  }
+}
+
 @media (max-width: 767px) {
   html[data-site-theme="light"] .hero-background-scrim {
     background-image: linear-gradient(
       90deg,
-      rgb(255 255 255 / 0.98),
+      rgb(255 255 255 / 0.94),
       rgb(255 255 255 / 0.8)
     );
   }

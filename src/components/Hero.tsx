@@ -54,7 +54,9 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
             alt=""
             fetchPriority="high"
             className="absolute h-full w-full object-cover object-[65%_center]"
-            style={{ opacity: videoReady ? 0 : 0.6 }}
+            style={{
+              opacity: videoReady ? 0 : "var(--hero-poster-opacity, .6)",
+            }}
           />
         )}
         {hero.videoSrc && !lightMode && (
