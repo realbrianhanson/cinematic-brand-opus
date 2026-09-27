@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowDown, Download, GitBranch } from "lucide-react";
+import { Link } from "@/lib/router-compat";
 import {
   blueprintPage,
   blueprintWorkbook,
@@ -172,9 +173,9 @@ export default function OfferBlueprintPicker({
           {qualifiedCallBlueprint.title}
         </h2>
         <p className="admin-help">{qualifiedCallBlueprint.description}</p>
-        <a href="/admin/call-funnels" className="admin-btn-primary">
+        <Link to="/admin/call-funnels" className="admin-btn-secondary">
           Use the complete Video + Application template
-        </a>
+        </Link>
         <p className="text-sm">
           Includes the native application, branching, call preparation,
           training, alternate offer and private script workspace.

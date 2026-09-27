@@ -61,9 +61,9 @@ export default function OfferNextStep({
         </p>
       )}
       <section className="admin-card p-5 space-y-4">
-        <p className="admin-eyebrow">03 · Next step</p>
+        <p className="admin-eyebrow">03 · Order bump, upsell & downsell</p>
         <h2 className="text-xl font-semibold">
-          One useful result leads to the next
+          Add an optional extra or follow-up offer
         </h2>
         <p className="admin-help">
           Offer the extra speed, implementation help or capability your buyer
@@ -106,9 +106,7 @@ export default function OfferNextStep({
       ) : (
         <>
           <section className="admin-card p-5 md:p-6 space-y-4">
-            <h2 className="text-lg font-semibold">
-              Optional extra at checkout
-            </h2>
+            <h2 className="text-lg font-semibold">Order bump at checkout</h2>
             <p className="admin-help">
               Visitors choose whether to add this download. It starts unchecked,
               uses the same payment, and unlocks a separate file after payment.
@@ -147,7 +145,7 @@ export default function OfferNextStep({
           </section>
           <section className="admin-card p-5 md:p-6 space-y-5">
             <h2 className="text-lg font-semibold">
-              Offer a relevant next step
+              Upsell or follow-up after delivery
             </h2>
             <p className="admin-help">
               After successful fulfillment, show an optional follow-up. Visitors

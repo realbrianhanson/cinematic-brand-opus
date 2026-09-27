@@ -54,6 +54,16 @@ beforeAll(() => {
 afterEach(cleanup);
 
 describe("admin layout", () => {
+  it("provides one clear funnel entry point in the sidebar", () => {
+    render(<AdminLayout />);
+    expect(
+      screen.getByRole("link", { name: "Funnel builder" }).getAttribute("href"),
+    ).toBe("/admin/funnel-builder");
+    expect(screen.queryByRole("link", { name: "Call funnels" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Connected funnels" }),
+    ).toBeNull();
+  });
   it("offers a skip link as the first focus stop that targets the main region", () => {
     const { container } = render(<AdminLayout />);
     const skip = screen.getByRole("link", { name: "Skip to content" });

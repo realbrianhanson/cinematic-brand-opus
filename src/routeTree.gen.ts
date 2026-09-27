@@ -35,6 +35,7 @@ import { Route as AdminCallFunnelsRouteImport } from './routes/admin.call-funnel
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminConversionsRouteImport } from './routes/admin.conversions'
 import { Route as AdminExperimentsRouteImport } from './routes/admin.experiments'
+import { Route as AdminFunnelBuilderRouteImport } from './routes/admin.funnel-builder'
 import { Route as AdminFunnelsRouteImport } from './routes/admin.funnels'
 import { Route as AdminGenerateRouteImport } from './routes/admin.generate'
 import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
@@ -214,6 +215,11 @@ const AdminConversionsRoute = AdminConversionsRouteImport.update({
 const AdminExperimentsRoute = AdminExperimentsRouteImport.update({
   id: '/experiments',
   path: '/experiments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFunnelBuilderRoute = AdminFunnelBuilderRouteImport.update({
+  id: '/funnel-builder',
+  path: '/funnel-builder',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFunnelsRoute = AdminFunnelsRouteImport.update({
@@ -493,6 +499,7 @@ export interface FileRoutesByFullPath {
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnel-builder': typeof AdminFunnelBuilderRoute
   '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -566,6 +573,7 @@ export interface FileRoutesByTo {
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnel-builder': typeof AdminFunnelBuilderRoute
   '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -643,6 +651,7 @@ export interface FileRoutesById {
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
+  '/admin/funnel-builder': typeof AdminFunnelBuilderRoute
   '/admin/funnels': typeof AdminFunnelsRoute
   '/admin/generate': typeof AdminGenerateRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -722,6 +731,7 @@ export interface FileRouteTypes {
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
+    | '/admin/funnel-builder'
     | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -795,6 +805,7 @@ export interface FileRouteTypes {
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
+    | '/admin/funnel-builder'
     | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -871,6 +882,7 @@ export interface FileRouteTypes {
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
+    | '/admin/funnel-builder'
     | '/admin/funnels'
     | '/admin/generate'
     | '/admin/inquiries'
@@ -1143,6 +1155,13 @@ declare module '@tanstack/react-router' {
       path: '/experiments'
       fullPath: '/admin/experiments'
       preLoaderRoute: typeof AdminExperimentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/funnel-builder': {
+      id: '/admin/funnel-builder'
+      path: '/funnel-builder'
+      fullPath: '/admin/funnel-builder'
+      preLoaderRoute: typeof AdminFunnelBuilderRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/funnels': {
@@ -1497,6 +1516,7 @@ interface AdminRouteChildren {
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminConversionsRoute: typeof AdminConversionsRoute
   AdminExperimentsRoute: typeof AdminExperimentsRoute
+  AdminFunnelBuilderRoute: typeof AdminFunnelBuilderRoute
   AdminFunnelsRoute: typeof AdminFunnelsRoute
   AdminGenerateRoute: typeof AdminGenerateRoute
   AdminInquiriesRoute: typeof AdminInquiriesRoute
@@ -1532,6 +1552,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminConversionsRoute: AdminConversionsRoute,
   AdminExperimentsRoute: AdminExperimentsRoute,
+  AdminFunnelBuilderRoute: AdminFunnelBuilderRoute,
   AdminFunnelsRoute: AdminFunnelsRoute,
   AdminGenerateRoute: AdminGenerateRoute,
   AdminInquiriesRoute: AdminInquiriesRoute,

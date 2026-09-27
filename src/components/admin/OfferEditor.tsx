@@ -73,11 +73,20 @@ import OfferRevisionHistory from "./OfferRevisionHistory";
 import OfferReviewStatus from "./OfferReviewStatus";
 import OfferJourneyReadiness from "./offers/OfferJourneyReadiness";
 import OfferBlueprintPicker from "./offers/OfferBlueprintPicker";
+import {
+  offerStarterDefaults,
+  offerStarterLabels,
+  type OfferStarter,
+} from "@/lib/offerStarters";
 
 const workflow: { id: OfferStep; title: string; detail: string }[] = [
   { id: "strategy", title: "Strategy", detail: "Buyer, promise & proof" },
   { id: "pages", title: "Pages", detail: "Copy & presentation" },
-  { id: "next", title: "Next step", detail: "A relevant follow-up" },
+  {
+    id: "next",
+    title: "Order bump, upsell & downsell",
+    detail: "Optional extras & follow-ups",
+  },
   { id: "delivery", title: "Delivery", detail: "Price, checkout & access" },
   { id: "review", title: "Review", detail: "Check, publish & share" },
 ];
@@ -97,7 +106,13 @@ function draftIsStale(initial: Offer | null, saved: OfferBuilderLoadResult) {
   return !(draft.base_offer && sameOfferContent(initial, draft.base_offer));
 }
 
-export default function OfferEditor({ id }: { id?: string }) {
+export default function OfferEditor({
+  id,
+  starter,
+}: {
+  id?: string;
+  starter?: OfferStarter;
+}) {
   const [reset, setReset] = useState(0);
   // Context carried from the new-offer route (notice, step, unsaved copy).
   const [handoff] = useState(() => (id ? readOfferHandoff(id) : null));
@@ -150,6 +165,7 @@ export default function OfferEditor({ id }: { id?: string }) {
       initial={offer.data?.offer || null}
       savedBuilder={offer.data?.builderState || { draft: null, history: [] }}
       handoff={reset === 0 ? handoff : null}
+      starter={id ? undefined : starter}
       reload={async () => {
         const result = await offer.refetch();
         if (result.error) throw result.error;
@@ -163,22 +179,33 @@ function OfferForm({
   initial,
   savedBuilder,
   handoff,
+  starter,
   reload,
 }: {
   initial: Offer | null;
   savedBuilder: OfferBuilderLoadResult;
   handoff: OfferHandoff | null;
+  starter?: OfferStarter;
   reload: () => Promise<void>;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  // A new URL selection seeds this mount once. Query changes cannot replace
+  // work in progress; saved offers and recovery handoffs remain authoritative.
+  const [selectedStarter] = useState(() => (initial ? undefined : starter));
+  const [starterDefaults] = useState(() =>
+    selectedStarter ? offerStarterDefaults(selectedStarter) : null,
+  );
   const [savedForm] = useState<Form>(() =>
     initial
       ? toForm({ ...initial, ...savedBuilder.draft?.document.offer })
-      : { ...empty },
+      : { ...empty, ...starterDefaults?.form },
   );
   const [savedPages] = useState<OfferBuilder>(
-    () => savedBuilder.draft?.document.builder || builderFromOffer(initial),
+    () =>
+      savedBuilder.draft?.document.builder ||
+      starterDefaults?.builder ||
+      builderFromOffer(initial),
   );
   const [form, setForm] = useState<Form>(() => handoff?.form || savedForm);
   const [builder, setBuilder] = useState<OfferBuilder>(
@@ -199,7 +226,9 @@ function OfferForm({
       focusBlueprintStep.current = false;
     }
   }, [step]);
-  const [stage, setStage] = useState<PageStage>("landing");
+  const [stage, setStage] = useState<PageStage>(() =>
+    selectedStarter === "upsell" ? "upsell" : "landing",
+  );
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [history, setHistory] = useState(savedBuilder.history);
   const [staleDraft, setStaleDraft] = useState(
@@ -788,12 +817,27 @@ function OfferForm({
           <Link className="admin-btn-ghost -ml-3 mb-2" to="/admin/offers">
             <ArrowLeft size={15} /> All offers
           </Link>
-          <p className="admin-eyebrow">Offer studio</p>
+          <Link className="admin-btn-ghost mb-2" to="/admin/funnel-builder">
+            Choose another funnel type
+          </Link>
+          <p className="admin-eyebrow">Funnel builder · Offer studio</p>
           <h1>
             {initial
               ? "Build a stronger offer"
-              : "Turn a useful product into a compelling offer"}
+              : selectedStarter
+                ? offerStarterLabels[selectedStarter].title
+                : "Turn a useful product into a compelling offer"}
           </h1>
+          {selectedStarter && (
+            <p>{offerStarterLabels[selectedStarter].description}</p>
+          )}
+          {selectedStarter === "upsell" && (
+            <p>
+              Edit “This offer as an upsell” in Pages to create the follow-up
+              pitch. Save it, then select this offer in the parent offer’s
+              “Order bump, upsell & downsell” step.
+            </p>
+          )}
           <p>
             {dirty
               ? "You have unsaved changes."
@@ -999,36 +1043,6 @@ function OfferForm({
           </section>
           <div className="order-1 min-w-0 space-y-6 xl:order-2">
             <div hidden={step !== "strategy"} className="space-y-6">
-              <OfferBlueprintPicker
-                value={builder.presentation.landing}
-                context={{
-                  strategy: builder.strategy,
-                  offer: {
-                    title: form.title,
-                    summary: form.summary,
-                    kind: form.kind,
-                    checkout_mode: form.checkoutMode,
-                  },
-                }}
-                external={external}
-                hasDestination={!!form.externalUrl.trim()}
-                onConfigureDelivery={() => {
-                  focusBlueprintStep.current = true;
-                  setStep("delivery");
-                }}
-                onApply={(page, message) => {
-                  // Blueprint application changes presentation only. Delivery
-                  // and its legacy button fallback remain exactly as entered.
-                  setBuilder((old) => ({
-                    ...old,
-                    presentation: { ...old.presentation, landing: page },
-                  }));
-                  setNotice(message);
-                  setStage("landing");
-                  focusBlueprintStep.current = true;
-                  setStep("pages");
-                }}
-              />
               <OfferStrategyFields
                 value={builder.strategy}
                 onChange={(strategy) =>
@@ -1044,6 +1058,45 @@ function OfferForm({
                 }
                 onInsert={insertProof}
               />
+              <details className="admin-card p-4">
+                <summary className="cursor-pointer text-sm font-semibold">
+                  Advanced: standalone pages for an external call funnel
+                </summary>
+                <p className="admin-help my-3">
+                  Optional layouts for an existing provider setup. Your selected
+                  funnel does not need these to work.
+                </p>
+                <OfferBlueprintPicker
+                  value={builder.presentation.landing}
+                  context={{
+                    strategy: builder.strategy,
+                    offer: {
+                      title: form.title,
+                      summary: form.summary,
+                      kind: form.kind,
+                      checkout_mode: form.checkoutMode,
+                    },
+                  }}
+                  external={external}
+                  hasDestination={!!form.externalUrl.trim()}
+                  onConfigureDelivery={() => {
+                    focusBlueprintStep.current = true;
+                    setStep("delivery");
+                  }}
+                  onApply={(page, message) => {
+                    // Blueprint application changes presentation only. Delivery
+                    // and its legacy button fallback remain exactly as entered.
+                    setBuilder((old) => ({
+                      ...old,
+                      presentation: { ...old.presentation, landing: page },
+                    }));
+                    setNotice(message);
+                    setStage("landing");
+                    focusBlueprintStep.current = true;
+                    setStep("pages");
+                  }}
+                />
+              </details>
             </div>
             <div hidden={step !== "pages"} className="space-y-6">
               <div className="admin-card p-4 space-y-3">

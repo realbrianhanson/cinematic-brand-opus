@@ -24,6 +24,20 @@ const blockers = vi.hoisted(() => ({
     enableBeforeUnload: () => boolean;
   },
 }));
+vi.mock("@/lib/router-compat", () => ({
+  Link: ({
+    to,
+    children,
+    ...props
+  }: {
+    to: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock("@tanstack/react-router", () => ({
   useBlocker: (value: typeof blockers.current) => {
     blockers.current = value;
@@ -135,6 +149,20 @@ async function openOutcome() {
   });
 }
 describe("call funnel administrator mutation protection", () => {
+  it("makes the other funnel types reachable from the call workspace", async () => {
+    render(<AdminCallFunnels />);
+    await screen.findByRole("option", {
+      name: "First funnel · Private / paused",
+    });
+    expect(
+      screen
+        .getByRole("link", { name: "Choose another funnel type" })
+        .getAttribute("href"),
+    ).toBe("/admin/funnel-builder");
+    expect(
+      screen.getByRole("heading", { name: "Call funnel builder" }),
+    ).toBeTruthy();
+  });
   it("preserves an unsaved outcome when draft validation fails", async () => {
     const invalid = saved();
     invalid.draft_config.questions = [];

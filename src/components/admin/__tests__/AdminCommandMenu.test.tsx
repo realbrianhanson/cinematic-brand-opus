@@ -22,6 +22,14 @@ const search = (value: string) =>
 const pressEnter = () =>
   fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
 describe("admin command navigation", () => {
+  it("starts every new funnel from the goal chooser", () => {
+    render(<AdminCommandMenu open onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("option", { name: "New funnel" }));
+    expect(navigate).toHaveBeenCalledWith("/admin/funnel-builder");
+    expect(
+      screen.queryByRole("option", { name: "New call funnel" }),
+    ).toBeNull();
+  });
   it("searches business destinations and closes before navigation", () => {
     const close = vi.fn();
     render(<AdminCommandMenu open onOpenChange={close} />);
@@ -52,6 +60,10 @@ describe("admin command navigation", () => {
     ["topic guide", "/admin/pillars"],
     ["offer", "/admin/offers"],
     ["seo", "/admin/pseo-dashboard"],
+    ["funnel", "/admin/funnel-builder"],
+    ["upsell", "/admin/funnel-builder"],
+    ["book a call", "/admin/funnel-builder"],
+    ["lead magnet", "/admin/funnel-builder"],
   ])("Enter on %s opens the highlighted best match %s", (query, route) => {
     const close = vi.fn();
     render(<AdminCommandMenu open onOpenChange={close} />);

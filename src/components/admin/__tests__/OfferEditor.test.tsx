@@ -12,7 +12,13 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyBuilder, newSection } from "@/lib/offerBuilder";
-import { draftPayload, toForm, type Offer } from "../offerEditorState";
+import { type OfferStarter } from "@/lib/offerStarters";
+import {
+  draftPayload,
+  saveOfferHandoff,
+  toForm,
+  type Offer,
+} from "../offerEditorState";
 import type {
   OfferBuilderDocument,
   OfferBuilderSaveInput,
@@ -157,21 +163,31 @@ const row = {
   updated_at: "2026-09-19T00:00:00Z",
   presentation: null,
 };
-function mount(id?: string) {
+function mount(id?: string, starter?: OfferStarter) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
+  const editor = (selectedStarter?: OfferStarter) => (
     <QueryClientProvider client={client}>
-      <OfferEditor id={id} />
-    </QueryClientProvider>,
+      <OfferEditor id={id} starter={selectedStarter} />
+    </QueryClientProvider>
   );
+  const result = render(editor(starter));
+  return {
+    ...result,
+    changeStarter: (next?: OfferStarter) => result.rerender(editor(next)),
+  };
 }
 function navigateStep(name: string) {
   fireEvent.click(
     within(
       screen.getByRole("navigation", { name: "Offer builder steps" }),
     ).getByRole("button", { name: new RegExp(name) }),
+  );
+}
+function openBlueprint() {
+  fireEvent.click(
+    screen.getByText("Advanced: standalone pages for an external call funnel"),
   );
 }
 async function loaded() {
@@ -233,11 +249,133 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("offer starter initialization", () => {
+  function uniqueSections() {
+    let sectionId = 0;
+    vi.mocked(crypto.randomUUID).mockImplementation(
+      () => `22222222-2222-4222-a222-${String(++sectionId).padStart(12, "0")}`,
+    );
+  }
+
+  it("starts a paid sales page and protects edits when the URL starter changes", async () => {
+    uniqueSections();
+    const editor = mount(undefined, "sales");
+    expect(
+      screen.getByRole("heading", { name: "Product sales funnel" }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Choose another funnel type" })
+        .getAttribute("href"),
+    ).toBe("/admin/funnel-builder");
+    expect(
+      screen
+        .getByRole("button", { name: "Use this page layout" })
+        .closest("details")?.open,
+    ).toBe(false);
+    navigateStep("Pages");
+    edit("Title", "My edited product");
+    editor.changeStarter("lead-magnet");
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "My edited product",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Product sales funnel" }),
+    ).toBeTruthy();
+    draft();
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    const document = mock.save.mock.calls[0][0].document;
+    expect(document.offer.kind).toBe("paid");
+    expect(document.offer.checkout_mode).toBe("native");
+    expect(document.builder.presentation.landing.sections).toHaveLength(7);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const blocker = mock.blocker.mock.calls.at(-1)?.[0];
+    expect(blocker.shouldBlockFn()).toBe(true);
+    expect(confirm).toHaveBeenCalledWith(
+      "Leave this offer? Your unsaved changes will be lost.",
+    );
+    confirm.mockRestore();
+  });
+
+  it("keeps a saved draft authoritative even when a starter is supplied", async () => {
+    uniqueSections();
+    const builder = emptyBuilder();
+    builder.presentation.landing.headline = "My saved draft headline";
+    const document = {
+      offer: draftPayload(toForm(row as Offer)).values,
+      builder,
+    };
+    mock.read.mockResolvedValue({ data: row, error: null });
+    mock.load.mockResolvedValue({
+      draft: { document, version: 2, base_offer_updated_at: row.updated_at },
+      history: [],
+    });
+    mount(row.id, "upsell");
+    await loaded();
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "My saved draft headline",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Upsell or downsell offer" }),
+    ).toBeNull();
+    draft();
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    expect(mock.save.mock.calls[0][0].document).toEqual(document);
+  });
+
+  it("opens the actual upsell pitch for a follow-up starter and saves edits there", async () => {
+    uniqueSections();
+    mount(undefined, "upsell");
+    navigateStep("Pages");
+    expect(
+      (screen.getByLabelText("Presentation") as HTMLSelectElement).value,
+    ).toBe("upsell");
+    edit("Title", "Implementation toolkit");
+    edit("Page headline", "Put your original purchase to work faster");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "Put your original purchase to work faster",
+    );
+    draft();
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    const { presentation } = mock.save.mock.calls[0][0].document.builder;
+    expect(presentation.upsell.headline).toBe(
+      "Put your original purchase to work faster",
+    );
+    expect(presentation.landing.headline).toBe("");
+    expect(mock.save.mock.calls[0][0].document.offer.funnel_only).toBe(true);
+  });
+
+  it("keeps recovered unsaved copy and its step ahead of starter defaults", async () => {
+    uniqueSections();
+    const builder = emptyBuilder();
+    builder.presentation.landing.headline = "Recovered unsaved headline";
+    const form = { ...toForm(row as Offer), title: "Recovered unsaved title" };
+    saveOfferHandoff(row.id, { form, builder, step: "strategy" });
+    mock.read.mockResolvedValue({ data: row, error: null });
+    mount(row.id, "external");
+    await loaded();
+    const strategy = within(
+      screen.getByRole("navigation", { name: "Offer builder steps" }),
+    ).getByRole("button", { name: /Strategy/ });
+    expect(strategy.getAttribute("aria-current")).toBe("step");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "Recovered unsaved headline",
+    );
+    draft();
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    expect(mock.save.mock.calls[0][0].document).toEqual({
+      offer: draftPayload(form).values,
+      builder,
+    });
+  });
+});
+
 describe("offer builder save and upload safety", () => {
   it("opens external delivery setup from the blueprint without switching fulfillment", async () => {
     existing();
     await loaded();
     navigateStep("Strategy");
+    openBlueprint();
     expect(
       (
         screen.getByRole("button", {
@@ -314,6 +452,7 @@ describe("offer builder save and upload safety", () => {
     existing(initial);
     await loaded();
     navigateStep("Strategy");
+    openBlueprint();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.change(
       screen.getByLabelText("Page to build from this blueprint"),
@@ -372,6 +511,7 @@ describe("offer builder save and upload safety", () => {
     });
     await loaded();
     navigateStep("Strategy");
+    openBlueprint();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     fireEvent.click(
       screen.getByRole("button", { name: "Use this page layout" }),
@@ -395,6 +535,7 @@ describe("offer builder save and upload safety", () => {
     existing({ ...row, checkout_mode: "external", external_url: null });
     await loaded();
     navigateStep("Strategy");
+    openBlueprint();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(
       screen.getByRole("button", { name: "Use this page layout" }),
@@ -656,7 +797,7 @@ describe("offer builder save and upload safety", () => {
       shop_featured: true,
     });
     await loaded();
-    navigateStep("Next step");
+    navigateStep("Order bump, upsell & downsell");
     fireEvent.click(
       screen.getByRole("checkbox", {
         name: /Make this offer available only as a follow-up/,
