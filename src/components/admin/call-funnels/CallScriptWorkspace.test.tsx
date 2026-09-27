@@ -63,6 +63,47 @@ afterEach(() => {
 });
 
 describe("video-script workspace", () => {
+  it("keeps original scripts when selecting research and exports private notes separately", () => {
+    const { onChange } = mount();
+    fireEvent.change(screen.getByLabelText("Researched pattern"), {
+      target: { value: "justin" },
+    });
+    expect(
+      (screen.getByLabelText("Invitation script") as HTMLTextAreaElement).value,
+    ).toBe(initial.invitation);
+    fireEvent.change(screen.getByLabelText("My original adaptation"), {
+      target: { value: "Our actual three steps" },
+    });
+    fireEvent.change(screen.getByLabelText("Private experiment note"), {
+      target: { value: "Internal hypothesis; no results yet" },
+    });
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...initial,
+      inspirationSource: "justin",
+      inspirationPattern: "Our actual three steps",
+      experimentNote: "Internal hypothesis; no results yet",
+    });
+    expect(
+      screen
+        .getByRole("link", { name: "View source page (opens in a new tab)" })
+        .getAttribute("href"),
+    ).toBe("https://d4y.justinsaunders.com/");
+    fireEvent.click(screen.getByText("View export text"));
+    expect(
+      (screen.getByLabelText("Export text") as HTMLTextAreaElement).value,
+    ).not.toContain("Internal hypothesis; no results yet");
+    exportScripts();
+    expect(
+      (screen.getByLabelText("Export text") as HTMLTextAreaElement).value,
+    ).toContain("Internal hypothesis; no results yet");
+    fireEvent.change(screen.getByLabelText("Researched pattern"), {
+      target: { value: "closers" },
+    });
+    expect(
+      (screen.getByLabelText("My original adaptation") as HTMLTextAreaElement)
+        .value,
+    ).toBe("Our actual three steps");
+  });
   it("edits separate stages without replacing another stage and preserves brief details", () => {
     const { onChange } = mount();
     fireEvent.change(screen.getByLabelText("Invitation script"), {

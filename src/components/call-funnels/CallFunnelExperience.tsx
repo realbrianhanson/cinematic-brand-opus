@@ -15,6 +15,7 @@ import {
 } from "../../../supabase/functions/_shared/callFunnels";
 import CallApplication, { type CallSubmit } from "./CallApplication";
 import CallVideo from "./CallVideo";
+import CallPreparationExtras from "./CallPreparationExtras";
 import { callDraftKey, removeCallDraft } from "./callFunnelDraft";
 import "@/styles/call-funnels.css";
 
@@ -49,14 +50,20 @@ function Proof({
   publication,
   alternative = false,
   preview,
+  selectedIds,
+  heading,
 }: {
   publication: CallPublication;
   alternative?: boolean;
   preview: boolean;
+  selectedIds?: string[];
+  heading?: string;
 }) {
-  const ids = alternative
-    ? publication.config.alternative.proofIds
-    : publication.config.proofIds;
+  const ids =
+    selectedIds ??
+    (alternative
+      ? publication.config.alternative.proofIds
+      : publication.config.proofIds);
   const proof = ids.flatMap(
     (id) => publication.proof.find((item) => item.id === id) || [],
   );
@@ -73,7 +80,8 @@ function Proof({
   return (
     <section className="cf-proof-section" aria-label="Customer stories">
       <h2>
-        {publication.config.invitation.proofHeading ||
+        {heading ||
+          publication.config.invitation.proofHeading ||
           "Hear from people who took the next step"}
       </h2>
       <div className="cf-proof-grid">
@@ -347,6 +355,10 @@ function Preparation({
               ))}
             </section>
           )}
+          <CallPreparationExtras
+            extras={config.preparation.extras}
+            preview={preview}
+          />
           <div className="cf-centered">
             <button
               className="cf-button"
@@ -356,6 +368,14 @@ function Preparation({
               Open the training <ArrowRight size={19} aria-hidden="true" />
             </button>
           </div>
+          {!!config.preparation.extras?.proofIds.length && (
+            <Proof
+              publication={publication}
+              preview={preview}
+              selectedIds={config.preparation.extras.proofIds}
+              heading={config.preparation.extras.proofHeading}
+            />
+          )}
         </>
       ) : (
         <>

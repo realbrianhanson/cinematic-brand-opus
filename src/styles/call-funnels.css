@@ -971,6 +971,32 @@ html[data-site-theme="light"] .call-funnel[data-cf-theme="site"] {
 .call-funnel .cf-faq {
   margin-top: 55px;
 }
+.call-funnel .cf-offer-overview {
+  margin-block: 32px;
+  padding: 24px;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+}
+.call-funnel .cf-offer-overview h2 {
+  margin-bottom: 12px;
+}
+.call-funnel .cf-offer-overview > p {
+  margin-block: 12px 20px;
+}
+.call-funnel .cf-preparation-answers > p {
+  margin-bottom: 24px;
+}
+.call-funnel .cf-faq.cf-preparation-answers summary {
+  min-height: 48px;
+  font-size: 21px;
+}
+.call-funnel .cf-preparation-answers .cf-answer-copy {
+  white-space: pre-line;
+  font-size: 20px;
+}
+.call-funnel .cf-preparation-answers .cf-media-group {
+  margin-block: 20px;
+}
 .call-funnel .cf-faq h2 {
   text-align: center;
   margin-bottom: 25px;

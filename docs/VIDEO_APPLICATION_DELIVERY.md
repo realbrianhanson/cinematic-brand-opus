@@ -2,6 +2,8 @@
 
 The owner approved the complete template, native qualification, preparation/training, alternate-offer page, evidence layouts and script workspace on September 27, 2026.
 
+For shared market examples and cross-project adaptation notes, see the [Market offer inspiration library](./MARKET_OFFER_LIBRARY.md).
+
 ## Design contract
 
 Preserve the book-a-call reference's centered composition: 960px content, 800px video, 45px desktop/30px mobile headline, 20px body, generous space, large CTA and one-question application. White mode uses #ffffff, #172338 ink and #526076 secondary text; dark uses #0b1220, #f7f9fc ink and #b9c5d6 secondary text. The initial accent is #8b5cf6; button text automatically selects a contrasting dark or white color. Accent and heading fonts are editable. Dark is the new-template default. The existing site's design remains intact. Container-based breakpoints make the embedded phone preview use the same layout as an actual phone.
@@ -55,3 +57,13 @@ Release status and final check counts are recorded below after GitHub/preview de
 - Local verification: 2,673 tests across 244 files; all 40 database suites; TypeScript; lint (zero errors, 285 existing warnings); Deno checks across all edge functions; production build; formatting.
 - Database migration `20260928090000_call_funnels` applied atomically with its exact source recorded in migration history. SHA-256: `17ca2c0b3b48d63c82592ee871bd20debea89ec7e028a7e8bda8b7645164561c`.
 - Read-back confirmed RLS on all five new tables, private application/event/request tables, no anonymous administrative RPC access, service-only submission, no public-schema CREATE privilege for application roles, an active daily retention job, and zero application records created by release verification.
+
+## Preparation and private script guidance — September 27
+
+Preparation now supports an optional HTTPS overview and up to eight editable objection answers with video, poster, transcript and native English captions. Reorder, hide or remove answers. Proof independently selects approved preparation testimonials and portraits. Old configs preserve existing sections; new templates include five neutral starter answers. Public preparation still requires a verified booking outside draft preview.
+
+Scripts adds four reviewed source patterns, original six-beat pacing guidance and private source/adaptation/experiment notes. Source selection preserves existing copy. Experiment notes stay outside writing prompts and scripts stay outside public publication. The shared library is separately maintained, not an automatic Sheets integration.
+
+Validated 93 related tests, the call-funnel database suite, TypeScript, scoped/full lint (existing warnings), production build, and independent code/TypeScript/database reviews. An isolated browser fixture verified editing, answer reordering, source selection, prompt export and mobile rendering at 390px/320px without overflow. Answers use 20px text and questions 21px. No cloud saves, bookings or payments were created; the fixture is excluded from source delivery.
+
+Applied `20260928100000_call_funnel_preparation_extras` atomically. Migration-history source SHA-256 matched `42235c2e8c03b8edd9c2a2ba0866dbe2c9e3266afb0458b201c69800bd70031c`. Readback preserved ACLs/search paths and denied direct execution to anon/authenticated roles. No edge redeployment is needed: edge entry points do not import this shared validator. No provider connection or frontend publication performed.

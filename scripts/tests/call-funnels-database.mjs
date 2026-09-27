@@ -19,6 +19,12 @@ grant usage on schema public,auth to anon,authenticated,service_role;
 await db.exec(
   readFileSync("supabase/migrations/20260928090000_call_funnels.sql", "utf8"),
 );
+await db.exec(
+  readFileSync(
+    "supabase/migrations/20260928100000_call_funnel_preparation_extras.sql",
+    "utf8",
+  ),
+);
 await db.query(
   "insert into offer_proof_items values($1,'Observed result','An approved quote','Member','https://example.com/source',true,'PRIVATE proof note')",
   [proof],
@@ -229,6 +235,77 @@ for (const mutate of [
   mutate(bad);
   await assert.rejects(save(bad, 1, true), /Invalid|approved/);
 }
+// Older drafts remain valid; optional modules add strict, independently approved proof.
+config.preparation.extras = {
+  overview: {
+    enabled: true,
+    heading: "Offer overview",
+    description: "Scope before the call",
+    button: "Read the overview",
+    url: "https://example.com/offer.pdf",
+  },
+  objections: {
+    enabled: true,
+    heading: "Questions",
+    intro: "Prepare",
+    items: [
+      {
+        enabled: true,
+        question: "What should I bring?",
+        answer: "One specific example.",
+        video: media,
+        captions: "https://example.com/captions.vtt",
+      },
+    ],
+  },
+  proofHeading: "Preparation stories",
+  proofIds: [proof],
+};
+config.scripts.inspirationSource = "acquisition";
+config.scripts.inspirationPattern = "PRIVATE original adaptation";
+config.scripts.experimentNote = "PRIVATE measurement plan";
+for (const mutate of [
+  (c) => {
+    c.preparation.extras = null;
+  },
+  (c) => {
+    c.preparation.extras.overview.url = "http://example.com/offer.pdf";
+  },
+  (c) => {
+    c.preparation.extras.overview.url = "";
+  },
+  (c) => {
+    c.preparation.extras.objections.items[0].answer = "";
+  },
+  (c) => {
+    c.preparation.extras.objections.items[0].captions = "javascript:alert(1)";
+  },
+  (c) => {
+    c.preparation.extras.objections.items = Array(9).fill(
+      c.preparation.extras.objections.items[0],
+    );
+  },
+  (c) => {
+    c.preparation.extras.proofIds = [randomUUID()];
+  },
+  (c) => {
+    c.scripts.inspirationSource = "unknown";
+  },
+]) {
+  const bad = structuredClone(config);
+  mutate(bad);
+  await assert.rejects(save(bad, 1, true), /Invalid|approved/);
+}
+const preparationOnly = randomUUID();
+await db.exec("reset role");
+await db.query(
+  "insert into offer_proof_items values($1,'Preparation only','A relevant approved experience','Member','','true','PRIVATE preparation proof')",
+  [preparationOnly],
+);
+config.preparation.extras.proofIds.push(preparationOnly);
+config.proofImages[preparationOnly] =
+  "https://example.com/preparation-portrait.jpg";
+await role("authenticated", admin);
 const published = (await save(config, 1, true)).result;
 assert.equal(published.published_version, 2);
 await role("service_role");
@@ -237,7 +314,15 @@ const publication = (
 ).result;
 assert.equal(publication.id, funnel);
 assert.equal(publication.revision, 2);
-assert.equal(publication.proof.length, 1);
+assert.equal(publication.proof.length, 2);
+assert.deepEqual(publication.config.preparation.extras.proofIds, [
+  proof,
+  preparationOnly,
+]);
+assert.equal(
+  publication.config.proofImages[preparationOnly],
+  "https://example.com/preparation-portrait.jpg",
+);
 assert.equal(JSON.stringify(publication).includes("PRIVATE"), false);
 assert.equal("scripts" in publication.config, false);
 assert.equal("qualificationRules" in publication.config, false);
@@ -444,6 +529,9 @@ await db.exec("reset role");
 await db.query("update offer_proof_items set approved=false where id=$1", [
   proof,
 ]);
+await db.query("update offer_proof_items set approved=false where id=$1", [
+  preparationOnly,
+]);
 await role("service_role");
 const revoked = (
   await one("select call_funnel_application_view($1) result", [token])
@@ -452,6 +540,7 @@ assert.equal(revoked.proof.length, 0);
 assert.deepEqual(revoked.config.proofIds, []);
 assert.deepEqual(revoked.config.alternative.proofIds, []);
 assert.deepEqual(revoked.config.proofImages, {});
+assert.deepEqual(revoked.config.preparation.extras.proofIds, []);
 await db.query(
   "update call_funnel_applications set expires_at=now()-interval '1 minute' where token_hash=$1",
   [token],
