@@ -6,9 +6,52 @@ import {
   publicCallConfig,
   evaluateCallApplication,
   cleanCallAnswers,
+  emptyCallPreparationExtras,
 } from "@/lib/callFunnels";
 
 describe("versioned call funnel contract", () => {
+  it("keeps legacy preparation valid and strictly validates optional modules", () => {
+    const c = emptyCallFunnelConfig();
+    delete c.preparation.extras;
+    expect(callConfigIssues(c)).toEqual([]);
+    expect(publicCallConfig(c).preparation).not.toHaveProperty("extras");
+    c.preparation.extras = emptyCallPreparationExtras();
+    c.booking.url = "https://example.com/calendar";
+    c.alternative.url = "/shop";
+    expect(callConfigIssues(c, true)).toEqual([]);
+    c.preparation.extras.overview.enabled = true;
+    expect(callConfigIssues(c, true).join(" ")).toMatch(/overview.*HTTPS/);
+    c.preparation.extras.overview.url = "http://example.com/offer.pdf";
+    expect(callConfigIssues(c).join(" ")).toMatch(/HTTPS/);
+    c.preparation.extras.overview.url = "https://example.com/offer.pdf";
+    c.preparation.extras.objections =
+      emptyCallFunnelConfig().preparation.extras!.objections;
+    expect(callConfigIssues(c, true)).toEqual([]);
+    c.preparation.extras.objections.items[0].answer = "";
+    expect(callConfigIssues(c, true).join(" ")).toMatch(/Preparation answer/);
+    c.preparation.extras.objections.items[0].enabled = false;
+    expect(callConfigIssues(c, true)).toEqual([]);
+    c.preparation.extras.objections.items[0].captions = "javascript:alert(1)";
+    expect(callConfigIssues(c).join(" ")).toMatch(/captions/);
+    expect(
+      callConfigIssues({
+        ...c,
+        preparation: { ...c.preparation, extras: null },
+      }).join(" "),
+    ).toMatch(/extras/);
+  });
+  it("keeps source notes private and restricts source keys", () => {
+    const c = emptyCallFunnelConfig();
+    c.scripts.inspirationSource = "acquisition";
+    c.scripts.inspirationPattern = "Private pattern";
+    c.scripts.experimentNote = "Private measurement";
+    expect(callConfigIssues(c)).toEqual([]);
+    expect(JSON.stringify(publicCallConfig(c))).not.toContain(
+      "Private pattern",
+    );
+    c.scripts.inspirationSource = "arbitrary";
+    expect(callConfigIssues(c).join(" ")).toMatch(/Inspiration source/);
+  });
   it("starts dark and prevents publishing incomplete destinations", () => {
     const config = emptyCallFunnelConfig();
     expect(config.theme.mode).toBe("dark");

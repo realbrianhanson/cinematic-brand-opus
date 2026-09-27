@@ -1,5 +1,49 @@
 /** Shared, versioned contracts for the Video + Application template. */
 export type CallMedia = { url: string; poster: string; transcript: string };
+export type CallPreparationExtras = {
+  overview: {
+    enabled: boolean;
+    heading: string;
+    description: string;
+    button: string;
+    url: string;
+  };
+  objections: {
+    enabled: boolean;
+    heading: string;
+    intro: string;
+    items: {
+      enabled: boolean;
+      question: string;
+      answer: string;
+      video: CallMedia;
+      captions: string;
+    }[];
+  };
+  proofHeading: string;
+  proofIds: string[];
+};
+/** Optional modules stay absent on older saved funnels until the owner enables them. */
+export function emptyCallPreparationExtras(): CallPreparationExtras {
+  return {
+    overview: {
+      enabled: false,
+      heading: "Review the offer before we talk",
+      description:
+        "See what is included and note anything you would like to clarify.",
+      button: "Read the offer overview",
+      url: "",
+    },
+    objections: {
+      enabled: false,
+      heading: "Questions before your call",
+      intro: "Explore the answers that matter to your decision.",
+      items: [],
+    },
+    proofHeading: "Experiences relevant to your next step",
+    proofIds: [],
+  };
+}
 export type CallQuestion = {
   id: string;
   label: string;
@@ -63,6 +107,7 @@ export type CallFunnelConfig = {
     intro: string;
     video: CallMedia;
     checklist: string[];
+    extras?: CallPreparationExtras;
   };
   training: {
     headline: string;
@@ -165,10 +210,13 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
     v: unknown,
     fields: string[],
     path: string,
+    optional: string[] = [],
   ): v is Record<string, unknown> {
     if (
       !obj(v) ||
-      Object.keys(v).some((k) => !fields.includes(k)) ||
+      Object.keys(v).some(
+        (k) => !fields.includes(k) && !optional.includes(k),
+      ) ||
       fields.some((k) => !Object.hasOwn(v, k))
     ) {
       errors.push(`${path}: check the required fields.`);
@@ -422,6 +470,7 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
       value.preparation,
       ["headline", "intro", "video", "checklist"],
       "Preparation",
+      ["extras"],
     )
   ) {
     text(value.preparation.headline, 300, "Preparation heading", publish);
@@ -431,6 +480,86 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
       value.preparation.checklist.forEach((v) =>
         text(v, 500, "Checklist item", true),
       );
+    if (Object.hasOwn(value.preparation, "extras")) {
+      const extra = value.preparation.extras;
+      if (
+        shape(
+          extra,
+          ["overview", "objections", "proofHeading", "proofIds"],
+          "Preparation extras",
+        )
+      ) {
+        text(extra.proofHeading, 300, "Preparation proof heading");
+        proofs(extra.proofIds, "Preparation proof");
+        if (
+          shape(
+            extra.overview,
+            ["enabled", "heading", "description", "button", "url"],
+            "Offer overview",
+          )
+        ) {
+          const overview = extra.overview;
+          if (typeof overview.enabled !== "boolean")
+            errors.push("Offer overview: choose whether to show it.");
+          text(
+            overview.heading,
+            300,
+            "Offer overview heading",
+            publish && overview.enabled === true,
+          );
+          text(overview.description, 2000, "Offer overview description");
+          text(
+            overview.button,
+            120,
+            "Offer overview button",
+            publish && overview.enabled === true,
+          );
+          url(overview.url, "Offer overview URL");
+          if (publish && overview.enabled === true && !overview.url)
+            errors.push(
+              "Offer overview: add the HTTPS document or presentation link.",
+            );
+        }
+        if (
+          shape(
+            extra.objections,
+            ["enabled", "heading", "intro", "items"],
+            "Preparation questions",
+          )
+        ) {
+          const objections = extra.objections;
+          if (typeof objections.enabled !== "boolean")
+            errors.push("Preparation questions: choose whether to show them.");
+          text(
+            objections.heading,
+            300,
+            "Preparation questions heading",
+            publish && objections.enabled === true,
+          );
+          text(objections.intro, 2000, "Preparation questions introduction");
+          if (list(objections.items, 8, "Preparation questions")) {
+            for (const item of objections.items) {
+              if (
+                !shape(
+                  item,
+                  ["enabled", "question", "answer", "video", "captions"],
+                  "Preparation answer",
+                )
+              )
+                continue;
+              if (typeof item.enabled !== "boolean")
+                errors.push("Preparation answer: choose whether to show it.");
+              const required =
+                publish && objections.enabled === true && item.enabled === true;
+              text(item.question, 300, "Preparation question", required);
+              text(item.answer, 3000, "Preparation answer", required);
+              media(item.video, "Preparation answer");
+              url(item.captions, "Preparation captions");
+            }
+          }
+        }
+      }
+    }
   }
   if (
     shape(
@@ -507,8 +636,8 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
       errors.push("Alternative offer: choose a useful next destination.");
   }
   proofs(value.proofIds, "Invitation proof");
-  if (!obj(value.proofImages) || Object.keys(value.proofImages).length > 24)
-    errors.push("Proof portraits: use up to 24 images.");
+  if (!obj(value.proofImages) || Object.keys(value.proofImages).length > 36)
+    errors.push("Proof portraits: use up to 36 images.");
   else
     for (const [id, v] of Object.entries(value.proofImages)) {
       if (!uuidPattern.test(id))
@@ -516,6 +645,9 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
       url(v, "Proof portrait", true);
     }
   const scriptKeys = [
+    "inspirationSource",
+    "inspirationPattern",
+    "experimentNote",
     "buyer",
     "problem",
     "trigger",
@@ -537,7 +669,13 @@ export function callConfigIssues(value: unknown, publish = false): string[] {
     errors.push("Scripts: unsupported fields.");
   else
     for (const [k, v] of Object.entries(value.scripts)) {
-      if (k === "wordsPerMinute") {
+      if (k === "inspirationSource") {
+        if (
+          typeof v !== "string" ||
+          !["", "closers", "wojo", "justin", "acquisition"].includes(v)
+        )
+          errors.push("Inspiration source: select a reviewed source.");
+      } else if (k === "wordsPerMinute") {
         if (!Number.isInteger(v) || Number(v) < 80 || Number(v) > 220)
           errors.push("Speaking pace: use 80–220 words per minute.");
       } else

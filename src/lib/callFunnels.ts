@@ -1,6 +1,7 @@
 export * from "../../supabase/functions/_shared/callFunnels";
 import type { CallFunnelConfig } from "../../supabase/functions/_shared/callFunnels";
 import { emptyCallFunnelScripts } from "./callFunnelScripts";
+import { emptyCallPreparationExtras } from "../../supabase/functions/_shared/callFunnels";
 
 /** An owner-neutral template. Identity, media and proof are explicitly chosen. */
 export function emptyCallFunnelConfig(): CallFunnelConfig {
@@ -93,6 +94,43 @@ export function emptyCallFunnelConfig(): CallFunnelConfig {
         "Bring one example of the work you want to improve.",
         "Watch the training and note your questions.",
       ],
+      extras: {
+        ...emptyCallPreparationExtras(),
+        objections: {
+          enabled: true,
+          heading: "Questions before your call",
+          intro:
+            "Start with the answer that matters most to you. Bring any other questions to the conversation.",
+          items: [
+            [
+              "What should I bring to the call?",
+              "Bring one specific example of what you want to improve, what you have already tried, and the result you would like instead.",
+            ],
+            [
+              "Will this fit my situation?",
+              "Use the call to explain your current situation, goals and constraints. Ask how the approach would apply to your work and where it may not fit.",
+            ],
+            [
+              "What would implementation involve?",
+              "Ask which steps you would own, what support is included, and what your team would need to prepare before getting started.",
+            ],
+            [
+              "What should I know about the investment?",
+              "Review the current offer terms and bring questions about the total cost, billing schedule and scope. Make sure you understand the details before deciding.",
+            ],
+            [
+              "Who else should attend?",
+              "If someone else shares responsibility for the decision or implementation, consider inviting them so you can discuss the next step together.",
+            ],
+          ].map(([question, answer]) => ({
+            enabled: true,
+            question,
+            answer,
+            video: media(),
+            captions: "",
+          })),
+        },
+      },
     },
     training: {
       headline: "Your pre-call training",

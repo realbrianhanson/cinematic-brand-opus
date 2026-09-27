@@ -519,6 +519,137 @@ describe("Video + Application visitor flow", () => {
 });
 
 describe("safe video and local preparation", () => {
+  it("shows independent preparation proof and an overview only after verified booking", () => {
+    const publication = fixture();
+    const extras = publication.config.preparation.extras!;
+    extras.overview = {
+      enabled: true,
+      heading: "Offer scope",
+      description: "Review this before the call",
+      button: "Read scope",
+      url: "https://example.com/scope.pdf",
+    };
+    extras.proofHeading = "Stories for your next step";
+    extras.proofIds = ["preparation-proof"];
+    publication.config.proofIds = ["invitation-proof"];
+    publication.proof = [
+      {
+        id: "preparation-proof",
+        title: "Prepared customer",
+        content: "Preparation-specific quote",
+        attribution: "Customer",
+        source_url: "",
+      },
+      {
+        id: "invitation-proof",
+        title: "Invitation customer",
+        content: "Invitation-specific quote",
+        attribution: "Customer",
+        source_url: "",
+      },
+    ];
+    const mounted = render(
+      <CallFunnelExperience
+        publication={publication}
+        initialState={state(publication)}
+      />,
+    );
+    expect(screen.queryByRole("link", { name: "Read scope" })).toBeNull();
+    expect(screen.queryByText("Preparation-specific quote")).toBeNull();
+    mounted.unmount();
+    render(
+      <CallFunnelExperience
+        publication={publication}
+        initialState={state(publication, {
+          booking: {
+            status: "booked",
+            startsAt: "2026-10-01T14:00:00Z",
+            source: "signed_webhook",
+          },
+        })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare for your call" }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Read scope" }).getAttribute("href"),
+    ).toBe("https://example.com/scope.pdf");
+    expect(
+      screen.getByRole("link", { name: "Read scope" }).getAttribute("rel"),
+    ).toBe("noopener noreferrer");
+    expect(screen.getByText("Preparation-specific quote")).toBeTruthy();
+    expect(screen.queryByText("Invitation-specific quote")).toBeNull();
+  });
+  it("hides disabled preparation answers and prevents player/link actions in preview", async () => {
+    const publication = fixture();
+    const extras = publication.config.preparation.extras!;
+    extras.overview = {
+      enabled: true,
+      heading: "Overview",
+      description: "Details",
+      button: "Read overview",
+      url: "https://example.com/offer.pdf",
+    };
+    extras.objections.items[0].enabled = false;
+    extras.objections.items[1].video.url =
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    const { container } = render(
+      <CallFunnelExperience publication={publication} preview />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Preparation" }));
+    expect(screen.queryByText("What should I bring to the call?")).toBeNull();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Read overview",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    const summary = screen.getByText("Will this fit my situation?");
+    const details = summary.closest("details")!;
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Will this fit my situation? preview"),
+      ).toBeTruthy(),
+    );
+    expect(container.querySelector("iframe,video")).toBeNull();
+  });
+  it("loads an objection video only when expanded and attaches safe caption tracks", async () => {
+    const publication = fixture();
+    const item = publication.config.preparation.extras!.objections.items[0];
+    item.video.url = "https://example.com/answer.mp4";
+    item.captions = "https://example.com/answer.vtt";
+    const { container } = render(
+      <CallFunnelExperience
+        publication={publication}
+        initialState={state(publication, {
+          booking: {
+            status: "booked",
+            startsAt: "2026-10-01T14:00:00Z",
+            source: "signed_webhook",
+          },
+        })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare for your call" }),
+    );
+    expect(container.querySelector("video")).toBeNull();
+    const details = screen.getByText(item.question).closest("details")!;
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    await waitFor(() =>
+      expect(container.querySelector("video track")?.getAttribute("src")).toBe(
+        item.captions,
+      ),
+    );
+    details.open = false;
+    fireEvent(details, new Event("toggle"));
+    await waitFor(() => expect(container.querySelector("video")).toBeNull());
+  });
   it("sends an origin referrer for YouTube and keeps the original video accessible", () => {
     const url = "https://youtu.be/abcdefghijk";
     render(

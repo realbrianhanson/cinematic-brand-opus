@@ -2,6 +2,8 @@
 
 The admin offer builder adds private strategy, working copy, page sections, contextual upsell copy, a proof library, revision recovery, and AI copy assistance. Existing offers remain the commerce identity used by checkout, downloads, catalog listings, and historical orders.
 
+For shared market examples and cross-project adaptation notes, see the [Market offer inspiration library](./MARKET_OFFER_LIBRARY.md).
+
 ## Data and publication
 
 - `offers.presentation` is the published presentation only. Anonymous visitors can read it only for published offers under the existing row policy. Null preserves the original page layout and copy.

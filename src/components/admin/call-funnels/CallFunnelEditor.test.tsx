@@ -84,6 +84,81 @@ afterEach(() => {
 });
 
 describe("call funnel editor", () => {
+  it("edits, hides and reorders whole preparation answers without losing media", () => {
+    const { latest } = mount();
+    tab("Preparation");
+    change("Preparation question 1", "What will we cover?");
+    change("Answer 1 video URL", "https://example.com/answer.mp4");
+    change("Answer 1 captions URL", "https://example.com/captions.vtt");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Move preparation answers item 1 down",
+      }),
+    );
+    expect(latest().preparation.extras!.objections.items[1]).toMatchObject({
+      question: "What will we cover?",
+      captions: "https://example.com/captions.vtt",
+      video: { url: "https://example.com/answer.mp4" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show answer 2" }));
+    expect(latest().preparation.extras!.objections.items[1].enabled).toBe(
+      false,
+    );
+    expect(latest().preparation.extras!.objections.items[1].video.url).toBe(
+      "https://example.com/answer.mp4",
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Show the offer overview" }),
+    );
+    change(
+      "Overview document or presentation URL",
+      "https://example.com/overview.pdf",
+    );
+    expect(latest().preparation.extras!.overview).toMatchObject({
+      enabled: true,
+      url: "https://example.com/overview.pdf",
+    });
+    expect(callConfigIssues(latest())).toEqual([]);
+  });
+  it("selects preparation proof independently and retains portraits until the last page deselects", () => {
+    const { latest } = mount();
+    tab("Proof");
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: `Use on preparation — ${approved.title}`,
+      }),
+    );
+    expect(latest().preparation.extras!.proofIds).toEqual([approved.id]);
+    expect(latest().proofIds).toEqual([]);
+    change(
+      `Portrait URL for ${approved.title}`,
+      "https://example.com/photo.jpg",
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: `Use on invitation — ${approved.title}`,
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: `Use on preparation — ${approved.title}`,
+      }),
+    );
+    expect(latest().proofImages[approved.id]).toBe(
+      "https://example.com/photo.jpg",
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: `Use on invitation — ${approved.title}`,
+      }),
+    );
+    expect(latest().proofImages[approved.id]).toBeUndefined();
+    expect(
+      screen.queryByRole("checkbox", {
+        name: /Use on preparation — Unapproved/,
+      }),
+    ).toBeNull();
+  });
   it("exposes keyboard-navigable labeled tabs with a matching active panel", () => {
     mount();
     const first = screen.getByRole("tab", { name: "Design" });

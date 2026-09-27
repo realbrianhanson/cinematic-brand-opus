@@ -22,6 +22,7 @@ export default function CallVideo({
   chapters = [],
   position = 0,
   onPosition,
+  captions = "",
 }: {
   media: CallMedia;
   title: string;
@@ -29,6 +30,7 @@ export default function CallVideo({
   chapters?: { id: string; title: string; seconds: number }[];
   position?: number;
   onPosition?: (seconds: number) => void;
+  captions?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
@@ -69,6 +71,7 @@ export default function CallVideo({
             controls
             playsInline
             preload="metadata"
+            crossOrigin={captions ? "anonymous" : undefined}
             aria-label={title}
             onLoadedMetadata={() => setReady(true)}
             onError={() => setFailed(true)}
@@ -79,7 +82,17 @@ export default function CallVideo({
                 onPosition?.(seconds);
               }
             }}
-          />
+          >
+            {captions && callUrl(captions) && (
+              <track
+                kind="captions"
+                src={captions}
+                srcLang="en"
+                label="English captions"
+                default
+              />
+            )}
+          </video>
         ) : !preview && embed ? (
           <iframe
             title={title}

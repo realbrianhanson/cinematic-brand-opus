@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import ScriptInspirationGuide from "./ScriptInspirationGuide";
 import {
   buildCallFunnelScriptDocument,
   buildCallFunnelScriptPrompt,
@@ -138,6 +139,7 @@ export default function CallScriptWorkspace({
       </div>
       <fieldset disabled={disabled} className="min-w-0 space-y-5">
         <legend className="sr-only">Video scripts and offer brief</legend>
+        <ScriptInspirationGuide value={value} onChange={onChange} />
         <details className="rounded-xl border border-current/10 p-4">
           <summary className="cursor-pointer font-medium">Offer brief</summary>
           <div className="mt-4 grid gap-4 md:grid-cols-2">

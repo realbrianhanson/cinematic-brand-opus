@@ -4,6 +4,7 @@ import type {
   CallMedia,
   CallQuestion,
 } from "@/lib/callFunnels";
+import { emptyCallPreparationExtras } from "@/lib/callFunnels";
 import type { OfferProof } from "@/lib/offerBuilder";
 import { normalizeCallFunnelScripts } from "@/lib/callFunnelScripts";
 import CallScriptWorkspace from "./CallScriptWorkspace";
@@ -288,6 +289,10 @@ export default function CallFunnelEditor({
   const [notice, setNotice] = useState("");
   const id = useId();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const extras = config.preparation.extras ?? emptyCallPreparationExtras();
+  function updateExtras(next: typeof extras) {
+    update("preparation", { ...config.preparation, extras: next });
+  }
   function update<K extends keyof CallFunnelConfig>(
     key: K,
     next: CallFunnelConfig[K],
@@ -375,18 +380,25 @@ export default function CallFunnelEditor({
   }
   function toggleProof(
     itemId: string,
-    location: "invitation" | "alternative",
+    location: "invitation" | "alternative" | "preparation",
     selected: boolean,
   ) {
     const ids =
-      location === "invitation" ? config.proofIds : config.alternative.proofIds;
+      location === "invitation"
+        ? config.proofIds
+        : location === "preparation"
+          ? extras.proofIds
+          : config.alternative.proofIds;
     const next = selected
       ? [...ids, itemId]
       : ids.filter((value) => value !== itemId);
     if (next.length > 12 || disabled) return;
     const proofImages = { ...config.proofImages };
-    const other =
-      location === "invitation" ? config.alternative.proofIds : config.proofIds;
+    const other = [
+      ...(location !== "invitation" ? config.proofIds : []),
+      ...(location !== "alternative" ? config.alternative.proofIds : []),
+      ...(location !== "preparation" ? extras.proofIds : []),
+    ];
     if (!selected && !other.includes(itemId)) delete proofImages[itemId];
     setNotice("");
     onChange({
@@ -394,12 +406,23 @@ export default function CallFunnelEditor({
       proofImages,
       ...(location === "invitation"
         ? { proofIds: next }
-        : { alternative: { ...config.alternative, proofIds: next } }),
+        : location === "preparation"
+          ? {
+              preparation: {
+                ...config.preparation,
+                extras: { ...extras, proofIds: next },
+              },
+            }
+          : { alternative: { ...config.alternative, proofIds: next } }),
     });
   }
   const approvedProof = proof.filter((item) => item.approved);
   const unavailableProof = [
-    ...new Set([...config.proofIds, ...config.alternative.proofIds]),
+    ...new Set([
+      ...config.proofIds,
+      ...config.alternative.proofIds,
+      ...extras.proofIds,
+    ]),
   ].filter((proofId) => !approvedProof.some((item) => item.id === proofId));
 
   return (
@@ -1122,6 +1145,190 @@ export default function CallFunnelEditor({
                   />
                 )}
               </RepeatList>
+              <fieldset className="min-w-0 rounded-xl border border-current/10 p-4 space-y-4">
+                <legend className="px-2 text-base font-semibold">
+                  Offer overview
+                </legend>
+                <label className="flex min-h-11 items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={extras.overview.enabled}
+                    onChange={(event) =>
+                      updateExtras({
+                        ...extras,
+                        overview: {
+                          ...extras.overview,
+                          enabled: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  Show the offer overview
+                </label>
+                <TextField
+                  label="Overview heading"
+                  value={extras.overview.heading}
+                  maxLength={300}
+                  onChange={(heading) =>
+                    updateExtras({
+                      ...extras,
+                      overview: { ...extras.overview, heading },
+                    })
+                  }
+                />
+                <TextField
+                  label="Overview description"
+                  value={extras.overview.description}
+                  maxLength={2000}
+                  multiline
+                  onChange={(description) =>
+                    updateExtras({
+                      ...extras,
+                      overview: { ...extras.overview, description },
+                    })
+                  }
+                />
+                <TextField
+                  label="Overview button"
+                  value={extras.overview.button}
+                  maxLength={120}
+                  onChange={(button) =>
+                    updateExtras({
+                      ...extras,
+                      overview: { ...extras.overview, button },
+                    })
+                  }
+                />
+                <TextField
+                  label="Overview document or presentation URL"
+                  value={extras.overview.url}
+                  maxLength={2048}
+                  help="Use a complete HTTPS link to an offer overview, PDF or presentation. Required to publish when enabled."
+                  onChange={(url) =>
+                    updateExtras({
+                      ...extras,
+                      overview: { ...extras.overview, url },
+                    })
+                  }
+                />
+              </fieldset>
+              <fieldset className="min-w-0 rounded-xl border border-current/10 p-4 space-y-4">
+                <legend className="px-2 text-base font-semibold">
+                  Short answers before the call
+                </legend>
+                <p className="admin-help">
+                  Explain the fit, investment and implementation in your own
+                  words. Each answer can use text, a short video, or both.
+                  Verify all offer details before publishing.
+                </p>
+                <label className="flex min-h-11 items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={extras.objections.enabled}
+                    onChange={(event) =>
+                      updateExtras({
+                        ...extras,
+                        objections: {
+                          ...extras.objections,
+                          enabled: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  Show preparation questions
+                </label>
+                <TextField
+                  label="Preparation questions heading"
+                  value={extras.objections.heading}
+                  maxLength={300}
+                  onChange={(heading) =>
+                    updateExtras({
+                      ...extras,
+                      objections: { ...extras.objections, heading },
+                    })
+                  }
+                />
+                <TextField
+                  label="Preparation questions introduction"
+                  value={extras.objections.intro}
+                  maxLength={2000}
+                  multiline
+                  onChange={(intro) =>
+                    updateExtras({
+                      ...extras,
+                      objections: { ...extras.objections, intro },
+                    })
+                  }
+                />
+                <RepeatList
+                  label="Preparation answers"
+                  items={extras.objections.items}
+                  max={8}
+                  blank={() => ({
+                    enabled: true,
+                    question: "Your next question",
+                    answer: "",
+                    video: { url: "", poster: "", transcript: "" },
+                    captions: "",
+                  })}
+                  onChange={(items) =>
+                    updateExtras({
+                      ...extras,
+                      objections: { ...extras.objections, items },
+                    })
+                  }
+                >
+                  {(item, change, index) => (
+                    <>
+                      <label className="flex min-h-11 items-center gap-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={item.enabled}
+                          onChange={(event) =>
+                            change({ ...item, enabled: event.target.checked })
+                          }
+                        />
+                        Show answer {index + 1}
+                      </label>
+                      <TextField
+                        label={`Preparation question ${index + 1}`}
+                        value={item.question}
+                        maxLength={300}
+                        onChange={(question) => change({ ...item, question })}
+                      />
+                      <TextField
+                        label={`Preparation answer ${index + 1}`}
+                        value={item.answer}
+                        maxLength={3000}
+                        multiline
+                        help="A readable answer is required when this question is published."
+                        onChange={(answer) => change({ ...item, answer })}
+                      />
+                      <MediaFields
+                        label={`Answer ${index + 1}`}
+                        value={item.video}
+                        onChange={(video) => change({ ...item, video })}
+                      />
+                      <TextField
+                        label={`Answer ${index + 1} captions URL`}
+                        value={item.captions}
+                        maxLength={2048}
+                        help="Optional HTTPS WebVTT file for an English MP4/WebM video. For YouTube/Vimeo, manage captions with that provider."
+                        onChange={(captions) => change({ ...item, captions })}
+                      />
+                    </>
+                  )}
+                </RepeatList>
+              </fieldset>
+              <TextField
+                label="Preparation proof heading"
+                value={extras.proofHeading}
+                maxLength={300}
+                onChange={(proofHeading) =>
+                  updateExtras({ ...extras, proofHeading })
+                }
+                help="Choose preparation-specific testimonials in the Proof tab. Leave every preparation selection unchecked to hide this section."
+              />
             </Panel>
           )}
           {tab === "Training" && (
@@ -1322,7 +1529,7 @@ export default function CallFunnelEditor({
           {tab === "Proof" && (
             <Panel
               title="Choose the right proof for each page"
-              help="Only approved items from your proof library appear here. Choose up to 12 for the invitation and 12 for the alternative. A quote stays in its original wording."
+              help="Only approved items from your proof library appear here. Choose up to 12 independently for the invitation, preparation and alternative. A quote stays in its original wording."
             >
               {!approvedProof.length && (
                 <p className="admin-notice">
@@ -1352,6 +1559,15 @@ export default function CallFunnelEditor({
                       onClick={() => toggleProof(proofId, "alternative", false)}
                     >
                       Remove unavailable alternative proof
+                    </button>
+                  )}
+                  {extras.proofIds.includes(proofId) && (
+                    <button
+                      type="button"
+                      className={buttonClass}
+                      onClick={() => toggleProof(proofId, "preparation", false)}
+                    >
+                      Remove unavailable preparation proof
                     </button>
                   )}
                 </div>
@@ -1402,7 +1618,26 @@ export default function CallFunnelEditor({
                     />
                     Use on alternative — {item.title || item.attribution}
                   </label>
+                  <label className="flex min-h-11 items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={extras.proofIds.includes(item.id)}
+                      disabled={
+                        !extras.proofIds.includes(item.id) &&
+                        extras.proofIds.length >= 12
+                      }
+                      onChange={(event) =>
+                        toggleProof(
+                          item.id,
+                          "preparation",
+                          event.target.checked,
+                        )
+                      }
+                    />
+                    Use on preparation — {item.title || item.attribution}
+                  </label>
                   {(config.proofIds.includes(item.id) ||
+                    extras.proofIds.includes(item.id) ||
                     config.alternative.proofIds.includes(item.id)) && (
                     <TextField
                       label={`Portrait URL for ${item.title || item.attribution}`}
