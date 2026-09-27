@@ -41,6 +41,204 @@ export type Database = {
         }
         Relationships: []
       }
+      call_funnel_applications: {
+        Row: {
+          answers: Json
+          consent: boolean
+          contact: Json
+          expires_at: string
+          funnel_id: string
+          id: string
+          outcome: string
+          request_id: string
+          retain_until: string
+          revision: number
+          submitted_at: string
+          token_hash: string
+        }
+        Insert: {
+          answers: Json
+          consent: boolean
+          contact: Json
+          expires_at?: string
+          funnel_id: string
+          id?: string
+          outcome: string
+          request_id: string
+          retain_until?: string
+          revision: number
+          submitted_at?: string
+          token_hash: string
+        }
+        Update: {
+          answers?: Json
+          consent?: boolean
+          contact?: Json
+          expires_at?: string
+          funnel_id?: string
+          id?: string
+          outcome?: string
+          request_id?: string
+          retain_until?: string
+          revision?: number
+          submitted_at?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_funnel_applications_funnel_id_revision_fkey"
+            columns: ["funnel_id", "revision"]
+            isOneToOne: false
+            referencedRelation: "call_funnel_revisions"
+            referencedColumns: ["funnel_id", "version"]
+          },
+        ]
+      }
+      call_funnel_events: {
+        Row: {
+          actor_id: string | null
+          application_id: string
+          created_at: string
+          event_key: string
+          id: string
+          note: string
+          occurred_at: string
+          reference: string
+          source: string
+          starts_at: string | null
+          type: string
+        }
+        Insert: {
+          actor_id?: string | null
+          application_id: string
+          created_at?: string
+          event_key: string
+          id?: string
+          note?: string
+          occurred_at: string
+          reference: string
+          source: string
+          starts_at?: string | null
+          type: string
+        }
+        Update: {
+          actor_id?: string | null
+          application_id?: string
+          created_at?: string
+          event_key?: string
+          id?: string
+          note?: string
+          occurred_at?: string
+          reference?: string
+          source?: string
+          starts_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_funnel_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "call_funnel_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_funnel_requests: {
+        Row: {
+          actor_id: string
+          created_at: string
+          input: Json
+          request_id: string
+          result: Json
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          input: Json
+          request_id: string
+          result: Json
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          input?: Json
+          request_id?: string
+          result?: Json
+        }
+        Relationships: []
+      }
+      call_funnel_revisions: {
+        Row: {
+          config: Json
+          created_at: string
+          funnel_id: string
+          published: boolean
+          slug: string
+          title: string
+          version: number
+        }
+        Insert: {
+          config: Json
+          created_at?: string
+          funnel_id: string
+          published: boolean
+          slug: string
+          title: string
+          version: number
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          funnel_id?: string
+          published?: boolean
+          slug?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_funnel_revisions_funnel_id_fkey"
+            columns: ["funnel_id"]
+            isOneToOne: false
+            referencedRelation: "call_funnels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_funnels: {
+        Row: {
+          active: boolean
+          draft_config: Json
+          id: string
+          published_version: number | null
+          slug: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          draft_config: Json
+          id: string
+          published_version?: number | null
+          slug: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          draft_config?: Json
+          id?: string
+          published_version?: number | null
+          slug?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -3594,6 +3792,90 @@ export type Database = {
         }
         Returns: Json
       }
+      call_funnel_admin_event: {
+        Args: {
+          _application_id: string
+          _note?: string
+          _occurred_at: string
+          _reference?: string
+          _request_id: string
+          _starts_at?: string
+          _type: string
+        }
+        Returns: Json
+      }
+      call_funnel_admin_report: {
+        Args: { _funnel_id: string; _limit?: number; _offset?: number }
+        Returns: Json
+      }
+      call_funnel_application_view: {
+        Args: { _token_hash: string }
+        Returns: Json
+      }
+      call_funnel_cleanup: { Args: never; Returns: undefined }
+      call_funnel_config_validate: {
+        Args: { c: Json; publishing?: boolean }
+        Returns: undefined
+      }
+      call_funnel_keys: {
+        Args: { allowed: string[]; v: Json }
+        Returns: boolean
+      }
+      call_funnel_media: { Args: { v: Json }; Returns: boolean }
+      call_funnel_outcomes: { Args: { _application_id: string }; Returns: Json }
+      call_funnel_public_get: { Args: { _slug: string }; Returns: Json }
+      call_funnel_publication: {
+        Args: { _funnel_id: string; _revision: number }
+        Returns: Json
+      }
+      call_funnel_record_event: {
+        Args: {
+          _actor_id: string
+          _application_id: string
+          _event_key: string
+          _note: string
+          _occurred_at: string
+          _reference: string
+          _source: string
+          _starts_at: string
+          _type: string
+        }
+        Returns: Json
+      }
+      call_funnel_save: {
+        Args: {
+          _active: boolean
+          _config: Json
+          _expected_version: number
+          _id: string
+          _publish: boolean
+          _request_id: string
+          _slug: string
+          _title: string
+        }
+        Returns: Json
+      }
+      call_funnel_shape: {
+        Args: { fields: string[]; v: Json }
+        Returns: boolean
+      }
+      call_funnel_submit: {
+        Args: {
+          _answers: Json
+          _consent: boolean
+          _contact: Json
+          _request_id: string
+          _revision: number
+          _slug: string
+          _token_hash: string
+        }
+        Returns: Json
+      }
+      call_funnel_text: {
+        Args: { maximum: number; required?: boolean; v: Json }
+        Returns: boolean
+      }
+      call_funnel_url: { Args: { local?: boolean; v: Json }; Returns: boolean }
       claim_speaking_notification: { Args: { _id: string }; Returns: Json }
       content_claim_opportunities: {
         Args: {
