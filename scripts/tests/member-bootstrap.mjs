@@ -513,6 +513,146 @@ assert.equal(
   "a schema installed with its recognized retention job can initialize safely",
 );
 await knownRetention.close();
+// Call funnel remixes must carry schema only, never applications, event records,
+// saved private scripts or idempotency snapshots from the original owner.
+const callTables = [
+  "call_funnels",
+  "call_funnel_revisions",
+  "call_funnel_requests",
+  "call_funnel_applications",
+  "call_funnel_events",
+];
+const callFixture =
+  callTables.map((table) => `create table ${table}(id uuid);`).join("\n") +
+  "create function public.call_funnel_cleanup() returns void language sql as $$select$$;";
+const partialCalls = new PGlite();
+await partialCalls.exec(
+  fixture + "create table call_funnel_applications(id uuid);",
+);
+await assert.rejects(
+  partialCalls.exec(sql),
+  /call funnel schema is incomplete/,
+);
+await partialCalls.exec("rollback");
+assert.equal(
+  (await one(partialCalls, "select count(*)::int n from site_settings")).n,
+  0,
+);
+await partialCalls.close();
+for (const marked of [false, true]) {
+  const inherited = new PGlite();
+  await inherited.exec(fixture + callFixture + cronFixture);
+  if (marked) await inherited.exec(sql);
+  for (const table of callTables) {
+    await inherited.exec(
+      `insert into ${table} values(gen_random_uuid());delete from cron.job`,
+    );
+    await assert.rejects(
+      inherited.exec(sql),
+      new RegExp(`Refusing bootstrap: ${table}`),
+    );
+    await inherited.exec("rollback");
+    assert.equal(
+      (await one(inherited, `select count(*)::int n from ${table}`)).n,
+      1,
+      "inherited call data is preserved",
+    );
+    assert.equal(
+      (await one(inherited, "select count(*)::int n from cron.job")).n,
+      0,
+      "inherited call data prevents scheduler writes",
+    );
+    assert.equal(
+      (await one(inherited, "select count(*)::int n from site_settings")).n,
+      marked ? 1 : 0,
+    );
+    await inherited.exec(`delete from ${table}`);
+  }
+  await inherited.close();
+
+  const noCron = new PGlite();
+  await noCron.exec(fixture);
+  if (marked) await noCron.exec(sql);
+  await noCron.exec(callFixture);
+  await assert.rejects(
+    noCron.exec(sql),
+    /call applications require pg_cron.*90-day retention/,
+  );
+  await noCron.exec("rollback");
+  assert.equal(
+    (await one(noCron, "select count(*)::int n from site_settings")).n,
+    marked ? 1 : 0,
+  );
+  await noCron.close();
+}
+const callRemix = new PGlite();
+await callRemix.exec(fixture + conversionFixture + callFixture + cronFixture);
+await callRemix.exec(
+  "select cron.schedule('call-funnel-retention-daily','47 4 * * *','SELECT public.call_funnel_cleanup()')",
+);
+await callRemix.exec(sql);
+assert.equal(
+  (await one(callRemix, "select count(*)::int n from cron.job")).n,
+  2,
+  "both recognized cleanup jobs coexist",
+);
+assert.deepEqual(
+  await one(
+    callRemix,
+    "select schedule,command,active from cron.job where jobname='call-funnel-retention-daily'",
+  ),
+  {
+    schedule: "47 4 * * *",
+    command: "SELECT public.call_funnel_cleanup()",
+    active: true,
+  },
+);
+await callRemix.exec(
+  "update site_settings set site_name='Call Brand';update cron.job set active=false where jobname='call-funnel-retention-daily'",
+);
+await callRemix.exec(sql);
+assert.equal(
+  (
+    await one(
+      callRemix,
+      "select active from cron.job where jobname='call-funnel-retention-daily'",
+    )
+  ).active,
+  true,
+  "rerun repairs paused call retention",
+);
+await callRemix.exec(
+  "delete from cron.job where jobname='call-funnel-retention-daily'",
+);
+await callRemix.exec(sql);
+assert.equal(
+  (await one(callRemix, "select count(*)::int n from cron.job")).n,
+  2,
+  "rerun restores missing call retention without duplicate jobs",
+);
+assert.equal(
+  (await one(callRemix, "select site_name from site_settings")).site_name,
+  "Call Brand",
+);
+await callRemix.exec(
+  "update cron.job set command='SELECT unrelated_operation()' where jobname='call-funnel-retention-daily'",
+);
+await assert.rejects(
+  callRemix.exec(sql),
+  /call funnel retention job conflicts/,
+);
+await callRemix.exec("rollback");
+assert.equal(
+  (
+    await one(
+      callRemix,
+      "select command from cron.job where jobname='call-funnel-retention-daily'",
+    )
+  ).command,
+  "SELECT unrelated_operation()",
+  "conflicting call jobs are never overwritten",
+);
+await callRemix.close();
 console.log(
-  "PASS: empty member bootstrap, automation and inquiry intake off, no subscribers, idempotent rerun, populated-owner/offer/order/receipt/private-file/inquiry refusal, preserved inherited data, current conversion config/retention initialization and repair, scheduler refusal, and older schema compatibility",
+  "PASS: empty member bootstrap, private-data refusal including call funnels, preserved inherited data, conversion and call retention initialization/repair, scheduler refusal, and older schema compatibility",
 );

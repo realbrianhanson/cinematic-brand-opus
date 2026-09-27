@@ -31,6 +31,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char123indexnowKeyChar125DottxtRouteImport } from './routes/{$indexnowKey}[.]txt'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAudienceRouteImport } from './routes/admin.audience'
+import { Route as AdminCallFunnelsRouteImport } from './routes/admin.call-funnels'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminConversionsRouteImport } from './routes/admin.conversions'
 import { Route as AdminExperimentsRouteImport } from './routes/admin.experiments'
@@ -51,6 +52,8 @@ import { Route as AdminResetPasswordRouteImport } from './routes/admin_.reset-pa
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as CallsSlugRouteImport } from './routes/calls.$slug'
+import { Route as FunnelTemplatesVideoApplicationRouteImport } from './routes/funnel-templates.video-application'
 import { Route as FunnelsSlugRouteImport } from './routes/funnels.$slug'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as NewsIndexRouteImport } from './routes/news.index'
@@ -193,6 +196,11 @@ const AdminAudienceRoute = AdminAudienceRouteImport.update({
   path: '/audience',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCallFunnelsRoute = AdminCallFunnelsRouteImport.update({
+  id: '/call-funnels',
+  path: '/call-funnels',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
@@ -293,6 +301,17 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => BlogRoute,
 } as any)
+const CallsSlugRoute = CallsSlugRouteImport.update({
+  id: '/calls/$slug',
+  path: '/calls/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FunnelTemplatesVideoApplicationRoute =
+  FunnelTemplatesVideoApplicationRouteImport.update({
+    id: '/funnel-templates/video-application',
+    path: '/funnel-templates/video-application',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const FunnelsSlugRoute = FunnelsSlugRouteImport.update({
   id: '/funnels/$slug',
   path: '/funnels/$slug',
@@ -470,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
+  '/admin/call-funnels': typeof AdminCallFunnelsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
@@ -489,6 +509,8 @@ export interface FileRoutesByFullPath {
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/calls/$slug': typeof CallsSlugRoute
+  '/funnel-templates/video-application': typeof FunnelTemplatesVideoApplicationRoute
   '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -540,6 +562,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
+  '/admin/call-funnels': typeof AdminCallFunnelsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
@@ -559,6 +582,8 @@ export interface FileRoutesByTo {
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/calls/$slug': typeof CallsSlugRoute
+  '/funnel-templates/video-application': typeof FunnelTemplatesVideoApplicationRoute
   '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -614,6 +639,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/{$indexnowKey}.txt': typeof Char123indexnowKeyChar125DottxtRoute
   '/admin/audience': typeof AdminAudienceRoute
+  '/admin/call-funnels': typeof AdminCallFunnelsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/conversions': typeof AdminConversionsRoute
   '/admin/experiments': typeof AdminExperimentsRoute
@@ -633,6 +659,8 @@ export interface FileRoutesById {
   '/admin_/reset-password': typeof AdminResetPasswordRoute
   '/api/chat': typeof ApiChatRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/calls/$slug': typeof CallsSlugRoute
+  '/funnel-templates/video-application': typeof FunnelTemplatesVideoApplicationRoute
   '/funnels/$slug': typeof FunnelsSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/news/$id': typeof NewsIdRoute
@@ -690,6 +718,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/{$indexnowKey}.txt'
     | '/admin/audience'
+    | '/admin/call-funnels'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
@@ -709,6 +738,8 @@ export interface FileRouteTypes {
     | '/admin/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/calls/$slug'
+    | '/funnel-templates/video-application'
     | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -760,6 +791,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/{$indexnowKey}.txt'
     | '/admin/audience'
+    | '/admin/call-funnels'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
@@ -779,6 +811,8 @@ export interface FileRouteTypes {
     | '/admin/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/calls/$slug'
+    | '/funnel-templates/video-application'
     | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -833,6 +867,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/{$indexnowKey}.txt'
     | '/admin/audience'
+    | '/admin/call-funnels'
     | '/admin/categories'
     | '/admin/conversions'
     | '/admin/experiments'
@@ -852,6 +887,8 @@ export interface FileRouteTypes {
     | '/admin_/reset-password'
     | '/api/chat'
     | '/blog/$slug'
+    | '/calls/$slug'
+    | '/funnel-templates/video-application'
     | '/funnels/$slug'
     | '/guides/$slug'
     | '/news/$id'
@@ -910,6 +947,8 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   ApiChatRoute: typeof ApiChatRoute
+  CallsSlugRoute: typeof CallsSlugRoute
+  FunnelTemplatesVideoApplicationRoute: typeof FunnelTemplatesVideoApplicationRoute
   FunnelsSlugRoute: typeof FunnelsSlugRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
@@ -1078,6 +1117,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAudienceRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/call-funnels': {
+      id: '/admin/call-funnels'
+      path: '/call-funnels'
+      fullPath: '/admin/call-funnels'
+      preLoaderRoute: typeof AdminCallFunnelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/categories': {
       id: '/admin/categories'
       path: '/categories'
@@ -1217,6 +1263,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof BlogRoute
+    }
+    '/calls/$slug': {
+      id: '/calls/$slug'
+      path: '/calls/$slug'
+      fullPath: '/calls/$slug'
+      preLoaderRoute: typeof CallsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/funnel-templates/video-application': {
+      id: '/funnel-templates/video-application'
+      path: '/funnel-templates/video-application'
+      fullPath: '/funnel-templates/video-application'
+      preLoaderRoute: typeof FunnelTemplatesVideoApplicationRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/funnels/$slug': {
       id: '/funnels/$slug'
@@ -1433,6 +1493,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAudienceRoute: typeof AdminAudienceRoute
+  AdminCallFunnelsRoute: typeof AdminCallFunnelsRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminConversionsRoute: typeof AdminConversionsRoute
   AdminExperimentsRoute: typeof AdminExperimentsRoute
@@ -1467,6 +1528,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAudienceRoute: AdminAudienceRoute,
+  AdminCallFunnelsRoute: AdminCallFunnelsRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminConversionsRoute: AdminConversionsRoute,
   AdminExperimentsRoute: AdminExperimentsRoute,
@@ -1576,6 +1638,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminResetPasswordRoute: AdminResetPasswordRoute,
   ApiChatRoute: ApiChatRoute,
+  CallsSlugRoute: CallsSlugRoute,
+  FunnelTemplatesVideoApplicationRoute: FunnelTemplatesVideoApplicationRoute,
   FunnelsSlugRoute: FunnelsSlugRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   NewsletterConfirmedRoute: NewsletterConfirmedRoute,

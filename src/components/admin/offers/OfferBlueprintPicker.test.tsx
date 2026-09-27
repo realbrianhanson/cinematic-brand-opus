@@ -73,9 +73,16 @@ describe("qualified call blueprint picker", () => {
     expect(screen.getByText("Membership alternative")).toBeTruthy();
     expect(
       screen.getByText(
-        /Build one page here; configure form branching, booking, reminders and recurring billing in your provider/,
+        /Or build one standalone page below; configure form branching, booking, reminders and recurring billing in your provider/,
       ),
     ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Use the complete Video + Application template",
+        })
+        .getAttribute("href"),
+    ).toBe("/admin/call-funnels");
   });
 
   it("blocks native fulfillment and opens Delivery without changing a page", () => {
