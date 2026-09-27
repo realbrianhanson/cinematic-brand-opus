@@ -36,9 +36,8 @@ export const adminNavigation = [
         label: "Conversions",
         icon: MousePointerClick,
       },
+      { to: "/admin/funnel-builder", label: "Funnel builder", icon: Signpost },
       { to: "/admin/offers", label: "Offers & shop", icon: ShoppingBag },
-      { to: "/admin/funnels", label: "Connected funnels", icon: Signpost },
-      { to: "/admin/call-funnels", label: "Call funnels", icon: ContactRound },
       {
         to: "/admin/experiments",
         label: "Offer experiments",
@@ -83,10 +82,10 @@ export const adminNavigation = [
 ];
 export const adminCreateActions = [
   {
-    to: "/admin/call-funnels",
-    label: "New call funnel",
-    description: "Video, application, booking and preparation",
-    icon: ContactRound,
+    to: "/admin/funnel-builder",
+    label: "New funnel",
+    description: "Choose sales, downloads, calls, or a custom funnel",
+    icon: Signpost,
   },
   {
     to: "/admin/posts/new",

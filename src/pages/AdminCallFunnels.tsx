@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBlocker } from "@tanstack/react-router";
+import { Link } from "@/lib/router-compat";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { listOfferProof } from "@/lib/offerBuilderClient";
 import type { OfferProof } from "@/lib/offerBuilder";
@@ -242,16 +243,16 @@ export default function AdminCallFunnels() {
     <div className="space-y-6">
       <header className="admin-page-header">
         <div>
-          <p className="admin-eyebrow">Funnel builder</p>
-          <h1>Video + Application</h1>
+          <p className="admin-eyebrow">Book a call</p>
+          <h1>Call funnel builder</h1>
           <p className="admin-help">
             Create a focused video invitation, qualify applicants, and guide
             them to a call or an alternative offer.
           </p>
         </div>
-        <a className="admin-btn-secondary" href="/admin/funnels">
-          Connected journeys
-        </a>
+        <Link className="admin-btn-secondary" to="/admin/funnel-builder">
+          Choose another funnel type
+        </Link>
       </header>
       <div className="admin-card flex flex-wrap items-end gap-3 p-5">
         <label className="min-w-64 flex-1">
@@ -315,7 +316,7 @@ export default function AdminCallFunnels() {
       {!draft && (
         <div className="admin-card p-8">
           <h2 className="text-2xl font-semibold">
-            One template. The complete conversation.
+            Start with the Video + Application template
           </h2>
           <p className="mt-3 text-lg">
             Video invitation → guided application → calendar → preparation and

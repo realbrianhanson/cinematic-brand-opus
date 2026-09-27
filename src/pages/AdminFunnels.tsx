@@ -17,6 +17,7 @@ import {
 } from "@/lib/funnelJourneysClient";
 import FunnelSimulator from "@/components/admin/funnels/FunnelSimulator";
 import FunnelStepEditor from "@/components/admin/funnels/FunnelStepEditor";
+import { Link } from "@/lib/router-compat";
 const input =
   "rounded-md border border-[hsl(var(--admin-border))] bg-[hsl(var(--admin-surface))] px-3 py-2 text-sm";
 function blank(): FunnelDraft {
@@ -196,28 +197,22 @@ export default function AdminFunnels() {
   const locked = busy || !!pending.current;
   return (
     <div className="space-y-6 p-4 sm:p-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Connected funnels</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[hsl(var(--admin-text-soft))]">
-          Connect questions, helpful content and existing offers. Drafts stay
-          private; publishing creates a fixed revision. Branches describe the
-          next page, never proof of a booking or payment.
-        </p>
-      </header>
-      <div className="admin-card flex flex-wrap items-center justify-between gap-4 p-5">
+      <header className="admin-page-header">
         <div>
-          <h2 className="text-xl font-semibold">
-            Video + Application template
-          </h2>
-          <p className="mt-2">
-            Build the complete call journey with a video invitation, native
-            application, preparation, training and an alternate offer.
+          <h1>Custom branching funnels</h1>
+          <p className="admin-help mt-2">
+            Connect questions, content, existing offers, and external pages. Use
+            this builder when different answers need different next steps.
           </p>
         </div>
-        <a className="admin-btn-primary" href="/admin/call-funnels">
-          Build a call funnel
-        </a>
-      </div>
+        <Link className="admin-btn-secondary" to="/admin/funnel-builder">
+          Choose another funnel type
+        </Link>
+      </header>
+      <p className="admin-help">
+        Drafts stay private until you publish. Connections choose the next page;
+        they do not confirm a booking or payment.
+      </p>
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm">
           Journey{" "}

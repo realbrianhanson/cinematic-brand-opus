@@ -9,6 +9,18 @@ import {
 } from "@/lib/offerBlueprints";
 import OfferBlueprintPicker from "./OfferBlueprintPicker";
 
+vi.mock("@/lib/router-compat", () => ({
+  Link: ({
+    to,
+    children,
+    ...props
+  }: React.PropsWithChildren<{ to: string }>) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 const context = {
   strategy: {
     ...emptyBuilder().strategy,

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import {
   cleanup,
   fireEvent,
@@ -16,6 +17,13 @@ import {
   type FunnelDraft,
 } from "@/lib/funnelJourneysClient";
 const navigation = vi.hoisted(() => ({ block: (): boolean => false }));
+vi.mock("@/lib/router-compat", () => ({
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock("@tanstack/react-router", () => ({
   useBlocker: (options: { shouldBlockFn: () => boolean }) => {
     navigation.block = options.shouldBlockFn;
@@ -50,6 +58,17 @@ async function open() {
   });
 }
 describe("connected funnel editor", () => {
+  it("returns to all funnel choices instead of promoting only call funnels", async () => {
+    await open();
+    expect(
+      screen
+        .getByRole("link", { name: "Choose another funnel type" })
+        .getAttribute("href"),
+    ).toBe("/admin/funnel-builder");
+    expect(
+      screen.queryByRole("link", { name: "Build a call funnel" }),
+    ).toBeNull();
+  });
   it("loads connections and simulates without publishing or creating a session", async () => {
     await open();
     expect(screen.getByText("→ finish")).toBeTruthy();
