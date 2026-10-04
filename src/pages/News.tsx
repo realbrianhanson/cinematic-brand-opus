@@ -1,6 +1,8 @@
 import {
   newsSourceLabel,
-  uniqueNewsItems,
+  publicNewsItems,
+  newsCardExcerpt,
+  newsIsEventAnnouncement,
 } from "../../supabase/functions/_shared/newsQuality";
 import { formatPublicDate } from "@/lib/publicDate";
 import { fetchNewsPage } from "@/lib/publicLists";
@@ -262,14 +264,19 @@ const News = ({ initialPage }: NewsProps = {}) => {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, isError]);
 
   const allItems = useMemo(
-    () => uniqueNewsItems((data?.pages ?? []).flatMap((page) => page.items)),
+    () => publicNewsItems((data?.pages ?? []).flatMap((page) => page.items)),
     [data],
   );
 
   const filtered = allItems;
 
-  const featured = !searchTerm && lane === "all" ? filtered[0] : undefined;
-  const rest = featured ? filtered.slice(1) : filtered;
+  const featured =
+    !searchTerm && lane === "all"
+      ? filtered.find((item) => !newsIsEventAnnouncement(item))
+      : undefined;
+  const rest = featured
+    ? filtered.filter((item) => item.id !== featured.id)
+    : filtered;
 
   return (
     <div
@@ -523,7 +530,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 >
                   {featured.ai_title || featured.title}
                 </h2>
-                {(featured.ai_summary || featured.raw_excerpt) && (
+                {newsCardExcerpt(featured) && (
                   <p
                     className="font-body mb-4"
                     style={{
@@ -536,7 +543,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                       overflow: "hidden",
                     }}
                   >
-                    {featured.ai_summary || featured.raw_excerpt}
+                    {newsCardExcerpt(featured)}
                   </p>
                 )}
                 <div
@@ -607,12 +614,20 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     src={n.image_url}
                     alt={n.ai_title || n.title || "News"}
                     fallbackTitle={n.ai_title || n.title || sourceName(n)}
-                    fallbackLabel={laneLabel(n.topic_lane)}
+                    fallbackLabel={
+                      newsIsEventAnnouncement(n)
+                        ? "Event announcement"
+                        : laneLabel(n.topic_lane)
+                    }
                   />
                 ) : (
                   <TypographicCover
                     title={n.ai_title || n.title || sourceName(n)}
-                    label={laneLabel(n.topic_lane)}
+                    label={
+                      newsIsEventAnnouncement(n)
+                        ? "Event announcement"
+                        : laneLabel(n.topic_lane)
+                    }
                   />
                 )}
               </div>
@@ -625,7 +640,9 @@ const News = ({ initialPage }: NewsProps = {}) => {
                     color: "var(--site-accent-ink, var(--brand-accent))",
                   }}
                 >
-                  {laneLabel(n.topic_lane)}
+                  {newsIsEventAnnouncement(n)
+                    ? "Event announcement"
+                    : laneLabel(n.topic_lane)}
                 </span>
                 <h3
                   className="font-display mb-2 transition-colors duration-300 group-hover:text-[var(--site-accent-ink,var(--brand-accent))]"
@@ -637,7 +654,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                 >
                   {n.ai_title || n.title}
                 </h3>
-                {(n.ai_summary || n.raw_excerpt) && (
+                {newsCardExcerpt(n) && (
                   <p
                     className="font-body mb-3"
                     style={{
@@ -650,7 +667,7 @@ const News = ({ initialPage }: NewsProps = {}) => {
                       overflow: "hidden",
                     }}
                   >
-                    {n.ai_summary || n.raw_excerpt}
+                    {newsCardExcerpt(n)}
                   </p>
                 )}
                 <div

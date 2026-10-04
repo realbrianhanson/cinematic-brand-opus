@@ -4,14 +4,16 @@ import type { SiteConfig } from "@/config/types";
 import { testimonialCopy } from "@/components/testimonials/copy";
 import TestimonialGroupSection from "@/components/testimonials/TestimonialGroupSection";
 import TestimonialWall from "@/components/testimonials/TestimonialWall";
+import TestimonialQuoteCard from "@/components/testimonials/TestimonialQuoteCard";
+import TestimonialNote from "@/components/testimonials/TestimonialNote";
 
 type HomepageTestimonials = NonNullable<SiteConfig["homepageTestimonials"]>;
 type CommunityItem = HomepageTestimonials["items"][number];
 
 /**
- * Homepage testimonials. A preset with `groups` gets the grouped layout: the
- * groups, the short-lines wall, then `items` in a collapsed list. A preset
- * with only `items` renders exactly as it always has.
+ * Grouped testimonials lead with three short quotes. The native disclosure
+ * retains the complete groups, screenshots, wall and community list.
+ * Presets with only `items` retain their original layout.
  */
 export default function HomeTestimonials() {
   const { homepageTestimonials } = useSiteConfig();
@@ -29,6 +31,12 @@ function GroupedTestimonials({
 }) {
   const headingId = useId();
   const { overline, heading, intro, groups = [], wall, items } = testimonials;
+  const preview = [
+    ...groups.flatMap((group) => group.items.slice(0, 1)),
+    ...groups.flatMap((group) =>
+      group.items.filter((item) => !item.screenshot),
+    ),
+  ].slice(0, 3);
   return (
     <section
       id="testimonials"
@@ -54,15 +62,39 @@ function GroupedTestimonials({
             </p>
           )}
         </header>
-        <div className="space-y-16 lg:space-y-20">
-          {groups.map((group) => (
-            <TestimonialGroupSection key={group.id} group={group} />
+        <div className="grid gap-5 md:grid-cols-3" data-testimonial-preview>
+          {preview.map((item) => (
+            <TestimonialQuoteCard
+              key={item.attribution}
+              item={item}
+              variant="card"
+            />
           ))}
-          {wall && wall.items.length > 0 && <TestimonialWall wall={wall} />}
         </div>
-        {items.length > 0 && (
-          <CommunityQuotes items={items} spacing="mt-16 lg:mt-20" />
-        )}
+        {groups
+          .filter((group) => group.disclosure)
+          .map((group) => (
+            <TestimonialNote key={group.id} className="mt-6">
+              {group.disclosure ?? ""}
+            </TestimonialNote>
+          ))}
+        <details
+          className="mt-8 border-t border-white/15 pt-5"
+          data-testimonial-collection
+        >
+          <summary className="w-fit cursor-pointer font-body text-sm font-semibold text-[var(--brand-accent)] marker:text-[var(--brand-accent)]">
+            See all community stories
+          </summary>
+          <div className="mt-10 space-y-16 lg:space-y-20">
+            {groups.map((group) => (
+              <TestimonialGroupSection key={group.id} group={group} />
+            ))}
+            {wall && wall.items.length > 0 && <TestimonialWall wall={wall} />}
+          </div>
+          {items.length > 0 && (
+            <CommunityQuotes items={items} spacing="mt-16 lg:mt-20" />
+          )}
+        </details>
       </div>
     </section>
   );

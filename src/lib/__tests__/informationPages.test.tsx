@@ -58,7 +58,7 @@ describe("new visitor and customer information pages", () => {
     expect(owner).toContain('href="/first-ai-build"');
     expect(owner).toContain("No email required");
     expect(remix).not.toContain("/first-ai-build");
-    expect(JSON.stringify(brianPreset.nav)).toContain("/first-ai-build");
+    expect(JSON.stringify(brianPreset.nav)).not.toContain("Free Resources");
     expect(JSON.stringify(brianPreset.footer)).toContain("/first-ai-build");
     expect(JSON.stringify(memberPreset)).not.toContain("/first-ai-build");
   });

@@ -7,6 +7,7 @@ import {
 } from "./brianTestimonials";
 const brianHeadshot = "/brian-headshot.webp";
 
+const freeAgentUrl = "https://agents.aiforbusiness.com/free-agent";
 const freeSummitUrl = "https://go.aiforbusiness.com/summit?_go=brian60";
 
 /**
@@ -70,47 +71,17 @@ export const brianPreset: SiteConfig = {
   nav: {
     items: [
       { label: "Shop", href: "/shop" },
-      {
-        label: "Free Resources",
-        children: [
-          {
-            label: "Start Here",
-            href: "/start-here",
-            description: "Find the right next step",
-          },
-          {
-            label: "Your First AI Build",
-            href: "/first-ai-build",
-            description: "Get a free project plan and build prompt",
-          },
-          {
-            label: "Guides & Resources",
-            href: "/resources",
-            description: "Practical ideas you can put to work",
-          },
-          {
-            label: "Articles",
-            href: "/blog",
-            description: "Go deeper on the topics that matter",
-          },
-          {
-            label: "AI News",
-            href: "/news",
-            description: "See what’s changing and why it matters",
-          },
-        ],
-      },
       { label: "About Brian", href: "/about" },
       { label: "Speaking", href: "/speaking" },
     ],
     hashLinks: [],
     routeLinks: [],
     cta: {
-      label: "Free AI Summit",
-      href: freeSummitUrl,
+      label: "Free Agent Webinar",
+      href: freeAgentUrl,
       external: true,
     },
-    mobileCtaLabel: "Free 3-Day AI Summit →",
+    mobileCtaLabel: "Free Agent Webinar",
   },
 
   hero: {
@@ -120,17 +91,16 @@ export const brianPreset: SiteConfig = {
       { text: "in your business.", gold: true, italic: true },
     ],
     subtitle:
-      "Make better marketing. Get time back. Build the tools your business needs. I’ll show you how to put AI to work—without a coding background.",
+      "Start with your own personal agent. In my free beginner webinar, I’ll walk you through the setup and show how I use agents in my business.",
     primaryCta: {
-      label: "Join Free 3-Day AI Summit",
-      // Tagged here because the hero component itself stays untouched.
-      href: summitHref(freeSummitUrl, "hero"),
+      label: "Join the Free Agent Webinar",
+      href: freeAgentUrl,
       external: true,
     },
     secondaryCta: { label: "Explore Tools & Training", href: "/shop" },
-    socialProof: "150,000+ in the AI For Business community",
-    videoSrc: "/videos/hero-bg.mp4",
-    posterSrc: "/videos/hero-poster.jpg",
+    socialProof: null,
+    videoSrc: null,
+    posterSrc: "/portraits/brian-studio-authority-v1.png",
   },
 
   proofBadges: [
@@ -312,12 +282,8 @@ export const brianPreset: SiteConfig = {
     intro:
       "The AI articles and business workflows worth trying this week, in one email",
     privacyNote: "No spam. Unsubscribe in one click",
-    secondaryCta: {
-      label: "Join the Free 3-Day AI Summit",
-      href: freeSummitUrl,
-      external: true,
-    },
-    secondaryCtaLabel: "Prefer to learn live?",
+    secondaryCta: null,
+    secondaryCtaLabel: null,
   },
 
   featuredResources: {

@@ -48,12 +48,15 @@ export default function SiteChat() {
         ref={trigger}
         type="button"
         onClick={() => setOpen((value) => !value)}
+        aria-label={open ? "Close chat" : "Ask a question"}
         aria-expanded={open}
         aria-controls={open ? "site-chat-panel" : undefined}
-        className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--brand-accent)] px-5 py-3 font-body text-sm font-bold text-[var(--brand-backdrop)] shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
+        className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--brand-accent)] px-3 py-3 sm:px-5 font-body text-sm font-bold text-[var(--brand-backdrop)] shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-accent)]"
       >
         <MessageCircle size={18} aria-hidden="true" />
-        {open ? "Close chat" : "Ask a question"}
+        <span className="hidden sm:inline">
+          {open ? "Close chat" : "Ask a question"}
+        </span>
       </button>
     </div>
   );

@@ -50,7 +50,7 @@ function markup(page: React.ReactNode, config: SiteConfig = brianPreset) {
 }
 
 describe("authority home and dedicated speaking journey", () => {
-  it("explains the primary event and makes offers reachable before the full testimonial wall", () => {
+  it("prioritizes beginner training and offers while retaining the summit later", () => {
     const offer: ShopOffer = {
       id: "fixture",
       slug: "example-training",
@@ -71,7 +71,7 @@ describe("authority home and dedicated speaking journey", () => {
       shop_featured: true,
     };
     const html = markup(<Index shopShowcase={[offer]} />);
-    expect(html.indexOf('id="event"')).toBeLessThan(
+    expect(html.indexOf('id="event"')).toBeGreaterThan(
       html.indexOf('id="testimonials"'),
     );
     expect(html.indexOf('id="shop"')).toBeLessThan(
@@ -87,8 +87,8 @@ describe("authority home and dedicated speaking journey", () => {
     expect(html).not.toContain('aria-label="Speaking inquiry"');
     expect(html).toContain('href="/shop"');
     expect(html).toContain("https://go.aiforbusiness.com/summit?_go=brian60");
-    expect(html).toContain('poster="/videos/hero-poster.jpg"');
-    expect(brianPreset.hero.videoSrc).toBe("/videos/hero-bg.mp4");
+    expect(html).toContain('src="/portraits/brian-studio-authority-v1.png"');
+    expect(brianPreset.hero.videoSrc).toBeNull();
     expect(html).not.toContain("cursor-dot");
     expect(html).not.toMatch(
       /<(?:h[1-6]|p|form|section|main|header)[^>]*style="[^"]*opacity:0(?:;|")/,

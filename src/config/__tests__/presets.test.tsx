@@ -61,11 +61,11 @@ describe("live preset", () => {
     expect(() => validateSiteConfig(brianPreset)).not.toThrow();
   });
 
-  it("keeps existing identity and calls to action intact", () => {
+  it("keeps owner identity and prioritizes the free beginner webinar", () => {
     expect(brianPreset.identity.name).toBe("Brian Hanson");
     expect(brianPreset.identity.siteUrl).toBe("https://brianhanson.com");
     expect(brianPreset.hero.primaryCta?.href).toBe(
-      "https://go.aiforbusiness.com/summit?_go=brian60&utm_source=brianhanson.com&utm_medium=site&utm_campaign=summit&utm_content=hero",
+      "https://agents.aiforbusiness.com/free-agent",
     );
     expect(brianPreset.proofBadges.length).toBeGreaterThan(0);
     expect(brianPreset.results.length).toBe(3);

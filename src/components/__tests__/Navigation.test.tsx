@@ -7,6 +7,7 @@ import {
   render,
   screen,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { SiteConfigContext } from "@/config/SiteConfigContext";
 import { brianPreset } from "@/config/presets/brian";
@@ -54,83 +55,37 @@ function mount(config: SiteConfig = brianPreset) {
   );
 }
 describe("public navigation journeys", () => {
-  it("groups discovery beneath Free Resources in the intended main-menu order", () => {
+  it("keeps the desktop menu concise and resource discovery in the footer configuration", () => {
     mount();
     const nav = screen.getByRole("navigation", { name: "Main navigation" });
-    const groups = nav.querySelectorAll("details");
-    expect(groups).toHaveLength(1);
-    expect(groups[0].querySelector("summary")?.textContent).toBe(
-      "Free Resources",
-    );
+    expect(within(nav).queryByText("Free Resources")).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Resources" })).toBeNull();
     expect(
-      Array.from(groups[0].querySelectorAll("a")).map((link) =>
-        link.getAttribute("href"),
-      ),
-    ).toEqual([
-      "/start-here",
-      "/first-ai-build",
-      "/resources",
-      "/blog",
-      "/news",
-    ]);
-    const allText = nav.textContent || "";
-    expect(allText.indexOf("Shop")).toBeLessThan(
-      allText.indexOf("Free Resources"),
-    );
-    expect(allText.indexOf("Free Resources")).toBeLessThan(
-      allText.indexOf("About Brian"),
-    );
-    expect(allText.indexOf("About Brian")).toBeLessThan(
-      allText.indexOf("Speaking"),
-    );
-    expect(within(nav).queryByText("Expertise")).toBeNull();
+      brianPreset.footer.routeLinks.some((link) => link.href === "/resources"),
+    ).toBe(true);
     expect(
-      within(nav)
-        .getByRole("link", { name: "Free AI Summit" })
-        .getAttribute("href"),
-    ).toBe(
-      "https://go.aiforbusiness.com/summit?_go=brian60&utm_source=brianhanson.com&utm_medium=site&utm_campaign=summit&utm_content=nav",
-    );
+      within(nav).getByRole("link", { name: "Shop" }).getAttribute("href"),
+    ).toBe("/shop");
   });
-  it("closes resource disclosure on Escape, focus-away and outside interaction", () => {
-    mount();
-    const detail = document.querySelector("details")!;
-    const summary = detail.querySelector("summary")!;
-    detail.open = true;
-    fireEvent.keyDown(detail, { key: "Escape" });
-    expect(detail.open).toBe(false);
-    expect(document.activeElement).toBe(summary);
-    detail.open = true;
-    fireEvent.blur(detail, {
-      relatedTarget: screen.getByRole("link", { name: "Shop" }),
-    });
-    expect(detail.open).toBe(false);
-    detail.open = true;
-    fireEvent.pointerDown(document.body);
-    expect(detail.open).toBe(false);
-  });
-  it("makes mobile resource destinations usable and closes the drawer after selection", async () => {
+  it("keeps the mobile menu concise and closes it after navigation", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     const dialog = screen.getByRole("dialog", { name: "Site menu" });
-    const detail = dialog.querySelector("details")!;
-    fireEvent.click(detail.querySelector("summary")!);
-    expect(detail.open).toBe(true);
-    fireEvent.click(within(dialog).getByRole("link", { name: /Start Here/ }));
+    expect(within(dialog).queryByText("Free Resources")).toBeNull();
+    fireEvent.click(within(dialog).getByRole("link", { name: "Shop" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.body.style.overflow).toBe("");
   });
-  it("closes the mobile disclosure before closing the containing drawer with Escape", () => {
+  it("closes the mobile drawer with Escape and restores trigger focus", async () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
-    const dialog = screen.getByRole("dialog", { name: "Site menu" });
-    const detail = dialog.querySelector("details")!;
-    fireEvent.click(detail.querySelector("summary")!);
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(detail.open).toBe(false);
-    expect(screen.getByRole("dialog", { name: "Site menu" })).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Open menu" }),
+      ),
+    );
   });
   it("sends About Brian to the dedicated /about page", () => {
     mount();

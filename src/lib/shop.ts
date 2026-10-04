@@ -81,3 +81,13 @@ export function shopHref(input: ShopFilters): string {
 }
 export const escapeShopSearch = (text: string) =>
   text.replace(/[\\%_]/g, "\\$&");
+
+/** Brian’s deliberate learning order; independent of editorial update times. */
+export function sortOwnerOffers(offers: ShopOffer[]): ShopOffer[] {
+  const order = ["personal-agent-webinar", "app-building-workshop", "pushten"];
+  const priority = (slug: string) => {
+    const index = order.indexOf(slug);
+    return index < 0 ? order.length : index;
+  };
+  return [...offers].sort((a, b) => priority(a.slug) - priority(b.slug));
+}

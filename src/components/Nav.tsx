@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { summitHref } from "@/lib/summitLink";
+import { isSummitUrl, summitHref } from "@/lib/summitLink";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
@@ -381,7 +381,9 @@ const Nav = ({ loaded = true }: NavProps) => {
                 />
                 <a
                   href={summitHref(nav.cta.href, "nav")}
-                  data-conversion-destination="summit"
+                  data-conversion-destination={
+                    isSummitUrl(nav.cta.href) ? "summit" : "external_resource"
+                  }
                   data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}
                   rel={nav.cta.external ? "noopener noreferrer" : undefined}
@@ -474,7 +476,9 @@ const Nav = ({ loaded = true }: NavProps) => {
               <div className="px-8 pb-10">
                 <a
                   href={summitHref(nav.cta.href, "nav")}
-                  data-conversion-destination="summit"
+                  data-conversion-destination={
+                    isSummitUrl(nav.cta.href) ? "summit" : "external_resource"
+                  }
                   data-conversion-placement="nav"
                   target={nav.cta.external ? "_blank" : undefined}
                   rel={nav.cta.external ? "noopener noreferrer" : undefined}

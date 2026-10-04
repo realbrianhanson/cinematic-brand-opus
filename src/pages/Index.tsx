@@ -12,6 +12,8 @@ import Footer from "@/components/Footer";
 import HomeResources from "@/components/HomeResources";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import HomeShop from "@/components/HomeShop";
+import HomeSummit from "@/components/HomeSummit";
+import { isBrianOwner } from "@/lib/informationPages";
 import type { ShopOffer } from "@/lib/shop";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 
@@ -20,7 +22,9 @@ export default function Index({
 }: {
   shopShowcase?: ShopOffer[];
 }) {
-  const { sections } = useSiteConfig();
+  const config = useSiteConfig();
+  const { sections } = config;
+  const owner = isBrianOwner(config);
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
     if (!hash) return;
@@ -39,14 +43,15 @@ export default function Index({
       <main id="main-content">
         <Hero />
         {sections.proofBar && <ProofBar />}
-        {sections.event && <EventCTA />}
+        {sections.event && !owner && <EventCTA />}
         <HomeShop offers={shopShowcase} />
         <HomeTestimonials />
         {sections.story && <Story />}
-        {sections.expertise && <Expertise />}
+        {sections.expertise && !owner && <Expertise />}
         {sections.results && <Stats />}
         {sections.speaking && <Speaking />}
-        <HomeResources />
+        {owner && sections.event && <HomeSummit />}
+        {!owner && <HomeResources />}
         {sections.newsletter && <FinalCTA />}
       </main>
       <Footer />

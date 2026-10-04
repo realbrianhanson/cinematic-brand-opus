@@ -4,9 +4,12 @@ import Footer from "@/components/Footer";
 import SpeakingInquiry from "@/components/SpeakingInquiry";
 import SpeakingTestimonials from "@/components/testimonials/SpeakingTestimonials";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import { isBrianOwner } from "@/lib/informationPages";
 
 export default function SpeakingPage() {
-  const { speaking, identity, hero, proofBadges } = useSiteConfig();
+  const config = useSiteConfig();
+  const { speaking, identity, hero, proofBadges } = config;
+  const eventVideo = hero.videoSrc ?? (isBrianOwner(config) ? "/videos/hero-bg.mp4" : null);
   const emailBooking = /^mailto:/i.test(speaking.bookingCta?.href || "");
   return (
     <div className="public-site min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] text-white">
@@ -125,7 +128,7 @@ export default function SpeakingPage() {
             </ol>
           </div>
         </section>
-        {hero.videoSrc && (
+        {eventVideo && (
           <section className="mx-auto max-w-[1440px] px-6 py-16 lg:px-14 lg:py-24">
             <div className="mb-7 flex items-center gap-3">
               <Play
@@ -136,7 +139,7 @@ export default function SpeakingPage() {
               <h2 className="font-display text-3xl">A look inside the room</h2>
             </div>
             <video
-              src={hero.videoSrc}
+              src={eventVideo}
               poster={hero.posterSrc || undefined}
               controls
               playsInline
@@ -145,7 +148,7 @@ export default function SpeakingPage() {
               data-theme-media
               className="aspect-video max-h-[650px] w-full border border-white/15 bg-black"
             >
-              <a href={hero.videoSrc}>Watch event footage</a>
+              <a href={eventVideo}>Watch event footage</a>
             </video>
           </section>
         )}

@@ -1,10 +1,15 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "@/lib/router-compat";
+import { sortOwnerOffers } from "@/lib/shop";
 import type { ShopOffer } from "@/lib/shop";
 import OfferCard from "./OfferCard";
-import OfferBuildExample from "./OfferBuildExample";
+import { useSiteConfig } from "@/config/SiteConfigContext";
+import { isBrianOwner } from "@/lib/informationPages";
 
 export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
+  const config = useSiteConfig();
+  const owner = isBrianOwner(config);
+  const orderedOffers = owner ? sortOwnerOffers(offers) : offers;
   if (!offers.length) return null;
   return (
     <section
@@ -21,17 +26,17 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
             id="home-shop-heading"
             className="mt-5 max-w-2xl font-display text-4xl leading-[1.04] text-white sm:text-5xl lg:text-6xl"
           >
-            Your next step,
+            Start free.
             <br />
             <span className="italic text-[var(--brand-accent)]">
-              ready when you are
+              Build from there.
             </span>
           </h2>
         </div>
         <div className="max-w-sm">
           <p className="mb-5 text-sm leading-relaxed text-white/70">
-            Training, resources, and tools you can make your own. Start free and
-            build from there
+            Set up your personal agent, learn to build an app, or choose
+            templates for your next project.
           </p>
           <Link
             to="/shop"
@@ -43,9 +48,9 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
         </div>
       </div>
       <div
-        className={`grid gap-6 ${offers.length === 1 ? "max-w-2xl" : offers.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}
+        className={`grid gap-6 ${offers.length === 1 ? "max-w-2xl" : offers.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"}`}
       >
-        {offers.map((offer) => (
+        {orderedOffers.map((offer) => (
           <OfferCard
             key={offer.id}
             offer={offer}
@@ -54,7 +59,18 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
           />
         ))}
       </div>
-      <OfferBuildExample offers={offers} />
+      {owner && (
+        <p className="mt-7 text-sm text-white/70">
+          Not sure where to begin?{" "}
+          <Link
+            to="/first-ai-build"
+            className="underline underline-offset-4 text-[var(--brand-accent)]"
+          >
+            Plan your first useful AI build
+          </Link>
+          .
+        </p>
+      )}
     </section>
   );
 }

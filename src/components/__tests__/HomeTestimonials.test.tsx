@@ -37,11 +37,16 @@ const shotOf = (name: string) =>
   SCREENSHOTS.find((item) => item.attribution === name)!.screenshot!;
 
 function renderHome(config: SiteConfig = grouped) {
-  return render(
+  const rendered = render(
     <SiteConfigContext.Provider value={config}>
       <HomeTestimonials />
     </SiteConfigContext.Provider>,
   );
+  const collection = document.querySelector<HTMLDetailsElement>(
+    "[data-testimonial-collection]",
+  );
+  if (collection) collection.open = true;
+  return rendered;
 }
 function markup(config: SiteConfig = grouped) {
   return renderToStaticMarkup(
@@ -60,6 +65,27 @@ const wall = () =>
 afterEach(cleanup);
 
 describe("grouped homepage testimonials", () => {
+  it("initially shows three short quotes and retains every original story in a native disclosure", () => {
+    const doc = new DOMParser().parseFromString(markup(), "text/html");
+    const collection = doc.querySelector<HTMLDetailsElement>(
+      "[data-testimonial-collection]",
+    )!;
+    expect(collection.hasAttribute("open")).toBe(false);
+    expect(collection.querySelector("summary")?.textContent).toBe(
+      "See all community stories",
+    );
+    expect(
+      doc
+        .querySelector("[data-testimonial-preview]")
+        ?.querySelectorAll("figure"),
+    ).toHaveLength(3);
+    for (const item of [
+      ...SPEC_RESULTS,
+      ...SPEC_NOT_A_TECHIE,
+      ...SPEC_COMMUNITY,
+    ])
+      expect(collection.textContent).toContain(item.attribution);
+  });
   it("keeps the section anchor and a short header", () => {
     renderHome();
     const section = document.getElementById("testimonials")!;
@@ -301,7 +327,7 @@ describe("grouped homepage testimonials", () => {
 
   it("keeps the six earlier quotes in a collapsed community list", () => {
     renderHome();
-    const details = document.querySelector("#testimonials details")!;
+    const details = document.querySelector("#testimonials details details")!;
     expect((details as HTMLDetailsElement).open).toBe(false);
     expect(details.querySelector("summary")?.textContent).toBe(
       testimonialCopy.moreFromCommunity,

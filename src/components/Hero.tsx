@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowDown, Pause, Play, Users } from "lucide-react";
 import { useSiteConfig } from "@/config/SiteConfigContext";
+import { isBrianOwner } from "@/lib/informationPages";
+import { isSummitUrl } from "@/lib/summitLink";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 
 interface HeroProps {
@@ -8,7 +10,9 @@ interface HeroProps {
 }
 
 export default function Hero({ loaded: _loaded = true }: HeroProps) {
-  const { hero, identity } = useSiteConfig();
+  const config = useSiteConfig();
+  const { hero, identity } = config;
+  const owner = isBrianOwner(config);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -45,7 +49,7 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
       className="relative isolate flex min-h-[min(900px,100svh)] items-center overflow-hidden bg-[var(--site-surface,var(--brand-backdrop))]"
     >
       <div
-        className="hero-background-media absolute inset-0 -z-20"
+        className={`hero-background-media absolute inset-0 -z-20 ${owner ? "max-md:bottom-auto max-md:h-[370px]" : ""}`}
         aria-hidden="true"
       >
         {hero.posterSrc && (
@@ -53,9 +57,13 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
             src={hero.posterSrc}
             alt=""
             fetchPriority="high"
-            className="absolute h-full w-full object-cover object-[65%_center]"
+            className={`absolute h-full w-full object-cover ${owner ? "object-right md:object-center" : "object-[65%_center]"}`}
             style={{
-              opacity: videoReady ? 0 : "var(--hero-poster-opacity, .6)",
+              opacity: videoReady
+                ? 0
+                : owner
+                  ? 1
+                  : "var(--hero-poster-opacity, .6)",
             }}
           />
         )}
@@ -80,13 +88,15 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
       </div>
       <div
         aria-hidden="true"
-        className="hero-background-scrim absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.96)_0%,rgba(var(--brand-backdrop-rgb),.83)_40%,rgba(var(--brand-backdrop-rgb),.2)_100%)] max-md:bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.92),rgba(var(--brand-backdrop-rgb),.7))]"
+        className={`hero-background-scrim absolute inset-0 -z-10 ${owner ? "bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.28),transparent_70%)] max-md:bg-[linear-gradient(180deg,transparent_18%,rgba(var(--brand-backdrop-rgb),.3)_32%,var(--brand-backdrop)_44%)]" : "bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.96)_0%,rgba(var(--brand-backdrop-rgb),.83)_40%,rgba(var(--brand-backdrop-rgb),.2)_100%)] max-md:bg-[linear-gradient(90deg,rgba(var(--brand-backdrop-rgb),.92),rgba(var(--brand-backdrop-rgb),.7))]"}`}
       />
       <div
         aria-hidden="true"
         className="hero-background-fade absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-gradient-to-t from-[var(--brand-backdrop)] to-transparent"
       />
-      <div className="mx-auto w-full max-w-[1440px] px-6 pb-24 pt-36 lg:px-14 lg:pb-32 lg:pt-44">
+      <div
+        className={`mx-auto w-full max-w-[1440px] px-6 lg:px-14 ${owner ? "pb-14 pt-[340px] md:py-40" : "pb-24 pt-36 lg:pb-32 lg:pt-44"}`}
+      >
         {hero.overline && (
           <p className="mb-7 flex items-center gap-3 font-body text-xs font-semibold uppercase tracking-[.17em] text-[var(--brand-accent)]">
             <span className="h-px w-9 bg-current" aria-hidden="true" />
@@ -95,9 +105,11 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
         )}
         <h1
           aria-label={hero.headlineLines.map((line) => line.text).join(" ")}
-          className="max-w-[1000px] font-display text-white"
+          className={`${owner ? "max-w-[680px]" : "max-w-[1000px]"} font-display text-white`}
           style={{
-            fontSize: "clamp(3.15rem, 7.8vw, 7rem)",
+            fontSize: owner
+              ? "clamp(2.9rem, 7.4vw, 6.8rem)"
+              : "clamp(3.15rem, 7.8vw, 7rem)",
             lineHeight: 0.99,
             letterSpacing: "-.035em",
           }}
@@ -119,7 +131,11 @@ export default function Hero({ loaded: _loaded = true }: HeroProps) {
           {hero.primaryCta && (
             <a
               href={hero.primaryCta.href}
-              data-conversion-destination="summit"
+              data-conversion-destination={
+                isSummitUrl(hero.primaryCta.href)
+                  ? "summit"
+                  : "external_resource"
+              }
               data-conversion-placement="hero"
               target={hero.primaryCta.external ? "_blank" : undefined}
               rel={hero.primaryCta.external ? "noopener noreferrer" : undefined}

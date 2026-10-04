@@ -141,3 +141,42 @@ export function newsSourceLabel(
     ? item.source_name
     : "Original source";
 }
+
+/** Display only: source records and their detail URLs remain available. */
+export function publicNewsItems<T extends NewsCandidate>(
+  items: readonly T[],
+): T[] {
+  const summaries = new Set<string>();
+  return uniqueNewsItems(items).filter((item) => {
+    const key = newsHeadlineIdentity(item.ai_summary || item.raw_excerpt || "");
+    // A short generic sentence is not enough evidence to merge separate reports.
+    if (key.length < 160) return true;
+    if (summaries.has(key)) return false;
+    summaries.add(key);
+    return true;
+  });
+}
+
+/** Show complete sentences only; never manufacture the missing source text. */
+export function newsCardExcerpt(item: NewsCandidate): string {
+  const text = (item.ai_summary || item.raw_excerpt || "").trim();
+  if (!text || /[.!?][”"')\]]?$/.test(text)) return text;
+  const end = [...text.matchAll(/[.!?][”"')\]]?(?=\s|$)/g)].at(-1);
+  return end ? text.slice(0, end.index! + end[0].length) : "";
+}
+
+/** Conservative label for explicit publisher event promotions, not event reporting. */
+export function newsIsEventAnnouncement(item: NewsCandidate): boolean {
+  const title = item.ai_title || item.title || "";
+  return (
+    /\b(?:register|tickets?|early[ -]bird|last chance|join us|save your seat|call for speakers|apply to (?:speak|exhibit)|agenda (?:is )?(?:live|announced))\b/i.test(
+      title,
+    ) ||
+    (/\b(?:techcrunch disrupt|techcrunch (?:founder|startup)|strictlyvc)\b/i.test(
+      title,
+    ) &&
+      /\b(?:announc|event|stage|speaker|lineup|discount|save|coming|countdown|days? left)/i.test(
+        title,
+      ))
+  );
+}

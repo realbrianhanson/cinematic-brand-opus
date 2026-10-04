@@ -9,7 +9,6 @@ import type {
   PublicNewsItem,
 } from "@/lib/publicTypes";
 import type { Tables, Json } from "@/integrations/supabase/types";
-import { useSiteConfig } from "@/config/SiteConfigContext";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +66,6 @@ const ResourcesIndex = ({
   initialCounts,
   initialSettings,
 }: ResourcesIndexProps = {}) => {
-  const siteConfig = useSiteConfig();
   const [params, setParams] = useSearchParams();
   const term = (params.get("q") || "").slice(0, 200);
   const [input, setInput] = useState(term);
@@ -179,7 +177,9 @@ const ResourcesIndex = ({
             maxWidth: 560,
           }}
         >
-          {siteConfig.content.resourceDescription}
+          Start with a practical guide to using AI in your business. Choose the
+          topic closest to what you want to do, then explore the resources
+          available below.
         </p>
       </header>
 
@@ -289,11 +289,13 @@ const ResourcesIndex = ({
             {guides.length > 0 && (
               <section className="mb-12" aria-label="Start with your goal">
                 <h2 className="font-display text-3xl mb-3">
-                  Start with your goal
+                  {guides.length === 3
+                    ? "Three guides to get started"
+                    : "Start with your goal"}
                 </h2>
                 <p className="text-white/70 mb-6">
-                  Choose a topic, find a practical starting point, and work
-                  through the related guides
+                  Choose a goal and work through its guide. These are the
+                  starting points currently available.
                 </p>
                 <div className="grid md:grid-cols-3 gap-5">
                   {guides.map((g) => (
@@ -310,7 +312,9 @@ const ResourcesIndex = ({
                 </div>
               </section>
             )}
-            <h2 className="font-display text-3xl mb-6">Browse by format</h2>
+            <h2 className="font-display text-3xl mb-6">
+              More available resources
+            </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {schemas
                 ?.filter((s) => (pageCounts?.[s.id] || 0) > 0)

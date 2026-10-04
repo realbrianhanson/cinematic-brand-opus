@@ -4,6 +4,7 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { Link, useNavigate } from "@/lib/router-compat";
+import { sortOwnerOffers } from "@/lib/shop";
 import OfferCard from "@/components/OfferCard";
 import { useSiteConfig } from "@/config/SiteConfigContext";
 import { isBrianOwner } from "@/lib/informationPages";
@@ -203,15 +204,17 @@ export default function Shop({
         </section>
         {catalog.items.length ? (
           <div
-            className={`mt-9 grid gap-6 ${catalog.items.length === 1 ? "max-w-2xl" : catalog.items.length === 2 ? "md:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}
+            className={`mt-9 grid gap-6 ${catalog.items.length === 1 ? "max-w-2xl" : catalog.items.length === 2 ? "md:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}
           >
-            {catalog.items.map((offer) => (
-              <OfferCard
-                key={offer.id}
-                offer={offer}
-                compact={catalog.items.length > 2}
-              />
-            ))}
+            {(owner ? sortOwnerOffers(catalog.items) : catalog.items).map(
+              (offer) => (
+                <OfferCard
+                  key={offer.id}
+                  offer={offer}
+                  compact={catalog.items.length > 2}
+                />
+              ),
+            )}
           </div>
         ) : (
           <section

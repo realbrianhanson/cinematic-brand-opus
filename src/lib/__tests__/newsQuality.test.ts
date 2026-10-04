@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  publicNewsItems,
+  newsCardExcerpt,
+  newsIsEventAnnouncement,
   newsUrlIdentity,
   uniqueNewsItems,
   newsFeedIssue,
@@ -129,5 +132,66 @@ describe("news editorial safeguards", () => {
     expect(
       newsSourceLabel({ url: "invalid", source_name: "Perplexity Daily" }),
     ).toBe("Original source");
+  });
+});
+
+describe("public briefing presentation", () => {
+  it("collapses long repeated summaries while preserving distinct reports and input records", () => {
+    const summary =
+      "Business owners are comparing the new tools before changing their daily workflows. ".repeat(
+        3,
+      );
+    const rows = [
+      story,
+      {
+        ...story,
+        id: "copy",
+        title: "A different headline on the same development",
+        url: "https://other.com/a",
+        raw_excerpt: summary,
+      },
+      {
+        ...story,
+        id: "copy2",
+        title: "Another headline covering this development",
+        url: "https://other.com/b",
+        raw_excerpt: summary,
+      },
+    ];
+    expect(publicNewsItems(rows).map((row) => row.id)).toEqual([
+      "first",
+      "copy",
+    ]);
+    expect(rows).toHaveLength(3);
+  });
+  it("omits unfinished source fragments without inventing their completion", () => {
+    expect(
+      newsCardExcerpt({
+        ...story,
+        raw_excerpt:
+          "Procurement needs a checklist. Organizations leave an average of",
+      }),
+    ).toBe("Procurement needs a checklist.");
+    expect(
+      newsCardExcerpt({
+        ...story,
+        raw_excerpt: "Organizations leave an average of",
+      }),
+    ).toBe("");
+    expect(newsCardExcerpt(story)).toBe(story.raw_excerpt);
+  });
+  it("labels explicit event promotions while leaving reporting on events alone", () => {
+    expect(
+      newsIsEventAnnouncement({
+        ...story,
+        title: "Last chance to register for TechCrunch Disrupt",
+      }),
+    ).toBe(true);
+    expect(
+      newsIsEventAnnouncement({
+        ...story,
+        title: "New scheduling tools announced at a business conference",
+      }),
+    ).toBe(false);
   });
 });
