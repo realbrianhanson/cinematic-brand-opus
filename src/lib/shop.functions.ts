@@ -45,7 +45,7 @@ export const getStartHereOffers = createServerFn({ method: "GET" }).handler(
         .eq("status", "published")
         .eq("show_in_shop", true)
         .eq("funnel_only", false)
-        .in("slug", ["ai-follow-up-starter-kit", "app-building-workshop"])
+        .in("slug", ["personal-agent-webinar", "app-building-workshop"])
         .limit(2)
         .abortSignal(AbortSignal.timeout(5000));
       return error ? [] : ((data || []) as ShopOffer[]);
@@ -68,7 +68,7 @@ export const getFirstAiBuildOffers = createServerFn({ method: "GET" }).handler(
         .in("slug", [
           "app-building-workshop",
           "pushten",
-          "ai-follow-up-starter-kit",
+          "personal-agent-webinar",
         ])
         .limit(3)
         .abortSignal(AbortSignal.timeout(4000));
@@ -222,7 +222,7 @@ export type LeadMagnetOffer = Pick<
 >;
 
 /**
- * The site's free download (for Brian, the AI Follow-Up Starter Kit), offered
+ * The site's optional free native download, offered
  * inside articles. Optional: articles fall back to the newsletter on failure.
  */
 export const getLeadMagnetOffer = createServerFn({ method: "GET" }).handler(

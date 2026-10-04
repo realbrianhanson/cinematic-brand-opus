@@ -38,10 +38,11 @@ const offers = [
   },
   {
     id: "2",
-    slug: "ai-follow-up-starter-kit",
-    title: "Follow-Up Starter Kit",
+    slug: "personal-agent-webinar",
+    title: "Free Personal Agent Webinar",
     kind: "free",
-    summary: "A follow-up guide",
+    summary: "Set up your personal agent",
+    external_url: "https://agents.aiforbusiness.com/free-agent",
   },
   {
     id: "3",
@@ -79,9 +80,9 @@ describe("goal-based visitor paths", () => {
     await setup();
     expect(
       screen
-        .getByRole("link", { name: "Get the free follow-up kit" })
+        .getByRole("link", { name: "Join the free agent webinar" })
         .getAttribute("href"),
-    ).toBe("/offers/ai-follow-up-starter-kit");
+    ).toBe("https://agents.aiforbusiness.com/free-agent");
     expect(screen.queryByText("Unrelated kit")).toBeNull();
     expect(
       screen.getByRole("heading", {

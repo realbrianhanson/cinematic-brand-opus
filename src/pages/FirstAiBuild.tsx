@@ -200,8 +200,7 @@ function PlanResult({
   );
   const pushten = offers.find((offer) => offer.slug === "pushten");
   const followUpKit = offers.find(
-    (offer) =>
-      offer.slug === "ai-follow-up-starter-kit" && offer.kind === "free",
+    (offer) => offer.slug === "personal-agent-webinar" && offer.kind === "free",
   );
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -575,13 +574,13 @@ function PlanResult({
         {plan.projectId === "follow-up" && followUpKit && (
           <p className="mt-4 text-sm">
             <a
-              href="/offers/ai-follow-up-starter-kit"
+              href="https://agents.aiforbusiness.com/free-agent"
               className={`text-[var(--brand-accent)] underline underline-offset-4 ${focusRing}`}
             >
-              Get the free AI Follow-Up Starter Kit
+              Join the free Personal Agent Webinar
             </a>{" "}
             <span className="text-white/65">
-              for more practice with follow-up.
+              to learn how to set up your own personal agent.
             </span>
           </p>
         )}

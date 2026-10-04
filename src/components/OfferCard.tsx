@@ -24,7 +24,11 @@ export default function OfferCard({
   return (
     <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/[0.025] transition-colors hover:border-[var(--brand-accent)]/55">
       <Link
-        to={`/offers/${offer.slug}`}
+        to={
+          offer.slug === "personal-agent-webinar" && offer.external_url
+            ? offer.external_url
+            : `/offers/${offer.slug}`
+        }
         aria-label={`${offer.title} — ${offerPrice(offer)}`}
         className="flex h-full flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--brand-accent)]"
       >
@@ -60,7 +64,9 @@ export default function OfferCard({
               {offerPrice(offer)}
             </span>
             <span className="inline-flex items-center gap-2 text-xs font-semibold text-white/85">
-              {cta[offer.shop_category] || "View details"}
+              {offer.slug === "personal-agent-webinar"
+                ? "Join the free webinar"
+                : cta[offer.shop_category] || "View details"}
               <ArrowUpRight size={17} aria-hidden="true" />
             </span>
           </div>

@@ -39,8 +39,7 @@ export function startHereRecommendation(
   offers: ShopOffer[],
 ) {
   const kit = offers.find(
-    (offer) =>
-      offer.slug === "ai-follow-up-starter-kit" && offer.kind === "free",
+    (offer) => offer.slug === "personal-agent-webinar" && offer.kind === "free",
   );
   const workshop = offers.find(
     (offer) => offer.slug === "app-building-workshop",
@@ -113,9 +112,9 @@ export function startHereRecommendation(
       ? {
           title: kit.title,
           summary: kit.summary,
-          href: `/offers/${kit.slug}`,
-          label: "Get the free follow-up kit",
-          type: "Free resource · see access details",
+          href: kit.external_url || `/offers/${kit.slug}`,
+          label: "Join the free agent webinar",
+          type: "Free beginner webinar",
         }
       : {
           title: "AI for sales and customer service",
