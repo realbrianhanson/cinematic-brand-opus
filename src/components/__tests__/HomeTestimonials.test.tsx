@@ -79,6 +79,28 @@ describe("grouped homepage testimonials", () => {
         .querySelector("[data-testimonial-preview]")
         ?.querySelectorAll("figure"),
     ).toHaveLength(3);
+    const preview = doc.querySelector("[data-testimonial-preview]")!;
+    const susie = SPEC_NOT_A_TECHIE.find(
+      (item) => item.attribution === "Susie Satram",
+    )!;
+    expect(preview.textContent).toContain("I really feel more confident now.");
+    expect(preview.textContent).not.toContain(
+      "Brian really treats all of us like family.",
+    );
+    expect(preview.textContent).toContain(
+      "Excerpt · Full message in the community stories below",
+    );
+    expect(
+      Array.from(collection.querySelectorAll("img")).some(
+        (image) => image.alt === susie.screenshot!.alt,
+      ),
+    ).toBe(true);
+    expect(preview.className).toContain("items-start");
+    expect(
+      Array.from(preview.querySelectorAll("figure")).every((card) =>
+        card.className.includes("h-auto"),
+      ),
+    ).toBe(true);
     for (const item of [
       ...SPEC_RESULTS,
       ...SPEC_NOT_A_TECHIE,

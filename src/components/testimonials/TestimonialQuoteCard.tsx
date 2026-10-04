@@ -8,15 +8,20 @@ import { cn } from "@/lib/utils";
 export default function TestimonialQuoteCard({
   item,
   variant = "card",
+  excerpt = false,
+  compact = false,
 }: {
   item: TestimonialItem;
   variant?: "card" | "feature";
+  excerpt?: boolean;
+  compact?: boolean;
 }) {
   const feature = variant === "feature";
   return (
     <figure
       className={cn(
-        "m-0 flex h-full flex-col",
+        "m-0 flex flex-col",
+        compact ? "h-auto" : "h-full",
         feature
           ? "border-l-2 border-[var(--brand-accent)] bg-[linear-gradient(135deg,rgba(var(--brand-accent-rgb),.08),transparent)] p-7 lg:p-10"
           : "border border-white/10 bg-white/[0.025] p-6 sm:p-7",
@@ -48,6 +53,11 @@ export default function TestimonialQuoteCard({
         </span>
         {item.context && (
           <span className="mt-1 block text-white/70">{item.context}</span>
+        )}
+        {excerpt && (
+          <span className="mt-2 block text-white/70">
+            Excerpt · Full message in the community stories below
+          </span>
         )}
       </figcaption>
     </figure>

@@ -181,6 +181,19 @@ describe("public briefing presentation", () => {
     expect(newsCardExcerpt(story)).toBe(story.raw_excerpt);
   });
   it("labels explicit event promotions while leaving reporting on events alone", () => {
+    for (const title of [
+      "TechCrunch Disrupt 2026’s new Real World AI Stage features Nvidia, robots, and extinct animals",
+      "Discover what’s next for AI, from the SaaS reckoning to the agent security gap, at TechCrunch Disrupt 2026",
+      "TechCrunch Disrupt 2026’s biggest stage features leaders from Amazon, Replit, Tether, with much more to come",
+    ]) {
+      expect(
+        newsIsEventAnnouncement({
+          ...story,
+          title,
+          ai_title: "AI business leaders share their plans",
+        }),
+      ).toBe(true);
+    }
     expect(
       newsIsEventAnnouncement({
         ...story,

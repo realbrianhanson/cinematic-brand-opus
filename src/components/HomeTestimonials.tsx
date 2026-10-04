@@ -62,14 +62,31 @@ function GroupedTestimonials({
             </p>
           )}
         </header>
-        <div className="grid gap-5 md:grid-cols-3" data-testimonial-preview>
-          {preview.map((item) => (
-            <TestimonialQuoteCard
-              key={item.attribution}
-              item={item}
-              variant="card"
-            />
-          ))}
+        <div
+          className="grid items-start gap-5 md:grid-cols-3"
+          data-testimonial-preview
+        >
+          {preview.map((item) => {
+            const excerptEnd = "I really feel more confident now.";
+            const end = item.quote.indexOf(excerptEnd);
+            const excerpt = item.attribution === "Susie Satram" && end >= 0;
+            return (
+              <TestimonialQuoteCard
+                key={item.attribution}
+                item={
+                  excerpt
+                    ? {
+                        ...item,
+                        quote: item.quote.slice(0, end + excerptEnd.length),
+                      }
+                    : item
+                }
+                variant="card"
+                compact
+                excerpt={excerpt}
+              />
+            );
+          })}
         </div>
         {groups
           .filter((group) => group.disclosure)

@@ -56,6 +56,7 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
             offer={offer}
             compact={offers.length > 2}
             headingLevel="h3"
+            showFeatured={!owner}
           />
         ))}
       </div>

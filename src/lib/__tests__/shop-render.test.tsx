@@ -185,7 +185,7 @@ describe("shop browsing", () => {
         .getByRole("link", { name: "Workflow training — $29" })
         .getAttribute("href"),
     ).toBe("/offers/training");
-    expect(screen.getAllByText("Featured")).toHaveLength(1);
+    expect(screen.queryByText("Featured")).toBeNull();
     expect(screen.queryByRole("button", { name: /Buy/ })).toBeNull();
   });
   it("resets pagination on filter/search changes and keeps existing filters", () => {

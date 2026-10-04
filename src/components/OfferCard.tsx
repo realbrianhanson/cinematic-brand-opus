@@ -15,10 +15,12 @@ export default function OfferCard({
   offer,
   compact = false,
   headingLevel = "h2",
+  showFeatured = true,
 }: {
   offer: ShopOffer;
   compact?: boolean;
   headingLevel?: "h2" | "h3";
+  showFeatured?: boolean;
 }) {
   const Heading = headingLevel;
   return (
@@ -42,7 +44,7 @@ export default function OfferCard({
             <span className="text-white/65">
               {SHOP_CATEGORIES[offer.shop_category]}
             </span>
-            {offer.shop_featured && (
+            {showFeatured && offer.shop_featured && (
               <span className="rounded-full border border-[var(--brand-accent)]/25 px-2.5 py-1 text-[var(--brand-accent)]">
                 Featured
               </span>

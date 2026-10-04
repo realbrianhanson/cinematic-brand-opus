@@ -212,6 +212,7 @@ export default function Shop({
                   key={offer.id}
                   offer={offer}
                   compact={catalog.items.length > 2}
+                  showFeatured={!owner}
                 />
               ),
             )}

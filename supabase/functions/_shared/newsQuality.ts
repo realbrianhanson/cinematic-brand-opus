@@ -167,7 +167,10 @@ export function newsCardExcerpt(item: NewsCandidate): string {
 
 /** Conservative label for explicit publisher event promotions, not event reporting. */
 export function newsIsEventAnnouncement(item: NewsCandidate): boolean {
-  const title = item.ai_title || item.title || "";
+  const title = [item.title, item.ai_title].filter(Boolean).join(" ");
+  const eventCopy = [title, item.ai_summary, item.raw_excerpt]
+    .filter(Boolean)
+    .join(" ");
   return (
     /\b(?:register|tickets?|early[ -]bird|last chance|join us|save your seat|call for speakers|apply to (?:speak|exhibit)|agenda (?:is )?(?:live|announced))\b/i.test(
       title,
@@ -175,8 +178,8 @@ export function newsIsEventAnnouncement(item: NewsCandidate): boolean {
     (/\b(?:techcrunch disrupt|techcrunch (?:founder|startup)|strictlyvc)\b/i.test(
       title,
     ) &&
-      /\b(?:announc|event|stage|speaker|lineup|discount|save|coming|countdown|days? left)/i.test(
-        title,
+      /\b(?:announc|event|stage|agenda|speaker|lineup|discount|save|coming|countdown|days? left|exhibit table|discover)/i.test(
+        eventCopy,
       ))
   );
 }
