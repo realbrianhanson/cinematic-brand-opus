@@ -9,7 +9,8 @@ import { isBrianOwner } from "@/lib/informationPages";
 export default function SpeakingPage() {
   const config = useSiteConfig();
   const { speaking, identity, hero, proofBadges } = config;
-  const eventVideo = hero.videoSrc ?? (isBrianOwner(config) ? "/videos/hero-bg.mp4" : null);
+  const eventVideo =
+    hero.videoSrc ?? (isBrianOwner(config) ? "/videos/hero-bg.mp4" : null);
   const emailBooking = /^mailto:/i.test(speaking.bookingCta?.href || "");
   return (
     <div className="public-site min-h-screen bg-[var(--site-surface,var(--brand-backdrop))] text-white">

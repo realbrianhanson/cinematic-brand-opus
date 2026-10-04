@@ -1,0 +1,5 @@
+{
+  // Keep generated Worker behavior within the bundled workerd runtime's support.
+  // Advance this deliberately alongside Wrangler/workerd, rather than build day.
+  "compatibility_date": "2026-09-28",
+}
