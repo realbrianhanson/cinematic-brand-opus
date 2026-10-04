@@ -27,6 +27,7 @@ import type {
 const mock = vi.hoisted(() => ({
   save: vi.fn(),
   load: vi.fn(),
+  connections: vi.fn(),
   upload: vi.fn(),
   navigate: vi.fn(),
   read: vi.fn(),
@@ -56,6 +57,7 @@ vi.mock("@/config/SiteConfigContext", () => ({
 }));
 vi.mock("@/lib/offerBuilderClient", () => ({
   loadOfferBuilder: (...args: unknown[]) => mock.load(...args),
+  loadConnectedOffers: (...args: unknown[]) => mock.connections(...args),
   saveOfferBuilder: (...args: unknown[]) => mock.save(...args),
 }));
 vi.mock("../offers/OfferCopyAssistant", () => ({ default: () => null }));
@@ -244,10 +246,177 @@ beforeEach(() => {
   });
   mock.read.mockResolvedValue({ data: null, error: null });
   mock.load.mockResolvedValue({ draft: null, history: [] });
+  mock.connections.mockResolvedValue([]);
   mock.save.mockRejectedValue(new Error("Network unavailable"));
   mock.upload.mockResolvedValue({ error: null });
 });
 afterEach(cleanup);
+
+describe("guided funnel workflow", () => {
+  beforeEach(() => {
+    let id = 100;
+    vi.mocked(crypto.randomUUID).mockImplementation(
+      () => `33333333-3333-4333-a333-${String(++id).padStart(12, "0")}`,
+    );
+  });
+
+  it("requires authored facts and builds the first draft from the brief", async () => {
+    mount(undefined, "lead-magnet");
+    const preview = screen.getByRole("button", {
+      name: "Preview my first draft",
+    });
+    expect((preview as HTMLButtonElement).disabled).toBe(true);
+    edit("Offer name", "Planning workbook");
+    edit("Short offer description", "A workbook for your next launch.");
+    edit(/^What will they be able to do\?/, "Plan your next launch");
+    edit(/^Why does your approach work\?/, "Follow the five planning prompts.");
+    edit(
+      /^What exactly do they receive\?/,
+      "- Planning worksheet\n- Launch checklist",
+    );
+    fireEvent.click(preview);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Apply draft to selected pages" }),
+    );
+    expect(
+      (screen.getByLabelText("Page headline") as HTMLTextAreaElement).value,
+    ).toBe("Plan your next launch");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "Plan your next launch",
+    );
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+
+  it("creates a private paid bump, preserves its draft details, then saves the parent before opening it", async () => {
+    mock.read.mockResolvedValue({
+      data: { ...row, currency: "cad" },
+      error: null,
+    });
+    mock.save.mockImplementation(async (input: OfferBuilderSaveInput) => ({
+      // New draft rows deliberately remain free/USD shells until publication.
+      offer: { ...row, id: input.offerId, title: input.document.offer.title },
+      draft: {
+        offer_id: input.offerId,
+        document: input.document,
+        version: 1,
+        updated_at: row.updated_at,
+        base_offer_updated_at: row.updated_at,
+      },
+      revision_id: `revision-${input.offerId}`,
+      published: false,
+    }));
+    mount(row.id);
+    await loaded();
+    navigateStep("Order bump");
+    fireEvent.click(screen.getByRole("button", { name: "Create order bump" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Offer name"), {
+      target: { value: "Bonus pack" },
+    });
+    fireEvent.change(
+      within(dialog).getByLabelText("What will this help them do?"),
+      { target: { value: "Use a launch checklist." } },
+    );
+    fireEvent.change(within(dialog).getByLabelText("Price (CAD)"), {
+      target: { value: "19.99" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Create draft & attach" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const child = mock.save.mock.calls[0][0] as OfferBuilderSaveInput;
+    expect(child.publish).toBe(false);
+    expect(child.document.offer).toMatchObject({
+      title: "Bonus pack",
+      kind: "paid",
+      currency: "cad",
+      amount_minor: 1999,
+      show_in_shop: false,
+    });
+    expect(
+      (screen.getByLabelText("Checkout extra") as HTMLSelectElement).value,
+    ).toBe(child.offerId);
+    expect(
+      within(screen.getByLabelText("Checkout extra")).getByRole("option", {
+        name: "Bonus pack (draft)",
+      }),
+    ).toBeTruthy();
+    expect(mock.navigate).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save funnel & edit Bonus pack" }),
+    );
+    await waitFor(() => expect(mock.navigate).toHaveBeenCalled());
+    expect(mock.save.mock.calls[1][0]).toMatchObject({
+      offerId: row.id,
+      publish: false,
+      document: { offer: { bump_offer_id: child.offerId, currency: "cad" } },
+    });
+    expect(mock.navigate).toHaveBeenCalledWith(
+      `/admin/offers/${child.offerId}/edit?parent=${row.id}&relation=bump`,
+    );
+  });
+
+  it("keeps the parent open when its save fails before editing a connected step", async () => {
+    const childId = "55555555-5555-4555-a555-555555555555";
+    const child = { ...row, id: childId, title: "Follow-up pack" };
+    mock.read.mockResolvedValue({
+      data: { ...row, next_offer_id: childId },
+      error: null,
+    });
+    mock.connections.mockResolvedValue([{ offer: child, document: null }]);
+    mount(row.id);
+    await loaded();
+    navigateStep("Order bump");
+    const open = await screen.findByRole("button", {
+      name: "Save funnel & edit Follow-up pack",
+    });
+    fireEvent.click(open);
+    await screen.findByRole("alert");
+    expect(mock.navigate).not.toHaveBeenCalled();
+    expect(
+      (screen.getByLabelText("Follow-up offer") as HTMLSelectElement).value,
+    ).toBe(childId);
+  });
+
+  it("blocks leaving while a connected draft save is uncertain", async () => {
+    existing();
+    await loaded();
+    navigateStep("Order bump");
+    mock.save.mockRejectedValueOnce(new Error("Connection interrupted"));
+    fireEvent.click(screen.getByRole("button", { name: "Create upsell" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Offer name"), {
+      target: { value: "Next step" },
+    });
+    fireEvent.change(
+      within(dialog).getByLabelText("What will this help them do?"),
+      { target: { value: "Apply the plan." } },
+    );
+    fireEvent.change(within(dialog).getByLabelText("Price (USD)"), {
+      target: { value: "29" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Create draft & attach" }),
+    );
+    await within(dialog).findByRole("button", { name: "Retry the same save" });
+    const guard = mock.blocker.mock.lastCall?.[0] as {
+      shouldBlockFn: () => boolean;
+      enableBeforeUnload: () => boolean;
+    };
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    expect(guard.shouldBlockFn()).toBe(true);
+    expect(guard.enableBeforeUnload()).toBe(true);
+    expect(
+      (
+        within(dialog).getByRole("button", {
+          name: "Cancel",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(mock.navigate).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+});
 
 describe("offer starter initialization", () => {
   function uniqueSections() {
@@ -1527,7 +1696,9 @@ describe("offer builder defect regressions", () => {
       ["id", row.id],
       ["updated_at", row.updated_at],
     ]);
-    expect(screen.getByText(/Draft · private/)).toBeTruthy();
+    expect(
+      screen.getByText(/Draft · private, not visible to visitors/),
+    ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Archive: Useful guide" }),
     ).toBeTruthy();
