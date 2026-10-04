@@ -101,7 +101,7 @@ describe("shop catalog boundaries", () => {
     expect(mocks.calls).toContainEqual([
       "in",
       "slug",
-      ["app-building-workshop", "pushten", "ai-follow-up-starter-kit"],
+      ["app-building-workshop", "pushten", "personal-agent-webinar"],
     ]);
     expect(mocks.calls).toContainEqual(["limit", 3]);
     expect(mocks.calls.some(([method]) => method === "abortSignal")).toBe(true);
@@ -121,7 +121,7 @@ describe("shop catalog boundaries", () => {
     expect(mocks.calls).toContainEqual([
       "in",
       "slug",
-      ["ai-follow-up-starter-kit", "app-building-workshop"],
+      ["personal-agent-webinar", "app-building-workshop"],
     ]);
     expect(mocks.calls).toContainEqual(["limit", 2]);
     mocks.response.error = { message: "Unavailable" };
