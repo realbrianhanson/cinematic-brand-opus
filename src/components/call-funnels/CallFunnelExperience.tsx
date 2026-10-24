@@ -454,8 +454,12 @@ function Experience({
     }
   }
   const { showcase, results } = useCallShowcase(publication.slug);
+  // A published video takes the hero; the portrait then moves to the host card.
+  const heroVideo = !!config.invitation.video.url;
   const portrait =
-    config.brand.hostImage && callUrl(config.brand.hostImage, true)
+    !heroVideo &&
+    config.brand.hostImage &&
+    callUrl(config.brand.hostImage, true)
       ? config.brand.hostImage
       : "";
   const showcaseQuotes = showcase?.testimonials ?? [];
@@ -579,7 +583,9 @@ function Experience({
       <main ref={pageRef} className="cf-main">
         {(stage === "invitation" || stage === "application") && (
           <>
-            <section className={`cf-hero${portrait ? " has-portrait" : ""}`}>
+            <section
+              className={`cf-hero${heroVideo ? " has-video" : portrait ? " has-portrait" : ""}`}
+            >
               <div className="cf-hero-copy">
                 {config.invitation.audience && (
                   <p className="cf-kicker">{config.invitation.audience}</p>
@@ -590,6 +596,20 @@ function Experience({
                 )}
                 {cta}
               </div>
+              {heroVideo && (
+                <div className="cf-hero-video">
+                  {config.invitation.watchPrompt && (
+                    <p className="cf-watch-prompt">
+                      {config.invitation.watchPrompt}
+                    </p>
+                  )}
+                  <CallVideo
+                    media={config.invitation.video}
+                    title="Invitation video"
+                    preview={preview}
+                  />
+                </div>
+              )}
               {portrait && (
                 <figure className="cf-hero-portrait">
                   <img
@@ -621,7 +641,8 @@ function Experience({
                 <ResultsRow results={results} />
               </div>
             )}
-            {(preview || !!config.invitation.video.url) && (
+            {/* The builder preview keeps an empty slot so owners see where a video goes. */}
+            {preview && !heroVideo && (
               <section className="cf-video-section cf-wide">
                 {config.invitation.watchPrompt && (
                   <p className="cf-watch-prompt">

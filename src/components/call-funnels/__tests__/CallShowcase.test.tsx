@@ -178,6 +178,37 @@ describe("call funnel showcase", () => {
   });
 });
 
+describe("hero video", () => {
+  it("puts a published video in the hero and moves the portrait to the host card", () => {
+    const pub = publication();
+    pub.config.invitation.video = {
+      ...pub.config.invitation.video,
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    };
+    const { container } = renderWithSite(
+      <CallFunnelExperience publication={pub} />,
+    );
+    const hero = container.querySelector(".cf-hero")!;
+    expect(hero.className).toContain("has-video");
+    expect(hero.querySelector(".cf-hero-video .cf-media")).toBeTruthy();
+    expect(hero.querySelector(".cf-hero-portrait")).toBeNull();
+    expect(container.querySelector(".cf-video-section")).toBeNull();
+    expect(
+      container.querySelector(".cf-host-card img")?.getAttribute("src"),
+    ).toBe("/host.webp");
+  });
+
+  it("keeps the portrait in the hero until a video is published", () => {
+    const { container } = renderWithSite(
+      <CallFunnelExperience publication={publication()} />,
+    );
+    expect(container.querySelector(".cf-hero")!.className).toContain(
+      "has-portrait",
+    );
+    expect(container.querySelector(".cf-hero-video")).toBeNull();
+  });
+});
+
 describe("application form layout", () => {
   it("puts short answer lists in two columns and opens the phone keypad", () => {
     renderWithSite(<CallFunnelExperience publication={publication()} />);

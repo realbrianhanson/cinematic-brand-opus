@@ -317,6 +317,16 @@ html[data-site-theme="light"] .call-funnel[data-cf-theme="site"] {
   gap: 72px;
   align-items: center;
 }
+.call-funnel .cf-hero.has-video {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 56px;
+  align-items: center;
+}
+.call-funnel .cf-hero-video .cf-watch-prompt {
+  font-size: 15px;
+  color: var(--cf-muted);
+}
 .call-funnel .cf-kicker {
   font-size: 16px;
   font-weight: 600;
@@ -1711,6 +1721,13 @@ html[data-site-theme="light"]
   .call-funnel .cf-hero.has-portrait {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
     gap: 40px;
+  }
+  .call-funnel .cf-hero.has-video {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .call-funnel .cf-hero.has-video h1 {
+    max-width: 20ch;
   }
   .call-funnel .cf-stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
