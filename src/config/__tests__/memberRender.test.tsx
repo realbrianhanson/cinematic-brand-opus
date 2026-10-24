@@ -83,7 +83,7 @@ describe("a different member identity actually renders", () => {
       "Hanson",
       "aiforbeginners",
       "Inc. 5000",
-      "150,000",
+      "200,000",
       "brian-headshot",
       'href="#"',
     ])

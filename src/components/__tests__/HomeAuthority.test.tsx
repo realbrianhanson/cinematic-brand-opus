@@ -118,7 +118,7 @@ describe("authority home and dedicated speaking journey", () => {
     expect(html).not.toContain('id="speaking"');
     expect(html).not.toContain('id="story"');
     expect(html).not.toContain('id="event"');
-    expect(html).not.toContain("150,000");
+    expect(html).not.toContain("200,000");
     expect(html).not.toContain("brian-headshot");
     expect(html).not.toContain('aria-label="Speaking inquiry"');
   });

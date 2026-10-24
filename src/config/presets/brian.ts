@@ -107,7 +107,7 @@ export const brianPreset: SiteConfig = {
 
   proofBadges: [
     "4× Inc. 5000 · Real Advisors",
-    "150,000+ AI For Business community",
+    "200,000+ AI For Business community",
     "3,000+ Revven users",
   ],
 
@@ -144,7 +144,7 @@ export const brianPreset: SiteConfig = {
         tag: "Teach",
         time: "AI For Business & Revven",
         accent: true,
-        text: "Today, AI For Business brings together a community of 150,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. I share the practical lessons so you can start applying them to your own business",
+        text: "Today, AI For Business brings together a community of 200,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. I share the practical lessons so you can start applying them to your own business",
       },
     ],
     pullQuote:

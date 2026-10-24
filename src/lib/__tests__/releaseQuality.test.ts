@@ -35,7 +35,7 @@ describe("member runtime branding", () => {
     expect(next.metadata.googleSiteVerification).toBeNull();
     expect(next.metadata.faviconHref).toBeNull();
     expect(JSON.stringify(next)).not.toMatch(
-      /brianhanson|aiforbeginners|150,000/,
+      /brianhanson|aiforbeginners|200,000/,
     );
     expect(absoluteUrl("/blog", next)).toBe("https://mira.example/blog");
     expect(pageTitle("Guides", next)).toBe("Guides | Mira Design");

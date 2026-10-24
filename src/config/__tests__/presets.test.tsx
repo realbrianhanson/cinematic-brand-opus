@@ -12,7 +12,7 @@ const BRIAN_MARKERS = [
   "aiforbeginners.com",
   "go.aiforbusiness.com/summit",
   "Inc. 5000",
-  "150,000",
+  "200,000",
   "Revven",
   "$50M",
 ];
