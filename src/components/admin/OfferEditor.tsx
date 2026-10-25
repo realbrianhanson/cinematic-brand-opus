@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -49,10 +49,12 @@ import {
 import { offerChanges, sameOfferContent } from "@/lib/offerBuilderDiff";
 import {
   loadOfferBuilder,
+  loadConnectedOffers,
   saveOfferBuilder,
   type OfferBuilderLoadResult,
   type OfferBuilderDocument,
   type OfferBuilderSaveInput,
+  type OfferBuilderSaveResult,
 } from "@/lib/offerBuilderClient";
 import type { OfferStatusChange, OfferStatusRow } from "@/lib/offersStatus";
 import { statusChangeCopy } from "@/lib/offersStatus";
@@ -78,6 +80,18 @@ import {
   offerStarterLabels,
   type OfferStarter,
 } from "@/lib/offerStarters";
+import OfferDraftStarter from "./offers/OfferDraftStarter";
+import OfferTemplatePicker from "./offers/OfferTemplatePicker";
+import OfferFunnelMap from "./offers/OfferFunnelMap";
+import OfferConnectedStepDialog from "./offers/OfferConnectedStepDialog";
+import OfferLaunchReadiness from "./offers/OfferLaunchReadiness";
+import { assessOfferLaunchReadiness } from "@/lib/offerLaunchReadiness";
+import {
+  connectedOfferView,
+  type ConnectedOffer,
+  type OfferConnection,
+  type OfferParent,
+} from "@/lib/offerWorkspace";
 
 const workflow: { id: OfferStep; title: string; detail: string }[] = [
   { id: "strategy", title: "Strategy", detail: "Buyer, promise & proof" },
@@ -109,9 +123,13 @@ function draftIsStale(initial: Offer | null, saved: OfferBuilderLoadResult) {
 export default function OfferEditor({
   id,
   starter,
+  parent,
+  initialStep,
 }: {
   id?: string;
   starter?: OfferStarter;
+  parent?: OfferParent;
+  initialStep?: OfferStep;
 }) {
   const [reset, setReset] = useState(0);
   // Context carried from the new-offer route (notice, step, unsaved copy).
@@ -166,6 +184,8 @@ export default function OfferEditor({
       savedBuilder={offer.data?.builderState || { draft: null, history: [] }}
       handoff={reset === 0 ? handoff : null}
       starter={id ? undefined : starter}
+      parent={parent}
+      initialStep={initialStep}
       reload={async () => {
         const result = await offer.refetch();
         if (result.error) throw result.error;
@@ -180,12 +200,16 @@ function OfferForm({
   savedBuilder,
   handoff,
   starter,
+  parent,
+  initialStep,
   reload,
 }: {
   initial: Offer | null;
   savedBuilder: OfferBuilderLoadResult;
   handoff: OfferHandoff | null;
   starter?: OfferStarter;
+  parent?: OfferParent;
+  initialStep?: OfferStep;
   reload: () => Promise<void>;
 }) {
   const navigate = useNavigate();
@@ -212,7 +236,7 @@ function OfferForm({
     () => handoff?.builder || savedPages,
   );
   const [step, setStep] = useState<OfferStep>(
-    handoff?.step || (initial ? "pages" : "strategy"),
+    handoff?.step || initialStep || (initial ? "pages" : "strategy"),
   );
   const headerRef = useRef<HTMLElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
@@ -227,9 +251,15 @@ function OfferForm({
     }
   }, [step]);
   const [stage, setStage] = useState<PageStage>(() =>
-    selectedStarter === "upsell" ? "upsell" : "landing",
+    selectedStarter === "upsell" || (parent && parent.relation !== "bump")
+      ? "upsell"
+      : "landing",
   );
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [mapOpen, setMapOpen] = useState(initialStep === "next");
+  useEffect(() => {
+    if (step === "next") setMapOpen(true);
+  }, [step]);
   const [history, setHistory] = useState(savedBuilder.history);
   const [staleDraft, setStaleDraft] = useState(
     () => !handoff?.form && draftIsStale(initial, savedBuilder),
@@ -272,6 +302,26 @@ function OfferForm({
   const [manualSlug, setManualSlug] = useState(!!initial && !!form.slug);
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [creatingConnection, setCreatingConnection] =
+    useState<OfferConnection | null>(null);
+  const [createdConnections, setCreatedConnections] = useState<
+    ConnectedOffer[]
+  >([]);
+  const [connectionProtection, setConnectionProtection] = useState({
+    busy: false,
+    pending: false,
+    dirty: false,
+  });
+  const connectionCurrent = useRef(connectionProtection);
+  const receiveConnectionProtection = useCallback(
+    (state: typeof connectionProtection) => {
+      connectionCurrent.current = state;
+      setConnectionProtection(state);
+    },
+    [],
+  );
+  const connectionLocked =
+    connectionProtection.busy || connectionProtection.pending;
   const dirty =
     serialize(form, builder) !== baseline.current || evidenceState.dirty;
   const external = form.checkoutMode === "external";
@@ -292,14 +342,20 @@ function OfferForm({
   useBlocker({
     shouldBlockFn: () => {
       if (leaving.current) return false;
-      if (busy.current || evidenceCurrent.current.busy) {
+      if (
+        busy.current ||
+        evidenceCurrent.current.busy ||
+        connectionCurrent.current.busy ||
+        connectionCurrent.current.pending
+      ) {
         window.alert(
-          "Wait for the current save or upload to finish before leaving.",
+          "Finish or confirm the current save or upload before leaving. Retry an uncertain connected-step save to confirm its result.",
         );
         return true;
       }
       return (
         (evidenceCurrent.current.dirty ||
+          connectionCurrent.current.dirty ||
           serialize(current.current, currentBuilder.current) !==
             baseline.current) &&
         !window.confirm("Leave this offer? Your unsaved changes will be lost.")
@@ -310,6 +366,9 @@ function OfferForm({
       (busy.current ||
         evidenceCurrent.current.busy ||
         evidenceCurrent.current.dirty ||
+        connectionCurrent.current.busy ||
+        connectionCurrent.current.pending ||
+        connectionCurrent.current.dirty ||
         serialize(current.current, currentBuilder.current) !==
           baseline.current),
   });
@@ -336,6 +395,41 @@ function OfferForm({
     staleTime: 30000,
     retry: false,
   });
+  const connectedIds = [
+    form.bumpOffer,
+    form.nextOffer,
+    form.downsellOffer,
+  ].filter(Boolean);
+  const connections = useQuery({
+    queryKey: ["admin-connected-offers", ...connectedIds],
+    enabled: !external && connectedIds.length > 0,
+    queryFn: () => loadConnectedOffers(connectedIds),
+    retry: false,
+  });
+  const connectedRows = [
+    ...createdConnections.filter(
+      (item) =>
+        !connections.data?.some((fresh) => fresh.offer.id === item.offer.id),
+    ),
+    ...(connections.data ?? []),
+  ];
+  const allChoices = [
+    ...(choices.data ?? []).filter(
+      (item) =>
+        !connectedRows.some((connected) => connected.offer.id === item.id),
+    ),
+    ...connectedRows.map((item) => ({
+      ...connectedOfferView(item),
+      hasUnpublishedDraft:
+        !!item.document &&
+        item.offer.status === "published" &&
+        !sameOfferContent(item.offer, {
+          ...item.offer,
+          ...item.document.offer,
+          presentation: item.document.builder.presentation,
+        }),
+    })),
+  ];
   const selectedNextOffer = useQuery({
     queryKey: ["admin-offer-follow-up-preview", form.nextOffer],
     enabled: !external && !!form.nextOffer,
@@ -369,7 +463,7 @@ function OfferForm({
     },
   });
   const qualifyingParents =
-    choices.data?.filter(
+    allChoices.filter(
       (offer) =>
         (offer.next_offer_id === savedId ||
           offer.downsell_offer_id === savedId ||
@@ -377,7 +471,7 @@ function OfferForm({
         offer.status === "published",
     ) || [];
   const offerTitle = (offerId: string) =>
-    choices.data?.find((item) => item.id === offerId)?.title || "";
+    allChoices.find((item) => item.id === offerId)?.title || "";
   const pagesIssues = builderIssues(builder);
   const draftIssues = [...draftPayload(form).issues, ...pagesIssues];
   const publishIssues = [
@@ -387,7 +481,7 @@ function OfferForm({
     form.bumpOffer &&
     !choices.isPending &&
     !choices.isError &&
-    !choices.data?.some(
+    !allChoices.some(
       (item) =>
         item.id === form.bumpOffer &&
         item.id !== savedId &&
@@ -483,8 +577,16 @@ function OfferForm({
     else setError(errorMessage(failure));
   }
 
-  async function save(publish = false) {
-    if (busy.current) return;
+  async function save(
+    publish = false,
+    openConnected?: { id: string; relation: OfferConnection },
+  ) {
+    if (
+      busy.current ||
+      connectionCurrent.current.busy ||
+      connectionCurrent.current.pending
+    )
+      return;
     if (evidenceCurrent.current.busy || evidenceCurrent.current.dirty) {
       setError(
         "Save or discard your evidence edits in Strategy before saving this offer. Evidence is saved separately.",
@@ -566,6 +668,18 @@ function OfferForm({
         offer: result.offer,
         builderState: { draft: result.draft, history: nextHistory },
       });
+      if (openConnected) {
+        saveOfferHandoff(result.offer.id, {
+          notice: savedNotice,
+          step: "next",
+        });
+        busy.current = false;
+        leaving.current = true;
+        navigate(
+          `/admin/offers/${openConnected.id}/edit?parent=${result.offer.id}&relation=${openConnected.relation}`,
+        );
+        return;
+      }
       if (!initial) {
         busy.current = false;
         saveOfferHandoff(result.offer.id, { notice: savedNotice, step });
@@ -584,6 +698,8 @@ function OfferForm({
   }
 
   function requestPublish() {
+    if (connectionCurrent.current.busy || connectionCurrent.current.pending)
+      return;
     setError("");
     setIssues([]);
     setNotice("");
@@ -750,6 +866,8 @@ function OfferForm({
   async function reloadSaved() {
     if (
       busy.current ||
+      connectionCurrent.current.busy ||
+      connectionCurrent.current.pending ||
       (dirty &&
         !window.confirm(
           "Reload the saved version and discard your unsaved changes?",
@@ -763,7 +881,7 @@ function OfferForm({
     }
   }
 
-  const bumpChoice = choices.data?.find(
+  const bumpChoice = allChoices.find(
     (item) =>
       item.id === form.bumpOffer &&
       item.status === "published" &&
@@ -797,11 +915,56 @@ function OfferForm({
     updated_at: initial?.updated_at || "",
   };
   const advice = reviewOffer(builder, previewOffer);
+  const recipeContext = {
+    strategy: builder.strategy,
+    offer: {
+      title: form.title,
+      summary: form.summary,
+      kind: form.kind,
+      checkout_mode: form.checkoutMode,
+    },
+  };
   const stepIndex = workflow.findIndex((item) => item.id === step);
-  const nextChoice = choices.data?.find((item) => item.id === form.nextOffer);
+  const nextChoice = allChoices.find((item) => item.id === form.nextOffer);
   const latest = history[0];
   const unpublishedDraft =
     savedStatus === "published" && !!latest && !latest.published;
+  const launch = assessOfferLaunchReadiness({
+    status: savedId ? savedStatus : null,
+    hasUnpublishedChanges: dirty || unpublishedDraft,
+    checkoutMode: form.checkoutMode,
+    kind: form.kind,
+    assetPath: form.assetPath,
+    assetName: form.assetName,
+    amountMinor: /^\d+(?:\.\d{1,2})?$/.test(form.price.trim())
+      ? Math.round(Number(form.price) * 100)
+      : NaN,
+    externalUrl: form.externalUrl,
+    health,
+  });
+  function connectionCreated(result: OfferBuilderSaveResult) {
+    const relation = creatingConnection;
+    if (!relation) return;
+    setCreatedConnections((old) => [
+      ...old.filter((item) => item.offer.id !== result.offer.id),
+      { offer: result.offer, document: result.draft.document },
+    ]);
+    patchForm(
+      relation === "bump"
+        ? { bumpOffer: result.offer.id }
+        : relation === "upsell"
+          ? { nextOffer: result.offer.id, downsellOffer: "" }
+          : { downsellOffer: result.offer.id },
+    );
+    receiveConnectionProtection({ busy: false, pending: false, dirty: false });
+    setCreatingConnection(null);
+    setStep("next");
+    setNotice(
+      "New step saved as a private draft and attached to your working funnel. Save this funnel to keep the connection; finish and publish the new step before launch.",
+    );
+    void qc.invalidateQueries({ queryKey: ["admin-offer-choices"] });
+    void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+  }
   const publishChanges = confirmPublish
     ? offerChanges(
         liveOffer.current,
@@ -814,6 +977,14 @@ function OfferForm({
     <div className="admin-page-stack">
       <header ref={headerRef} className="admin-page-header">
         <div>
+          {parent && (
+            <Link
+              className="admin-btn-secondary mb-3"
+              to={`/admin/offers/${parent.id}/edit?view=connections`}
+            >
+              Back to parent funnel
+            </Link>
+          )}
           <Link className="admin-btn-ghost -ml-3 mb-2" to="/admin/offers">
             <ArrowLeft size={15} /> All offers
           </Link>
@@ -864,7 +1035,7 @@ function OfferForm({
           <button
             type="button"
             className="admin-btn-secondary"
-            disabled={saving || uploading}
+            disabled={saving || uploading || connectionLocked}
             onClick={() => void save()}
           >
             {saving ? <Loader2 className="animate-spin" size={16} /> : null}{" "}
@@ -874,7 +1045,7 @@ function OfferForm({
             <button
               type="button"
               className="admin-btn-primary"
-              disabled={saving || uploading || staleDraft}
+              disabled={saving || uploading || staleDraft || connectionLocked}
               onClick={requestPublish}
             >
               Publish changes
@@ -883,7 +1054,7 @@ function OfferForm({
             <button
               type="button"
               className="admin-btn-primary"
-              disabled={saving || uploading}
+              disabled={saving || uploading || connectionLocked}
               onClick={() => setStep("review")}
             >
               Review & publish <ArrowRight size={16} />
@@ -891,6 +1062,48 @@ function OfferForm({
           )}
         </div>
       </header>
+      <OfferLaunchReadiness
+        assessment={launch}
+        onGo={setStep}
+        onRetry={() => void health.refetch()}
+        checking={health.isFetching}
+        disabled={saving || uploading || connectionLocked}
+        compact
+      />
+      <details
+        open={mapOpen}
+        onToggle={(event) => setMapOpen(event.currentTarget.open)}
+        className="rounded-lg border border-[hsl(var(--admin-border))]"
+      >
+        <summary className="cursor-pointer px-5 py-3 font-semibold">
+          Funnel steps · create, connect and edit
+        </summary>
+        <OfferFunnelMap
+          form={form}
+          choices={allChoices}
+          onGo={(next, page) => {
+            setStep(next);
+            if (page) setStage(page);
+          }}
+          onCreate={setCreatingConnection}
+          onEdit={(relation, id) => void save(false, { relation, id })}
+          disabled={saving || uploading || connectionLocked}
+          choicesPending={choices.isPending}
+          choicesError={choices.isError}
+        />
+      </details>
+      {connections.isError && (
+        <p role="alert" className="admin-notice">
+          Connected draft details could not be loaded.{" "}
+          <button
+            type="button"
+            className="admin-btn-ghost"
+            onClick={() => void connections.refetch()}
+          >
+            Retry connected drafts
+          </button>
+        </p>
+      )}
       {error && (
         <div
           role="alert"
@@ -953,7 +1166,7 @@ function OfferForm({
         </div>
       )}
       <fieldset
-        disabled={saving || uploading}
+        disabled={saving || uploading || connectionLocked}
         className="grid min-w-0 gap-6 2xl:grid-cols-[160px_minmax(0,1fr)]"
       >
         <nav
@@ -1035,20 +1248,95 @@ function OfferForm({
                 builder={builder}
                 stage={effectiveStage}
                 device={device}
-                nextOffer={external ? null : selectedNextOffer.data}
-                downsellOffer={external ? null : selectedDownsell.data}
+                nextOffer={
+                  external
+                    ? null
+                    : connectedRows.find(
+                          (item) => item.offer.id === form.nextOffer,
+                        )
+                      ? (connectedOfferView(
+                          connectedRows.find(
+                            (item) => item.offer.id === form.nextOffer,
+                          )!,
+                        ) as PublicOffer)
+                      : selectedNextOffer.data
+                }
+                downsellOffer={
+                  external
+                    ? null
+                    : connectedRows.find(
+                          (item) => item.offer.id === form.downsellOffer,
+                        )
+                      ? (connectedOfferView(
+                          connectedRows.find(
+                            (item) => item.offer.id === form.downsellOffer,
+                          )!,
+                        ) as PublicOffer)
+                      : selectedDownsell.data
+                }
                 followUpWindowMinutes={Number(form.window) || 0}
               />
             </div>
           </section>
           <div className="order-1 min-w-0 space-y-6 xl:order-2">
             <div hidden={step !== "strategy"} className="space-y-6">
-              <OfferStrategyFields
-                value={builder.strategy}
-                onChange={(strategy) =>
-                  setBuilder((old) => ({ ...old, strategy }))
+              <OfferDraftStarter
+                value={builder}
+                initialStage={
+                  effectiveStage === "upsell" ? "upsell" : "landing"
                 }
+                context={recipeContext}
+                onEditBrief={() => {
+                  setStep("strategy");
+                  document
+                    .getElementById("offer-brief")
+                    ?.scrollIntoView?.({ block: "start" });
+                }}
+                onApply={(draft, message) => {
+                  setBuilder(draft);
+                  setNotice(message);
+                  setStep("pages");
+                }}
               />
+              <div id="offer-brief">
+                <section className="admin-card mb-5 space-y-4 p-5">
+                  <h2 className="font-semibold text-lg">Name your offer</h2>
+                  <label className="block text-sm font-medium">
+                    Offer name
+                    <input
+                      className="admin-input mt-2"
+                      maxLength={160}
+                      value={form.title}
+                      onChange={(event) => {
+                        const title = event.target.value;
+                        setForm((old) => ({
+                          ...old,
+                          title,
+                          slug: manualSlug ? old.slug : slugify(title),
+                        }));
+                      }}
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    Short offer description
+                    <textarea
+                      className="admin-input mt-2"
+                      maxLength={500}
+                      rows={2}
+                      value={form.summary}
+                      onChange={(event) =>
+                        update("summary", event.target.value)
+                      }
+                    />
+                  </label>
+                </section>
+                <OfferStrategyFields
+                  value={builder.strategy}
+                  onChange={(strategy) =>
+                    setBuilder((old) => ({ ...old, strategy }))
+                  }
+                />
+              </div>
               <OfferProofLibrary
                 recoveryKey={initial?.id || "new-offer"}
                 onStateChange={setEvidenceState}
@@ -1165,14 +1453,20 @@ function OfferForm({
                 </section>
               ) : (
                 <>
+                  <OfferTemplatePicker
+                    value={builder.presentation[effectiveStage]}
+                    context={recipeContext}
+                    stage={effectiveStage}
+                    onApply={(page, message) => {
+                      updatePage(page, effectiveStage);
+                      setNotice(message);
+                    }}
+                  />
                   <OfferPageFields
                     key={effectiveStage}
                     value={builder.presentation[effectiveStage]}
                     stage={effectiveStage}
-                    recipeContext={{
-                      strategy: builder.strategy,
-                      offer: previewOffer,
-                    }}
+                    recipeContext={recipeContext}
                     onChange={(page) => updatePage(page, effectiveStage)}
                   />
                   <OfferCopyAssistant
@@ -1295,7 +1589,7 @@ function OfferForm({
               form={form}
               external={external}
               savedId={savedId}
-              choices={choices.data}
+              choices={allChoices}
               choicesPending={choices.isPending}
               choicesError={choices.isError}
               previewError={
@@ -1374,9 +1668,6 @@ function OfferForm({
                 </div>
                 <OfferJourneyReadiness
                   external={external}
-                  paid={form.kind === "paid"}
-                  health={health}
-                  onRetry={() => void health.refetch()}
                   hasFollowUp={!!form.nextOffer}
                   followUpStatus={nextChoice?.status}
                 />
@@ -1439,6 +1730,7 @@ function OfferForm({
                 dirty={dirty}
                 funnelOnly={!external && form.funnelOnly}
                 onNotice={setNotice}
+                readinessNotice={launch.notice}
               />
               <OfferRevisionHistory
                 history={history}
@@ -1475,9 +1767,14 @@ function OfferForm({
         title="Publish these changes?"
         description="Visitors see the new pages, price, delivery and follow-up as soon as you publish. Existing orders keep their original price and download."
         warning={
-          liveOffer.current?.status === "archived"
-            ? "This offer is archived. Publishing makes it public again and returns it to the Shop if Shop visibility is on."
-            : undefined
+          [
+            liveOffer.current?.status === "archived"
+              ? "This offer is archived. Publishing makes it public again and returns it to the Shop if Shop visibility is on."
+              : "",
+            launch.notice,
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined
         }
         changes={publishChanges}
         noChanges="Price, page URL, download file, checkout and follow-up stay the same. Your page copy and other settings will be updated."
@@ -1489,6 +1786,23 @@ function OfferForm({
         onConfirm={() => void save(true)}
         onCancel={() => setConfirmPublish(false)}
       />
+      {creatingConnection && (
+        <OfferConnectedStepDialog
+          relation={creatingConnection}
+          parentCurrency={form.currency}
+          parentTitle={form.title}
+          onCreated={connectionCreated}
+          onClose={() => {
+            setCreatingConnection(null);
+            receiveConnectionProtection({
+              busy: false,
+              pending: false,
+              dirty: false,
+            });
+          }}
+          onProtectionChange={receiveConnectionProtection}
+        />
+      )}
     </div>
   );
 }

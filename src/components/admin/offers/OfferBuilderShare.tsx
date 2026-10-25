@@ -10,6 +10,7 @@ export default function OfferBuilderShare({
   dirty,
   funnelOnly,
   onNotice,
+  readinessNotice,
 }: {
   savedId: string;
   savedSlug: string;
@@ -18,6 +19,7 @@ export default function OfferBuilderShare({
   dirty: boolean;
   funnelOnly: boolean;
   onNotice: (value: string) => void;
+  readinessNotice?: string;
 }) {
   const config = useSiteConfig();
   const linkRef = useRef<HTMLInputElement>(null);
@@ -35,6 +37,11 @@ export default function OfferBuilderShare({
   return (
     <section className="admin-card p-5 space-y-4">
       <h2 className="text-lg font-semibold">Preview & share</h2>
+      {readinessNotice && (
+        <p className="admin-notice" role="note">
+          {readinessNotice}
+        </p>
+      )}
       {savedId ? (
         <>
           <a

@@ -58,6 +58,20 @@ export default function OfferStrategyFields({
   value: OfferStrategy;
   onChange: (value: OfferStrategy) => void;
 }) {
+  const field = ([key, label, hint, maxLength]: (typeof questions)[number]) => (
+    <label key={key} className="block text-sm font-medium">
+      {label}
+      <textarea
+        className="admin-input mt-2 w-full"
+        rows={3}
+        maxLength={maxLength}
+        placeholder={hint}
+        value={value[key]}
+        onChange={(event) => onChange({ ...value, [key]: event.target.value })}
+      />
+      <span className="admin-help mt-1 block">{hint}</span>
+    </label>
+  );
   return (
     <section className="admin-card space-y-5 p-5 md:p-6">
       <div>
@@ -89,22 +103,13 @@ export default function OfferStrategyFields({
           <option value="customer">Existing customers</option>
         </select>
       </label>
-      {questions.map(([key, label, hint, maxLength]) => (
-        <label key={key} className="block text-sm font-medium">
-          {label}
-          <textarea
-            className="admin-input mt-2 w-full"
-            rows={3}
-            maxLength={maxLength}
-            placeholder={hint}
-            value={value[key]}
-            onChange={(event) =>
-              onChange({ ...value, [key]: event.target.value })
-            }
-          />
-          <span className="admin-help mt-1 block">{hint}</span>
-        </label>
-      ))}
+      {questions.slice(0, 5).map(field)}
+      <details className="rounded-lg border border-current/10 p-4">
+        <summary className="cursor-pointer font-medium text-sm">
+          Optional: objections, evidence and traffic message
+        </summary>
+        <div className="mt-4 space-y-5">{questions.slice(5).map(field)}</div>
+      </details>
     </section>
   );
 }

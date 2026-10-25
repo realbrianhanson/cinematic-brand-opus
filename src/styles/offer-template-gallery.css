@@ -1,0 +1,48 @@
+.offer-layout-preview {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--site-ink, #fff) 15%, transparent);
+  border-radius: 0.75rem;
+  background: var(--site-surface, #101011);
+}
+
+.offer-layout-full {
+  max-height: 36rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.offer-layout-thumbnail {
+  height: 17rem;
+  user-select: none;
+  pointer-events: none;
+}
+
+.offer-layout-thumbnail .public-site {
+  padding: 1rem;
+}
+
+.offer-layout-thumbnail :is(h2, h3) {
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.offer-layout-thumbnail :is(p, li, button, summary) {
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+
+.offer-layout-thumbnail :is(li, button) {
+  padding: 0.4rem 0.5rem;
+}
+
+.offer-layout-thumbnail
+  :is(.space-y-8, .space-y-10, .space-y-5, .space-y-4)
+  > :not(:last-child) {
+  margin-block-end: 0.55rem;
+}
+
+.offer-layout-thumbnail svg {
+  width: 0.65rem;
+  height: 0.65rem;
+}

@@ -5,6 +5,7 @@ import {
   type OfferBuilder,
   type OfferProof,
 } from "@/lib/offerBuilder";
+import type { ConnectedOffer } from "./offerWorkspace";
 
 type OfferRow = Database["public"]["Tables"]["offers"]["Row"];
 export type OfferBuilderOffer = Partial<
@@ -169,6 +170,40 @@ export async function listUnpublishedDraftIds(
       .filter((row) => !published.has(`${row.offer_id}:${row.version}`))
       .map((row) => row.offer_id),
   );
+}
+
+/** Load only the three steps connected to this workspace, including private draft details. */
+export async function loadConnectedOffers(
+  offerIds: string[],
+): Promise<ConnectedOffer[]> {
+  const ids = [...new Set(offerIds.filter(Boolean))];
+  if (!ids.length) return [];
+  if (ids.length > 3)
+    throw new Error("A workspace can load up to three connected offers.");
+  const [offers, drafts] = await Promise.all([
+    supabase
+      .from("offers")
+      .select("*")
+      .in("id", ids)
+      .abortSignal(AbortSignal.timeout(15000)),
+    supabase
+      .from("offer_builder_drafts")
+      .select("offer_id,document")
+      .in("offer_id", ids)
+      .abortSignal(AbortSignal.timeout(15000)),
+  ]);
+  if (offers.error) throw offers.error;
+  if (drafts.error) throw drafts.error;
+  const byId = new Map(
+    (drafts.data ?? []).map((row) => [
+      row.offer_id,
+      readDocument(row.document),
+    ]),
+  );
+  return (offers.data ?? []).map((offer) => ({
+    offer,
+    document: byId.get(offer.id) ?? null,
+  }));
 }
 
 /** Reuse requestId with the identical input after an uncertain network failure. */

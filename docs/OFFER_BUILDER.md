@@ -1,8 +1,24 @@
 # Offer builder
 
+**Last updated:** September 27, 2026
+
 The admin offer builder adds private strategy, working copy, page sections, contextual upsell copy, a proof library, revision recovery, and AI copy assistance. Existing offers remain the commerce identity used by checkout, downloads, catalog listings, and historical orders.
 
 For shared market examples and cross-project adaptation notes, see the [Market offer inspiration library](./MARKET_OFFER_LIBRARY.md).
+
+## Build a funnel
+
+Start at **Funnel builder** (`/admin/funnel-builder`) and choose a goal: sell a product, give away a free download, book a call, use external checkout or registration, create a follow-up offer, or build a custom branching funnel. Products, downloads, external offers and follow-up offers open the offer studio described here. Call funnels and custom branching funnels have their own builders.
+
+1. **Name the offer and complete the brief.** In Strategy, enter a name and short description, choose the traffic source, then answer five questions: who it is for, what is getting in their way, what they will be able to do, why the approach works, and what they receive. Optional objections, evidence notes and the sending ad or email message stay private.
+2. **Preview a first draft.** In **Build my first draft**, select the landing page, this product's follow-up presentation, or both, then choose **Preview my first draft**. External offers draft only the local landing page. Review the additions and select **Apply draft to selected pages**. This uses the facts in the brief without AI credits. It fills empty fields, fills empty section copy and adds missing recipe sections while preserving authored copy, proof, media and unselected pages. Add approved testimonials and confirmed FAQ answers yourself. Applying changes only the working copy; choose **Save draft** to keep it.
+3. **Choose a visual layout.** In Pages, **Start with a visual layout** shows sample previews for product sales, free resources, and upsells or downsells. Preview an example, then use the layout to review it with your own offer facts before applying. These are section arrangements using the site's existing colors, typography and public section renderer, not separate site themes. Applying rearranges the selected page and fills its empty content while preserving existing copy, proof and media; extra sections stay before the final action. Sample copy is never copied into your offer. Preview actions are disabled, and neither applying a layout nor a first draft saves or publishes it.
+4. **Connect the rest of the funnel.** Expand **Funnel steps · create, connect and edit** to see the landing page, checkout or free claim, thank-you page, and optional order bump, upsell and downsell. Use **Create order bump**, **Create upsell** or **Create downsell**, or choose an existing offer. Add an upsell before adding its decline alternative. Creating a step saves the child as a private draft and attaches it to the parent's working copy; save the parent to retain that connection. **Save funnel & edit [offer]** saves the parent successfully before opening the child, which includes **Back to parent funnel**. Finish the child's pages, price and download, then publish it before launching the connected offers. The map labels private drafts and unpublished changes; a saved connection alone does not activate an offer.
+5. **Review launch readiness.** Read Page, Checkout or Free claim, and Delivery separately. A published page may still have unavailable paid checkout, missing delivery configuration or newer unpublished edits. Checkout and delivery checks describe the current working draft. **Check setup again** retries unknown setup information; **Offers setup** opens provider configuration. These checks do not place an order, submit a claim, test a file download or verify inbox delivery. Stripe test mode is identified explicitly. External offers show a provider handoff: verify checkout, registration, confirmation and delivery with that provider.
+
+Native customers receive access to the original download before optional follow-ups. An order bump is an explicitly selected paid extra in the same currency; accepting a paid upsell or downsell opens a separate checkout. Declining an upsell can show its configured alternative, and declining that alternative ends the invitation. See [Native checkout extras and decline alternatives](./NATIVE_COMMERCE_BASKETS.md) for the commerce contract.
+
+The guided workflow uses the existing version-1 presentation schema and save API. It adds no backend function or database migration. Core implementation is in `OfferDraftStarter`, `OfferTemplatePicker`, `OfferFunnelMap`, `OfferConnectedStepDialog` and `OfferLaunchReadiness` under `src/components/admin/offers/`, integrated by `src/components/admin/OfferEditor.tsx`.
 
 ## Data and publication
 
@@ -45,9 +61,9 @@ The September 25 polish keeps the existing version-1 schema and requires no new 
 - **Scannable sections:** benefits and deliverables written as `-` lists become inclusion cards; a method list becomes numbered steps. FAQ copy uses `## Question` followed by its confirmed answer to create native expandable questions. Existing prose and mixed body formatting retain the original renderer. Empty recipe placeholders are omitted; if no section has substantive content, the original description remains visible alongside any CTA. The renderer remains text-safe and never interprets arbitrary HTML.
 - **Evidence:** exact testimonial text and public attribution remain editable together. Library facts and demonstrations insert as ordinary evidence text with attribution, not customer quotations. Source URLs and permission notes stay private; only explicitly inserted public text enters the presentation. Selecting evidence for AI does not automatically insert it on a public page.
 - **Action placement:** mobile landing pages show a route to the real offer controls immediately after the headline and promise, before a large cover image. Native pages repeat that route after the sales argument. These controls scroll/focus the existing purchase or download area; they never create an order or initiate a payment. Funnel-only landing pages do not expose standalone action controls, and previews keep actions disabled.
-- **Follow-up clarity:** the builder distinguishes an external provider's journey from native delivery. It explains that accepting a paid follow-up opens separate checkout, declining ends the pitch while retaining the first download, and the timer limits that invitation. A separately available public offer remains available after the invitation expires; the editor warns against describing it as the customer's only chance to buy.
+- **Follow-up clarity:** the builder distinguishes an external provider's journey from native delivery. Accepting a paid follow-up opens separate checkout. Declining shows the configured alternative or ends the pitch, while retaining the first download; the timer limits that invitation. A separately available public offer remains available after the invitation expires; the editor warns against describing it as the customer's only chance to buy.
 
-These changes improve the quality and clarity of the available workflow. They do not add native order bumps, one-click/off-session charges, decline-to-downsell branches or randomized A/B testing. Those require separate commerce, consent, state-transition and attribution contracts, plus payment-provider verification before release.
+The guided page tools change private working copy, not payment capture or experiment assignment. Native order bumps and downsell branches use the separate [commerce contract](./NATIVE_COMMERCE_BASKETS.md); controlled offer tests use the [offer experiments contract](./OFFER_EXPERIMENTS.md). No one-click or off-session charge is implemented.
 
 ### Follow-up council review
 
@@ -73,7 +89,7 @@ AI results are suggestions for the editor. They do not save, publish, change pri
 3. Verify a new private draft, an existing published offer draft, an explicit publication, revision recovery, approved proof selection, and an authenticated AI suggestion in the preview environment.
 4. Confirm old published offers with null presentation, existing checkout/access links, and existing analytics still work. Verify both accept and decline previews without creating orders.
 
-The implementation does not add new payment capture behavior, one-click charges, order bumps, multi-branch funnel execution, or automated split testing. Existing hosted checkout and follow-up routing remain the purchasing flow for this release.
+These offer-builder deployment steps do not activate payment providers, connected journeys or experiments. Existing hosted checkout and follow-up routing remain the purchasing flow; the guided workflow does not add payment capture behavior or one-click charges. Separate contracts cover [native extras and downsells](./NATIVE_COMMERCE_BASKETS.md), [connected journeys](./FUNNEL_JOURNEYS.md) and [offer experiments](./OFFER_EXPERIMENTS.md).
 
 ## Verification
 

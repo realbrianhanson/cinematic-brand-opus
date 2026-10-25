@@ -3,7 +3,8 @@ import OfferStatusActions from "./OfferStatusActions";
 
 const statusText: Record<string, string> = {
   draft: "Draft · private, not visible to visitors",
-  published: "Published · visitors can open and claim it",
+  published:
+    "Published · visitors can open the page; checkout and delivery are checked separately",
   archived: "Archived · hidden from visitors and the Shop",
 };
 
