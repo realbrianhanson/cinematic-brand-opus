@@ -189,7 +189,7 @@ export const brianPreset: SiteConfig = {
       sub: "Highest: #80 in the nation",
     },
     {
-      end: 150,
+      end: 200,
       suffix: "K+",
       label: "Community",
       sub: "AI For Business community",
