@@ -117,15 +117,18 @@ describe("mobile Summit bar", () => {
     expect(screen.queryByRole("region", { name: "Free AI Summit" })).toBeNull();
   });
 
-  it("sits above the measurement pill instead of covering it", () => {
+  it("waits until the measurement prompt is answered", () => {
     const pill = document.createElement("section");
     pill.setAttribute("data-measurement-pill", "");
-    pill.getBoundingClientRect = () => ({ height: 48 }) as DOMRect;
     document.body.appendChild(pill);
     mount();
     scrollPastFirstScreen();
+    expect(screen.queryByRole("region", { name: "Free AI Summit" })).toBeNull();
+    act(() => pill.remove());
+    act(() => window.dispatchEvent(new Event("resize")));
     const region = screen.getByRole("region", { name: "Free AI Summit" });
-    expect(region.style.bottom).toBe("60px");
+    expect(region.textContent).toContain("Free AI Summit");
+    expect(region.textContent).not.toContain("Agent Webinar");
   });
 
   it("never renders when the site has no Summit event", () => {

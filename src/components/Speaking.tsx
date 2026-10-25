@@ -30,7 +30,7 @@ export default function Speaking() {
             href="/speaking"
             className="mt-6 inline-flex min-h-12 items-center gap-4 border-b border-[var(--brand-accent)] font-body text-sm font-semibold text-[var(--brand-accent)] transition-colors hover:text-white"
           >
-            Explore speaking & workshops
+            See speaking topics
             <ArrowUpRight size={20} aria-hidden="true" />
           </a>
         </div>

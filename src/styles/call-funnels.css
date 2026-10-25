@@ -1823,19 +1823,23 @@ html[data-site-theme="light"]
     font-size: 17px;
     min-height: 56px;
   }
+  /* Numbers side by side so the row stays one glance tall on phones. */
   .call-funnel .cf-results {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   }
   .call-funnel .cf-results > li {
-    padding: 18px 0;
-  }
-  .call-funnel .cf-results > li + li {
-    border-left: 0;
-    border-top: 1px solid var(--cf-border);
+    padding: 16px 10px;
   }
   .call-funnel .cf-result-value,
   .call-funnel[data-cf-font="brand"] .cf-result-value {
-    font-size: 40px;
+    font-size: 30px;
+  }
+  .call-funnel .cf-result-label {
+    font-size: 13px;
+  }
+  .call-funnel .cf-result-sub {
+    font-size: 12px;
+    line-height: 1.35;
   }
   .call-funnel .cf-system {
     padding-block: 64px;

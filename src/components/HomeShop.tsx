@@ -35,8 +35,8 @@ export default function HomeShop({ offers }: { offers: ShopOffer[] }) {
         </div>
         <div className="max-w-sm">
           <p className="mb-5 text-sm leading-relaxed text-white/70">
-            Set up your personal agent, learn to build an app, or choose
-            templates for your next project.
+            Set up your personal agent, learn to build an app, or start your
+            next project with PushTen
           </p>
           <Link
             to="/shop"

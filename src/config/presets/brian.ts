@@ -89,24 +89,24 @@ export const brianPreset: SiteConfig = {
   hero: {
     overline: "Brian Hanson · AI for Business",
     headlineLines: [
-      { text: "Put AI to work" },
-      { text: "in your business.", gold: true, italic: true },
+      { text: "I run my business on AI agents" },
+      { text: "Let me help you set up yours", gold: true, italic: true },
     ],
     subtitle:
-      "Start with your own personal agent. In my free beginner webinar, I’ll walk you through the setup and show how I use agents in my business.",
+      "Start with one personal agent. My free beginner webinar walks you through the setup, step by step",
     primaryCta: {
       label: "Join the Free Agent Webinar",
       href: freeAgentUrl,
       external: true,
     },
-    secondaryCta: { label: "Explore Tools & Training", href: "/shop" },
+    secondaryCta: { label: "Browse tools and trainings", href: "/shop" },
     socialProof: null,
     videoSrc: null,
     posterSrc: "/portraits/brian-studio-authority-v1.png",
   },
 
   proofBadges: [
-    "4× Inc. 5000 · Real Advisors",
+    "4× Inc. 5000 founder",
     "200,000+ AI For Business community",
     "3,000+ Revven users",
   ],
@@ -130,21 +130,21 @@ export const brianPreset: SiteConfig = {
       {
         icon: "award",
         tag: "Build",
-        time: "From Iowa to Real Advisors",
-        text: "I grew up in small-town Iowa without money or connections. Building an engine and transmission business taught me systems and selling. Real Advisors later earned four Inc. 5000 appearances, reaching #80",
+        time: "From Iowa to the Inc. 5000",
+        text: "I grew up in small-town Iowa without money or connections. Building an engine and transmission business taught me systems and selling. My company later made the Inc. 5000 four times, as high as #80",
       },
       {
         icon: "flame",
         tag: "Rebuild",
         time: "2020",
-        text: "When COVID shut down my live events business, I faced more than $1 million in debt. I chose to rebuild. That experience still shapes how I think about risk, resilience, and useful work",
+        text: "When COVID shut down my live events business, I faced more than $1 million in debt. I rebuilt anyway. That year still shapes every risk I take",
       },
       {
         icon: "sparkles",
         tag: "Teach",
         time: "AI For Business & Revven",
         accent: true,
-        text: "Today, AI For Business brings together a community of 200,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. I share the practical lessons so you can start applying them to your own business",
+        text: "Today, AI For Business brings together a community of 200,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. Everything I teach, I use in my own companies first",
       },
     ],
     pullQuote:
@@ -318,47 +318,57 @@ export const brianPreset: SiteConfig = {
   },
 
   callShowcases: {
-    // The agency and consulting application. Stages mirror the application's
+    // The consulting and services application. Stages mirror the application's
     // "Where do you want help first?" answers, so both pages use one language.
     "work-with-brian": {
       chatSummary:
-        "Apply for done-for-you A.I. builds or consulting: websites, funnels, landing pages, lead magnets, ad management, chatbots, A.I. voice agents, follow-up and automations. Projects start at $5,000. Qualified applicants book a 30-minute strategy call on the next page",
+        "Apply for A.I. consulting, staff A.I. training or done-for-you builds: automations, lead generation, ad management, funnels, websites, chatbots, A.I. voice agents and follow-up. Done-for-you projects start at $5,000. Qualified applicants book a 30-minute strategy call on the next page",
       showResults: true,
+      homeBand: {
+        heading: "Want it built for you?",
+        text: "My team does AI consulting, staff AI training, automations, lead generation, ad management and funnels. Done-for-you projects start at $5,000",
+        cta: "Apply for a strategy call",
+      },
       system: {
-        heading: "One team builds your whole system",
+        heading: "Advice, training and the build, from one team",
         intro:
-          "Most businesses have a few of the pieces and nothing connecting them. We build each stage and wire them together, so someone who clicks an ad ends up on your calendar or buying",
+          "Most businesses have a few of the pieces and nothing connecting them. We plan it with you, train your team and build each stage, so someone who clicks an ad ends up on your calendar or buying",
         stages: [
+          {
+            title: "Plan it",
+            text: "Know what to build first and why",
+            items: ["AI consulting", "AI strategy for your business"],
+          },
+          {
+            title: "Train your team",
+            text: "Get your staff using AI every day",
+            items: ["Employee and staff AI trainings", "Custom AI workflows"],
+          },
           {
             title: "Get found",
             text: "Bring the right people to your door",
             items: [
+              "Lead generation",
               "Ad campaigns and management",
-              "Lead magnets",
-              "Landing pages",
+              "Lead magnets and landing pages",
             ],
           },
           {
             title: "Turn leads into sales",
             text: "Make your offer clear and easy to say yes to",
-            items: ["Sales funnels", "Websites", "Copywriting"],
-          },
-          {
-            title: "Follow up fast",
-            text: "Answer every lead in seconds, day or night",
-            items: [
-              "Email and SMS follow-up",
-              "Website chatbots",
-              "AI voice agents",
-            ],
+            items: ["Funnel building", "Websites", "Copywriting"],
           },
           {
             title: "Run on autopilot",
-            text: "Take the busywork off your plate",
-            items: ["Workflow automations", "Custom apps and tools"],
+            text: "Answer every lead and take the busywork off your plate",
+            items: [
+              "Automations",
+              "Email and SMS follow-up",
+              "Chatbots and AI voice agents",
+            ],
           },
         ],
-        note: "Built with the tools Brian uses every day: Lovable, Claude Code, Codex and Grok Bots. Want advice instead of a build? Consulting is available too",
+        note: "Built and taught with the tools Brian uses every day: Lovable, Claude Code, Codex and Grok Bots",
       },
       steps: [
         {
@@ -371,7 +381,7 @@ export const brianPreset: SiteConfig = {
         },
         {
           title: "Get your plan",
-          text: "We map what to build first and walk you through scope, timeline and investment",
+          text: "We map what to do first, whether that's advice, training or a build, and walk you through scope, timeline and investment",
         },
       ],
       testimonials: brianCallTestimonials,

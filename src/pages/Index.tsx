@@ -13,6 +13,7 @@ import HomeResources from "@/components/HomeResources";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import HomeShop from "@/components/HomeShop";
 import HomeSummit from "@/components/HomeSummit";
+import HomeWorkWithMe from "@/components/HomeWorkWithMe";
 import { isBrianOwner } from "@/lib/informationPages";
 import type { ShopOffer } from "@/lib/shop";
 import { useSiteConfig } from "@/config/SiteConfigContext";
@@ -46,6 +47,7 @@ export default function Index({
         {sections.event && !owner && <EventCTA />}
         <HomeShop offers={shopShowcase} />
         <HomeTestimonials />
+        <HomeWorkWithMe />
         {sections.story && <Story />}
         {sections.expertise && !owner && <Expertise />}
         {sections.results && <Stats />}

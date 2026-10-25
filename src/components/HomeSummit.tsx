@@ -31,7 +31,7 @@ export default function HomeSummit() {
           data-conversion-placement="event"
           className="shrink-0 self-start border-b border-[var(--brand-accent)] pb-2 text-sm font-semibold text-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
         >
-          Explore the Free Summit
+          Save my free Summit seat
         </a>
       </div>
     </section>

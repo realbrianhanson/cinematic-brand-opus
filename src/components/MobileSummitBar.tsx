@@ -8,9 +8,6 @@ export const MOBILE_BAR_DISMISS_KEY = "mobile-summit-bar-dismissed-v1";
 /** Page offset for other fixed widgets (the chat button) while the bar shows. */
 export const MOBILE_BAR_SPACE_VAR = "--mobile-bar-space";
 const PILL_SELECTOR = "[data-measurement-pill]";
-const PILL_GAP = 12;
-/** Taller than this means the full measurement card is open: step aside. */
-const MAX_PILL_HEIGHT = 120;
 
 function readDismissed(): boolean {
   try {
@@ -28,25 +25,24 @@ function saveDismissed() {
   }
 }
 
-/** Space the bottom-left measurement pill needs, or null to hide the bar. */
+/**
+ * Null hides the bar while the measurement prompt waits for an answer, so a
+ * phone never shows the bar, the prompt and chat stacked over the page.
+ */
 function pillSpace(): number | null {
-  const pill = document.querySelector(PILL_SELECTOR);
-  if (!pill) return 0;
-  const { height } = pill.getBoundingClientRect();
-  if (height > MAX_PILL_HEIGHT) return null;
-  return height > 0 ? height + PILL_GAP : 0;
+  return document.querySelector(PILL_SELECTOR) ? null : 0;
 }
 
 /**
  * Slim Summit bar for phones (<768px). Rendered from the public footer, so it
  * never appears in the admin or on offer checkout and access pages. It waits
- * until the visitor scrolls past the first screen, sits above the
- * measurement pill and can be dismissed for the session.
+ * until the visitor scrolls past the first screen and answers the measurement
+ * prompt, and can be dismissed for the session.
  */
 export default function MobileSummitBar() {
   const { pathname } = useLocation();
   const focused = pathname.replace(/\/+$/, "") === "/first-ai-build";
-  const { sections, event, nav } = useSiteConfig();
+  const { sections, event } = useSiteConfig();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -125,7 +121,7 @@ export default function MobileSummitBar() {
           className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3"
         >
           <span className="truncate font-body text-meta font-semibold text-white">
-            {nav.cta?.label || cta.label}
+            Free AI Summit
           </span>
           <span className="inline-flex shrink-0 items-center gap-1.5 bg-[var(--brand-accent)] px-3 py-2 font-body text-label font-bold text-[var(--brand-backdrop)]">
             {cta.label}

@@ -21,7 +21,7 @@ export function aboutDescription(
   settings?: JsonLdSiteSettings | null,
 ): string {
   if (isBrianOwner(config))
-    return "Brian Hanson grew up in small-town Iowa without money or connections. Real Advisors made the Inc. 5000 four times. Today he leads the 200,000+ person AI For Business community";
+    return "Brian Hanson grew up in small-town Iowa without money or connections. His company made the Inc. 5000 four times. Today he leads the 200,000+ person AI For Business community";
   return dropTrailingPeriod(settings?.author_bio || config.story.intro);
 }
 

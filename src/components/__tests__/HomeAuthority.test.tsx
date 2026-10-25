@@ -113,6 +113,14 @@ describe("authority home and dedicated speaking journey", () => {
     for (const topic of brianPreset.speaking.topics)
       expect(html).toContain(topic.title);
   });
+  it("sends visitors who want help to the consulting application", () => {
+    const html = markup(<Index />, brianPreset);
+    expect(html).toContain('id="work-with-me"');
+    expect(html).toContain('href="/calls/work-with-brian"');
+    expect(html).toContain("Want it built for you?");
+    expect(html).not.toContain("Real Advisors");
+    expect(markup(<Index />, memberPreset)).not.toContain('id="work-with-me"');
+  });
   it("does not put the owner portrait, claims, event or inquiry into a member homepage", () => {
     const html = markup(<Index />, memberPreset);
     expect(html).not.toContain('id="speaking"');

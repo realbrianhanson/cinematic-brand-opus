@@ -1,4 +1,5 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { useHomeBand } from "@/lib/homeBand";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -21,7 +22,16 @@ interface NextStep {
 
 function useNextSteps(): NextStep[] {
   const { sections, event, speaking } = useSiteConfig();
+  const band = useHomeBand();
   const steps: NextStep[] = [];
+  if (band)
+    steps.push({
+      eyebrow: "Work with me",
+      title: band.heading,
+      text: band.text,
+      label: band.cta,
+      href: band.href,
+    });
   if (sections.event && event.cta)
     steps.push({
       eyebrow: "Free · Live online",
@@ -220,7 +230,7 @@ export default function AboutPage({
             Where to start
           </h2>
           <div
-            className={`mt-10 grid gap-5 ${steps.length >= 3 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}
+            className={`mt-10 grid gap-5 ${steps.length >= 4 ? "md:grid-cols-2 xl:grid-cols-4" : steps.length === 3 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}
           >
             {steps.map((step) => (
               <NextStepCard key={step.title} step={step} />

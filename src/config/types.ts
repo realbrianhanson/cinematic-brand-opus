@@ -360,6 +360,8 @@ export interface CallShowcase {
   chatSummary?: string;
   /** Show the site's `results` row under the hero. */
   showResults: boolean;
+  /** Optional homepage section that sends visitors to this application. */
+  homeBand?: { heading: string; text: string; cta: string };
   system?: {
     heading: string;
     intro: string;
@@ -408,6 +410,12 @@ const checkCallShowcases = (
     const texts: Array<[unknown, string]> = [];
     if (showcase.chatSummary !== undefined)
       texts.push([showcase.chatSummary, "chatSummary"]);
+    if (showcase.homeBand)
+      texts.push(
+        [showcase.homeBand.heading, "homeBand.heading"],
+        [showcase.homeBand.text, "homeBand.text"],
+        [showcase.homeBand.cta, "homeBand.cta"],
+      );
     if (showcase.system) {
       texts.push(
         [showcase.system.heading, "system.heading"],
