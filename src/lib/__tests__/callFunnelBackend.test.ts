@@ -80,8 +80,22 @@ describe("call application transport", () => {
       _answers: body().answers,
       _contact: body().contact,
       _consent: true,
+      _marketing: false,
     });
     expect(JSON.stringify(rpc.mock.calls)).not.toContain(body().token);
+  });
+  it("passes the optional news and offers opt-in, and only as a boolean", async () => {
+    const rpc = vi.fn(async () => ({ data: { id }, error: null }));
+    const optedIn = { ...body(), marketingConsent: true };
+    expect(parseCallFunnelRequest(optedIn)).toEqual(optedIn);
+    await runCallFunnelRequest(optedIn, { rpc }, async () => "b".repeat(64));
+    expect(rpc).toHaveBeenCalledWith(
+      "call_funnel_submit",
+      expect.objectContaining({ _consent: true, _marketing: true }),
+    );
+    expect(() =>
+      parseCallFunnelRequest({ ...body(), marketingConsent: "yes" }),
+    ).toThrow();
   });
   it("returns safe actionable errors without database payloads or PII", async () => {
     for (const [message, status] of [

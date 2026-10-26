@@ -84,6 +84,22 @@ describe("call funnel emails", () => {
     );
   });
 
+  it("tells the owner whether the applicant opted in to news and offers", () => {
+    const yes = callOwnerAlertPayload(mailer, "o@example.com", {
+      ...app(),
+      marketingConsent: true,
+    });
+    expect(yes.text).toContain("News, updates and offers\nOpted in");
+    const no = callOwnerAlertPayload(mailer, "o@example.com", {
+      ...app(),
+      marketingConsent: false,
+    });
+    expect(no.text).toContain("Not opted in");
+    expect(callOwnerAlertPayload(mailer, "o@example.com", app()).text).not.toContain(
+      "News, updates and offers",
+    );
+  });
+
   it("escapes applicant text in the owner email", () => {
     const evil = app();
     evil.answers.win = "<script>alert(1)</script>";

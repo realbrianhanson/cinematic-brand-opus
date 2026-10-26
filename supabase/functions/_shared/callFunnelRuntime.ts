@@ -79,6 +79,7 @@ export async function runCallFunnelRequest(
         _answers: body.answers,
         _contact: body.contact,
         _consent: true,
+        _marketing: body.marketingConsent === true,
       };
     }
   }

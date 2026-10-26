@@ -43,18 +43,22 @@ export type CallSubmit = (
   answers: CallAnswers,
   contact: CallContact,
   consent: boolean,
+  marketingConsent?: boolean,
 ) => Promise<CallApplicationState>;
 
 export default function CallApplication({
   publication,
   preview,
   qualificationRules = [],
+  marketingConsentText = "",
   onSubmit,
   onComplete,
 }: {
   publication: CallPublication;
   preview: boolean;
   qualificationRules?: CallFunnelConfig["qualificationRules"];
+  /** Optional second checkbox for news and offers. Hidden when empty. */
+  marketingConsentText?: string;
   onSubmit?: CallSubmit;
   onComplete: (state: CallApplicationState) => void;
 }) {
@@ -67,6 +71,7 @@ export default function CallApplication({
   const [answers, setAnswers] = useState<CallAnswers>({});
   const [contact, setContact] = useState<CallContact>({ name: "", email: "" });
   const [consent, setConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [step, setStep] = useState(`question:${config.questions[0]?.id || ""}`);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -200,6 +205,7 @@ export default function CallApplication({
             email: contact.email.trim().toLowerCase(),
           },
           consent,
+          marketingConsentText ? marketingConsent : false,
         );
       }
       if (result.revision !== publication.revision)
@@ -500,6 +506,18 @@ export default function CallApplication({
                       "I agree to be contacted about this application."}
                   </span>
                 </label>
+                {marketingConsentText && (
+                  <label className="cf-consent">
+                    <input
+                      type="checkbox"
+                      checked={marketingConsent}
+                      onChange={(event) =>
+                        setMarketingConsent(event.target.checked)
+                      }
+                    />
+                    <span>{marketingConsentText}</span>
+                  </label>
+                )}
                 <p className="cf-small cf-muted">
                   Submitted applications are kept for up to 90 days. Your
                   private application access in this browser lasts 7 days.

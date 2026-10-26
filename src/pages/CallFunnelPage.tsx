@@ -113,6 +113,7 @@ function CallSession({ publication }: { publication: CallPublication }) {
     answers: CallAnswers,
     contact: CallContact,
     consent: boolean,
+    marketingConsent = false,
   ) {
     if (!consent)
       throw new Error(
@@ -142,6 +143,8 @@ function CallSession({ publication }: { publication: CallPublication }) {
         answers: structuredClone(answers),
         contact: { ...contact },
         consent: true,
+        // Sent only when checked, so older API versions keep accepting it.
+        ...(marketingConsent ? { marketingConsent: true } : {}),
       };
     try {
       return accept(await submitCallApplication(pending.current));

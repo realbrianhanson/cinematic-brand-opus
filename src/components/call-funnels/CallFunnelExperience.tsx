@@ -694,6 +694,7 @@ function Experience({
                       publication={publication}
                       preview={preview}
                       qualificationRules={qualificationRules}
+                      marketingConsentText={showcase?.marketingConsent}
                       onSubmit={onSubmit}
                       onComplete={(accepted) => {
                         setState(accepted);

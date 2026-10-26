@@ -13,6 +13,8 @@ export type CallFunnelRequest =
       answers: Record<string, string>;
       contact: { name: string; email: string };
       consent: true;
+      /** Optional opt-in to news, updates and offers. Never required. */
+      marketingConsent?: boolean;
     };
 export const callEventTypes = [
   "booked",
@@ -78,6 +80,7 @@ export function parseCallFunnelRequest(raw: unknown): CallFunnelRequest {
       "answers",
       "contact",
       "consent",
+      "marketingConsent",
     ]) ||
     typeof raw.slug !== "string" ||
     !/^[a-z][a-z0-9-]{0,79}$/.test(raw.slug) ||
@@ -88,6 +91,8 @@ export function parseCallFunnelRequest(raw: unknown): CallFunnelRequest {
     typeof raw.requestId !== "string" ||
     !uuid.test(raw.requestId) ||
     raw.consent !== true ||
+    (raw.marketingConsent !== undefined &&
+      typeof raw.marketingConsent !== "boolean") ||
     !object(raw.answers) ||
     Object.keys(raw.answers).length > 15 ||
     Object.entries(raw.answers).some(

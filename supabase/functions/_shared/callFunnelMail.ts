@@ -21,6 +21,8 @@ export interface CallMailApplication {
   contact: { name: string; email: string };
   answers: Record<string, string>;
   config: CallFunnelConfig;
+  /** Opted in to news, updates and offers. Undefined on older applications. */
+  marketingConsent?: boolean;
 }
 
 const oneLine = (value: string, max = 200) =>
@@ -54,7 +56,16 @@ export function callOwnerAlertPayload(
   if (origin.protocol !== "https:") throw new Error("Secure site URL required");
   const report = `${origin.origin}/admin/call-funnels`;
   const name = oneLine(app.contact.name, 120);
-  const lines = callAnswerLines(app.config, app.answers);
+  const lines: Array<[string, string]> = [
+    ...callAnswerLines(app.config, app.answers),
+  ];
+  if (app.marketingConsent !== undefined)
+    lines.push([
+      "News, updates and offers",
+      app.marketingConsent
+        ? "Opted in by phone, text and email"
+        : "Not opted in. Contact about this application only",
+    ]);
   const heading = `New qualified application from ${name}`;
   const intro = `${name} (${app.contact.email}) applied on /calls/${app.slug} and qualified for a call. They are on the booking page now, so the call usually appears in your calendar within a few minutes`;
   const text = [

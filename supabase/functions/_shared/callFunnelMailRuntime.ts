@@ -30,6 +30,7 @@ interface Row {
   revision: number;
   contact: { name: string; email: string };
   answers: Record<string, string>;
+  marketing_consent?: boolean;
 }
 
 /**
@@ -82,12 +83,17 @@ export async function processCallFunnelMail(
       configs.set(key, data as { slug: string; config: CallFunnelConfig });
     }
     const revision = configs.get(key)!;
-    return { ...row, slug: revision.slug, config: revision.config };
+    return {
+      ...row,
+      marketingConsent: row.marketing_consent === true,
+      slug: revision.slug,
+      config: revision.config,
+    };
   }
 
   let alertQuery = admin
     .from("call_funnel_applications")
-    .select("id,funnel_id,revision,contact,answers")
+    .select("id,funnel_id,revision,contact,answers,marketing_consent")
     .eq("outcome", "qualified")
     .is("owner_alerted_at", null)
     .gte("submitted_at", new Date(now - ALERT_WINDOW).toISOString());

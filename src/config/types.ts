@@ -360,6 +360,8 @@ export interface CallShowcase {
   chatSummary?: string;
   /** Show the site's `results` row under the hero. */
   showResults: boolean;
+  /** Optional, unchecked opt-in on the review step for news, updates and offers. */
+  marketingConsent?: string;
   /** Optional homepage section that sends visitors to this application. */
   homeBand?: { heading: string; text: string; cta: string };
   system?: {
@@ -410,6 +412,8 @@ const checkCallShowcases = (
     const texts: Array<[unknown, string]> = [];
     if (showcase.chatSummary !== undefined)
       texts.push([showcase.chatSummary, "chatSummary"]);
+    if (showcase.marketingConsent !== undefined)
+      texts.push([showcase.marketingConsent, "marketingConsent"]);
     if (showcase.homeBand)
       texts.push(
         [showcase.homeBand.heading, "homeBand.heading"],

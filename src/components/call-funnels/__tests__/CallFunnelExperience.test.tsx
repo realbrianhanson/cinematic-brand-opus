@@ -165,6 +165,7 @@ describe("Video + Application visitor flow", () => {
         { ready: "no" },
         { name: "Test Person", email: "test@example.com" },
         true,
+        false,
       ),
     );
     expect(sessionStorage.getItem(callDraftKey(publication, false))).toBeNull();

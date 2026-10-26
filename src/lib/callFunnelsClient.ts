@@ -94,6 +94,7 @@ export type CallSubmit = {
   answers: CallAnswers;
   contact: CallContact;
   consent: true;
+  marketingConsent?: boolean;
 };
 /** A server rejection rolls back the RPC; a transport failure may have committed. */
 export class CallMutationError extends Error {

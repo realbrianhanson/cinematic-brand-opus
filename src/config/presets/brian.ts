@@ -108,7 +108,7 @@ export const brianPreset: SiteConfig = {
   proofBadges: [
     "4× Inc. 5000 founder",
     "200,000+ AI For Business community",
-    "3,000+ Revven users",
+    "300+ apps built personally",
   ],
 
   // Source documents, excerpt rules and permissions: docs/TESTIMONIALS.md.
@@ -144,7 +144,7 @@ export const brianPreset: SiteConfig = {
         tag: "Teach",
         time: "AI For Business & Revven",
         accent: true,
-        text: "Today, AI For Business brings together a community of 200,000+ people. I also built Revven, a software platform with 3,000+ users, without writing code. Everything I teach, I use in my own companies first",
+        text: "Today, AI For Business brings together a community of 200,000+ people. I've built over 300 apps myself, including Revven. Everything I teach, I use in my own companies first",
       },
     ],
     pullQuote:
@@ -195,11 +195,10 @@ export const brianPreset: SiteConfig = {
       sub: "AI For Business community",
     },
     {
-      end: 3000,
+      end: 300,
       suffix: "+",
-      label: "Revven Users",
-      sub: "Built with zero code",
-      locale: true,
+      label: "Apps built",
+      sub: "By Brian, personally",
     },
   ],
 
@@ -324,6 +323,8 @@ export const brianPreset: SiteConfig = {
       chatSummary:
         "Apply for A.I. consulting, staff A.I. training or done-for-you builds: automations, lead generation, ad management, funnels, websites, chatbots, A.I. voice agents and follow-up. Done-for-you projects start at $5,000. Qualified applicants book a 30-minute strategy call on the next page",
       showResults: true,
+      marketingConsent:
+        "Also send me AI news, updates and related offers by phone, text and email. Optional, not required to apply. Message frequency varies. Reply STOP to opt out",
       homeBand: {
         heading: "Want it built for you?",
         text: "My team does AI consulting, staff AI training, automations, lead generation, ad management and funnels. Done-for-you projects start at $5,000",
