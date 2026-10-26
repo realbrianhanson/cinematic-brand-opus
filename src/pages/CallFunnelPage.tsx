@@ -3,6 +3,7 @@ import CallFunnelExperience from "@/components/call-funnels/CallFunnelExperience
 import {
   CallApiError,
   confirmCalendlyBooking,
+  captureCallApplication,
   getCallApplicationState,
   submitCallApplication,
   type CallSubmit,
@@ -109,6 +110,33 @@ function CallSession({ publication }: { publication: CallPublication }) {
     setError("");
     return value;
   }
+  /** One capability per visit: the unfinished save and the submission share it. */
+  function ensureToken() {
+    if (token.current) return token.current;
+    token.current = newFunnelToken();
+    try {
+      sessionStorage.setItem(storageKey, token.current);
+    } catch {
+      /* page works in memory */
+    }
+    return token.current;
+  }
+  /** Best effort: a failed save never blocks the visitor. */
+  function capture(
+    answers: CallAnswers,
+    contact: CallContact,
+    marketingConsent: boolean,
+  ) {
+    void captureCallApplication({
+      slug: publication.slug,
+      revision: publication.revision,
+      token: ensureToken(),
+      answers: structuredClone(answers),
+      contact: { name: contact.name, email: contact.email },
+      consent: true,
+      ...(marketingConsent ? { marketingConsent: true } : {}),
+    }).catch(() => undefined);
+  }
   async function submit(
     answers: CallAnswers,
     contact: CallContact,
@@ -126,14 +154,7 @@ function CallSession({ publication }: { publication: CallPublication }) {
     const notes = callBookingNotes(publication.config, answers);
     setBookingNotes(notes);
     writeSession(notesKey, notes);
-    if (!token.current) {
-      token.current = newFunnelToken();
-      try {
-        sessionStorage.setItem(storageKey, token.current);
-      } catch {
-        /* page works in memory */
-      }
-    }
+    ensureToken();
     if (!pending.current)
       pending.current = {
         slug: publication.slug,
@@ -242,6 +263,7 @@ function CallSession({ publication }: { publication: CallPublication }) {
           publication={pinned}
           initialState={state}
           onSubmit={submit}
+          onCapture={capture}
           onRefreshState={refresh}
           contact={contact}
           bookingNotes={bookingNotes}

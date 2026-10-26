@@ -296,6 +296,10 @@ export async function getCallPublication(
     throw error;
   }
 }
+/** An unfinished application, saved after the contact step and each answer. */
+export type CallCapture = Omit<CallSubmit, "requestId">;
+export const captureCallApplication = (input: CallCapture) =>
+  callApi<{ saved: boolean }>({ action: "capture", ...input });
 export const submitCallApplication = (input: CallSubmit) =>
   callApi<CallApplicationState>({ action: "submit", ...input });
 export const getCallApplicationState = (token: string) =>

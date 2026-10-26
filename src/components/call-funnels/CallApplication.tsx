@@ -45,6 +45,12 @@ export type CallSubmit = (
   consent: boolean,
   marketingConsent?: boolean,
 ) => Promise<CallApplicationState>;
+/** Saves an unfinished application. Fire and forget; it never blocks the visitor. */
+export type CallCapture = (
+  answers: CallAnswers,
+  contact: CallContact,
+  marketingConsent: boolean,
+) => void;
 
 export default function CallApplication({
   publication,
@@ -52,6 +58,7 @@ export default function CallApplication({
   qualificationRules = [],
   marketingConsentText = "",
   onSubmit,
+  onCapture,
   onComplete,
 }: {
   publication: CallPublication;
@@ -60,6 +67,7 @@ export default function CallApplication({
   /** Optional second checkbox for news and offers. Hidden when empty. */
   marketingConsentText?: string;
   onSubmit?: CallSubmit;
+  onCapture?: CallCapture;
   onComplete: (state: CallApplicationState) => void;
 }) {
   const { config } = publication;
@@ -72,7 +80,8 @@ export default function CallApplication({
   const [contact, setContact] = useState<CallContact>({ name: "", email: "" });
   const [consent, setConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
-  const [step, setStep] = useState(`question:${config.questions[0]?.id || ""}`);
+  // Contact details come first, so an unfinished application is still a lead.
+  const [step, setStep] = useState("contact");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [storageAvailable, setStorageAvailable] = useState(true);
@@ -80,10 +89,17 @@ export default function CallApplication({
   const stepHeading = useRef<HTMLHeadingElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const shouldFocus = useRef(false);
+  const resumeStep = useRef("");
   const visible = visibleCallQuestions(config, answers);
+  // A text question with the id "phone" is asked on the contact step.
+  const phoneQuestion = visible.find(
+    (q) => q.id === "phone" && q.type === "text",
+  );
   const steps = [
-    ...visible.map((q) => `question:${q.id}`),
     "contact",
+    ...visible
+      .filter((q) => q !== phoneQuestion)
+      .map((q) => `question:${q.id}`),
     "review",
   ];
   const currentIndex = Math.max(0, steps.indexOf(step));
@@ -133,13 +149,28 @@ export default function CallApplication({
     setAnswers({});
     setContact({ name: "", email: "" });
     setConsent(false);
-    go(`question:${config.questions[0]?.id || ""}`);
+    setMarketingConsent(false);
+    resumeStep.current = "";
+    go("contact");
   }
   function contactError() {
     if (!contact.name.trim()) return "Enter your name.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim()))
       return "Enter a valid email address.";
+    if (phoneQuestion) {
+      const phone = callAnswerError(phoneQuestion, answers[phoneQuestion.id]);
+      if (phone) return `${phoneQuestion.label}: ${phone}`;
+    }
+    if (!consent) return "Please agree to be contacted about your application.";
     return "";
+  }
+  function capture(nextAnswers: CallAnswers) {
+    if (preview || !onCapture || contactError()) return;
+    onCapture(
+      cleanCallAnswers(config, nextAnswers),
+      { name: contact.name.trim(), email: contact.email.trim().toLowerCase() },
+      marketingConsentText ? marketingConsent : false,
+    );
   }
   function next() {
     const message = question
@@ -149,27 +180,30 @@ export default function CallApplication({
       setError(message);
       return;
     }
-    go(steps[currentIndex + 1] || "review");
+    capture(answers);
+    const resume = resumeStep.current;
+    resumeStep.current = "";
+    go(
+      step === "contact" && steps.includes(resume)
+        ? resume
+        : steps[currentIndex + 1] || "review",
+    );
   }
   async function submit() {
     if (sending.current) return;
-    for (const q of visible) {
-      const message = callAnswerError(q, answers[q.id]);
-      if (message) {
-        go(`question:${q.id}`);
-        setError(message);
-        return;
-      }
-    }
     const message = contactError();
     if (message) {
       go("contact");
       setError(message);
       return;
     }
-    if (!consent) {
-      setError("Please confirm your consent before submitting.");
-      return;
+    for (const q of visible) {
+      const answerMessage = callAnswerError(q, answers[q.id]);
+      if (answerMessage) {
+        go(q === phoneQuestion ? "contact" : `question:${q.id}`);
+        setError(answerMessage);
+        return;
+      }
     }
     sending.current = true;
     setSubmitting(true);
@@ -234,8 +268,8 @@ export default function CallApplication({
             You have a saved application
           </h3>
           <p>
-            Continue your answers from this tab, or start fresh. You’ll enter
-            your contact details again before submitting.
+            Confirm your contact details, then pick up where you left off. Or
+            start fresh.
           </p>
           <div className="cf-form-actions">
             <button
@@ -244,16 +278,17 @@ export default function CallApplication({
               onClick={() => {
                 const restored = recovered;
                 setAnswers(restored.answers);
-                const validSteps = visibleCallQuestions(
-                  config,
-                  restored.answers,
-                ).map((q) => `question:${q.id}`);
+                const validSteps = [
+                  ...visibleCallQuestions(config, restored.answers).map(
+                    (q) => `question:${q.id}`,
+                  ),
+                  "review",
+                ];
                 setRecovered(null);
-                go(
-                  validSteps.includes(restored.step)
-                    ? restored.step
-                    : "contact",
-                );
+                resumeStep.current = validSteps.includes(restored.step)
+                  ? restored.step
+                  : "";
+                go("contact");
               }}
             >
               Continue saved application
@@ -442,56 +477,28 @@ export default function CallApplication({
                     setError("");
                   }}
                 />
-                <p className="cf-small cf-muted">
-                  Review your answers next. Nothing is submitted until you
-                  choose to send your application.
-                </p>
-              </div>
-            ) : (
-              <div className="cf-question">
-                <h3 ref={stepHeading} tabIndex={-1}>
-                  Everything look right?
-                </h3>
-                <dl className="cf-review">
-                  {visible.map((q) => (
-                    <div key={q.id}>
-                      <dt>
-                        {q.label}
-                        <button
-                          type="button"
-                          className="cf-text-button"
-                          aria-label={`Edit ${q.label}`}
-                          onClick={() => go(`question:${q.id}`)}
-                        >
-                          Edit
-                        </button>
-                      </dt>
-                      <dd>
-                        {q.type === "single"
-                          ? q.options.find((o) => o.id === answers[q.id])
-                              ?.label || "Not provided"
-                          : answers[q.id] || "Not provided"}
-                      </dd>
-                    </div>
-                  ))}
-                  <div>
-                    <dt>
-                      Contact details
-                      <button
-                        type="button"
-                        className="cf-text-button"
-                        onClick={() => go("contact")}
-                      >
-                        Edit contact details
-                      </button>
-                    </dt>
-                    <dd>
-                      {contact.name}
-                      <br />
-                      {contact.email}
-                    </dd>
-                  </div>
-                </dl>
+                {phoneQuestion && (
+                  <>
+                    <label htmlFor={`${uid}-phone`}>
+                      {phoneQuestion.label}
+                    </label>
+                    <input
+                      id={`${uid}-phone`}
+                      name="phone"
+                      required={phoneQuestion.required}
+                      {...textInputHints(phoneQuestion)}
+                      maxLength={2000}
+                      value={answers[phoneQuestion.id] || ""}
+                      onChange={(event) => {
+                        setAnswers((previous) => ({
+                          ...previous,
+                          [phoneQuestion.id]: event.target.value,
+                        }));
+                        setError("");
+                      }}
+                    />
+                  </>
+                )}
                 <label className="cf-consent">
                   <input
                     type="checkbox"
@@ -518,10 +525,6 @@ export default function CallApplication({
                     <span>{marketingConsentText}</span>
                   </label>
                 )}
-                <p className="cf-small cf-muted">
-                  Submitted applications are kept for up to 90 days. Your
-                  private application access in this browser lasts 7 days.
-                </p>
                 {config.application.privacyUrl &&
                   callUrl(config.application.privacyUrl, true) &&
                   (preview ? (
@@ -538,6 +541,68 @@ export default function CallApplication({
                       Read the privacy notice
                     </a>
                   ))}
+                <p className="cf-small cf-muted">
+                  Your answers save as you go. You’ll review everything before
+                  you send it.
+                </p>
+              </div>
+            ) : (
+              <div className="cf-question">
+                <h3 ref={stepHeading} tabIndex={-1}>
+                  Everything look right?
+                </h3>
+                <dl className="cf-review">
+                  {visible
+                    .filter((q) => q !== phoneQuestion)
+                    .map((q) => (
+                      <div key={q.id}>
+                        <dt>
+                          {q.label}
+                          <button
+                            type="button"
+                            className="cf-text-button"
+                            aria-label={`Edit ${q.label}`}
+                            onClick={() => go(`question:${q.id}`)}
+                          >
+                            Edit
+                          </button>
+                        </dt>
+                        <dd>
+                          {q.type === "single"
+                            ? q.options.find((o) => o.id === answers[q.id])
+                                ?.label || "Not provided"
+                            : answers[q.id] || "Not provided"}
+                        </dd>
+                      </div>
+                    ))}
+                  <div>
+                    <dt>
+                      Contact details
+                      <button
+                        type="button"
+                        className="cf-text-button"
+                        onClick={() => go("contact")}
+                      >
+                        Edit contact details
+                      </button>
+                    </dt>
+                    <dd>
+                      {contact.name}
+                      <br />
+                      {contact.email}
+                      {phoneQuestion && answers[phoneQuestion.id] && (
+                        <>
+                          <br />
+                          {answers[phoneQuestion.id]}
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="cf-small cf-muted">
+                  Submitted applications are kept for up to 90 days. Your
+                  private application access in this browser lasts 7 days.
+                </p>
               </div>
             )}
             {error && (
@@ -586,7 +651,7 @@ export default function CallApplication({
       <p className="cf-storage-notice">
         <ShieldCheck size={15} aria-hidden="true" />
         {storageAvailable
-          ? "Unfinished answers are saved in this tab for up to 7 days. Your contact details and consent are not saved on this device."
+          ? "Your details and answers save as you go, so we can help you finish if you get interrupted. Unfinished answers also stay in this tab for up to 7 days."
           : "This browser cannot save unfinished answers. Keep this page open until you submit."}
       </p>
     </div>

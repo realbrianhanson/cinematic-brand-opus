@@ -210,15 +210,24 @@ describe("hero video", () => {
 });
 
 describe("application form layout", () => {
-  it("puts short answer lists in two columns and opens the phone keypad", () => {
+  it("asks for contact details and phone first, then shows short answer lists in two columns", () => {
     renderWithSite(<CallFunnelExperience publication={publication()} />);
-    // The form sits on the page; the hero and closing buttons only scroll to it.
-    expect(screen.getByRole("radiogroup").className).toContain("is-grid");
-    fireEvent.click(screen.getByRole("radio", { name: "Business owner" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    // The phone question joins name and email on the first step.
     const phone = screen.getByRole("textbox", { name: "Best mobile number" });
     expect(phone.getAttribute("type")).toBe("tel");
     expect(phone.getAttribute("autocomplete")).toBe("tel");
+    fireEvent.change(screen.getByLabelText("Your name"), {
+      target: { value: "Pat Lee" },
+    });
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "pat@example.com" },
+    });
+    fireEvent.change(phone, { target: { value: "555 123 4567" } });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /I agree to be contacted/ }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("radiogroup").className).toContain("is-grid");
   });
 });
 

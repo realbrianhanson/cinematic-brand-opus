@@ -356,6 +356,81 @@ describe("call funnel mail worker", () => {
     expect(fake.updates.map((u) => u.id)).toEqual(["due"]);
   });
 
+  it("alerts the owner and reminds the visitor once about an unfinished application", async () => {
+    const data = tables() as ReturnType<typeof tables> & {
+      call_funnel_partials: Record<string, unknown>[];
+    };
+    const partial = (id: string, extra: Record<string, unknown> = {}) => ({
+      id,
+      funnel_id: "f1",
+      revision: 1,
+      token_hash: id.padEnd(64, "0"),
+      contact: { name: "Pat Lee", email: "pat@example.com" },
+      answers: { budget: "usd-5-10k" },
+      marketing_consent: true,
+      updated_at: "2026-10-24T10:00:00Z",
+      owner_alerted_at: null,
+      reminder_sent_at: null,
+      ...extra,
+    });
+    data.call_funnel_partials = [
+      partial("p1"),
+      // Too fresh: still filling it in.
+      partial("p2", { updated_at: "2026-10-24T11:30:00Z" }),
+      // Went on to submit with the same email.
+      partial("p3", {
+        contact: { name: "Sam Roe", email: "SAM@example.com" },
+      }),
+    ];
+    data.call_funnel_applications = [
+      {
+        ...base,
+        id: "a9",
+        token_hash: "x".repeat(64),
+        contact: { name: "Sam Roe", email: "sam@example.com" },
+        submitted_at: "2026-10-24T10:30:00Z",
+        owner_alerted_at: "x",
+        followup_sent_at: "x",
+      },
+    ];
+    const fake = fakeAdmin(data);
+    const sent: { to: string; subject: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        sent.push({ to: body.to[0], subject: body.subject });
+        return new Response(JSON.stringify({ id: "e" }), { status: 200 });
+      }),
+    );
+    const result = await processCallFunnelMail(
+      fake.client as never,
+      "re_test",
+      { now },
+    );
+    vi.unstubAllGlobals();
+    expect(result).toMatchObject({ abandonedAlerts: 1, finishReminders: 1 });
+    expect(sent).toEqual([
+      {
+        to: "brian@realagency.com",
+        subject: "Unfinished application from Pat Lee",
+      },
+      {
+        to: "pat@example.com",
+        subject: "Finish your application for a call with Brian Hanson",
+      },
+    ]);
+    const partialUpdates = fake.updates.filter(
+      (u) => u.table === "call_funnel_partials",
+    );
+    expect(partialUpdates.map((u) => u.id).sort()).toEqual([
+      "p1",
+      "p1",
+      "p3",
+      "p3",
+    ]);
+  });
+
   it("does nothing without a sender configuration", async () => {
     const data = tables();
     data.site_settings = [

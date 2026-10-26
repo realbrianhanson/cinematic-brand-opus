@@ -85,6 +85,7 @@ function contact() {
   fireEvent.change(screen.getByLabelText("Email address"), {
     target: { value: "test@example.com" },
   });
+  consent();
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 function consent() {
@@ -109,23 +110,47 @@ afterEach(() => {
 describe("Video + Application visitor flow", () => {
   it("validates the current question and keeps consent explicitly unchecked", async () => {
     const submit = vi.fn();
-    render(<CallFunnelExperience publication={fixture()} onSubmit={submit} />);
+    const capture = vi.fn();
+    render(
+      <CallFunnelExperience
+        publication={fixture()}
+        onSubmit={submit}
+        onCapture={capture}
+      />,
+    );
+    // Contact details come first, and consent starts unchecked.
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("alert").textContent).toContain("Enter your name");
+    fireEvent.change(screen.getByLabelText("Your name"), {
+      target: { value: "Test Person" },
+    });
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "test@example.com" },
+    });
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "agree to be contacted",
+    );
+    expect(capture).not.toHaveBeenCalled();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(capture).toHaveBeenCalledWith(
+      {},
+      { name: "Test Person", email: "test@example.com" },
+      false,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "Please answer this question",
     );
     chooseNo();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(screen.getByRole("alert").textContent).toContain("Enter your name");
-    contact();
-    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+    expect(capture).toHaveBeenLastCalledWith(
+      { ready: "no" },
+      { name: "Test Person", email: "test@example.com" },
       false,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Send my application" }),
-    );
-    expect(screen.getByRole("alert").textContent).toContain(
-      "confirm your consent",
     );
     expect(submit).not.toHaveBeenCalled();
   });
@@ -136,6 +161,7 @@ describe("Video + Application visitor flow", () => {
     render(
       <CallFunnelExperience publication={publication} onSubmit={submit} />,
     );
+    contact();
     fireEvent.click(screen.getByRole("radio", { name: "Yes, I do" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.change(
@@ -143,8 +169,6 @@ describe("Video + Application visitor flow", () => {
       { target: { value: "A specific project" } },
     );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    contact();
-    consent();
     const saved = sessionStorage.getItem(callDraftKey(publication, false))!;
     expect(saved).not.toContain("Test Person");
     expect(saved).not.toContain("test@example.com");
@@ -156,7 +180,6 @@ describe("Video + Application visitor flow", () => {
     expect(
       screen.queryByRole("textbox", { name: "Describe your project" }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Send my application" }),
     );
@@ -183,9 +206,8 @@ describe("Video + Application visitor flow", () => {
         ]}
       />,
     );
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     fireEvent.click(
       screen.getByRole("button", { name: "Send my application" }),
     );
@@ -214,9 +236,8 @@ describe("Video + Application visitor flow", () => {
         ]}
       />,
     );
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     fireEvent.click(
       screen.getByRole("button", { name: "Test application route" }),
     );
@@ -246,9 +267,8 @@ describe("Video + Application visitor flow", () => {
         }),
     );
     render(<CallFunnelExperience publication={fixture()} onSubmit={submit} />);
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     const form = screen.getByRole("form", { name: "Call application" });
     fireEvent.submit(form);
     fireEvent.submit(form);
@@ -260,9 +280,6 @@ describe("Video + Application visitor flow", () => {
       ),
     );
     expect(screen.getByText(/Test Person.*test@example\.com/)).toBeTruthy();
-    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
-      true,
-    );
     submit.mockResolvedValue(state());
     fireEvent.submit(form);
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
@@ -283,9 +300,8 @@ describe("Video + Application visitor flow", () => {
         onSubmit={submit}
       />,
     );
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     fireEvent.click(
       screen.getByRole("button", { name: "Test application route" }),
     );
@@ -303,12 +319,16 @@ describe("Video + Application visitor flow", () => {
       screen.queryByRole("heading", { name: "You have a saved application" }),
     ).toBeNull();
     expect(
+      sessionStorage.getItem(callDraftKey(publication, true, rules)),
+    ).toBeNull();
+    expect((screen.getByLabelText("Your name") as HTMLInputElement).value).toBe(
+      "",
+    );
+    contact();
+    expect(
       (screen.getByRole("radio", { name: "Not yet" }) as HTMLInputElement)
         .checked,
     ).toBe(false);
-    expect(
-      sessionStorage.getItem(callDraftKey(publication, true, rules)),
-    ).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: "Yes, I do" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.change(
@@ -316,11 +336,6 @@ describe("Video + Application visitor flow", () => {
       { target: { value: "Another project" } },
     );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect((screen.getByLabelText("Your name") as HTMLInputElement).value).toBe(
-      "",
-    );
-    contact();
-    consent();
     fireEvent.click(
       screen.getByRole("button", { name: "Test application route" }),
     );
@@ -345,9 +360,8 @@ describe("Video + Application visitor flow", () => {
         ]}
       />,
     );
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     fireEvent.click(
       screen.getByRole("button", { name: "Test application route" }),
     );
@@ -370,9 +384,8 @@ describe("Video + Application visitor flow", () => {
         name: "A useful place to start, at your own pace.",
       }),
     ).toBeNull();
-    chooseNo();
     contact();
-    consent();
+    chooseNo();
     fireEvent.click(
       screen.getByRole("button", { name: "Test application route" }),
     );
@@ -401,6 +414,11 @@ describe("Video + Application visitor flow", () => {
     expect((screen.getByLabelText("Your name") as HTMLInputElement).value).toBe(
       "",
     );
+    // After confirming contact details, the visitor resumes where they stopped.
+    contact();
+    expect(
+      screen.getByRole("heading", { name: "Everything look right?" }),
+    ).toBeTruthy();
     mounted.unmount();
     render(
       <CallFunnelExperience publication={{ ...publication, revision: 2 }} />,
@@ -408,6 +426,7 @@ describe("Video + Application visitor flow", () => {
     expect(
       screen.queryByRole("heading", { name: "You have a saved application" }),
     ).toBeNull();
+    contact();
     expect(
       (screen.getByRole("radio", { name: "Not yet" }) as HTMLInputElement)
         .checked,

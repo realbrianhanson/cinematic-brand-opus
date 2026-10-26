@@ -5,6 +5,17 @@ export type CallFunnelRequest =
   | { action: "state"; token: string }
   | { action: "calendly"; token: string; inviteeUri: string }
   | {
+      /** Saves an unfinished application after the contact step. */
+      action: "capture";
+      slug: string;
+      revision: number;
+      token: string;
+      answers: Record<string, string>;
+      contact: { name: string; email: string };
+      consent: true;
+      marketingConsent?: boolean;
+    }
+  | {
       action: "submit";
       slug: string;
       revision: number;
@@ -45,8 +56,47 @@ const text = (value: unknown, max: number, required = false): value is string =>
   value.length <= max &&
   (!required || !!value.trim()) &&
   !value.includes(String.fromCharCode(0));
+/** Shared checks for the fields a capture and a submit both carry. */
+function validApplicationFields(raw: Record<string, unknown>): boolean {
+  return (
+    typeof raw.slug === "string" &&
+    /^[a-z][a-z0-9-]{0,79}$/.test(raw.slug) &&
+    Number.isSafeInteger(raw.revision) &&
+    (raw.revision as number) >= 1 &&
+    typeof raw.token === "string" &&
+    token.test(raw.token) &&
+    raw.consent === true &&
+    (raw.marketingConsent === undefined ||
+      typeof raw.marketingConsent === "boolean") &&
+    object(raw.answers) &&
+    Object.keys(raw.answers).length <= 15 &&
+    Object.entries(raw.answers).every(
+      ([key, value]) => stable.test(key) && text(value, 2000),
+    ) &&
+    object(raw.contact) &&
+    exact(raw.contact, ["name", "email"]) &&
+    text(raw.contact.name, 160, true) &&
+    text(raw.contact.email, 254, true) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.contact.email as string)
+  );
+}
 export function parseCallFunnelRequest(raw: unknown): CallFunnelRequest {
   if (!object(raw)) throw new Error("Invalid call funnel request.");
+  if (
+    raw.action === "capture" &&
+    exact(raw, [
+      "action",
+      "slug",
+      "revision",
+      "token",
+      "answers",
+      "contact",
+      "consent",
+      "marketingConsent",
+    ]) &&
+    validApplicationFields(raw)
+  )
+    return raw as CallFunnelRequest;
   if (
     raw.action === "get" &&
     exact(raw, ["action", "slug"]) &&

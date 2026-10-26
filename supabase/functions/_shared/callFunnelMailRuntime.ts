@@ -1,5 +1,7 @@
 import type { CallFunnelConfig } from "./callFunnels.ts";
 import {
+  callAbandonedAlertPayload,
+  callFinishReminderPayload,
   callFollowupPayload,
   callOwnerAlertPayload,
   sendCallMail,
@@ -23,6 +25,8 @@ const HOUR = 3600000;
 const ALERT_WINDOW = 24 * HOUR;
 const REMINDER_AFTER = 3 * HOUR;
 const REMINDER_UNTIL = 72 * HOUR;
+/** An unfinished application counts as abandoned after an hour without changes. */
+const PARTIAL_AFTER = HOUR;
 
 interface Row {
   id: string;
@@ -120,6 +124,14 @@ export async function processCallFunnelMail(
   if (options.applicationId)
     return { configured: true, alerts: sentAlerts, reminders: 0 };
 
+  const abandoned = await processAbandoned(
+    admin,
+    mailer.config,
+    owner,
+    now,
+    application,
+  );
+
   const due = await admin
     .from("call_funnel_applications")
     .select("id,funnel_id,revision,contact,answers")
@@ -132,7 +144,7 @@ export async function processCallFunnelMail(
   if (due.error) throw new Error("Applications unavailable");
   const rows = (due.data ?? []) as Row[];
   if (!rows.length)
-    return { configured: true, alerts: sentAlerts, reminders: 0 };
+    return { configured: true, alerts: sentAlerts, reminders: 0, ...abandoned };
   const booked = await admin
     .from("call_funnel_events")
     .select("application_id")
@@ -175,7 +187,119 @@ export async function processCallFunnelMail(
       .eq("id", row.id);
     if (payload) sentReminders++;
   }
-  return { configured: true, alerts: sentAlerts, reminders: sentReminders };
+  return {
+    configured: true,
+    alerts: sentAlerts,
+    reminders: sentReminders,
+    ...abandoned,
+  };
+}
+
+interface PartialRow extends Row {
+  token_hash: string;
+}
+
+/**
+ * Unfinished applications: alert the owner, then send the visitor one
+ * reminder. Anyone who went on to submit (same visit, or the same email on
+ * the same funnel) is marked done without an email.
+ */
+async function processAbandoned(
+  admin: MailAdmin,
+  mailer: Parameters<typeof callAbandonedAlertPayload>[0],
+  owner: string,
+  now: number,
+  application: (row: Row) => Promise<CallMailApplication | null>,
+) {
+  const fields =
+    "id,funnel_id,revision,token_hash,contact,answers,marketing_consent";
+  const window = (column: string) =>
+    admin
+      .from("call_funnel_partials")
+      .select(fields)
+      .is(column, null)
+      .lte("updated_at", new Date(now - PARTIAL_AFTER).toISOString())
+      .gte("updated_at", new Date(now - REMINDER_UNTIL).toISOString())
+      .order("updated_at")
+      .limit(20);
+  const [alerts, reminders] = await Promise.all([
+    window("owner_alerted_at"),
+    window("reminder_sent_at"),
+  ]);
+  if (alerts.error || reminders.error)
+    throw new Error("Unfinished applications unavailable");
+  const pending = [
+    ...((alerts.data ?? []) as PartialRow[]),
+    ...((reminders.data ?? []) as PartialRow[]),
+  ];
+  if (!pending.length) return { abandonedAlerts: 0, finishReminders: 0 };
+
+  const submitted = await admin
+    .from("call_funnel_applications")
+    .select("token_hash,funnel_id,contact")
+    .in("funnel_id", [...new Set(pending.map((row) => row.funnel_id))])
+    .gte(
+      "submitted_at",
+      new Date(now - REMINDER_UNTIL - 24 * HOUR).toISOString(),
+    );
+  if (submitted.error) throw new Error("Applications unavailable");
+  const finished = (row: PartialRow) =>
+    ((submitted.data ?? []) as PartialRow[]).some(
+      (app) =>
+        app.token_hash === row.token_hash ||
+        (app.funnel_id === row.funnel_id &&
+          app.contact.email.toLowerCase() === row.contact.email.toLowerCase()),
+    );
+  const stamp = new Date(now).toISOString();
+  const mark = (id: string, values: Record<string, string>) =>
+    admin.from("call_funnel_partials").update(values).eq("id", id);
+
+  let abandonedAlerts = 0;
+  for (const row of (alerts.data ?? []) as PartialRow[]) {
+    if (finished(row)) {
+      await mark(row.id, { owner_alerted_at: stamp, reminder_sent_at: stamp });
+      continue;
+    }
+    const app = await application(row);
+    if (!app) continue;
+    const result = await sendCallMail(
+      callAbandonedAlertPayload(mailer, owner, app),
+      mailer.apiKey,
+      `call-partial-alert-${row.id}`,
+    );
+    if (result.outcome !== "sent") continue;
+    await mark(row.id, { owner_alerted_at: stamp });
+    abandonedAlerts++;
+  }
+
+  let finishReminders = 0;
+  for (const row of (reminders.data ?? []) as PartialRow[]) {
+    if (finished(row)) {
+      await mark(row.id, { owner_alerted_at: stamp, reminder_sent_at: stamp });
+      continue;
+    }
+    const app = await application(row);
+    if (!app) continue;
+    const { data: suppressed, error } = await admin.rpc(
+      "transactional_email_is_suppressed",
+      { _email: row.contact.email },
+    );
+    if (error || typeof suppressed !== "boolean") continue;
+    const payload = suppressed
+      ? null
+      : callFinishReminderPayload(mailer, owner, app);
+    const result = payload
+      ? await sendCallMail(
+          payload,
+          mailer.apiKey,
+          `call-partial-reminder-${row.id}`,
+        )
+      : { outcome: "sent" as const };
+    if (result.outcome !== "sent") continue;
+    await mark(row.id, { reminder_sent_at: stamp });
+    if (payload) finishReminders++;
+  }
+  return { abandonedAlerts, finishReminders };
 }
 
 /** Lets the visitor's response return while the alert finishes in the background. */

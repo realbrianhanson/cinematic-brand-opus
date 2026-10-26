@@ -131,6 +131,101 @@ export function callFollowupPayload(
   };
 }
 
+/** Link back to the application, tagged so a finished application shows its source. */
+export function callFinishLink(
+  mailer: NewsletterConfig,
+  app: CallMailApplication,
+): string | null {
+  try {
+    const url = new URL(`/calls/${app.slug}`, mailer.siteUrl);
+    if (url.protocol !== "https:") return null;
+    url.searchParams.set("utm_source", "email");
+    url.searchParams.set("utm_medium", "call-application-unfinished");
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Tells the owner someone stopped partway, with what they answered so far. */
+export function callAbandonedAlertPayload(
+  mailer: NewsletterConfig,
+  owner: string,
+  app: CallMailApplication,
+): AccessMailPayload {
+  const origin = new URL(mailer.siteUrl);
+  if (origin.protocol !== "https:") throw new Error("Secure site URL required");
+  const name = oneLine(app.contact.name, 120);
+  const lines: Array<[string, string]> = [
+    ...callAnswerLines(app.config, app.answers),
+  ];
+  if (app.marketingConsent !== undefined)
+    lines.push([
+      "News, updates and offers",
+      app.marketingConsent
+        ? "Opted in by phone, text and email"
+        : "Not opted in. Contact about this application only",
+    ]);
+  const heading = `Unfinished application from ${name}`;
+  const intro = `${name} (${app.contact.email}) started an application on /calls/${app.slug} and stopped before sending it. Here is what they answered. They also get one email reminder to finish`;
+  const rows = lines
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:10px 0;border-top:1px solid #e1e6ee;color:#5a667a;font-size:13px">${escapeHtml(label)}</td></tr><tr><td style="padding:0 0 10px;font-size:15px;white-space:pre-wrap">${escapeHtml(value)}</td></tr>`,
+    )
+    .join("");
+  return {
+    from: mailer.fromAddress,
+    to: [owner],
+    reply_to: app.contact.email,
+    subject: oneLine(heading),
+    text: `${heading}\n\n${intro}\n\n${lines.map(([label, value]) => `${label}\n${value}\n`).join("\n")}`,
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;color:#172338;max-width:620px"><h1 style="font-size:22px">${escapeHtml(heading)}</h1><p style="font-size:15px">${escapeHtml(intro)}</p><table style="width:100%;border-collapse:collapse">${rows}</table></div>`,
+  };
+}
+
+/** One reminder to the visitor to finish their application. */
+export function callFinishReminderPayload(
+  mailer: NewsletterConfig,
+  owner: string,
+  app: CallMailApplication,
+): AccessMailPayload | null {
+  const link = callFinishLink(mailer, app);
+  if (!link) return null;
+  const first = oneLine(app.contact.name, 80).split(/\s+/)[0] || "there";
+  const host =
+    oneLine(app.config.brand.hostName, 80) ||
+    oneLine(app.config.brand.name, 80);
+  const subject = `Finish your application for a call with ${host}`;
+  const paragraphs = [
+    `Hi ${first},`,
+    `You started an application for a strategy call but didn't get to the end`,
+    `It takes about 2 more minutes. On the same device, your answers are still there`,
+    `If you already sent it, you can ignore this email`,
+    host,
+  ];
+  const footer =
+    "You are getting this because you started an application. It is the only reminder we send.";
+  return {
+    from: mailer.fromAddress,
+    to: [app.contact.email],
+    reply_to: owner,
+    subject: oneLine(subject),
+    text: `${paragraphs.slice(0, 3).join("\n\n")}\n\nFinish my application: ${link}\n\n${paragraphs.slice(3).join("\n\n")}\n\n${footer}`,
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;color:#172338;max-width:560px;font-size:16px;line-height:1.6">${paragraphs
+      .slice(0, 3)
+      .map((p) => `<p>${escapeHtml(p)}</p>`)
+      .join(
+        "",
+      )}<p><a href="${escapeHtml(link)}" style="display:inline-block;background:#d4af55;color:#000;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Finish my application</a></p>${paragraphs
+      .slice(3)
+      .map((p) => `<p>${escapeHtml(p)}</p>`)
+      .join(
+        "",
+      )}<p style="font-size:12px;color:#5a667a">${escapeHtml(footer)}</p></div>`,
+  };
+}
+
 export async function sendCallMail(
   payload: AccessMailPayload,
   apiKey: string,

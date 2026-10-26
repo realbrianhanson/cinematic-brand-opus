@@ -58,6 +58,18 @@ export async function runCallFunnelRequest(
 ): Promise<unknown> {
   if (body.action === "calendly")
     return confirmCalendlyBooking(body, database, hashToken, calendly);
+  if (body.action === "capture") {
+    const { data, error } = await database.rpc("call_funnel_capture", {
+      _slug: body.slug,
+      _revision: body.revision,
+      _token_hash: await hashToken(body.token),
+      _contact: body.contact,
+      _answers: body.answers,
+      _marketing: body.marketingConsent === true,
+    });
+    if (error) throw callFunnelDatabaseError(error);
+    return data ?? { saved: true };
+  }
   let name: string;
   let args: Record<string, unknown>;
   if (body.action === "get") {

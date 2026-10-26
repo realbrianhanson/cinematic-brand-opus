@@ -84,6 +84,27 @@ describe("call application transport", () => {
     });
     expect(JSON.stringify(rpc.mock.calls)).not.toContain(body().token);
   });
+  it("saves an unfinished application without a request id or outcome", async () => {
+    const rpc = vi.fn(async () => ({ data: { saved: true }, error: null }));
+    const { requestId: _requestId, ...rest } = body();
+    const capture = { ...rest, action: "capture" as const, answers: {} };
+    expect(parseCallFunnelRequest(capture)).toEqual(capture);
+    await runCallFunnelRequest(capture, { rpc }, async () => "c".repeat(64));
+    expect(rpc).toHaveBeenCalledWith("call_funnel_capture", {
+      _slug: "example",
+      _revision: 2,
+      _token_hash: "c".repeat(64),
+      _contact: capture.contact,
+      _answers: {},
+      _marketing: false,
+    });
+    expect(() =>
+      parseCallFunnelRequest({ ...capture, consent: false }),
+    ).toThrow();
+    expect(() =>
+      parseCallFunnelRequest({ ...capture, outcome: "qualified" }),
+    ).toThrow();
+  });
   it("passes the optional news and offers opt-in, and only as a boolean", async () => {
     const rpc = vi.fn(async () => ({ data: { id }, error: null }));
     const optedIn = { ...body(), marketingConsent: true };

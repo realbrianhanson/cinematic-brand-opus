@@ -8,7 +8,10 @@ import {
   type CallPublication,
 } from "../../../supabase/functions/_shared/callFunnels";
 import { isCalendlyUrl } from "./calendlyEmbed";
-import CallApplication, { type CallSubmit } from "./CallApplication";
+import CallApplication, {
+  type CallCapture,
+  type CallSubmit,
+} from "./CallApplication";
 import CallVideo from "./CallVideo";
 import CallPreparationExtras from "./CallPreparationExtras";
 import { callDraftKey, removeCallDraft } from "./callFunnelDraft";
@@ -36,6 +39,8 @@ export type CallFunnelExperienceProps = {
   preview?: boolean;
   qualificationRules?: CallFunnelConfig["qualificationRules"];
   onSubmit?: CallSubmit;
+  /** Saves an unfinished application; never awaited. */
+  onCapture?: CallCapture;
   initialState?: CallApplicationState | null;
   onRefreshState?: () => Promise<CallApplicationState>;
   onViewStage?: (stage: CallStage) => void;
@@ -323,6 +328,7 @@ function Experience({
   preview = false,
   qualificationRules,
   onSubmit,
+  onCapture,
   initialState = null,
   onRefreshState,
   onViewStage,
@@ -696,6 +702,7 @@ function Experience({
                       qualificationRules={qualificationRules}
                       marketingConsentText={showcase?.marketingConsent}
                       onSubmit={onSubmit}
+                      onCapture={onCapture}
                       onComplete={(accepted) => {
                         setState(accepted);
                         navigate(

@@ -38,7 +38,13 @@ Deno.serve(async (request) => {
     await offerThrottle(
       database,
       `call-funnel:${body.action}:${await hashOfferToken(ip)}`,
-      body.action === "submit" ? 20 : body.action === "calendly" ? 30 : 240,
+      body.action === "submit"
+        ? 20
+        : body.action === "calendly"
+          ? 30
+          : body.action === "capture"
+            ? 120
+            : 240,
     );
     const lovableKey = Deno.env.get("LOVABLE_API_KEY")?.trim() ?? "";
     const calendlyKey = Deno.env.get("CALENDLY_API_KEY")?.trim() ?? "";
