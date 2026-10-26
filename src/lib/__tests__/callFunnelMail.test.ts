@@ -95,9 +95,9 @@ describe("call funnel emails", () => {
       marketingConsent: false,
     });
     expect(no.text).toContain("Not opted in");
-    expect(callOwnerAlertPayload(mailer, "o@example.com", app()).text).not.toContain(
-      "News, updates and offers",
-    );
+    expect(
+      callOwnerAlertPayload(mailer, "o@example.com", app()).text,
+    ).not.toContain("News, updates and offers");
   });
 
   it("escapes applicant text in the owner email", () => {
