@@ -457,7 +457,7 @@ describe("Video + Application visitor flow", () => {
     expect(src.searchParams.get("phone")).toBe("5155550142");
     expect(
       document.querySelector(
-        'script[src="https://api.aiforbusiness.com/js/form_embed.js"]',
+        'script[src="https://link.msgsndr.com/js/form_embed.js"]',
       ),
     ).not.toBeNull();
     expect(

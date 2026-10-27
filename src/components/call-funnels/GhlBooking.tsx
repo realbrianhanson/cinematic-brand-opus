@@ -5,9 +5,15 @@ import {
   ghlEmbedUrl,
 } from "../../../supabase/functions/_shared/ghlBooking";
 
-/** GHL's own embed script sizes the frame to its content. */
-function loadEmbedScript(origin: string) {
-  const src = `${origin}/js/form_embed.js`;
+/**
+ * GHL's own embed script sizes the frame to its content. It is pinned to
+ * GHL's host rather than taken from the funnel's booking link, so config can
+ * never choose which script runs on the page.
+ */
+const EMBED_SCRIPT = "https://link.msgsndr.com/js/form_embed.js";
+
+function loadEmbedScript() {
+  const src = EMBED_SCRIPT;
   if (document.querySelector(`script[src="${src}"]`)) return;
   const script = document.createElement("script");
   script.src = src;
@@ -24,8 +30,7 @@ export default function GhlBooking({
   contact: CallContact | null;
   phone?: string;
 }) {
-  const origin = new URL(url).origin;
-  useEffect(() => loadEmbedScript(origin), [origin]);
+  useEffect(loadEmbedScript, []);
   return (
     <iframe
       id={`${ghlBookingWidgetId(url)}_cf`}
