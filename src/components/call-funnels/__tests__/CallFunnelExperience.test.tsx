@@ -9,6 +9,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import CallFunnelExperience from "../CallFunnelExperience";
+import { BookingStage } from "../CallBooking";
 import CallVideo from "../CallVideo";
 import { callVideoEmbed } from "../callVideoEmbed";
 import { callDraftKey, readCallDraft, saveCallDraft } from "../callFunnelDraft";
@@ -464,6 +465,39 @@ describe("Video + Application visitor flow", () => {
       screen.queryByRole("button", { name: "Check booking status" }),
     ).toBeNull();
     expect(screen.getByText(/Your details are already filled in/)).toBeTruthy();
+  });
+
+  it("names the showcase's booking host on the booking page instead of the funnel host", () => {
+    const publication = fixture();
+    publication.config.brand.hostName = "Brian Hanson";
+    publication.config.brand.hostBio = "Founder bio";
+    render(
+      <BookingStage
+        publication={publication}
+        state={state(publication)}
+        preview={false}
+        contact={null}
+        bookingNotes=""
+        showcase={{
+          showResults: false,
+          bookingHost: {
+            name: "Alex Ram or Mike Bach",
+            bio: "A strategist runs your call",
+          },
+        }}
+        accent="#b8860b"
+        embedCalendly={false}
+        refreshing={false}
+        bookingMessage=""
+        bookingError=""
+        onScheduled={() => {}}
+        onRefresh={null}
+        onPrepare={() => {}}
+      />,
+    );
+    expect(screen.getByText("Alex Ram or Mike Bach")).toBeTruthy();
+    expect(screen.getByText("A strategist runs your call")).toBeTruthy();
+    expect(screen.queryByText("Founder bio")).toBeNull();
   });
 
   it("does not claim a booking from a calendar handoff, and only unlocks preparation from a confirmed state", async () => {

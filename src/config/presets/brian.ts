@@ -325,6 +325,10 @@ export const brianPreset: SiteConfig = {
       showResults: true,
       marketingConsent:
         "Also send me AI news, updates and related offers by phone, text and email. Optional, not required to apply. Message frequency varies. Reply STOP to opt out",
+      bookingHost: {
+        name: "Alex Ram or Mike Bach",
+        bio: "A strategist from my team runs your call. They'll look at your business, map what to do first and show you how we'd work together",
+      },
       homeBand: {
         heading: "Want it built for you?",
         text: "My team does AI consulting, staff AI training, automations, lead generation, ad management and funnels. Done-for-you projects start at $5,000",

@@ -362,6 +362,8 @@ export interface CallShowcase {
   showResults: boolean;
   /** Optional, unchecked opt-in on the review step for news, updates and offers. */
   marketingConsent?: string;
+  /** Who runs the call, shown on the booking page in place of the funnel host. */
+  bookingHost?: { name: string; bio: string };
   /** Optional homepage section that sends visitors to this application. */
   homeBand?: { heading: string; text: string; cta: string };
   system?: {
@@ -414,6 +416,11 @@ const checkCallShowcases = (
       texts.push([showcase.chatSummary, "chatSummary"]);
     if (showcase.marketingConsent !== undefined)
       texts.push([showcase.marketingConsent, "marketingConsent"]);
+    if (showcase.bookingHost)
+      texts.push(
+        [showcase.bookingHost.name, "bookingHost.name"],
+        [showcase.bookingHost.bio, "bookingHost.bio"],
+      );
     if (showcase.homeBand)
       texts.push(
         [showcase.homeBand.heading, "homeBand.heading"],

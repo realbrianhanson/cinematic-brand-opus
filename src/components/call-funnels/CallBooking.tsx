@@ -193,7 +193,20 @@ export function BookingStage({
           <p>{config.booking.agenda}</p>
         </div>
       )}
-      <HostCard brand={config.brand} label="Who you’ll talk to" />
+      <HostCard
+        brand={
+          showcase?.bookingHost
+            ? {
+                ...config.brand,
+                hostName: showcase.bookingHost.name,
+                hostRole: "",
+                hostBio: showcase.bookingHost.bio,
+              }
+            : config.brand
+        }
+        photo={!showcase?.bookingHost}
+        label="Who you’ll talk to"
+      />
       {quote && <QuoteFigure item={quote} />}
     </aside>
   );
