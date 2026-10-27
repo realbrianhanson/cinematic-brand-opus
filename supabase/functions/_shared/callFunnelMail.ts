@@ -6,6 +6,7 @@
  * mailer settings and a fetch implementation.
  */
 import { callAnswerLines, type CallFunnelConfig } from "./callFunnels.ts";
+import { isGhlBookingUrl } from "./ghlBooking.ts";
 
 export { callAnswerLines };
 import { escapeHtml, type NewsletterConfig } from "./newsletterConfig.ts";
@@ -96,6 +97,9 @@ export function callFollowupPayload(
   owner: string,
   app: CallMailApplication,
 ): AccessMailPayload | null {
+  // GHL bookings never report back, so a reminder could reach someone who
+  // already booked; GHL sends its own reminders instead.
+  if (isGhlBookingUrl(app.config.booking.url)) return null;
   const link = callBookingLink(app);
   if (!link) return null;
   const first = oneLine(app.contact.name, 80).split(/\s+/)[0] || "there";

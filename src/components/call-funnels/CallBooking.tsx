@@ -8,6 +8,7 @@ import {
 } from "../../../supabase/functions/_shared/callFunnels";
 import type { CallShowcase } from "@/config/types";
 import CalendlyBooking from "./CalendlyBooking";
+import GhlBooking from "./GhlBooking";
 import CallDestination from "./CallDestination";
 import { QuoteFigure } from "./CallProof";
 import { selectedProof } from "./callShowcase";
@@ -115,9 +116,11 @@ export type BookingStageProps = {
   preview: boolean;
   contact: CallContact | null;
   bookingNotes: string;
+  bookingPhone?: string;
   showcase: CallShowcase | null;
   accent: string;
   embedCalendly: boolean;
+  embedGhl?: boolean;
   refreshing: boolean;
   bookingMessage: string;
   bookingError: string;
@@ -132,9 +135,11 @@ export function BookingStage({
   preview,
   contact,
   bookingNotes,
+  bookingPhone,
   showcase,
   accent,
   embedCalendly,
+  embedGhl = false,
   refreshing,
   bookingMessage,
   bookingError,
@@ -169,10 +174,12 @@ export function BookingStage({
       ? providerBooking
         ? "Your calendar invite and meeting link are on the way to your inbox"
         : "The team has your call on the calendar"
-      : !embedCalendly
+      : !embedCalendly && !embedGhl
         ? "Use the calendar to reserve your time"
         : name
-          ? "Your name and email are already filled in, so booking takes a few clicks"
+          ? embedGhl
+            ? "Your details are already filled in, so booking takes a few clicks"
+            : "Your name and email are already filled in, so booking takes a few clicks"
           : "Choose a time below and your calendar invite arrives right away";
   const aside = (
     <aside className="cf-booking-aside" aria-label="About your call">
@@ -239,7 +246,13 @@ export function BookingStage({
                 Your application is still here
               </p>
             )}
-            {embedCalendly && state ? (
+            {embedGhl ? (
+              <GhlBooking
+                url={config.booking.url}
+                contact={contact}
+                phone={bookingPhone}
+              />
+            ) : embedCalendly && state ? (
               <CalendlyBooking
                 url={config.booking.url}
                 applicationId={state.id}

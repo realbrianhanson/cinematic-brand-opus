@@ -52,11 +52,15 @@ function CallSession({ publication }: { publication: CallPublication }) {
   const contactKey = `call-contact:${publication.id}`;
   const bookingKey = `call-booking:${publication.id}`;
   const notesKey = `call-notes:${publication.id}`;
+  const phoneKey = `call-phone:${publication.id}`;
   const [bookingNotes, setBookingNotes] = useState<string>(
     () => readSession<string>(notesKey) ?? "",
   );
   const [contact, setContact] = useState<CallContact | null>(() =>
     readSession<CallContact>(contactKey),
+  );
+  const [bookingPhone, setBookingPhone] = useState<string>(
+    () => readSession<string>(phoneKey) ?? "",
   );
   useEffect(() => {
     let active = true;
@@ -154,6 +158,9 @@ function CallSession({ publication }: { publication: CallPublication }) {
     const notes = callBookingNotes(publication.config, answers);
     setBookingNotes(notes);
     writeSession(notesKey, notes);
+    const phone = answers.phone?.trim() ?? "";
+    setBookingPhone(phone);
+    writeSession(phoneKey, phone);
     ensureToken();
     if (!pending.current)
       pending.current = {
@@ -267,6 +274,7 @@ function CallSession({ publication }: { publication: CallPublication }) {
           onRefreshState={refresh}
           contact={contact}
           bookingNotes={bookingNotes}
+          bookingPhone={bookingPhone}
           onCalendlyBooked={calendlyBooked}
         />
       </div>

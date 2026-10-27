@@ -433,6 +433,39 @@ describe("Video + Application visitor flow", () => {
     ).toBe(false);
   });
 
+  it("embeds a GHL calendar prefilled with the applicant, with no status check", () => {
+    const publication = fixture();
+    publication.config.booking.url =
+      "https://api.aiforbusiness.com/widget/booking/mEmvmXjJ7RG3TywMLIir";
+    render(
+      <CallFunnelExperience
+        publication={publication}
+        initialState={state(publication)}
+        contact={{ name: "Pat Lee", email: "pat@example.com" }}
+        bookingPhone="5155550142"
+        onRefreshState={vi.fn()}
+      />,
+    );
+    const frame = screen.getByTitle("Choose a call time") as HTMLIFrameElement;
+    const src = new URL(frame.src);
+    expect(src.origin + src.pathname).toBe(
+      "https://api.aiforbusiness.com/widget/booking/mEmvmXjJ7RG3TywMLIir",
+    );
+    expect(src.searchParams.get("first_name")).toBe("Pat");
+    expect(src.searchParams.get("last_name")).toBe("Lee");
+    expect(src.searchParams.get("email")).toBe("pat@example.com");
+    expect(src.searchParams.get("phone")).toBe("5155550142");
+    expect(
+      document.querySelector(
+        'script[src="https://api.aiforbusiness.com/js/form_embed.js"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Check booking status" }),
+    ).toBeNull();
+    expect(screen.getByText(/Your details are already filled in/)).toBeTruthy();
+  });
+
   it("does not claim a booking from a calendar handoff, and only unlocks preparation from a confirmed state", async () => {
     const publication = fixture();
     const refresh = vi

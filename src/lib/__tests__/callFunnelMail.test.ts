@@ -128,6 +128,13 @@ describe("call funnel emails", () => {
     expect(callFollowupPayload(mailer, "o@example.com", insecure)).toBeNull();
   });
 
+  it("sends no pick-a-time reminder for GHL calendars, which send their own", () => {
+    const ghl = app();
+    ghl.config.booking.url =
+      "https://api.aiforbusiness.com/widget/booking/mEmvmXjJ7RG3TywMLIir";
+    expect(callFollowupPayload(mailer, "o@example.com", ghl)).toBeNull();
+  });
+
   it("uses an idempotency key so retries never duplicate", async () => {
     const fetcher = vi.fn(
       async () =>

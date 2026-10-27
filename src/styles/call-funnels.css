@@ -1229,9 +1229,13 @@ html[data-site-theme="light"] .call-funnel[data-cf-theme="site"] {
 }
 /* On white pages Calendly's own card is the frame, so the embed sits unframed */
 .call-funnel[data-cf-theme="light"] .cf-calendar-card:has(.cf-calendly),
+.call-funnel[data-cf-theme="light"] .cf-calendar-card:has(.cf-ghl),
 html[data-site-theme="light"]
   .call-funnel[data-cf-theme="site"]
-  .cf-calendar-card:has(.cf-calendly) {
+  .cf-calendar-card:has(.cf-calendly),
+html[data-site-theme="light"]
+  .call-funnel[data-cf-theme="site"]
+  .cf-calendar-card:has(.cf-ghl) {
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1255,6 +1259,15 @@ html[data-site-theme="light"]
   height: 700px;
   border: 0;
   background: #fff;
+}
+/* GHL's embed script resizes the frame; the minimum covers the calendar view */
+.call-funnel .cf-ghl {
+  display: block;
+  width: 100%;
+  min-height: 760px;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
 }
 .call-funnel .cf-calendar-link {
   padding: 36px;

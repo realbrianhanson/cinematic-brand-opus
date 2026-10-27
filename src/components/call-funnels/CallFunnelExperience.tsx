@@ -8,6 +8,7 @@ import {
   type CallPublication,
 } from "../../../supabase/functions/_shared/callFunnels";
 import { isCalendlyUrl } from "./calendlyEmbed";
+import { isGhlBookingUrl } from "../../../supabase/functions/_shared/ghlBooking";
 import CallApplication, {
   type CallCapture,
   type CallSubmit,
@@ -48,6 +49,8 @@ export type CallFunnelExperienceProps = {
   contact?: CallContact | null;
   /** The application's answers, carried into the calendar invite. */
   bookingNotes?: string;
+  /** The applicant's phone, prefilled into calendars that ask for one. */
+  bookingPhone?: string;
   onCalendlyBooked?: (inviteeUri: string) => Promise<CallApplicationState>;
 };
 
@@ -334,6 +337,7 @@ function Experience({
   onViewStage,
   contact = null,
   bookingNotes = "",
+  bookingPhone = "",
   onCalendlyBooked,
 }: CallFunnelExperienceProps) {
   const { config } = publication;
@@ -402,6 +406,8 @@ function Experience({
     !!state &&
     !!onCalendlyBooked &&
     isCalendlyUrl(config.booking.url);
+  // GHL bookings land in GHL and never report back, so there is no status to check.
+  const embedGhl = !preview && !!state && isGhlBookingUrl(config.booking.url);
   async function confirmBooking(inviteeUri: string) {
     // Never drop a booking because a status check is running; confirmation is idempotent.
     if (!onCalendlyBooked) return;
@@ -745,14 +751,20 @@ function Experience({
             preview={preview}
             contact={contact}
             bookingNotes={bookingNotes}
+            bookingPhone={bookingPhone}
             showcase={showcase}
             accent={accent}
             embedCalendly={embedCalendly}
+            embedGhl={embedGhl}
             refreshing={refreshing}
             bookingMessage={bookingMessage}
             bookingError={bookingError}
             onScheduled={(uri) => void confirmBooking(uri)}
-            onRefresh={!preview && onRefreshState ? () => void refresh() : null}
+            onRefresh={
+              !preview && !embedGhl && onRefreshState
+                ? () => void refresh()
+                : null
+            }
             onPrepare={() => navigate("preparation")}
           />
         )}
