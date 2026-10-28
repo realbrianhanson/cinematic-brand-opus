@@ -87,9 +87,10 @@ const seanSetUp: TestimonialItem = {
   context: AGENTS_SETUP_CALL,
 };
 
+/** Brian approved adding the missing "out" (2026-10-28); otherwise word for word. */
 const lauraPatient: TestimonialItem = {
   quote:
-    "Great Job Brian, this is so well thought and you are very patient. Thank you",
+    "Great Job Brian, this is so well thought out and you are very patient. Thank you",
   attribution: "Laura Davis",
   context: AGENTS_SETUP_CALL,
 };
