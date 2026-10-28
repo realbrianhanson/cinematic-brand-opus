@@ -32,6 +32,9 @@ const LIVE_JUNE = "Live training · June 2026";
 const LIVE_MAY = "Live training · May 2026";
 const APP_WORKSHOP_MARCH = "App Building Workshop · March 2026";
 const PUSHTEN_OVERVIEW = "PushTen product overview · May 2026";
+const AGENTS_SETUP_CALL =
+  "PushTen for Agents call, Grok Bot setup · October 2026";
+const AGENTS_LAUNCH = "PushTen for Agents launch call · September 2026";
 
 /** Randi's line leads the About page and the speaking page. */
 const randiHeart: TestimonialItem = {
@@ -63,9 +66,39 @@ const ebTalkToHim: TestimonialItem = {
   context: "Training feedback · May 2026",
 };
 
+/** On the homepage wall only; the call pages use service and agent quotes. */
 const jessicaWhisperer: TestimonialItem = {
   quote: "Brian is the Lovable Whisperer",
   attribution: "Jessica Farrone",
+};
+
+/** Said at the end of the PushTen for Agents launch call. */
+const judithTakeCare: TestimonialItem = {
+  quote: "IF you haven't work with Brian or AI4B, they will take care of you",
+  attribution: "Judith Mosely",
+  context: AGENTS_LAUNCH,
+};
+
+/** Grok Bot setup feedback for the Grok Bot setup application. */
+const seanSetUp: TestimonialItem = {
+  quote:
+    "As always, you blow me away and this has been awesome!!! Thank you for getting this off and set up for me. Love it!",
+  attribution: "Sean Ragland",
+  context: AGENTS_SETUP_CALL,
+};
+
+const lauraPatient: TestimonialItem = {
+  quote:
+    "Great Job Brian, this is so well thought and you are very patient. Thank you",
+  attribution: "Laura Davis",
+  context: AGENTS_SETUP_CALL,
+};
+
+const nathanIntegrating: TestimonialItem = {
+  quote:
+    "This has been a great webinar I look forward to integrating these tools into our business.",
+  attribution: "Nathan Fleming",
+  context: AGENTS_LAUNCH,
 };
 
 /**
@@ -286,7 +319,18 @@ export const brianSpeakingTestimonials: SpeakingTestimonialsConfig = {
  */
 export const brianCallTestimonials: TestimonialItem[] = [
   steveApp,
-  jessicaWhisperer,
+  judithTakeCare,
   lisaSba,
   ebTalkToHim,
+];
+
+/**
+ * The Grok Bot setup application: AI agent and Grok Bot feedback only, so
+ * no app-building quotes. The last one sits beside the booking calendar.
+ */
+export const brianGrokCallTestimonials: TestimonialItem[] = [
+  seanSetUp,
+  lauraPatient,
+  nathanIntegrating,
+  judithTakeCare,
 ];
