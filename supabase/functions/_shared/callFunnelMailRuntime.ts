@@ -303,8 +303,11 @@ async function processAbandoned(
 }
 
 /** Lets the visitor's response return while the alert finishes in the background. */
-export function inBackground(work: Promise<unknown>) {
-  const safe = work.catch(() => console.error("Call funnel mail deferred"));
+export function inBackground(
+  work: Promise<unknown>,
+  failure = "Call funnel mail deferred",
+) {
+  const safe = work.catch(() => console.error(failure));
   const runtime = (
     globalThis as unknown as {
       EdgeRuntime?: { waitUntil(task: Promise<unknown>): void };

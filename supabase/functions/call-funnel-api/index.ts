@@ -4,6 +4,7 @@ import {
   inBackground,
   processCallFunnelMail,
 } from "../_shared/callFunnelMailRuntime.ts";
+import { processCallFunnelCrm } from "../_shared/callFunnelCrm.ts";
 import { parseCallFunnelRequest } from "../_shared/callFunnelRequests.ts";
 import { runCallFunnelRequest } from "../_shared/callFunnelRuntime.ts";
 import { hashOfferToken, OfferError } from "../_shared/offers.ts";
@@ -58,8 +59,14 @@ Deno.serve(async (request) => {
       hashOfferToken,
       calendly,
     );
-    // Alert the owner right away; the 15-minute worker retries any miss.
+    // Alert the owner and post the lead to the CRM right away; the 15-minute
+    // worker retries any miss.
     const accepted = result as { id?: unknown; outcome?: unknown };
+    if (body.action === "submit" && typeof accepted.id === "string")
+      inBackground(
+        processCallFunnelCrm(database, { applicationId: accepted.id }),
+        "Call funnel CRM webhook deferred",
+      );
     if (
       body.action === "submit" &&
       accepted.outcome === "qualified" &&
