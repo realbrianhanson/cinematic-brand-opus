@@ -413,7 +413,7 @@ export const brianPreset: SiteConfig = {
             text: "One home for your business that every AI tool can use",
             items: [
               "Your offers, voice and customers in one place",
-              "Works across every AI tool you use",
+              "Your AI tools share one memory and hand off work",
             ],
           },
           {
@@ -430,6 +430,7 @@ export const brianPreset: SiteConfig = {
             items: [
               "Custom Grok Bot templates",
               "Connected to the tools you already use",
+              "You own the rights and can sell them in your niche",
             ],
           },
           {
