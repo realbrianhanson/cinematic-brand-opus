@@ -363,7 +363,12 @@ export interface CallShowcase {
   /** Optional, unchecked opt-in on the review step for news, updates and offers. */
   marketingConsent?: string;
   /** Who runs the call, shown on the booking page in place of the funnel host. */
-  bookingHost?: { name: string; bio: string };
+  bookingHost?: {
+    name: string;
+    bio: string;
+    /** Up to two portraits, each labeled with the person's name. */
+    photos?: Array<{ src: string; alt: string }>;
+  };
   /** Optional homepage section that sends visitors to this application. */
   homeBand?: { heading: string; text: string; cta: string };
   system?: {
@@ -416,11 +421,22 @@ const checkCallShowcases = (
       texts.push([showcase.chatSummary, "chatSummary"]);
     if (showcase.marketingConsent !== undefined)
       texts.push([showcase.marketingConsent, "marketingConsent"]);
-    if (showcase.bookingHost)
+    if (showcase.bookingHost) {
       texts.push(
         [showcase.bookingHost.name, "bookingHost.name"],
         [showcase.bookingHost.bio, "bookingHost.bio"],
       );
+      const photos = showcase.bookingHost.photos ?? [];
+      if (photos.length > 2)
+        errors.push(`${path}.bookingHost.photos must have at most 2 photos`);
+      photos.forEach((photo, i) => {
+        if (!isValidHref(photo.src) || photo.src.startsWith("#"))
+          errors.push(
+            `${path}.bookingHost.photos[${i}].src must be a path or URL`,
+          );
+        texts.push([photo.alt, `bookingHost.photos[${i}].alt`]);
+      });
+    }
     if (showcase.homeBand)
       texts.push(
         [showcase.homeBand.heading, "homeBand.heading"],

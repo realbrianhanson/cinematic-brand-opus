@@ -205,6 +205,7 @@ export function BookingStage({
             : config.brand
         }
         photo={!showcase?.bookingHost}
+        photos={showcase?.bookingHost?.photos}
         label="Who you’ll talk to"
       />
       {quote && <QuoteFigure item={quote} />}

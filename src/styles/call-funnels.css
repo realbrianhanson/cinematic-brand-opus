@@ -826,6 +826,15 @@ html[data-site-theme="light"] .call-funnel[data-cf-theme="site"] {
   object-position: 50% 12%;
   background: #000;
 }
+.call-funnel .cf-host-card-photos {
+  display: flex;
+  gap: 8px;
+}
+.call-funnel .cf-host-card-photos-pair img {
+  width: 64px;
+  height: 80px;
+  border-radius: 14px;
+}
 .call-funnel .cf-host-card-label {
   font-size: 13px;
   color: var(--cf-muted);

@@ -500,6 +500,55 @@ describe("Video + Application visitor flow", () => {
     expect(screen.queryByText("Founder bio")).toBeNull();
   });
 
+  it("shows the booking team's named portraits instead of the host's", () => {
+    const publication = fixture();
+    publication.config.brand.hostName = "Brian Hanson";
+    publication.config.brand.hostImage = "/brian-headshot.webp";
+    const stage = (photos: Array<{ src: string; alt: string }>) => (
+      <BookingStage
+        publication={publication}
+        state={state(publication)}
+        preview={false}
+        contact={null}
+        bookingNotes=""
+        showcase={{
+          showResults: false,
+          bookingHost: {
+            name: "Alex Ram or Mike Bach",
+            bio: "A strategist runs your call",
+            photos,
+          },
+        }}
+        accent="#b8860b"
+        embedCalendly={false}
+        refreshing={false}
+        bookingMessage=""
+        bookingError=""
+        onScheduled={() => {}}
+        onRefresh={null}
+        onPrepare={() => {}}
+      />
+    );
+    const { unmount } = render(
+      stage([{ src: "/team/alex-ram.webp", alt: "Alex Ram" }]),
+    );
+    expect(screen.getByAltText("Alex Ram").getAttribute("src")).toBe(
+      "/team/alex-ram.webp",
+    );
+    expect(
+      document.querySelector('img[src="/brian-headshot.webp"]'),
+    ).toBeNull();
+    unmount();
+    render(
+      stage([
+        { src: "/team/alex-ram.webp", alt: "Alex Ram" },
+        { src: "/team/mike-bach.webp", alt: "Mike Bach" },
+      ]),
+    );
+    expect(screen.getByAltText("Mike Bach")).toBeTruthy();
+    expect(document.querySelector(".cf-host-card-photos-pair")).not.toBeNull();
+  });
+
   it("does not claim a booking from a calendar handoff, and only unlocks preparation from a confirmed state", async () => {
     const publication = fixture();
     const refresh = vi

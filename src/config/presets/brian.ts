@@ -329,6 +329,7 @@ export const brianPreset: SiteConfig = {
       bookingHost: {
         name: "Alex Ram or Mike Bach",
         bio: "A strategist from my team runs your call. They'll look at your business, map what to do first and show you how we'd work together",
+        photos: [{ src: "/team/alex-ram.webp", alt: "Alex Ram" }],
       },
       homeBand: {
         heading: "Want it built for you?",
@@ -403,6 +404,7 @@ export const brianPreset: SiteConfig = {
       bookingHost: {
         name: "Alex Ram or Mike Bach",
         bio: "A strategist from my team runs your call. They'll look at how your business runs, pick the first bots to build and show you how we'd work together",
+        photos: [{ src: "/team/alex-ram.webp", alt: "Alex Ram" }],
       },
       system: {
         heading: "How we set up your Grok Bots",

@@ -126,16 +126,41 @@ export function HostCard({
   brand,
   label,
   photo = true,
+  photos,
 }: {
   brand: CallFunnelConfig["brand"];
   label: string;
   /** Off where the page already shows the host's portrait. */
   photo?: boolean;
+  /** Named portraits that replace the host's, such as the team who runs the call. */
+  photos?: Array<{ src: string; alt: string }>;
 }) {
   if (!brand.hostName && !brand.hostBio) return null;
-  const image = photo && brand.hostImage && callUrl(brand.hostImage, true);
+  const team = (photos ?? []).filter((p) => callUrl(p.src, true)).slice(0, 2);
+  const image =
+    !team.length && photo && brand.hostImage && callUrl(brand.hostImage, true);
   return (
     <div className="cf-host-card">
+      {team.length > 0 && (
+        <div
+          className={
+            team.length > 1
+              ? "cf-host-card-photos cf-host-card-photos-pair"
+              : "cf-host-card-photos"
+          }
+        >
+          {team.map((p) => (
+            <img
+              key={p.src}
+              src={p.src}
+              alt={p.alt}
+              width={96}
+              height={96}
+              loading="lazy"
+            />
+          ))}
+        </div>
+      )}
       {image && (
         <img
           src={brand.hostImage}
