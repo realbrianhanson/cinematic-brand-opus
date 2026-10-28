@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CallQuestion } from "../../../supabase/functions/_shared/callFunnels";
 import {
   callApplicationSummary,
   callCrmPayload,
   crmWebhookUrl,
+  grokBotContactFields,
+  grokBotContactPayload,
   processCallFunnelCrm,
+  processGrokBotContactCrm,
   sendCallCrm,
   type CrmApplication,
 } from "../../../supabase/functions/_shared/callFunnelCrm";
@@ -120,6 +124,81 @@ describe("CRM payload", () => {
       "Where do you want help first?: Automate work I do by hand",
     );
   });
+
+  it("maps each Grok Bot answer to its matching GHL contact field", () => {
+    const question = (
+      id: string,
+      label: string,
+      type: CallQuestion["type"],
+      options: CallQuestion["options"] = [],
+    ): CallQuestion => ({ id, label, help: "", type, required: true, options });
+    const grokConfig = {
+      questions: [
+        question("handoff", "First task?", "single", [
+          { id: "inbox", label: "Answering messages" },
+        ]),
+        question("grok", "Experience?", "single", [
+          { id: "few", label: "One or two bots" },
+        ]),
+        question("offer", "Business?", "textarea"),
+        question("website", "Website?", "single", [
+          { id: "yes", label: "Yes" },
+        ]),
+        question("website-url", "URL?", "text"),
+        question("tasks", "Time drains?", "textarea"),
+        question("style", "Style?", "single", [
+          { id: "with-you", label: "Done with you" },
+        ]),
+        question("budget", "Budget?", "single", [
+          { id: "large", label: "$5,000+" },
+        ]),
+        question("start", "When?", "single", [{ id: "now", label: "Now" }]),
+        question("phone", "Phone", "text"),
+      ],
+    };
+    const answers = {
+      handoff: "inbox",
+      grok: "few",
+      offer: "Consulting",
+      website: "yes",
+      "website-url": "https://example.com",
+      tasks: "Follow ups",
+      style: "with-you",
+      budget: "large",
+      start: "now",
+      phone: "5155550142",
+    };
+    expect(grokBotContactFields(grokConfig, answers)).toEqual({
+      grok_bot_first_task_to_hand_off: "Answering messages",
+      grok_bot_current_experience: "One or two bots",
+      grok_bot_business_and_buyers: "Consulting",
+      grok_bot_has_website: "Yes",
+      grok_bot_website_url: "https://example.com",
+      grok_bot_weekly_time_drains: "Follow ups",
+      grok_bot_service_style: "Done with you",
+      grok_bot_budget: "$5,000+",
+      grok_bot_start_timing: "Now",
+    });
+    expect(callCrmPayload(app({ config: grokConfig, answers }), "")).toMatchObject(
+      {
+        event_type: "application_submitted",
+        grok_bot_budget: "$5,000+",
+        grok_bot_application_summary: expect.stringContaining(
+          "First task?: Answering messages",
+        ),
+      },
+    );
+    expect(grokBotContactPayload(app().contact, { phone: " 5155550142 " }))
+      .toEqual({
+        first_name: "Pat",
+        last_name: "Van Lee",
+        email: "pat@example.com",
+        phone: "5155550142",
+        funnel: "grok-bot-setup",
+        event_type: "contact_captured",
+        contact_consent: true,
+      });
+  });
 });
 
 describe("CRM sender", () => {
@@ -231,6 +310,7 @@ describe("CRM worker", () => {
     crm_sent_at: null,
   };
   const tables = (webhookUrl = webhook) => ({
+    call_funnels: [{ id: "f1", slug: "grok-bot-setup" }],
     site_settings_private: [{ id: "s1", call_funnel_webhook_url: webhookUrl }],
     site_settings: [{ site_url: "https://brianhanson.com" }],
     call_funnel_revisions: [
@@ -316,5 +396,91 @@ describe("CRM worker", () => {
       ),
     );
     expect(body.application_id).toBe("a4");
+  });
+
+  it("routes Grok Bot submissions to its dedicated webhook", async () => {
+    const data = tables("");
+    data.call_funnel_applications.unshift({
+      ...row,
+      id: "other",
+      funnel_id: "other-funnel",
+    });
+    const { client } = fakeAdmin(data);
+    const fetcher = vi.fn(async () => new Response("ok", { status: 200 }));
+    expect(
+      await processCallFunnelCrm(client, {
+        now,
+        fetcher,
+        grokWebhookUrl: webhook,
+      }),
+    ).toEqual({ configured: true, sent: 1 });
+    expect(
+      (fetcher.mock.calls[0] as unknown as [string, RequestInit])[0],
+    ).toBe(webhook);
+  });
+});
+
+describe("Grok Bot first contact delivery", () => {
+  const now = Date.parse("2026-10-27T12:30:00Z");
+  const tables = {
+    call_funnels: [{ id: "f1", slug: "grok-bot-setup" }],
+    call_funnel_partials: [
+      {
+        id: "p1",
+        funnel_id: "f1",
+        token_hash: "a".repeat(64),
+        contact: { name: "Pat Lee", email: "pat@example.com" },
+        answers: { phone: "5155550142" },
+        created_at: "2026-10-27T12:00:00.000Z",
+        crm_contact_sent_at: null,
+      },
+    ],
+  };
+
+  it("posts a contact once and marks the partial sent", async () => {
+    const { client, updates } = fakeAdmin(tables);
+    const fetcher = vi.fn(async () => new Response("ok", { status: 200 }));
+    expect(
+      await processGrokBotContactCrm(client, {
+        tokenHash: "a".repeat(64),
+        now,
+        fetcher,
+        grokWebhookUrl: webhook,
+      }),
+    ).toEqual({ configured: true, sent: 1 });
+    const body = JSON.parse(
+      String(
+        (fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body,
+      ),
+    );
+    expect(body).toMatchObject({
+      email: "pat@example.com",
+      phone: "5155550142",
+      event_type: "contact_captured",
+    });
+    expect(updates).toEqual([
+      {
+        table: "call_funnel_partials",
+        id: "p1",
+        values: { crm_contact_sent_at: new Date(now).toISOString() },
+      },
+    ]);
+  });
+
+  it("does not send without a configured webhook or a successful claim", async () => {
+    const { client } = fakeAdmin(tables, () => false);
+    const fetcher = vi.fn();
+    expect(await processGrokBotContactCrm(client, { now, fetcher })).toEqual({
+      configured: false,
+      sent: 0,
+    });
+    expect(
+      await processGrokBotContactCrm(client, {
+        now,
+        fetcher,
+        grokWebhookUrl: webhook,
+      }),
+    ).toEqual({ configured: true, sent: 0 });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

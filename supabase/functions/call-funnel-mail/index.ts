@@ -1,6 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authorizeCronOrAdmin } from "../_shared/cronAuth.ts";
-import { processCallFunnelCrm } from "../_shared/callFunnelCrm.ts";
+import {
+  processCallFunnelCrm,
+  processGrokBotContactCrm,
+} from "../_shared/callFunnelCrm.ts";
 import { processCallFunnelMail } from "../_shared/callFunnelMailRuntime.ts";
 
 const headers = {
@@ -29,14 +32,19 @@ Deno.serve(async (request) => {
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
     // A CRM outage never holds up the emails.
-    const [mail, crm] = await Promise.all([
+    const grokWebhookUrl = Deno.env.get("GROK_BOT_GHL_WEBHOOK_URL");
+    const [mail, crm, contacts] = await Promise.all([
       processCallFunnelMail(admin, Deno.env.get("RESEND_API_KEY")),
-      processCallFunnelCrm(admin).catch(() => {
+      processCallFunnelCrm(admin, { grokWebhookUrl }).catch(() => {
         console.error("Call funnel CRM webhook worker unavailable");
         return { configured: true, sent: 0, failed: true };
       }),
+      processGrokBotContactCrm(admin, { grokWebhookUrl }).catch(() => {
+        console.error("Grok Bot contact CRM webhook worker unavailable");
+        return { configured: true, sent: 0, failed: true };
+      }),
     ]);
-    return new Response(JSON.stringify({ ...mail, crm }), { headers });
+    return new Response(JSON.stringify({ ...mail, crm, contacts }), { headers });
   } catch {
     console.error("Call funnel mail worker unavailable");
     return new Response(

@@ -4,7 +4,10 @@ import {
   inBackground,
   processCallFunnelMail,
 } from "../_shared/callFunnelMailRuntime.ts";
-import { processCallFunnelCrm } from "../_shared/callFunnelCrm.ts";
+import {
+  processCallFunnelCrm,
+  processGrokBotContactCrm,
+} from "../_shared/callFunnelCrm.ts";
 import { parseCallFunnelRequest } from "../_shared/callFunnelRequests.ts";
 import { runCallFunnelRequest } from "../_shared/callFunnelRuntime.ts";
 import { hashOfferToken, OfferError } from "../_shared/offers.ts";
@@ -62,9 +65,21 @@ Deno.serve(async (request) => {
     // Alert the owner and post the lead to the CRM right away; the 15-minute
     // worker retries any miss.
     const accepted = result as { id?: unknown; outcome?: unknown };
+    const grokWebhookUrl = Deno.env.get("GROK_BOT_GHL_WEBHOOK_URL");
+    if (body.action === "capture" && body.slug === "grok-bot-setup")
+      inBackground(
+        processGrokBotContactCrm(database, {
+          tokenHash: await hashOfferToken(body.token),
+          grokWebhookUrl,
+        }),
+        "Grok Bot contact CRM webhook deferred",
+      );
     if (body.action === "submit" && typeof accepted.id === "string")
       inBackground(
-        processCallFunnelCrm(database, { applicationId: accepted.id }),
+        processCallFunnelCrm(database, {
+          applicationId: accepted.id,
+          grokWebhookUrl,
+        }),
         "Call funnel CRM webhook deferred",
       );
     if (

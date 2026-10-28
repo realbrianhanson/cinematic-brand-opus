@@ -164,6 +164,8 @@ export type Database = {
           answers: Json
           contact: Json
           created_at: string
+          crm_contact_claimed_at: string | null
+          crm_contact_sent_at: string | null
           funnel_id: string
           id: string
           marketing_consent: boolean
@@ -177,6 +179,8 @@ export type Database = {
           answers?: Json
           contact: Json
           created_at?: string
+          crm_contact_claimed_at?: string | null
+          crm_contact_sent_at?: string | null
           funnel_id: string
           id?: string
           marketing_consent?: boolean
@@ -190,6 +194,8 @@ export type Database = {
           answers?: Json
           contact?: Json
           created_at?: string
+          crm_contact_claimed_at?: string | null
+          crm_contact_sent_at?: string | null
           funnel_id?: string
           id?: string
           marketing_consent?: boolean
@@ -3897,6 +3903,7 @@ export type Database = {
         Returns: undefined
       }
       call_funnel_crm_claim: { Args: { _id: string }; Returns: boolean }
+      call_funnel_crm_contact_claim: { Args: { _id: string }; Returns: boolean }
       call_funnel_keys: {
         Args: { allowed: string[]; v: Json }
         Returns: boolean
