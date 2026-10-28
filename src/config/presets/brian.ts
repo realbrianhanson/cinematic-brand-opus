@@ -391,6 +391,79 @@ export const brianPreset: SiteConfig = {
       ],
       testimonials: brianCallTestimonials,
     },
+    // Grok Bot setup, done with you or done for you. Stages follow the order
+    // of the work, so the page and the application use the same words.
+    "grok-bot-setup": {
+      chatSummary:
+        "Apply for done-with-you or done-for-you Grok Bot setup: a central brain that works across every A.I. tool you use, an interview about how your business runs and custom Grok Bot templates built for it. Pricing starts at $997. Applicants book a 30-minute call with Alex Ram or Mike Bach on the next page",
+      showResults: true,
+      marketingConsent:
+        "Also send me AI news, updates and related offers by phone, text and email. Optional, not required to apply. Message frequency varies. Reply STOP to opt out",
+      bookingHost: {
+        name: "Alex Ram or Mike Bach",
+        bio: "A strategist from my team runs your call. They'll look at how your business runs, pick the first bots to build and show you how we'd work together",
+      },
+      system: {
+        heading: "How we set up your Grok Bots",
+        intro:
+          "A Grok Bot is only as good as what it knows about your business. So we start with your central brain, learn how you work, then build bots that fit",
+        stages: [
+          {
+            title: "Set up your central brain",
+            text: "One home for your business that every AI tool can use",
+            items: [
+              "Your offers, voice and customers in one place",
+              "Works across every AI tool you use",
+            ],
+          },
+          {
+            title: "Tell us how you work",
+            text: "We interview you about how your business runs, step by step",
+            items: [
+              "Your daily tasks and bottlenecks",
+              "The jobs to hand off first",
+            ],
+          },
+          {
+            title: "Get bots built for your business",
+            text: "Templates made for the way you work",
+            items: [
+              "Custom Grok Bot templates",
+              "Connected to the tools you already use",
+            ],
+          },
+          {
+            title: "Automate the work",
+            text: "Hand the busywork to your bots",
+            items: [
+              "Automations for repeat tasks",
+              "Bots that follow up, research and report",
+            ],
+          },
+          {
+            title: "With you or for you",
+            text: "Learn to run it yourself, or let us handle the build",
+            items: ["Done with you", "Done for you"],
+          },
+        ],
+        note: "Built with the same Grok Bots Brian runs in his own business",
+      },
+      steps: [
+        {
+          title: "Apply",
+          text: "Answer a few questions about your business. It takes about 3 minutes",
+        },
+        {
+          title: "Pick a time",
+          text: "Book a 30-minute call with Alex Ram or Mike Bach on the next page",
+        },
+        {
+          title: "Get your plan",
+          text: "We map your first bots, then walk you through scope, timeline and price",
+        },
+      ],
+      testimonials: brianCallTestimonials,
+    },
   },
 
   footer: {

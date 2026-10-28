@@ -18,6 +18,7 @@ const EXEMPT = new Set([
   "aboutTestimonials.items.quote",
   "speakingTestimonials.items.quote",
   "callShowcases.work-with-brian.testimonials.quote",
+  "callShowcases.grok-bot-setup.testimonials.quote",
 ]);
 
 function copyStrings(value: unknown, path = ""): [string, string][] {
